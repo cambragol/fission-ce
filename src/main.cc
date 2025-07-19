@@ -85,7 +85,6 @@ int falloutMain(int argc, char** argv)
     int skipOpeningMovies;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
     if (skipOpeningMovies < 1) {
-        resizeContent(640, 480);
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);
@@ -194,17 +193,7 @@ int falloutMain(int argc, char** argv)
                 break;
             case MAIN_MENU_OPTIONS:
                 mainMenuWindowHide(true);
-                {
-
-                mainMenuWindowFree();
                 doPreferences(true);
-                    // NOTE: Uninline.
-                    main_unload_new();
-
-                    // NOTE: Uninline.
-                    main_reset_system();
-                }
-                mainMenuWindowInit();
                 break;
             case MAIN_MENU_CREDITS:
                 mainMenuWindowHide(true);
@@ -241,7 +230,7 @@ int falloutMain(int argc, char** argv)
 // 0x480CC0
 static bool falloutInit(int argc, char** argv)
 {
-    // set flag to 1 to initilize _screen_buffer for WINDOW_TRANSPARENT
+    // set flag to 1 to initialize _screen_buffer for WINDOW_TRANSPARENT
     if (gameInitWithOptions("FALLOUT II", false, 0, 1, argc, argv) == -1) {
         return false;
     }
@@ -277,8 +266,6 @@ static int _main_load_new(char* mapFileName)
     gDude->flags &= ~OBJECT_FLAT;
     objectShow(gDude, nullptr);
     mouseHideCursor();
-
-    resizeContent(screenGetWidth(), screenGetHeight(), true);
 
     int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
     windowRefresh(win);
@@ -378,9 +365,6 @@ static void showDeath()
     artCacheFlush();
     colorCycleDisable();
     gameMouseSetCursor(MOUSE_CURSOR_NONE);
-
-    restoreUserAspectPreference();
-    resizeContent(640, 480);
 
     bool oldCursorIsHidden = cursorIsHidden();
     if (oldCursorIsHidden) {
@@ -507,12 +491,6 @@ static void showDeath()
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
 
     colorCycleEnable();
-
-    if (gameIsWidescreen()) {
-        resizeContent(800, 500);
-    } else {
-        resizeContent(640, 480);
-    }
 }
 
 // 0x4814A8

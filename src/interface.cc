@@ -44,12 +44,6 @@ namespace fallout {
 // When displaying series of boxes they appear to be plugged into a chain.
 #define INDICATOR_BOX_CONNECTOR_WIDTH 3
 
-// Minimum radiation amount to display RADIATED indicator.
-#define RADATION_INDICATOR_THRESHOLD 65
-
-// Minimum poison amount to display POISONED indicator.
-#define POISON_INDICATOR_THRESHOLD 0
-
 // The maximum number of indicator boxes the indicator bar can display.
 //
 // For unknown reason this number is 6, even though there are only 5 different
@@ -125,7 +119,7 @@ static int indicatorBoxCompareByPosition(const void* a, const void* b);
 static void indicatorBarRender(int count);
 static bool indicatorBarAdd(int indicator);
 
-static void interfaceBarSize();
+static void customInterfaceBarInit();
 static void customInterfaceBarExit();
 
 static void sidePanelsInit();
@@ -289,11 +283,11 @@ static FrmImage _numbersFrmImage;
 static FrmImage _greenLightFrmImage;
 static FrmImage _yellowLightFrmImage;
 static FrmImage _redLightFrmImage;
-static FrmImage backgroundFrmImage;
 
 int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
-bool gInterfaceBarIsWide = false;
+bool gInterfaceBarIsCustom = false;
+static Art* gCustomInterfaceBarBackground = nullptr;
 
 int gInterfaceSidePanelsImageId = 2;
 bool gInterfaceSidePanelsExtendFromScreenEdge = false;
@@ -310,7 +304,7 @@ int interfaceInit()
         return -1;
     }
 
-    interfaceBarSize();
+    customInterfaceBarInit();
 
     gInterfaceBarActionPointsBarRect = { 316 + gInterfaceBarContentOffset, 14, 406 + gInterfaceBarContentOffset, 19 };
     gInterfaceBarEndButtonsRect = { 580 + gInterfaceBarContentOffset, 38, 637 + gInterfaceBarContentOffset, 96 };
@@ -333,12 +327,18 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, "_800", gInterfaceBarIsWide);
-    if (!backgroundFrmImage.lock(backgroundFid)) {
-        return intface_fatal_error(-1);
-    }
+    if (gInterfaceBarIsCustom) {
+        blitBufferToBuffer(customInterfaceBarGetBackgroundImageData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+    } else {
+        FrmImage backgroundFrmImage;
+        fid = buildFid(OBJ_TYPE_INTERFACE, 16, 0, 0, 0);
+        if (!backgroundFrmImage.lock(fid)) {
+            return intface_fatal_error(-1);
+        }
 
-    blitBufferToBuffer(backgroundFrmImage.getData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+        blitBufferToBuffer(backgroundFrmImage.getData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+        backgroundFrmImage.unlock();
+    }
 
     fid = buildFid(OBJ_TYPE_INTERFACE, 47, 0, 0, 0);
     if (!_inventoryButtonNormalFrmImage.lock(fid)) {
@@ -681,13 +681,14 @@ void interfaceFree()
 
         _inventoryButtonPressedFrmImage.unlock();
         _inventoryButtonNormalFrmImage.unlock();
-        backgroundFrmImage.unlock();
 
         if (gInterfaceBarWindow != -1) {
             windowDestroy(gInterfaceBarWindow);
             gInterfaceBarWindow = -1;
         }
     }
+
+    customInterfaceBarExit();
 
     interfaceBarFree();
 }
@@ -702,20 +703,16 @@ int interfaceLoad(File* stream)
     }
 
     bool interfaceBarEnabled;
-    if (fileReadBool(stream, &interfaceBarEnabled) == -1)
-        return -1;
+    if (fileReadBool(stream, &interfaceBarEnabled) == -1) return -1;
 
     bool interfaceBarHidden;
-    if (fileReadBool(stream, &interfaceBarHidden) == -1)
-        return -1;
+    if (fileReadBool(stream, &interfaceBarHidden) == -1) return -1;
 
     int interfaceCurrentHand;
-    if (fileReadInt32(stream, &interfaceCurrentHand) == -1)
-        return -1;
+    if (fileReadInt32(stream, &interfaceCurrentHand) == -1) return -1;
 
     bool interfaceBarEndButtonsIsVisible;
-    if (fileReadBool(stream, &interfaceBarEndButtonsIsVisible) == -1)
-        return -1;
+    if (fileReadBool(stream, &interfaceBarEndButtonsIsVisible) == -1) return -1;
 
     if (!gInterfaceBarEnabled) {
         interfaceBarEnable();
@@ -761,14 +758,10 @@ int interfaceSave(File* stream)
         return -1;
     }
 
-    if (fileWriteBool(stream, gInterfaceBarEnabled) == -1)
-        return -1;
-    if (fileWriteBool(stream, gInterfaceBarHidden) == -1)
-        return -1;
-    if (fileWriteInt32(stream, gInterfaceCurrentHand) == -1)
-        return -1;
-    if (fileWriteBool(stream, gInterfaceBarEndButtonsIsVisible) == -1)
-        return -1;
+    if (fileWriteBool(stream, gInterfaceBarEnabled) == -1) return -1;
+    if (fileWriteBool(stream, gInterfaceBarHidden) == -1) return -1;
+    if (fileWriteInt32(stream, gInterfaceCurrentHand) == -1) return -1;
+    if (fileWriteBool(stream, gInterfaceBarEndButtonsIsVisible) == -1) return -1;
 
     return 0;
 }
@@ -2481,16 +2474,44 @@ bool indicatorBarHide()
     return oldIsVisible;
 }
 
-static void interfaceBarSize()
+static void customInterfaceBarInit()
 {
-    if (screenGetWidth() > 640 && gInterfaceBarWidth <= screenGetWidth()) {
-        gInterfaceBarContentOffset = gInterfaceBarWidth - 640;
-        gInterfaceBarIsWide = true;
+    gInterfaceBarContentOffset = gInterfaceBarWidth - 640;
+    if (gInterfaceBarContentOffset > 0) {
+        if (screenGetWidth() > 640 && gInterfaceBarWidth <= screenGetWidth()) {
+            char path[COMPAT_MAX_PATH];
+            snprintf(path, sizeof(path), "art\\intrface\\HR_IFACE_%d.FRM", gInterfaceBarWidth);
+
+            gCustomInterfaceBarBackground = artLoad(path);
+        } else {
+            debugPrint("\nINTRFACE: Custom interface bar width (%d) is greater than screen width (%d). Using default interface bar.\n", gInterfaceBarWidth, screenGetWidth());
+        }
+    }
+
+    if (gCustomInterfaceBarBackground != nullptr) {
+        gInterfaceBarIsCustom = true;
     } else {
         gInterfaceBarContentOffset = 0;
         gInterfaceBarWidth = 640;
-        gInterfaceBarIsWide = false;
+        gInterfaceBarIsCustom = false;
     }
+}
+
+static void customInterfaceBarExit()
+{
+    if (gCustomInterfaceBarBackground != nullptr) {
+        internal_free(gCustomInterfaceBarBackground);
+        gCustomInterfaceBarBackground = nullptr;
+    }
+}
+
+unsigned char* customInterfaceBarGetBackgroundImageData()
+{
+    if (!gInterfaceBarIsCustom) {
+        return nullptr;
+    }
+
+    return artGetFrameData(gCustomInterfaceBarBackground, 0, 0);
 }
 
 static void sidePanelsInit()

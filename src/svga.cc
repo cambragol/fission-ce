@@ -11,8 +11,6 @@
 #include "memory.h"
 #include "mouse.h"
 #include "scan_unimplemented.h"
-#include "settings.h"
-#include "sfall_config.h"
 #include "win32.h"
 #include "window_manager.h"
 #include "window_manager_private.h"
@@ -21,14 +19,6 @@ namespace fallout {
 
 static bool createRenderer(int width, int height);
 static void destroyRenderer();
-
-bool gStretchEnabled = false;
-static bool gPreserveAspect = true; // used internally for stretching
-static bool gUserAspectPreference = true; // store user preference for restore
-bool gHighQuality = true; // maybe false by default
-
-static int gContentWidth = 800;
-static int gContentHeight = 500;
 
 // screen rect
 Rect _scr_size;
@@ -109,37 +99,67 @@ void _zero_vid_mem()
     }
 }
 
-void restoreUserAspectPreference()
-{
-    gPreserveAspect = gUserAspectPreference;
-}
-
-bool gameIsWidescreen()
-{
-    return (settings.graphics.game_width >= 800 && settings.graphics.game_height >= 500 && settings.graphics.widescreen);
-}
-
 // 0x4CAE1C
 int _GNW95_init_mode_ex(int width, int height, int bpp)
 {
     bool fullscreen = true;
+    int scale = 1;
 
-    width = settings.graphics.game_width;
-    height = settings.graphics.game_height;
-    fullscreen = settings.graphics.fullscreen;
+    Config resolutionConfig;
+    if (configInit(&resolutionConfig)) {
+        if (configRead(&resolutionConfig, "f2_res.ini", false)) {
+            int screenWidth;
+            if (configGetInt(&resolutionConfig, "MAIN", "SCR_WIDTH", &screenWidth)) {
+                width = screenWidth;
+            }
 
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_MODE, &gInterfaceBarMode);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, &gInterfaceBarWidth);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, &gInterfaceSidePanelsImageId);
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, &gInterfaceSidePanelsExtendFromScreenEdge);
+            int screenHeight;
+            if (configGetInt(&resolutionConfig, "MAIN", "SCR_HEIGHT", &screenHeight)) {
+                height = screenHeight;
+            }
 
-    // setting for stretching - later
-    gStretchEnabled = settings.graphics.stretch_enabled;
-    gPreserveAspect = settings.graphics.preserve_aspect;
-    gUserAspectPreference = settings.graphics.preserve_aspect; // back up the user preference for restoring after using game screen
-    gHighQuality = settings.graphics.high_quality;
+            bool windowed;
+            if (configGetBool(&resolutionConfig, "MAIN", "WINDOWED", &windowed)) {
+                fullscreen = !windowed;
+            }
 
-    if (_GNW95_init_window(width, height, fullscreen) == -1) {
+            int scaleValue;
+            if (configGetInt(&resolutionConfig, "MAIN", "SCALE_2X", &scaleValue)) {
+                scale = scaleValue + 1; // 0 = 1x, 1 = 2x
+                // Only allow scaling if resulting game resolution is >= 640x480
+                if ((width / scale) < 640 || (height / scale) < 480) {
+                    scale = 1;
+                } else {
+                    width /= scale;
+                    height /= scale;
+                }
+            }
+
+            configGetBool(&resolutionConfig, "IFACE", "IFACE_BAR_MODE", &gInterfaceBarMode);
+            configGetInt(&resolutionConfig, "IFACE", "IFACE_BAR_WIDTH", &gInterfaceBarWidth);
+            configGetInt(&resolutionConfig, "IFACE", "IFACE_BAR_SIDE_ART", &gInterfaceSidePanelsImageId);
+            configGetBool(&resolutionConfig, "IFACE", "IFACE_BAR_SIDES_ORI", &gInterfaceSidePanelsExtendFromScreenEdge);
+
+            {
+                ConfigMap f2_res_defaults;
+                f2_res_defaults["MAIN"]["SCR_WIDTH"] = "640";
+                f2_res_defaults["MAIN"]["SCR_HEIGHT"] = "480";
+                f2_res_defaults["MAIN"]["WINDOWED"] = "0";
+                f2_res_defaults["MAIN"]["SCALE_2X"] = "0";
+                f2_res_defaults["IFACE"]["IFACE_BAR_MODE"] = "0";
+                f2_res_defaults["IFACE"]["IFACE_BAR_WIDTH"] = "0";
+                f2_res_defaults["IFACE"]["IFACE_BAR_SIDE_ART"] = "0";
+                f2_res_defaults["IFACE"]["IFACE_BAR_SIDES_ORI"] = "0";
+                f2_res_defaults["STATIC_SCREENS"]["SPLASH_SCRN_SIZE"] = "0";
+
+                auto configChecker = ConfigChecker(f2_res_defaults, "f2_res.ini");
+                configChecker.check(resolutionConfig);
+            }
+        }
+        configFree(&resolutionConfig);
+    }
+
+    if (_GNW95_init_window(width, height, fullscreen, scale) == -1) {
         return -1;
     }
 
@@ -176,7 +196,7 @@ int _init_vesa_mode(int width, int height)
 }
 
 // 0x4CAEDC
-int _GNW95_init_window(int width, int height, bool fullscreen)
+int _GNW95_init_window(int width, int height, bool fullscreen, int scale)
 {
     if (gSdlWindow == nullptr) {
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -184,17 +204,13 @@ int _GNW95_init_window(int width, int height, bool fullscreen)
         Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
 
         if (fullscreen) {
-            windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+            windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
 
-        gSdlWindow = SDL_CreateWindow(gProgramWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, windowFlags);
+        gSdlWindow = SDL_CreateWindow(gProgramWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * scale, height * scale, windowFlags);
         if (gSdlWindow == nullptr) {
             return -1;
         }
-        int actualWidth = 0, actualHeight = 0;
-        SDL_GetWindowSize(gSdlWindow, &actualWidth, &actualHeight);
-
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, gHighQuality ? "1" : "0");
 
         if (!createRenderer(width, height)) {
             destroyRenderer();
@@ -371,32 +387,22 @@ static bool createRenderer(int width, int height)
         return false;
     }
 
+    if (SDL_RenderSetLogicalSize(gSdlRenderer, width, height) != 0) {
+        return false;
+    }
+
     gSdlTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if (gSdlTexture == nullptr) {
-        SDL_DestroyRenderer(gSdlRenderer);
-        gSdlRenderer = nullptr;
         return false;
     }
 
     Uint32 format;
     if (SDL_QueryTexture(gSdlTexture, &format, nullptr, nullptr, nullptr) != 0) {
-        SDL_DestroyTexture(gSdlTexture);
-        SDL_DestroyRenderer(gSdlRenderer);
-        gSdlTexture = nullptr;
-        gSdlRenderer = nullptr;
         return false;
-    }
-
-    if (gSdlTextureSurface != nullptr) {
-        SDL_FreeSurface(gSdlTextureSurface);
     }
 
     gSdlTextureSurface = SDL_CreateRGBSurfaceWithFormat(0, width, height, SDL_BITSPERPIXEL(format), format);
     if (gSdlTextureSurface == nullptr) {
-        SDL_DestroyTexture(gSdlTexture);
-        SDL_DestroyRenderer(gSdlRenderer);
-        gSdlTexture = nullptr;
-        gSdlRenderer = nullptr;
         return false;
     }
 
@@ -423,137 +429,15 @@ static void destroyRenderer()
 
 void handleWindowSizeChanged()
 {
-    static bool isResizing = false;
-    if (isResizing) return;
-    isResizing = true;
-
-    // Save palette by copying data (not just pointer)
-    unsigned char* originalPalette = directDrawGetPalette();
-    unsigned char paletteCopy[256 * 3];  // Standard 8-bit palette size
-    if (originalPalette) {
-        memcpy(paletteCopy, originalPalette, sizeof(paletteCopy));
-    }
-
-    // Tear down existing renderer
     destroyRenderer();
-    directDrawFree();
-
-    // Resize window (no error check possible - SDL doesn't return status)
-    int newWidth = settings.graphics.game_width;
-    int newHeight = settings.graphics.game_height;
-    SDL_SetWindowSize(gSdlWindow, newWidth, newHeight);
-    _scr_size = { 0, 0, newWidth - 1, newHeight - 1 };
-
-    // Reinitialize drawing surface
-    directDrawInit(newWidth, newHeight, 8);
-    _zero_vid_mem();
-
-    // Restore palette if we had one
-    if (originalPalette) {
-        directDrawSetPalette(paletteCopy);
-    }
-
-    // Recreate renderer
-    createRenderer(newWidth, newHeight);
-    
-    isResizing = false;
-}
-
-void resizeContent(int width, int height)
-{
-    gContentWidth = width;
-    gContentHeight = height;
-    renderPresent();
-}
-
-void resizeContent(int width, int height, bool preserveAspect)
-{
-    gContentWidth = width;
-    gContentHeight = height;
-    gPreserveAspect = preserveAspect;
-    renderPresent();
+    createRenderer(screenGetWidth(), screenGetHeight());
 }
 
 void renderPresent()
 {
-    // Get physical pixel size of the window (DPI-aware)
-    int renderW, renderH;
-    SDL_GetRendererOutputSize(gSdlRenderer, &renderW, &renderH);
-
-    // Get logical window size
-    int windowW, windowH;
-    SDL_GetWindowSize(gSdlWindow, &windowW, &windowH);
-
-    float scaleX = (float)renderW / windowW;
-    float scaleY = (float)renderH / windowH;
-
-    // Get logical rendering size fallback
-    int logicalW, logicalH;
-    SDL_RenderGetLogicalSize(gSdlRenderer, &logicalW, &logicalH);
-    if (logicalW == 0)
-        logicalW = gContentWidth;
-    if (logicalH == 0)
-        logicalH = gContentHeight;
-
-    SDL_Rect srcRect, destRect;
-
-    if (gStretchEnabled) {
-
-        int contentOffsetX = (gSdlTextureSurface->w - gContentWidth) / 2;
-        int contentOffsetY = (gSdlTextureSurface->h - gContentHeight) / 2;
-
-        srcRect = {
-            contentOffsetX,
-            contentOffsetY,
-            gContentWidth,
-            gContentHeight
-        };
-
-        if (gPreserveAspect) {
-            float contentAspect = (float)gContentWidth / gContentHeight;
-            float windowAspect = (float)renderW / renderH;
-
-            if (windowAspect > contentAspect) {
-                destRect.h = renderH;
-                destRect.w = (int)(renderH * contentAspect);
-                destRect.x = (renderW - destRect.w) / 2;
-                destRect.y = 0;
-            } else {
-                destRect.w = renderW;
-                destRect.h = (int)(renderW / contentAspect);
-                destRect.x = 0;
-                destRect.y = (renderH - destRect.h) / 2;
-            }
-        } else {
-            // Stretch to fill entire window (without aspect ratio preserved)
-            destRect = { 0, 0, renderW, renderH };
-        }
-
-        SDL_UpdateTexture(gSdlTexture, &srcRect,
-            (uint8_t*)gSdlTextureSurface->pixels + contentOffsetY * gSdlTextureSurface->pitch + contentOffsetX * 4,
-            gSdlTextureSurface->pitch);
-
-    } else {
-        // Stretching disabled — display original size scaled for DPI, centered
-
-        srcRect = { 0, 0, gSdlTextureSurface->w, gSdlTextureSurface->h };
-
-        destRect = {
-            (renderW - (int)(gSdlTextureSurface->w * scaleX)) / 2,
-            (renderH - (int)(gSdlTextureSurface->h * scaleY)) / 2,
-            (int)(gSdlTextureSurface->w * scaleX),
-            (int)(gSdlTextureSurface->h * scaleY)
-        };
-
-        SDL_UpdateTexture(gSdlTexture, nullptr,
-            gSdlTextureSurface->pixels,
-            gSdlTextureSurface->pitch);
-    }
-
-    SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 255, 255);
+    SDL_UpdateTexture(gSdlTexture, nullptr, gSdlTextureSurface->pixels, gSdlTextureSurface->pitch);
     SDL_RenderClear(gSdlRenderer);
-
-    SDL_RenderCopy(gSdlRenderer, gSdlTexture, &srcRect, &destRect);
+    SDL_RenderCopy(gSdlRenderer, gSdlTexture, nullptr, nullptr);
     SDL_RenderPresent(gSdlRenderer);
 }
 
