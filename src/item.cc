@@ -2893,8 +2893,10 @@ int drugEffectEventRead(File* stream, void** dataPtr)
         return -1;
     }
 
-    if (fileReadInt32List(stream, drugEffectEvent->stats, 3) == -1) goto err;
-    if (fileReadInt32List(stream, drugEffectEvent->modifiers, 3) == -1) goto err;
+    if (fileReadInt32List(stream, drugEffectEvent->stats, 3) == -1)
+        goto err;
+    if (fileReadInt32List(stream, drugEffectEvent->modifiers, 3) == -1)
+        goto err;
 
     *dataPtr = drugEffectEvent;
     return 0;
@@ -2910,8 +2912,10 @@ int drugEffectEventWrite(File* stream, void* data)
 {
     DrugEffectEvent* drugEffectEvent = (DrugEffectEvent*)data;
 
-    if (fileWriteInt32List(stream, drugEffectEvent->stats, 3) == -1) return -1;
-    if (fileWriteInt32List(stream, drugEffectEvent->modifiers, 3) == -1) return -1;
+    if (fileWriteInt32List(stream, drugEffectEvent->stats, 3) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, drugEffectEvent->modifiers, 3) == -1)
+        return -1;
 
     return 0;
 }
@@ -3013,9 +3017,12 @@ int withdrawalEventRead(File* stream, void** dataPtr)
         return -1;
     }
 
-    if (fileReadInt32(stream, &(withdrawalEvent->active)) == -1) goto err;
-    if (fileReadInt32(stream, &(withdrawalEvent->pid)) == -1) goto err;
-    if (fileReadInt32(stream, &(withdrawalEvent->perk)) == -1) goto err;
+    if (fileReadInt32(stream, &(withdrawalEvent->active)) == -1)
+        goto err;
+    if (fileReadInt32(stream, &(withdrawalEvent->pid)) == -1)
+        goto err;
+    if (fileReadInt32(stream, &(withdrawalEvent->perk)) == -1)
+        goto err;
 
     *dataPtr = withdrawalEvent;
     return 0;
@@ -3031,9 +3038,12 @@ int withdrawalEventWrite(File* stream, void* data)
 {
     WithdrawalEvent* withdrawalEvent = (WithdrawalEvent*)data;
 
-    if (fileWriteInt32(stream, withdrawalEvent->active) == -1) return -1;
-    if (fileWriteInt32(stream, withdrawalEvent->pid) == -1) return -1;
-    if (fileWriteInt32(stream, withdrawalEvent->perk) == -1) return -1;
+    if (fileWriteInt32(stream, withdrawalEvent->active) == -1)
+        return -1;
+    if (fileWriteInt32(stream, withdrawalEvent->pid) == -1)
+        return -1;
+    if (fileWriteInt32(stream, withdrawalEvent->perk) == -1)
+        return -1;
 
     return 0;
 }
@@ -3330,13 +3340,16 @@ static void booksInitCustom()
                     snprintf(sectionKey, sizeof(sectionKey), "%d", index + 1);
 
                     int bookPid;
-                    if (!configGetInt(&booksConfig, sectionKey, "PID", &bookPid)) continue;
+                    if (!configGetInt(&booksConfig, sectionKey, "PID", &bookPid))
+                        continue;
 
                     int messageId;
-                    if (!configGetInt(&booksConfig, sectionKey, "TextID", &messageId)) continue;
+                    if (!configGetInt(&booksConfig, sectionKey, "TextID", &messageId))
+                        continue;
 
                     int skill;
-                    if (!configGetInt(&booksConfig, sectionKey, "Skill", &skill)) continue;
+                    if (!configGetInt(&booksConfig, sectionKey, "Skill", &skill))
+                        continue;
 
                     booksAdd(bookPid, messageId, skill);
                 }
@@ -3439,11 +3452,14 @@ void explosiveAdd(int pid, int activePid, int minDamage, int maxDamage)
 
 bool explosiveIsExplosive(int pid)
 {
-    if (pid == PROTO_ID_DYNAMITE_I) return true;
-    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_I) return true;
+    if (pid == PROTO_ID_DYNAMITE_I)
+        return true;
+    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_I)
+        return true;
 
     for (const auto& explosive : gExplosives) {
-        if (explosive.pid == pid) return true;
+        if (explosive.pid == pid)
+            return true;
     }
 
     return false;
@@ -3451,11 +3467,14 @@ bool explosiveIsExplosive(int pid)
 
 bool explosiveIsActiveExplosive(int pid)
 {
-    if (pid == PROTO_ID_DYNAMITE_II) return true;
-    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_II) return true;
+    if (pid == PROTO_ID_DYNAMITE_II)
+        return true;
+    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_II)
+        return true;
 
     for (const auto& explosive : gExplosives) {
-        if (explosive.activePid == pid) return true;
+        if (explosive.activePid == pid)
+            return true;
     }
 
     return false;

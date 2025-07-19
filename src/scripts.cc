@@ -827,8 +827,10 @@ int scriptEventWrite(File* stream, void* data)
 {
     ScriptEvent* scriptEvent = (ScriptEvent*)data;
 
-    if (fileWriteInt32(stream, scriptEvent->sid) == -1) return -1;
-    if (fileWriteInt32(stream, scriptEvent->fixedParam) == -1) return -1;
+    if (fileWriteInt32(stream, scriptEvent->sid) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scriptEvent->fixedParam) == -1)
+        return -1;
 
     return 0;
 }
@@ -841,8 +843,10 @@ int scriptEventRead(File* stream, void** dataPtr)
         return -1;
     }
 
-    if (fileReadInt32(stream, &(scriptEvent->sid)) == -1) goto err;
-    if (fileReadInt32(stream, &(scriptEvent->fixedParam)) == -1) goto err;
+    if (fileReadInt32(stream, &(scriptEvent->sid)) == -1)
+        goto err;
+    if (fileReadInt32(stream, &(scriptEvent->fixedParam)) == -1)
+        goto err;
 
     *dataPtr = scriptEvent;
 
@@ -1806,34 +1810,53 @@ static int _scr_header_load()
 // 0x4A5590
 static int scriptWrite(Script* scr, File* stream)
 {
-    if (fileWriteInt32(stream, scr->sid) == -1) return -1;
-    if (fileWriteInt32(stream, scr->field_4) == -1) return -1;
+    if (fileWriteInt32(stream, scr->sid) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->field_4) == -1)
+        return -1;
 
     switch (SID_TYPE(scr->sid)) {
     case SCRIPT_TYPE_SPATIAL:
-        if (fileWriteInt32(stream, scr->sp.built_tile) == -1) return -1;
-        if (fileWriteInt32(stream, scr->sp.radius) == -1) return -1;
+        if (fileWriteInt32(stream, scr->sp.built_tile) == -1)
+            return -1;
+        if (fileWriteInt32(stream, scr->sp.radius) == -1)
+            return -1;
         break;
     case SCRIPT_TYPE_TIMED:
-        if (fileWriteInt32(stream, scr->tm.time) == -1) return -1;
+        if (fileWriteInt32(stream, scr->tm.time) == -1)
+            return -1;
         break;
     }
 
-    if (fileWriteInt32(stream, scr->flags) == -1) return -1;
-    if (fileWriteInt32(stream, scr->index) == -1) return -1;
+    if (fileWriteInt32(stream, scr->flags) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->index) == -1)
+        return -1;
     // NOTE: Original code writes `scr->program` pointer which is meaningless.
-    if (fileWriteInt32(stream, 0) == -1) return -1;
-    if (fileWriteInt32(stream, scr->ownerId) == -1) return -1;
-    if (fileWriteInt32(stream, scr->localVarsOffset) == -1) return -1;
-    if (fileWriteInt32(stream, scr->localVarsCount) == -1) return -1;
-    if (fileWriteInt32(stream, scr->returnValue) == -1) return -1;
-    if (fileWriteInt32(stream, scr->action) == -1) return -1;
-    if (fileWriteInt32(stream, scr->fixedParam) == -1) return -1;
-    if (fileWriteInt32(stream, scr->actionBeingUsed) == -1) return -1;
-    if (fileWriteInt32(stream, scr->scriptOverrides) == -1) return -1;
-    if (fileWriteInt32(stream, scr->field_48) == -1) return -1;
-    if (fileWriteInt32(stream, scr->howMuch) == -1) return -1;
-    if (fileWriteInt32(stream, scr->field_50) == -1) return -1;
+    if (fileWriteInt32(stream, 0) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->ownerId) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->localVarsOffset) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->localVarsCount) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->returnValue) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->action) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->fixedParam) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->actionBeingUsed) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->scriptOverrides) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->field_48) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->howMuch) == -1)
+        return -1;
+    if (fileWriteInt32(stream, scr->field_50) == -1)
+        return -1;
 
     return 0;
 }
@@ -1960,33 +1983,52 @@ static int scriptRead(Script* scr, File* stream)
 {
     int prg;
 
-    if (fileReadInt32(stream, &(scr->sid)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->field_4)) == -1) return -1;
+    if (fileReadInt32(stream, &(scr->sid)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->field_4)) == -1)
+        return -1;
 
     switch (SID_TYPE(scr->sid)) {
     case SCRIPT_TYPE_SPATIAL:
-        if (fileReadInt32(stream, &(scr->sp.built_tile)) == -1) return -1;
-        if (fileReadInt32(stream, &(scr->sp.radius)) == -1) return -1;
+        if (fileReadInt32(stream, &(scr->sp.built_tile)) == -1)
+            return -1;
+        if (fileReadInt32(stream, &(scr->sp.radius)) == -1)
+            return -1;
         break;
     case SCRIPT_TYPE_TIMED:
-        if (fileReadInt32(stream, &(scr->tm.time)) == -1) return -1;
+        if (fileReadInt32(stream, &(scr->tm.time)) == -1)
+            return -1;
         break;
     }
 
-    if (fileReadInt32(stream, &(scr->flags)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->index)) == -1) return -1;
-    if (fileReadInt32(stream, &(prg)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->ownerId)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->localVarsOffset)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->localVarsCount)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->returnValue)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->action)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->fixedParam)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->actionBeingUsed)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->scriptOverrides)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->field_48)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->howMuch)) == -1) return -1;
-    if (fileReadInt32(stream, &(scr->field_50)) == -1) return -1;
+    if (fileReadInt32(stream, &(scr->flags)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->index)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(prg)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->ownerId)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->localVarsOffset)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->localVarsCount)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->returnValue)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->action)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->fixedParam)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->actionBeingUsed)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->scriptOverrides)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->field_48)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->howMuch)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(scr->field_50)) == -1)
+        return -1;
 
     scr->program = nullptr;
     scr->owner = nullptr;

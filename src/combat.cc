@@ -2092,7 +2092,8 @@ int _find_cid(int a1, int cid, Object** critterList, int critterListLength)
 // 0x420E4C
 int combatLoad(File* stream)
 {
-    if (fileReadUInt32(stream, &gCombatState) == -1) return -1;
+    if (fileReadUInt32(stream, &gCombatState) == -1)
+        return -1;
 
     if (!isInCombat()) {
         Object* obj = objectFindFirst();
@@ -2107,19 +2108,26 @@ int combatLoad(File* stream)
         return 0;
     }
 
-    if (fileReadInt32(stream, &_combat_turn_running) == -1) return -1;
-    if (fileReadInt32(stream, &_combat_free_move) == -1) return -1;
-    if (fileReadInt32(stream, &_combat_exps) == -1) return -1;
-    if (fileReadInt32(stream, &_list_com) == -1) return -1;
-    if (fileReadInt32(stream, &_list_noncom) == -1) return -1;
-    if (fileReadInt32(stream, &_list_total) == -1) return -1;
+    if (fileReadInt32(stream, &_combat_turn_running) == -1)
+        return -1;
+    if (fileReadInt32(stream, &_combat_free_move) == -1)
+        return -1;
+    if (fileReadInt32(stream, &_combat_exps) == -1)
+        return -1;
+    if (fileReadInt32(stream, &_list_com) == -1)
+        return -1;
+    if (fileReadInt32(stream, &_list_noncom) == -1)
+        return -1;
+    if (fileReadInt32(stream, &_list_total) == -1)
+        return -1;
 
     if (objectListCreate(-1, gElevation, OBJ_TYPE_CRITTER, &_combat_list) != _list_total) {
         objectListFree(_combat_list);
         return -1;
     }
 
-    if (fileReadInt32(stream, &(gDude->cid)) == -1) return -1;
+    if (fileReadInt32(stream, &(gDude->cid)) == -1)
+        return -1;
 
     for (int index = 0; index < _list_total; index++) {
         if (_combat_list[index]->data.critter.combat.whoHitMeCid == -1) {
@@ -2137,7 +2145,8 @@ int combatLoad(File* stream)
 
     for (int index = 0; index < _list_total; index++) {
         int cid;
-        if (fileReadInt32(stream, &cid) == -1) return -1;
+        if (fileReadInt32(stream, &cid) == -1)
+            return -1;
 
         // NOTE: Uninline.
         int found = _find_cid(index, cid, _combat_list, _list_total);
@@ -2167,7 +2176,8 @@ int combatLoad(File* stream)
         CombatAiInfo* aiInfo = &(_aiInfoList[index]);
 
         int friendlyId;
-        if (fileReadInt32(stream, &friendlyId) == -1) return -1;
+        if (fileReadInt32(stream, &friendlyId) == -1)
+            return -1;
 
         if (friendlyId == -1) {
             aiInfo->friendlyDead = nullptr;
@@ -2175,11 +2185,13 @@ int combatLoad(File* stream)
             // SFALL: Fix incorrect object type search when loading a game in
             // combat mode.
             aiInfo->friendlyDead = objectTypedFindById(friendlyId, OBJ_TYPE_CRITTER);
-            if (aiInfo->friendlyDead == nullptr) return -1;
+            if (aiInfo->friendlyDead == nullptr)
+                return -1;
         }
 
         int targetId;
-        if (fileReadInt32(stream, &targetId) == -1) return -1;
+        if (fileReadInt32(stream, &targetId) == -1)
+            return -1;
 
         if (targetId == -1) {
             aiInfo->lastTarget = nullptr;
@@ -2187,11 +2199,13 @@ int combatLoad(File* stream)
             // SFALL: Fix incorrect object type search when loading a game in
             // combat mode.
             aiInfo->lastTarget = objectTypedFindById(targetId, OBJ_TYPE_CRITTER);
-            if (aiInfo->lastTarget == nullptr) return -1;
+            if (aiInfo->lastTarget == nullptr)
+                return -1;
         }
 
         int itemId;
-        if (fileReadInt32(stream, &itemId) == -1) return -1;
+        if (fileReadInt32(stream, &itemId) == -1)
+            return -1;
 
         if (itemId == -1) {
             aiInfo->lastItem = nullptr;
@@ -2199,10 +2213,12 @@ int combatLoad(File* stream)
             // SFALL: Fix incorrect object type search when loading a game in
             // combat mode.
             aiInfo->lastItem = objectTypedFindById(itemId, OBJ_TYPE_ITEM);
-            if (aiInfo->lastItem == nullptr) return -1;
+            if (aiInfo->lastItem == nullptr)
+                return -1;
         }
 
-        if (fileReadInt32(stream, &(aiInfo->lastMove)) == -1) return -1;
+        if (fileReadInt32(stream, &(aiInfo->lastMove)) == -1)
+            return -1;
     }
 
     _combat_begin_extra(gDude);
@@ -2213,20 +2229,30 @@ int combatLoad(File* stream)
 // 0x421244
 int combatSave(File* stream)
 {
-    if (fileWriteInt32(stream, gCombatState) == -1) return -1;
+    if (fileWriteInt32(stream, gCombatState) == -1)
+        return -1;
 
-    if (!isInCombat()) return 0;
+    if (!isInCombat())
+        return 0;
 
-    if (fileWriteInt32(stream, _combat_turn_running) == -1) return -1;
-    if (fileWriteInt32(stream, _combat_free_move) == -1) return -1;
-    if (fileWriteInt32(stream, _combat_exps) == -1) return -1;
-    if (fileWriteInt32(stream, _list_com) == -1) return -1;
-    if (fileWriteInt32(stream, _list_noncom) == -1) return -1;
-    if (fileWriteInt32(stream, _list_total) == -1) return -1;
-    if (fileWriteInt32(stream, gDude->cid) == -1) return -1;
+    if (fileWriteInt32(stream, _combat_turn_running) == -1)
+        return -1;
+    if (fileWriteInt32(stream, _combat_free_move) == -1)
+        return -1;
+    if (fileWriteInt32(stream, _combat_exps) == -1)
+        return -1;
+    if (fileWriteInt32(stream, _list_com) == -1)
+        return -1;
+    if (fileWriteInt32(stream, _list_noncom) == -1)
+        return -1;
+    if (fileWriteInt32(stream, _list_total) == -1)
+        return -1;
+    if (fileWriteInt32(stream, gDude->cid) == -1)
+        return -1;
 
     for (int index = 0; index < _list_total; index++) {
-        if (fileWriteInt32(stream, _combat_list[index]->cid) == -1) return -1;
+        if (fileWriteInt32(stream, _combat_list[index]->cid) == -1)
+            return -1;
     }
 
     if (_aiInfoList == nullptr) {
@@ -2236,10 +2262,14 @@ int combatSave(File* stream)
     for (int index = 0; index < _list_total; index++) {
         CombatAiInfo* aiInfo = &(_aiInfoList[index]);
 
-        if (fileWriteInt32(stream, aiInfo->friendlyDead != nullptr ? aiInfo->friendlyDead->id : -1) == -1) return -1;
-        if (fileWriteInt32(stream, aiInfo->lastTarget != nullptr ? aiInfo->lastTarget->id : -1) == -1) return -1;
-        if (fileWriteInt32(stream, aiInfo->lastItem != nullptr ? aiInfo->lastItem->id : -1) == -1) return -1;
-        if (fileWriteInt32(stream, aiInfo->lastMove) == -1) return -1;
+        if (fileWriteInt32(stream, aiInfo->friendlyDead != nullptr ? aiInfo->friendlyDead->id : -1) == -1)
+            return -1;
+        if (fileWriteInt32(stream, aiInfo->lastTarget != nullptr ? aiInfo->lastTarget->id : -1) == -1)
+            return -1;
+        if (fileWriteInt32(stream, aiInfo->lastItem != nullptr ? aiInfo->lastItem->id : -1) == -1)
+            return -1;
+        if (fileWriteInt32(stream, aiInfo->lastMove) == -1)
+            return -1;
     }
 
     return 0;

@@ -651,8 +651,10 @@ int radiationEventRead(File* stream, void** dataPtr)
         return -1;
     }
 
-    if (fileReadInt32(stream, &(radiationEvent->radiationLevel)) == -1) goto err;
-    if (fileReadInt32(stream, &(radiationEvent->isHealing)) == -1) goto err;
+    if (fileReadInt32(stream, &(radiationEvent->radiationLevel)) == -1)
+        goto err;
+    if (fileReadInt32(stream, &(radiationEvent->isHealing)) == -1)
+        goto err;
 
     *dataPtr = radiationEvent;
     return 0;
@@ -668,8 +670,10 @@ int radiationEventWrite(File* stream, void* data)
 {
     RadiationEvent* radiationEvent = (RadiationEvent*)data;
 
-    if (fileWriteInt32(stream, radiationEvent->radiationLevel) == -1) return -1;
-    if (fileWriteInt32(stream, radiationEvent->isHealing) == -1) return -1;
+    if (fileWriteInt32(stream, radiationEvent->radiationLevel) == -1)
+        return -1;
+    if (fileWriteInt32(stream, radiationEvent->isHealing) == -1)
+        return -1;
 
     return 0;
 }
@@ -1063,13 +1067,20 @@ int gcdLoad(const char* path)
 // 0x42DF70
 int protoCritterDataRead(File* stream, CritterProtoData* critterData)
 {
-    if (fileReadInt32(stream, &(critterData->flags)) == -1) return -1;
-    if (fileReadInt32List(stream, critterData->baseStats, SAVEABLE_STAT_COUNT) == -1) return -1;
-    if (fileReadInt32List(stream, critterData->bonusStats, SAVEABLE_STAT_COUNT) == -1) return -1;
-    if (fileReadInt32List(stream, critterData->skills, SKILL_COUNT) == -1) return -1;
-    if (fileReadInt32(stream, &(critterData->bodyType)) == -1) return -1;
-    if (fileReadInt32(stream, &(critterData->experience)) == -1) return -1;
-    if (fileReadInt32(stream, &(critterData->killType)) == -1) return -1;
+    if (fileReadInt32(stream, &(critterData->flags)) == -1)
+        return -1;
+    if (fileReadInt32List(stream, critterData->baseStats, SAVEABLE_STAT_COUNT) == -1)
+        return -1;
+    if (fileReadInt32List(stream, critterData->bonusStats, SAVEABLE_STAT_COUNT) == -1)
+        return -1;
+    if (fileReadInt32List(stream, critterData->skills, SKILL_COUNT) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(critterData->bodyType)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(critterData->experience)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(critterData->killType)) == -1)
+        return -1;
 
     // NOTE: For unknown reason damage type is not present in two protos: Sentry
     // Bot and Weak Brahmin. These two protos are 412 bytes, not 416.
@@ -1130,14 +1141,22 @@ int gcdSave(const char* path)
 // 0x42E174
 int protoCritterDataWrite(File* stream, CritterProtoData* critterData)
 {
-    if (fileWriteInt32(stream, critterData->flags) == -1) return -1;
-    if (fileWriteInt32List(stream, critterData->baseStats, SAVEABLE_STAT_COUNT) == -1) return -1;
-    if (fileWriteInt32List(stream, critterData->bonusStats, SAVEABLE_STAT_COUNT) == -1) return -1;
-    if (fileWriteInt32List(stream, critterData->skills, SKILL_COUNT) == -1) return -1;
-    if (fileWriteInt32(stream, critterData->bodyType) == -1) return -1;
-    if (fileWriteInt32(stream, critterData->experience) == -1) return -1;
-    if (fileWriteInt32(stream, critterData->killType) == -1) return -1;
-    if (fileWriteInt32(stream, critterData->damageType) == -1) return -1;
+    if (fileWriteInt32(stream, critterData->flags) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, critterData->baseStats, SAVEABLE_STAT_COUNT) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, critterData->bonusStats, SAVEABLE_STAT_COUNT) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, critterData->skills, SKILL_COUNT) == -1)
+        return -1;
+    if (fileWriteInt32(stream, critterData->bodyType) == -1)
+        return -1;
+    if (fileWriteInt32(stream, critterData->experience) == -1)
+        return -1;
+    if (fileWriteInt32(stream, critterData->killType) == -1)
+        return -1;
+    if (fileWriteInt32(stream, critterData->damageType) == -1)
+        return -1;
 
     return 0;
 }

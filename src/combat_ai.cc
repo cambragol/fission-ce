@@ -402,46 +402,81 @@ int aiInit()
 
         ai->name = internal_strdup(sectionEntry->key);
 
-        if (!configGetInt(&config, sectionEntry->key, "packet_num", &(ai->packet_num))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "max_dist", &(ai->max_dist))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "min_to_hit", &(ai->min_to_hit))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "min_hp", &(ai->min_hp))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "aggression", &(ai->aggression))) goto err;
+        if (!configGetInt(&config, sectionEntry->key, "packet_num", &(ai->packet_num)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "max_dist", &(ai->max_dist)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "min_to_hit", &(ai->min_to_hit)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "min_hp", &(ai->min_hp)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "aggression", &(ai->aggression)))
+            goto err;
 
         if (configGetString(&config, sectionEntry->key, "hurt_too_much", &stringValue)) {
             _parse_hurt_str(stringValue, &(ai->hurt_too_much));
         }
 
-        if (!configGetInt(&config, sectionEntry->key, "secondary_freq", &(ai->secondary_freq))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "called_freq", &(ai->called_freq))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "font", &(ai->font))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "color", &(ai->color))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "outline_color", &(ai->outline_color))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "chance", &(ai->chance))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "run_start", &(ai->run.start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "run_end", &(ai->run.end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "move_start", &(ai->move.start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "move_end", &(ai->move.end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "attack_start", &(ai->attack.start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "attack_end", &(ai->attack.end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "miss_start", &(ai->miss.start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "miss_end", &(ai->miss.end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_head_start", &(ai->hit[HIT_LOCATION_HEAD].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_head_end", &(ai->hit[HIT_LOCATION_HEAD].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_start", &(ai->hit[HIT_LOCATION_LEFT_ARM].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_end", &(ai->hit[HIT_LOCATION_LEFT_ARM].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_start", &(ai->hit[HIT_LOCATION_RIGHT_ARM].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_end", &(ai->hit[HIT_LOCATION_RIGHT_ARM].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_torso_start", &(ai->hit[HIT_LOCATION_TORSO].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_torso_end", &(ai->hit[HIT_LOCATION_TORSO].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_start", &(ai->hit[HIT_LOCATION_RIGHT_LEG].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_end", &(ai->hit[HIT_LOCATION_RIGHT_LEG].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_start", &(ai->hit[HIT_LOCATION_LEFT_LEG].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_end", &(ai->hit[HIT_LOCATION_LEFT_LEG].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_start", &(ai->hit[HIT_LOCATION_EYES].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_end", &(ai->hit[HIT_LOCATION_EYES].end))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_groin_start", &(ai->hit[HIT_LOCATION_GROIN].start))) goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_groin_end", &(ai->hit[HIT_LOCATION_GROIN].end))) goto err;
+        if (!configGetInt(&config, sectionEntry->key, "secondary_freq", &(ai->secondary_freq)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "called_freq", &(ai->called_freq)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "font", &(ai->font)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "color", &(ai->color)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "outline_color", &(ai->outline_color)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "chance", &(ai->chance)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "run_start", &(ai->run.start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "run_end", &(ai->run.end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "move_start", &(ai->move.start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "move_end", &(ai->move.end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "attack_start", &(ai->attack.start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "attack_end", &(ai->attack.end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "miss_start", &(ai->miss.start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "miss_end", &(ai->miss.end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_head_start", &(ai->hit[HIT_LOCATION_HEAD].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_head_end", &(ai->hit[HIT_LOCATION_HEAD].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_start", &(ai->hit[HIT_LOCATION_LEFT_ARM].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_end", &(ai->hit[HIT_LOCATION_LEFT_ARM].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_start", &(ai->hit[HIT_LOCATION_RIGHT_ARM].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_end", &(ai->hit[HIT_LOCATION_RIGHT_ARM].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_torso_start", &(ai->hit[HIT_LOCATION_TORSO].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_torso_end", &(ai->hit[HIT_LOCATION_TORSO].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_start", &(ai->hit[HIT_LOCATION_RIGHT_LEG].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_end", &(ai->hit[HIT_LOCATION_RIGHT_LEG].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_start", &(ai->hit[HIT_LOCATION_LEFT_LEG].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_end", &(ai->hit[HIT_LOCATION_LEFT_LEG].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_start", &(ai->hit[HIT_LOCATION_EYES].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_end", &(ai->hit[HIT_LOCATION_EYES].end)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_groin_start", &(ai->hit[HIT_LOCATION_GROIN].start)))
+            goto err;
+        if (!configGetInt(&config, sectionEntry->key, "hit_groin_end", &(ai->hit[HIT_LOCATION_GROIN].end)))
+            goto err;
 
         ai->hit[HIT_LOCATION_GROIN].end++;
 
@@ -614,42 +649,71 @@ int aiSave(File* stream)
 // 0x427BC8
 static int aiPacketRead(File* stream, AiPacket* ai)
 {
-    if (fileReadInt32(stream, &(ai->packet_num)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->max_dist)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->min_to_hit)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->min_hp)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->aggression)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->hurt_too_much)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->secondary_freq)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->called_freq)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->font)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->color)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->outline_color)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->chance)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->run.start)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->run.end)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->move.start)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->move.end)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->attack.start)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->attack.end)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->miss.start)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->miss.end)) == -1) return -1;
+    if (fileReadInt32(stream, &(ai->packet_num)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->max_dist)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->min_to_hit)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->min_hp)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->aggression)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->hurt_too_much)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->secondary_freq)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->called_freq)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->font)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->color)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->outline_color)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->chance)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->run.start)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->run.end)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->move.start)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->move.end)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->attack.start)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->attack.end)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->miss.start)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->miss.end)) == -1)
+        return -1;
 
     for (int index = 0; index < HIT_LOCATION_SPECIFIC_COUNT; index++) {
         AiMessageRange* range = &(ai->hit[index]);
-        if (fileReadInt32(stream, &(range->start)) == -1) return -1;
-        if (fileReadInt32(stream, &(range->end)) == -1) return -1;
+        if (fileReadInt32(stream, &(range->start)) == -1)
+            return -1;
+        if (fileReadInt32(stream, &(range->end)) == -1)
+            return -1;
     }
 
-    if (fileReadInt32(stream, &(ai->area_attack_mode)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->best_weapon)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->distance)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->attack_who)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->chem_use)) == -1) return -1;
-    if (fileReadInt32(stream, &(ai->run_away_mode)) == -1) return -1;
+    if (fileReadInt32(stream, &(ai->area_attack_mode)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->best_weapon)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->distance)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->attack_who)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->chem_use)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ai->run_away_mode)) == -1)
+        return -1;
 
     for (int index = 0; index < AI_PACKET_CHEM_PRIMARY_DESIRE_COUNT; index++) {
-        if (fileReadInt32(stream, &(ai->chem_primary_desire[index])) == -1) return -1;
+        if (fileReadInt32(stream, &(ai->chem_primary_desire[index])) == -1)
+            return -1;
     }
 
     return 0;
@@ -658,44 +722,73 @@ static int aiPacketRead(File* stream, AiPacket* ai)
 // 0x427E1C
 static int aiPacketWrite(File* stream, AiPacket* ai)
 {
-    if (fileWriteInt32(stream, ai->packet_num) == -1) return -1;
-    if (fileWriteInt32(stream, ai->max_dist) == -1) return -1;
-    if (fileWriteInt32(stream, ai->min_to_hit) == -1) return -1;
-    if (fileWriteInt32(stream, ai->min_hp) == -1) return -1;
-    if (fileWriteInt32(stream, ai->aggression) == -1) return -1;
-    if (fileWriteInt32(stream, ai->hurt_too_much) == -1) return -1;
-    if (fileWriteInt32(stream, ai->secondary_freq) == -1) return -1;
-    if (fileWriteInt32(stream, ai->called_freq) == -1) return -1;
-    if (fileWriteInt32(stream, ai->font) == -1) return -1;
-    if (fileWriteInt32(stream, ai->color) == -1) return -1;
-    if (fileWriteInt32(stream, ai->outline_color) == -1) return -1;
-    if (fileWriteInt32(stream, ai->chance) == -1) return -1;
-    if (fileWriteInt32(stream, ai->run.start) == -1) return -1;
-    if (fileWriteInt32(stream, ai->run.end) == -1) return -1;
-    if (fileWriteInt32(stream, ai->move.start) == -1) return -1;
-    if (fileWriteInt32(stream, ai->move.end) == -1) return -1;
-    if (fileWriteInt32(stream, ai->attack.start) == -1) return -1;
-    if (fileWriteInt32(stream, ai->attack.end) == -1) return -1;
-    if (fileWriteInt32(stream, ai->miss.start) == -1) return -1;
-    if (fileWriteInt32(stream, ai->miss.end) == -1) return -1;
+    if (fileWriteInt32(stream, ai->packet_num) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->max_dist) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->min_to_hit) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->min_hp) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->aggression) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->hurt_too_much) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->secondary_freq) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->called_freq) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->font) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->color) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->outline_color) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->chance) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->run.start) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->run.end) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->move.start) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->move.end) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->attack.start) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->attack.end) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->miss.start) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->miss.end) == -1)
+        return -1;
 
     for (int index = 0; index < HIT_LOCATION_SPECIFIC_COUNT; index++) {
         AiMessageRange* range = &(ai->hit[index]);
-        if (fileWriteInt32(stream, range->start) == -1) return -1;
-        if (fileWriteInt32(stream, range->end) == -1) return -1;
+        if (fileWriteInt32(stream, range->start) == -1)
+            return -1;
+        if (fileWriteInt32(stream, range->end) == -1)
+            return -1;
     }
 
-    if (fileWriteInt32(stream, ai->area_attack_mode) == -1) return -1;
-    if (fileWriteInt32(stream, ai->best_weapon) == -1) return -1;
-    if (fileWriteInt32(stream, ai->distance) == -1) return -1;
-    if (fileWriteInt32(stream, ai->attack_who) == -1) return -1;
-    if (fileWriteInt32(stream, ai->chem_use) == -1) return -1;
-    if (fileWriteInt32(stream, ai->run_away_mode) == -1) return -1;
+    if (fileWriteInt32(stream, ai->area_attack_mode) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->best_weapon) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->distance) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->attack_who) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->chem_use) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ai->run_away_mode) == -1)
+        return -1;
 
     for (int index = 0; index < AI_PACKET_CHEM_PRIMARY_DESIRE_COUNT; index++) {
         // TODO: Check, probably writes chem_primary_desire[0] three times,
         // might be a bug in original source code.
-        if (fileWriteInt32(stream, ai->chem_primary_desire[index]) == -1) return -1;
+        if (fileWriteInt32(stream, ai->chem_primary_desire[index]) == -1)
+            return -1;
     }
 
     return 0;

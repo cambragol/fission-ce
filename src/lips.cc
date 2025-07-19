@@ -193,31 +193,56 @@ static int lipsReadV1(LipsData* lipsData, File* stream)
     int phonemes;
     int markers;
 
-    if (fileReadInt32(stream, &(lipsData->version)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_4)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->flags)) == -1) return -1;
-    if (fileReadInt32(stream, &(sound)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_10)) == -1) return -1;
-    if (fileReadInt32(stream, &(field_14)) == -1) return -1;
-    if (fileReadInt32(stream, &(phonemes)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_1C)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_20)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_24)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_28)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_2C)) == -1) return -1;
-    if (fileReadInt32(stream, &(markers)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_34)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_38)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_3C)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_40)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_44)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_48)) == -1) return -1;
-    if (fileReadInt32(stream, &(lipsData->field_4C)) == -1) return -1;
-    if (fileReadFixedLengthString(stream, lipsData->file_name, 8) == -1) return -1;
-    if (fileReadFixedLengthString(stream, lipsData->field_58, 4) == -1) return -1;
-    if (fileReadFixedLengthString(stream, lipsData->field_5C, 4) == -1) return -1;
-    if (fileReadFixedLengthString(stream, lipsData->field_60, 4) == -1) return -1;
-    if (fileReadFixedLengthString(stream, lipsData->field_64, 260) == -1) return -1;
+    if (fileReadInt32(stream, &(lipsData->version)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_4)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->flags)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(sound)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_10)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(field_14)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(phonemes)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_1C)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_20)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_24)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_28)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_2C)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(markers)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_34)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_38)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_3C)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_40)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_44)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_48)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(lipsData->field_4C)) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, lipsData->file_name, 8) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, lipsData->field_58, 4) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, lipsData->field_5C, 4) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, lipsData->field_60, 4) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, lipsData->field_64, 260) == -1)
+        return -1;
 
     // NOTE: Original code is different. For unknown reason it assigns values
     // from file (integers) and treat them as pointers, which is obviously wrong
@@ -290,15 +315,24 @@ int lipsLoad(const char* audioFileName, const char* headFileName)
         } else if (gLipsData.version == 2) {
             debugPrint("\nLoading current save-file version (2)");
 
-            if (fileReadInt32(stream, &(gLipsData.field_4)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.flags)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.field_10)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.field_1C)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.field_24)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.field_28)) == -1) return -1;
-            if (fileReadInt32(stream, &(gLipsData.field_2C)) == -1) return -1;
-            if (fileReadFixedLengthString(stream, gLipsData.file_name, 8) == -1) return -1;
-            if (fileReadFixedLengthString(stream, gLipsData.field_58, 4) == -1) return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_4)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.flags)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_10)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_1C)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_24)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_28)) == -1)
+                return -1;
+            if (fileReadInt32(stream, &(gLipsData.field_2C)) == -1)
+                return -1;
+            if (fileReadFixedLengthString(stream, gLipsData.file_name, 8) == -1)
+                return -1;
+            if (fileReadFixedLengthString(stream, gLipsData.field_58, 4) == -1)
+                return -1;
         } else {
             debugPrint("\nError: Lips file WRONG version: %s!", path);
         }
@@ -336,8 +370,10 @@ int lipsLoad(const char* audioFileName, const char* headFileName)
         for (i = 0; i < gLipsData.field_2C; i++) {
             speech_marker = &(gLipsData.markers[i]);
 
-            if (fileReadInt32(stream, &(speech_marker->marker)) == -1) break;
-            if (fileReadInt32(stream, &(speech_marker->position)) == -1) break;
+            if (fileReadInt32(stream, &(speech_marker->marker)) == -1)
+                break;
+            if (fileReadInt32(stream, &(speech_marker->position)) == -1)
+                break;
         }
 
         if (i != gLipsData.field_2C) {

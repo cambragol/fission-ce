@@ -793,28 +793,69 @@ int tileFromScreenXY(int screenX, int screenY, int elevation, bool ignoreBounds)
 // 0x4B185C
 int tileDistanceBetween(int tile1, int tile2)
 {
-    if (tile1 == -1 || tile2 == -1) {
+    int i;
+    int v9;
+    int v8;
+    int v2;
+
+    if (tile1 == -1) {
         return 9999;
     }
 
-    int step = 0;
-    int curTile = tile1;
-    for (; curTile != tile2; step++) {
-        int dir = tileGetRotationTo(curTile, tile2);
-
-        curTile += _dir_tile[curTile % gHexGridWidth & 1][dir];
+    if (tile2 == -1) {
+        return 9999;
     }
 
-    return step;
+    int x1;
+    int y1;
+    tileToScreenXY(tile2, &x1, &y1, 0);
+
+    v2 = tile1;
+    for (i = 0; v2 != tile2; i++) {
+        // TODO: Looks like inlined rotation_to_tile.
+        int x2;
+        int y2;
+        tileToScreenXY(v2, &x2, &y2, 0);
+
+        int dx = x1 - x2;
+        int dy = y1 - y2;
+
+        if (x1 == x2) {
+            if (dy < 0) {
+                v9 = 0;
+            } else {
+                v9 = 2;
+            }
+        } else {
+            v8 = (int)trunc(atan2((double)-dy, (double)dx) * 180.0 * 0.3183098862851122);
+
+            v9 = 360 - (v8 + 180) - 90;
+            if (v9 < 0) {
+                v9 += 360;
+            }
+
+            v9 /= 60;
+
+            if (v9 >= 6) {
+                v9 = 5;
+            }
+        }
+
+        v2 += _dir_tile[v2 % gHexGridWidth & 1][v9];
+    }
+
+    return i;
 }
 
 // 0x4B1994
 bool tileIsInFrontOf(int tile1, int tile2)
 {
-    int x1, y1;
+    int x1;
+    int y1;
     tileToScreenXY(tile1, &x1, &y1, 0);
 
-    int x2, y2;
+    int x2;
+    int y2;
     tileToScreenXY(tile2, &x2, &y2, 0);
 
     int dx = x2 - x1;
@@ -826,10 +867,12 @@ bool tileIsInFrontOf(int tile1, int tile2)
 // 0x4B1A00
 bool tileIsToRightOf(int tile1, int tile2)
 {
-    int x1, y1;
+    int x1;
+    int y1;
     tileToScreenXY(tile1, &x1, &y1, 0);
 
-    int x2, y2;
+    int x2;
+    int y2;
     tileToScreenXY(tile2, &x2, &y2, 0);
 
     int dx = x2 - x1;
@@ -863,28 +906,32 @@ int tileGetTileInDirection(int tile, int rotation, int distance)
 // 0x4B1ABC
 int tileGetRotationTo(int tile1, int tile2)
 {
-    int x1, y1;
+    int x1;
+    int y1;
     tileToScreenXY(tile1, &x1, &y1, 0);
 
-    int x2, y2;
+    int x2;
+    int y2;
     tileToScreenXY(tile2, &x2, &y2, 0);
 
     int dy = y2 - y1;
-    int dx = x2 - x1;
+    x2 -= x1;
+    y2 -= y1;
 
-    if (dx != 0) {
-        int raw = (int)trunc(atan2((double)-dy, (double)dx) * 180.0 / M_PI); // radians -> degrees
-        int angle = 360 - (raw + 180) - 90;
-        if (angle < 0) {
-            angle += 360;
+    if (x2 != 0) {
+        // TODO: Check.
+        int v6 = (int)trunc(atan2((double)-dy, (double)x2) * 180.0 * 0.3183098862851122);
+        int v7 = 360 - (v6 + 180) - 90;
+        if (v7 < 0) {
+            v7 += 360;
         }
 
-        angle /= 60; // convert from degrees to hex direction
+        v7 /= 60;
 
-        if (angle >= ROTATION_COUNT) {
-            angle = ROTATION_NW;
+        if (v7 >= ROTATION_COUNT) {
+            v7 = ROTATION_NW;
         }
-        return angle;
+        return v7;
     }
 
     return dy < 0 ? ROTATION_NE : ROTATION_SE;
@@ -897,12 +944,14 @@ int _tile_num_beyond(int from, int to, int distance)
         return from;
     }
 
-    int fromX, fromY;
+    int fromX;
+    int fromY;
     tileToScreenXY(from, &fromX, &fromY, 0);
     fromX += 16;
     fromY += 8;
 
-    int toX, toY;
+    int toX;
+    int toY;
     tileToScreenXY(to, &toX, &toY, 0);
     toX += 16;
     toY += 8;
@@ -1044,23 +1093,30 @@ bool tileScrollLimitingIsEnabled()
 // 0x4B1DC0
 int squareTileToScreenXY(int squareTile, int* coordX, int* coordY, int elevation)
 {
+    int v5;
+    int v6;
+    int v7;
+    int v8;
+    int v9;
+
     if (squareTile < 0 || squareTile >= gSquareGridSize) {
         return -1;
     }
 
-    int tileCol = gSquareGridWidth - 1 - squareTile % gSquareGridWidth;
-    int tileRow = squareTile / gSquareGridWidth;
+    v5 = gSquareGridWidth - 1 - squareTile % gSquareGridWidth;
+    v6 = squareTile / gSquareGridWidth;
+    v7 = _square_x;
 
     *coordX = _square_offx;
     *coordY = _square_offy;
 
-    int colDelta = tileCol - _square_x;
-    *coordX += 48 * colDelta;
-    *coordY -= 12 * colDelta;
+    v8 = v5 - v7;
+    *coordX += 48 * v8;
+    *coordY -= 12 * v8;
 
-    int rowDelta = tileRow - _square_y;
-    *coordX += 32 * rowDelta;
-    *coordY += 24 * rowDelta;
+    v9 = v6 - _square_y;
+    *coordX += 32 * v9;
+    *coordY += 24 * v9;
 
     return 0;
 }
@@ -1580,7 +1636,8 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
         height = gTileWindowHeight - top;
     }
 
-    if (x >= gTileWindowWidth || x > rect->right || y >= gTileWindowHeight || y > rect->bottom) goto out;
+    if (x >= gTileWindowWidth || x > rect->right || y >= gTileWindowHeight || y > rect->bottom)
+        goto out;
 
     frameWidth = artGetWidth(art, 0, 0);
     frameHeight = artGetHeight(art, 0, 0);
@@ -1611,7 +1668,8 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
         }
     }
 
-    if (v77 <= 0 || v76 <= 0) goto out;
+    if (v77 <= 0 || v76 <= 0)
+        goto out;
 
     tile = tileFromScreenXY(savedX, savedY + 13, gElevation);
     if (tile != -1) {

@@ -155,7 +155,8 @@ public:
             }
             _hFind = INVALID_HANDLE_VALUE;
 #else
-            if (!_dir) return *this;
+            if (!_dir)
+                return *this;
             struct dirent* entry;
             while ((entry = readdir(_dir))) {
                 std::string name = entry->d_name;

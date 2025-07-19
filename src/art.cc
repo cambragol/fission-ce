@@ -1,6 +1,11 @@
 #include "art.h"
 
 #include <stdio.h>
+
+#include "db.h" // for fileOpen, fileClose
+#include "xfile.h" // for File type
+#define DIR_SEPARATOR '/'
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,7 +24,7 @@ namespace fallout {
 typedef struct ArtListDescription {
     int flags;
     char name[16];
-    char* fileNames; // dynamic array of null terminated strings 13 bytes long each
+    char* fileNames; // dynamic array of null terminated strings FILENAME_LENGTH bytes long each
     void* field_18;
     int fileNamesLength; // number of entries in list
 } ArtListDescription;
@@ -127,6 +132,130 @@ static int* _anon_alias;
 // 0x56CAF0
 static int* gArtCritterFidShoudRunData;
 
+// Number of “core” entries per objectType, before we append variants
+static int gArtOriginalCount[OBJ_TYPE_COUNT] = { 0 };
+
+int artGetFidWithVariant(int objectType, int baseId, const char* suffix, bool useVariant)
+{
+    if (useVariant) {
+        int variantId = artFindVariant(objectType, baseId, suffix);
+        if (variantId >= 0) {
+            return buildFid(objectType, variantId, 0, 0, 0);
+        }
+    }
+    return buildFid(objectType, baseId, 0, 0, 0);
+}
+
+// Collect all File* streams for a given relative path using VFS fileOpen
+static int collectAllCopies(const char* relativePath, File*** outStreams)
+{
+    File** streams = NULL;
+    int count = 0;
+    File* f = fileOpen(relativePath, "rt");
+    if (f) {
+        streams = (File**)internal_realloc(streams, sizeof(File*) * (count + 1));
+        streams[count++] = f;
+    }
+    *outStreams = streams;
+    return count;
+}
+
+// Read a single .lst stream into flat FILENAME_LENGTH-byte entries
+static int readListFromStream(File* stream, char** outNames)
+{
+    char buffer[256];
+    char* names = nullptr;
+    int count = 0;
+
+    while (fileReadString(buffer, sizeof(buffer), stream)) {
+        char* end = strpbrk(buffer, " ,;\r\t\n");
+        if (end)
+            *end = '\0';
+
+        names = (char*)internal_realloc(names, (count + 1) * FILENAME_LENGTH);
+        strncpy(names + count * FILENAME_LENGTH, buffer, FILENAME_LENGTH - 1);
+        names[count * FILENAME_LENGTH + FILENAME_LENGTH - 1] = '\0';
+        count++;
+    }
+
+    *outNames = names;
+    return count;
+}
+
+// Merge multiple layers of flat‑name lists by highest‑priority last
+static void mergeArtLayers(char** outNames, int* outCount, char* layerNames[], int layerCounts[], int layers)
+{
+    int maxLen = 0;
+    for (int i = 0; i < layers; i++) {
+        if (layerCounts[i] > maxLen)
+            maxLen = layerCounts[i];
+    }
+
+    char* merged = (char*)internal_malloc(maxLen * FILENAME_LENGTH);
+    int mCount = maxLen;
+
+    for (int idx = 0; idx < maxLen; idx++) {
+        char* slot = merged + idx * FILENAME_LENGTH;
+        slot[0] = '\0'; // Initialize as empty
+
+        // Highest priority last (override order)
+        for (int lyr = layers - 1; lyr >= 0; lyr--) {
+            if (idx < layerCounts[lyr]) {
+                char* entry = layerNames[lyr] + idx * FILENAME_LENGTH;
+                if (entry[0] != '\0') {
+                    strncpy(slot, entry, FILENAME_LENGTH - 1);
+                    slot[FILENAME_LENGTH - 1] = '\0';
+                    break;
+                }
+            }
+        }
+    }
+
+    *outNames = merged;
+    *outCount = mCount;
+}
+
+int artFindVariant(int objectType, int baseIndex, const char* suffix)
+{
+    if (objectType < 0 || objectType >= OBJ_TYPE_COUNT)
+        return -1;
+
+    ArtListDescription* desc = &gArtListDescriptions[objectType];
+    if (baseIndex < 0 || baseIndex >= desc->fileNamesLength)
+        return -1;
+
+    // Get base filename
+    const char* baseName = desc->fileNames + baseIndex * FILENAME_LENGTH;
+
+    // Extract base without extension
+    char base[FILENAME_LENGTH];
+    strncpy(base, baseName, FILENAME_LENGTH - 1);
+    base[FILENAME_LENGTH - 1] = '\0';
+
+    char* ext = strrchr(base, '.');
+    if (ext && compat_stricmp(ext, ".frm") == 0) {
+        *ext = '\0'; // Remove extension
+    }
+
+    // Build expected variant name
+    char expected[FILENAME_LENGTH];
+    int len = snprintf(expected, sizeof(expected), "%s%s.frm", base, suffix);
+    if (len >= FILENAME_LENGTH) {
+        debugPrint("Variant name too long: %s%s", base, suffix);
+        return -1;
+    }
+
+    // Search variant section
+    for (int i = gArtOriginalCount[objectType]; i < desc->fileNamesLength; i++) {
+        const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
+        if (compat_stricmp(candidate, expected) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 // 0x418840
 int artInit()
 {
@@ -134,27 +263,164 @@ int artInit()
     File* stream;
     char string[200];
 
+    // Initialize art cache
     int cacheSize = settings.system.art_cache_size;
-    if (!cacheInit(&gArtCache, artCacheGetFileSizeImpl, artCacheReadDataImpl, artCacheFreeImpl, cacheSize << 20)) {
+    if (!cacheInit(&gArtCache,
+            artCacheGetFileSizeImpl,
+            artCacheReadDataImpl,
+            artCacheFreeImpl,
+            cacheSize << 20)) {
         debugPrint("cache_init failed in art_init\n");
         return -1;
     }
 
+    // Language override
     const char* language = settings.system.language.c_str();
     if (compat_stricmp(language, ENGLISH) != 0) {
         strcpy(gArtLanguage, language);
         gArtLanguageInitialized = true;
     }
 
-    bool critterDbSelected = false;
+    // Process each object type
     for (int objectType = 0; objectType < OBJ_TYPE_COUNT; objectType++) {
-        gArtListDescriptions[objectType].flags = 0;
-        snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
+        ArtListDescription* desc = &gArtListDescriptions[objectType];
+        desc->flags = 0;
 
-        if (artReadList(path, &(gArtListDescriptions[objectType].fileNames), &(gArtListDescriptions[objectType].fileNamesLength)) != 0) {
-            debugPrint("art_read_lst failed in art_init\n");
-            cacheFree(&gArtCache);
-            return -1;
+        // Build the .lst path: "art/<name>/<name>.lst"
+        snprintf(path, sizeof(path),
+            "art%c%s%c%s.lst",
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR,
+            desc->name);
+
+        // Collect VFS .lst streams
+        File** streams = NULL;
+        int layerCount = collectAllCopies(path, &streams);
+
+        if (layerCount <= 1) {
+            // Single or no layer: direct load fallback
+            if (artReadList(path,
+                    &desc->fileNames,
+                    &desc->fileNamesLength)
+                != 0) {
+                debugPrint("art_read_lst fallback failed for %s\n", path);
+                // Cleanup and return failure
+                if (streams) {
+                    if (layerCount == 1)
+                        fileClose(streams[0]);
+                    internal_free(streams);
+                }
+                cacheFree(&gArtCache);
+                return -1;
+            }
+            gArtOriginalCount[objectType] = desc->fileNamesLength;
+
+            if (streams) {
+                if (layerCount == 1)
+                    fileClose(streams[0]);
+                internal_free(streams);
+            }
+        } else {
+            // Multiple layers: read each, then merge
+            if (layerCount <= 0) {
+                debugPrint("art_read_lst failed: no layers for %s\n", path);
+                internal_free(streams);
+                cacheFree(&gArtCache);
+                return -1;
+            }
+
+            int useCount = layerCount > 16 ? 16 : layerCount;
+            char* layerNames[16];
+            int layerCounts[16];
+
+            for (int i = 0; i < useCount; i++) {
+                layerCounts[i] = readListFromStream(streams[i], &layerNames[i]);
+                fileClose(streams[i]);
+            }
+            internal_free(streams);
+
+            char* mergedNames = NULL;
+            int mergedCount = 0;
+            mergeArtLayers(&mergedNames, &mergedCount, layerNames, layerCounts, useCount);
+
+            gArtOriginalCount[objectType] = mergedCount;
+            desc->fileNames = mergedNames;
+            desc->fileNamesLength = mergedCount;
+
+            for (int i = 0; i < useCount; i++) {
+                internal_free(layerNames[i]);
+            }
+        }
+
+        // Append *_800.frm variants
+        const char* suffix = "_800.frm";
+        size_t suffixLen = strlen(suffix);
+
+        // Build the VFS pattern
+        char pattern[COMPAT_MAX_PATH];
+        snprintf(pattern, sizeof(pattern),
+            "art%c%s%c*.frm",
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR);
+
+        char** vfsFiles = NULL;
+        int vfsCount = fileNameListInit(pattern, &vfsFiles, 0, 0);
+
+        if (vfsCount > 0) {
+            int origCount = gArtOriginalCount[objectType];
+            int newCount = origCount;
+            char* names = desc->fileNames;
+            int currentSize = desc->fileNamesLength;
+
+            for (int vi = 0; vi < vfsCount; vi++) {
+                const char* fn = vfsFiles[vi];
+                size_t len = strlen(fn);
+
+                // Check if file matches variant pattern
+                if (len <= suffixLen || compat_stricmp(fn + len - suffixLen, suffix) != 0) {
+                    continue;
+                }
+
+                // Extract base name
+                char base[FILENAME_LENGTH] = { 0 };
+                size_t baseLen = len - suffixLen;
+                if (baseLen >= FILENAME_LENGTH)
+                    baseLen = FILENAME_LENGTH - 1;
+                strncpy(base, fn, baseLen);
+                base[baseLen] = '\0';
+
+                // Find matching base entry
+                for (int i = 0; i < origCount; i++) {
+                    const char* slot = names + i * FILENAME_LENGTH;
+                    if (compat_strnicmp(slot, base, baseLen) == 0) {
+                        // Resize array if needed
+                        if (newCount >= currentSize) {
+                            currentSize += 10;
+                            char* newNames = (char*)internal_realloc(names, currentSize * FILENAME_LENGTH);
+                            if (!newNames)
+                                break;
+                            names = newNames;
+                        }
+
+                        // Add variant
+                        char* dest = names + newCount * FILENAME_LENGTH;
+                        strncpy(dest, fn, FILENAME_LENGTH - 1);
+                        dest[FILENAME_LENGTH - 1] = '\0';
+                        newCount++;
+                        break;
+                    }
+                }
+            }
+
+            // Update if we added variants
+            if (newCount > origCount) {
+                desc->fileNames = names;
+                desc->fileNamesLength = newCount;
+            }
+
+            fileNameListFree(&vfsFiles, vfsCount);
         }
     }
 
@@ -227,7 +493,7 @@ int artInit()
             _art_vault_person_nums[DUDE_NATIVE_LOOK_TRIBAL][GENDER_FEMALE] = critterIndex;
         }
 
-        critterFileNames += 13;
+        critterFileNames += FILENAME_LENGTH;
     }
 
     for (int critterIndex = 0; critterIndex < gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength; critterIndex++) {
@@ -258,7 +524,7 @@ int artInit()
         if (compat_stricmp(tileFileNames, "grid001.frm") == 0) {
             _art_mapper_blank_tile = tileIndex;
         }
-        tileFileNames += 13;
+        tileFileNames += FILENAME_LENGTH;
     }
 
     gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength);
@@ -535,7 +801,7 @@ int artCopyFileName(int objectType, int id, char* dest)
         return -1;
     }
 
-    strcpy(dest, ptr->fileNames + id * 13);
+    strcpy(dest, ptr->fileNames + id * FILENAME_LENGTH);
 
     return 0;
 }
@@ -614,53 +880,106 @@ int _art_get_code(int animation, int weaponType, char* a3, char* a4)
 // 0x419428
 char* artBuildFilePath(int fid)
 {
-    int v1, v2, v3, v4, v5, type, v8, v10;
-    char v9, v11, v12;
-
-    v2 = fid;
-
-    v10 = (fid & 0x70000000) >> 28;
-
-    v1 = artAliasFid(fid);
-    if (v1 != -1) {
-        v2 = v1;
+    // Step 1: Unpack FID components
+    int rotation = (fid & 0x70000000) >> 28;
+    int aliasedFid = artAliasFid(fid);
+    if (aliasedFid != -1) {
+        fid = aliasedFid;
     }
 
+    // Clear global buffer
     *_art_name = '\0';
 
-    v3 = v2 & 0xFFF;
-    v4 = FID_ANIM_TYPE(v2);
-    v5 = (v2 & 0xF000) >> 12;
-    type = FID_TYPE(v2);
+    // Extract FID components
+    int id = fid & 0xFFF;
+    int animType = FID_ANIM_TYPE(fid);
+    int weaponCode = (fid & 0xF000) >> 12;
+    int objectType = FID_TYPE(fid);
 
-    if (type < OBJ_TYPE_ITEM || type >= OBJ_TYPE_COUNT) {
+    // Validate object type
+    if (objectType < OBJ_TYPE_ITEM || objectType >= OBJ_TYPE_COUNT) {
         return nullptr;
     }
 
-    if (v3 >= gArtListDescriptions[type].fileNamesLength) {
+    // Validate art ID
+    if (id >= gArtListDescriptions[objectType].fileNamesLength) {
         return nullptr;
     }
 
-    v8 = v3 * 13;
+    // Calculate filename offset
+    int nameOffset = id * FILENAME_LENGTH;
 
-    if (type == 1) {
-        if (_art_get_code(v4, v5, &v11, &v12) == -1) {
+    // Handle special cases first
+    if (objectType == OBJ_TYPE_CRITTER) { // Critters
+        char animCode, weaponCodeChar;
+        if (_art_get_code(animType, weaponCode, &animCode, &weaponCodeChar) == -1) {
             return nullptr;
         }
-        if (v10) {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.fr%c", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12, v10 + 47);
+
+        if (rotation != 0) {
+            snprintf(_art_name, sizeof(_art_name),
+                "%sart\\%s\\%s%c%c.fr%c",
+                _cd_path_base,
+                gArtListDescriptions[objectType].name,
+                gArtListDescriptions[objectType].fileNames + nameOffset,
+                animCode,
+                weaponCodeChar,
+                rotation + '0'); // Convert to ASCII digit
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12);
+            snprintf(_art_name, sizeof(_art_name),
+                "%sart\\%s\\%s%c%c.frm",
+                _cd_path_base,
+                gArtListDescriptions[objectType].name,
+                gArtListDescriptions[objectType].fileNames + nameOffset,
+                animCode,
+                weaponCodeChar);
         }
-    } else if (type == 8) {
-        v9 = _head2[v4];
-        if (v9 == 'f') {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c%d.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], 102, v5);
+    } else if (objectType == OBJ_TYPE_HEAD) { // Heads
+        char genderCode = _head2[animType];
+        if (genderCode == 'f') {
+            snprintf(_art_name, sizeof(_art_name),
+                "%sart\\%s\\%s%c%c%d.frm",
+                _cd_path_base,
+                gArtListDescriptions[objectType].name,
+                gArtListDescriptions[objectType].fileNames + nameOffset,
+                _head1[animType],
+                'f', // Hardcode female identifier
+                weaponCode);
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], v9);
+            snprintf(_art_name, sizeof(_art_name),
+                "%sart\\%s\\%s%c%c.frm",
+                _cd_path_base,
+                gArtListDescriptions[objectType].name,
+                gArtListDescriptions[objectType].fileNames + nameOffset,
+                _head1[animType],
+                genderCode);
         }
-    } else {
-        snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s", _cd_path_base, "art\\", gArtListDescriptions[type].name, gArtListDescriptions[type].fileNames + v8);
+    } else { // All other types
+        const char* fileName = gArtListDescriptions[objectType].fileNames + nameOffset;
+        char basePath[COMPAT_MAX_PATH];
+
+        // Build base path
+        snprintf(basePath, sizeof(basePath),
+            "%sart\\%s\\%s",
+            _cd_path_base,
+            gArtListDescriptions[objectType].name,
+            fileName);
+
+        // Ensure .frm extension
+        size_t len = strlen(basePath);
+        if (len < 4 || compat_stricmp(basePath + len - 4, ".frm") != 0) {
+            // Safe concatenation
+            if (len < sizeof(basePath) - 5) { // Check space for ".frm" + null
+                strcat(basePath, ".frm");
+            } else {
+                debugPrint("Path too long: %s", basePath);
+                return nullptr;
+            }
+        }
+
+        // Copy to global buffer
+        strncpy(_art_name, basePath, sizeof(_art_name));
+        _art_name[sizeof(_art_name) - 1] = '\0'; // Ensure termination
     }
 
     return _art_name;
@@ -685,7 +1004,7 @@ static int artReadList(const char* path, char** artListPtr, int* artListSizePtr)
 
     *artListSizePtr = count;
 
-    char* artList = (char*)internal_malloc(13 * count);
+    char* artList = (char*)internal_malloc(FILENAME_LENGTH * count);
     *artListPtr = artList;
     if (artList == nullptr) {
         fileClose(stream);
@@ -698,10 +1017,10 @@ static int artReadList(const char* path, char** artListPtr, int* artListSizePtr)
             *brk = '\0';
         }
 
-        strncpy(artList, string, 12);
-        artList[12] = '\0';
+        strncpy(artList, string, FILENAME_LENGTH - 1);
+        artList[FILENAME_LENGTH - 1] = '\0';
 
-        artList += 13;
+        artList += FILENAME_LENGTH;
     }
 
     fileClose(stream);
@@ -1038,12 +1357,18 @@ static int artReadFrameData(unsigned char* data, File* stream, int count, int* p
     for (int index = 0; index < count; index++) {
         ArtFrame* frame = (ArtFrame*)ptr;
 
-        if (fileReadInt16(stream, &(frame->width)) == -1) return -1;
-        if (fileReadInt16(stream, &(frame->height)) == -1) return -1;
-        if (fileReadInt32(stream, &(frame->size)) == -1) return -1;
-        if (fileReadInt16(stream, &(frame->x)) == -1) return -1;
-        if (fileReadInt16(stream, &(frame->y)) == -1) return -1;
-        if (fileRead(ptr + sizeof(ArtFrame), frame->size, 1, stream) != 1) return -1;
+        if (fileReadInt16(stream, &(frame->width)) == -1)
+            return -1;
+        if (fileReadInt16(stream, &(frame->height)) == -1)
+            return -1;
+        if (fileReadInt32(stream, &(frame->size)) == -1)
+            return -1;
+        if (fileReadInt16(stream, &(frame->x)) == -1)
+            return -1;
+        if (fileReadInt16(stream, &(frame->y)) == -1)
+            return -1;
+        if (fileRead(ptr + sizeof(ArtFrame), frame->size, 1, stream) != 1)
+            return -1;
 
         ptr += sizeof(ArtFrame) + frame->size;
         ptr += paddingForSize(frame->size);
@@ -1058,14 +1383,22 @@ static int artReadFrameData(unsigned char* data, File* stream, int count, int* p
 // 0x419E1C
 static int artReadHeader(Art* art, File* stream)
 {
-    if (fileReadInt32(stream, &(art->field_0)) == -1) return -1;
-    if (fileReadInt16(stream, &(art->framesPerSecond)) == -1) return -1;
-    if (fileReadInt16(stream, &(art->actionFrame)) == -1) return -1;
-    if (fileReadInt16(stream, &(art->frameCount)) == -1) return -1;
-    if (fileReadInt16List(stream, art->xOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileReadInt16List(stream, art->yOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileReadInt32List(stream, art->dataOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileReadInt32(stream, &(art->dataSize)) == -1) return -1;
+    if (fileReadInt32(stream, &(art->field_0)) == -1)
+        return -1;
+    if (fileReadInt16(stream, &(art->framesPerSecond)) == -1)
+        return -1;
+    if (fileReadInt16(stream, &(art->actionFrame)) == -1)
+        return -1;
+    if (fileReadInt16(stream, &(art->frameCount)) == -1)
+        return -1;
+    if (fileReadInt16List(stream, art->xOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileReadInt16List(stream, art->yOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileReadInt32List(stream, art->dataOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(art->dataSize)) == -1)
+        return -1;
 
     // CE: Fix malformed `frm` files with `dataSize` set to 0 in Nevada.
     if (art->dataSize == 0) {
@@ -1152,12 +1485,18 @@ int artWriteFrameData(unsigned char* data, File* stream, int count)
     for (int index = 0; index < count; index++) {
         ArtFrame* frame = (ArtFrame*)ptr;
 
-        if (fileWriteInt16(stream, frame->width) == -1) return -1;
-        if (fileWriteInt16(stream, frame->height) == -1) return -1;
-        if (fileWriteInt32(stream, frame->size) == -1) return -1;
-        if (fileWriteInt16(stream, frame->x) == -1) return -1;
-        if (fileWriteInt16(stream, frame->y) == -1) return -1;
-        if (fileWrite(ptr + sizeof(ArtFrame), frame->size, 1, stream) != 1) return -1;
+        if (fileWriteInt16(stream, frame->width) == -1)
+            return -1;
+        if (fileWriteInt16(stream, frame->height) == -1)
+            return -1;
+        if (fileWriteInt32(stream, frame->size) == -1)
+            return -1;
+        if (fileWriteInt16(stream, frame->x) == -1)
+            return -1;
+        if (fileWriteInt16(stream, frame->y) == -1)
+            return -1;
+        if (fileWrite(ptr + sizeof(ArtFrame), frame->size, 1, stream) != 1)
+            return -1;
 
         ptr += sizeof(ArtFrame) + frame->size;
         ptr += paddingForSize(frame->size);
@@ -1171,14 +1510,22 @@ int artWriteFrameData(unsigned char* data, File* stream, int count)
 // 0x41A138
 int artWriteHeader(Art* art, File* stream)
 {
-    if (fileWriteInt32(stream, art->field_0) == -1) return -1;
-    if (fileWriteInt16(stream, art->framesPerSecond) == -1) return -1;
-    if (fileWriteInt16(stream, art->actionFrame) == -1) return -1;
-    if (fileWriteInt16(stream, art->frameCount) == -1) return -1;
-    if (fileWriteInt16List(stream, art->xOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileWriteInt16List(stream, art->yOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileWriteInt32List(stream, art->dataOffsets, ROTATION_COUNT) == -1) return -1;
-    if (fileWriteInt32(stream, art->dataSize) == -1) return -1;
+    if (fileWriteInt32(stream, art->field_0) == -1)
+        return -1;
+    if (fileWriteInt16(stream, art->framesPerSecond) == -1)
+        return -1;
+    if (fileWriteInt16(stream, art->actionFrame) == -1)
+        return -1;
+    if (fileWriteInt16(stream, art->frameCount) == -1)
+        return -1;
+    if (fileWriteInt16List(stream, art->xOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileWriteInt16List(stream, art->yOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, art->dataOffsets, ROTATION_COUNT) == -1)
+        return -1;
+    if (fileWriteInt32(stream, art->dataSize) == -1)
+        return -1;
 
     return 0;
 }
