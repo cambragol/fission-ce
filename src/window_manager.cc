@@ -174,6 +174,7 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
 
             return WINDOW_MANAGER_ERR_NO_MEMORY;
         }
+        // Enable buffering since we successfully allocated a buffer
         _buffering = true;
     }
 
@@ -808,6 +809,8 @@ void _GNW_win_refresh(Window* window, Rect* rect, unsigned char* dest)
         return;
     }
 
+    // CE: original code seems to have had special code for handling non-refresh-all for transparent updates, but it was incomplete and removed
+
     // Initial rectangle list node representing the intersection of window and refresh areas
     refreshRectList = _rect_malloc();
     if (refreshRectList == nullptr) {
@@ -854,7 +857,7 @@ void _GNW_win_refresh(Window* window, Rect* rect, unsigned char* dest)
                             dest_pitch);
                     }
                 } else {
-                    if (_buffering) { // note: _buffering appears to always be false
+                    if (_buffering) {
                         if (window->flags & WINDOW_TRANSPARENT) {
                             window->blitProc(
                                 window->buffer + clipRect->rect.left - window->rect.left + (clipRect->rect.top - window->rect.top) * window->width,
@@ -906,7 +909,7 @@ void _GNW_win_refresh(Window* window, Rect* rect, unsigned char* dest)
                             dest + dest_pitch * (clipRect->rect.top - rect->top) + clipRect->rect.left - rect->left,
                             dest_pitch);
                     } else {
-                        if (_buffering) { // note: _buffering appears to always be false
+                        if (_buffering) {
                             blitBufferToBuffer(buf,
                                 width,
                                 height,
@@ -928,7 +931,7 @@ void _GNW_win_refresh(Window* window, Rect* rect, unsigned char* dest)
         while (screenRect) {
             nextRect = screenRect->next;
 
-            // if double-buffering, copy double buffer to screen (appears to always be false)
+            // if double-buffering, copy double buffer to screen
             if (_buffering && !dest) {
                 _scr_blit(
                     _screen_buffer + screenRect->rect.left + (_scr_size.right - _scr_size.left + 1) * screenRect->rect.top,

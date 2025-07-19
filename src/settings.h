@@ -13,10 +13,7 @@ struct SystemSettings {
     std::string master_patches_path = "data";
     std::string critter_dat_path = "critter.dat";
     std::string critter_patches_path = "data";
-    std::string falloutce_dat_path = "falloutce.dat";
-    std::string falloutce_patches_path = "data";
     std::string language = ENGLISH;
-    bool master_override;
     int scroll_lock = 0;
     bool interrupt_walk = true;
     int art_cache_size = 8;
@@ -75,7 +72,6 @@ struct DebugSettings {
     bool show_script_messages = false;
     bool show_load_info = false;
     bool output_map_data_info = false;
-    bool write_offsets = false;
 };
 
 struct MapperSettings {
@@ -93,25 +89,12 @@ struct MapperSettings {
     bool sort_script_list = false;
 };
 
-struct GraphicSettings {
-    int game_width = 640;
-    int game_height = 480;
-    int splash_size = 0;
-    bool fullscreen = true;
-    bool stretch_enabled = true;
-    bool preserve_aspect = true;
-    bool high_quality = false;
-    bool highres_stencil = true;
-    bool widescreen = false;
-};
-
 struct Settings {
     SystemSettings system;
     PreferencesSettings preferences;
     SoundSettings sound;
     DebugSettings debug;
     MapperSettings mapper;
-    GraphicSettings graphics;
 };
 
 extern Settings settings;

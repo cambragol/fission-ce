@@ -414,42 +414,24 @@ int objectRead(Object* obj, File* stream)
 {
     int field_74;
 
-    if (fileReadInt32(stream, &(obj->id)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->tile)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->x)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->y)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->sx)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->sy)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->frame)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->rotation)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->fid)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->flags)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->elevation)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->pid)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->cid)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->lightDistance)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->lightIntensity)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &field_74) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->sid)) == -1)
-        return -1;
-    if (fileReadInt32(stream, &(obj->scriptIndex)) == -1)
-        return -1;
+    if (fileReadInt32(stream, &(obj->id)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->tile)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->x)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->y)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->sx)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->sy)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->frame)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->rotation)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->fid)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->flags)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->elevation)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->pid)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->cid)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->lightDistance)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->lightIntensity)) == -1) return -1;
+    if (fileReadInt32(stream, &field_74) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->sid)) == -1) return -1;
+    if (fileReadInt32(stream, &(obj->scriptIndex)) == -1) return -1;
 
     obj->outline = 0;
     obj->owner = nullptr;
@@ -663,44 +645,25 @@ static void _object_fix_weapon_ammo(Object* obj)
 // 0x489200
 static int objectWrite(Object* obj, File* stream)
 {
-    if (fileWriteInt32(stream, obj->id) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->tile) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->x) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->y) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->sx) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->sy) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->frame) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->rotation) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->fid) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->flags) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->elevation) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->pid) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->cid) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->lightDistance) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->lightIntensity) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->outline) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->sid) == -1)
-        return -1;
-    if (fileWriteInt32(stream, obj->scriptIndex) == -1)
-        return -1;
-    if (objectDataWrite(obj, stream) == -1)
-        return -1;
+    if (fileWriteInt32(stream, obj->id) == -1) return -1;
+    if (fileWriteInt32(stream, obj->tile) == -1) return -1;
+    if (fileWriteInt32(stream, obj->x) == -1) return -1;
+    if (fileWriteInt32(stream, obj->y) == -1) return -1;
+    if (fileWriteInt32(stream, obj->sx) == -1) return -1;
+    if (fileWriteInt32(stream, obj->sy) == -1) return -1;
+    if (fileWriteInt32(stream, obj->frame) == -1) return -1;
+    if (fileWriteInt32(stream, obj->rotation) == -1) return -1;
+    if (fileWriteInt32(stream, obj->fid) == -1) return -1;
+    if (fileWriteInt32(stream, obj->flags) == -1) return -1;
+    if (fileWriteInt32(stream, obj->elevation) == -1) return -1;
+    if (fileWriteInt32(stream, obj->pid) == -1) return -1;
+    if (fileWriteInt32(stream, obj->cid) == -1) return -1;
+    if (fileWriteInt32(stream, obj->lightDistance) == -1) return -1;
+    if (fileWriteInt32(stream, obj->lightIntensity) == -1) return -1;
+    if (fileWriteInt32(stream, obj->outline) == -1) return -1;
+    if (fileWriteInt32(stream, obj->sid) == -1) return -1;
+    if (fileWriteInt32(stream, obj->scriptIndex) == -1) return -1;
+    if (objectDataWrite(obj, stream) == -1) return -1;
 
     return 0;
 }

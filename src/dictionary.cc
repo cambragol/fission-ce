@@ -342,21 +342,17 @@ int dictionaryReadHeader(FILE* stream, Dictionary* dictionary)
 {
     int value;
 
-    if (dictionaryReadInt(stream, &value) != 0)
-        return -1;
+    if (dictionaryReadInt(stream, &value) != 0) return -1;
     dictionary->entriesLength = value;
 
-    if (dictionaryReadInt(stream, &value) != 0)
-        return -1;
+    if (dictionaryReadInt(stream, &value) != 0) return -1;
     dictionary->entriesCapacity = value;
 
-    if (dictionaryReadInt(stream, &value) != 0)
-        return -1;
+    if (dictionaryReadInt(stream, &value) != 0) return -1;
     dictionary->valueSize = value;
 
     // NOTE: Originally reads `values` pointer.
-    if (dictionaryReadInt(stream, &value) != 0)
-        return -1;
+    if (dictionaryReadInt(stream, &value) != 0) return -1;
 
     return 0;
 }
@@ -452,14 +448,10 @@ int dictionaryLoad(FILE* stream, Dictionary* dictionary, int a3)
 // 0x4DA2EC
 int dictionaryWriteInt(FILE* stream, int value)
 {
-    if (fputc((value >> 24) & 0xFF, stream) == -1)
-        return -1;
-    if (fputc((value >> 16) & 0xFF, stream) == -1)
-        return -1;
-    if (fputc((value >> 8) & 0xFF, stream) == -1)
-        return -1;
-    if (fputc(value & 0xFF, stream) == -1)
-        return -1;
+    if (fputc((value >> 24) & 0xFF, stream) == -1) return -1;
+    if (fputc((value >> 16) & 0xFF, stream) == -1) return -1;
+    if (fputc((value >> 8) & 0xFF, stream) == -1) return -1;
+    if (fputc(value & 0xFF, stream) == -1) return -1;
 
     return 0;
 }
@@ -469,15 +461,11 @@ int dictionaryWriteInt(FILE* stream, int value)
 // 0x4DA360
 int dictionaryWriteHeader(FILE* stream, Dictionary* dictionary)
 {
-    if (dictionaryWriteInt(stream, dictionary->entriesLength) != 0)
-        return -1;
-    if (dictionaryWriteInt(stream, dictionary->entriesCapacity) != 0)
-        return -1;
-    if (dictionaryWriteInt(stream, dictionary->valueSize) != 0)
-        return -1;
+    if (dictionaryWriteInt(stream, dictionary->entriesLength) != 0) return -1;
+    if (dictionaryWriteInt(stream, dictionary->entriesCapacity) != 0) return -1;
+    if (dictionaryWriteInt(stream, dictionary->valueSize) != 0) return -1;
     // NOTE: Originally writes `entries` pointer.
-    if (dictionaryWriteInt(stream, 0) != 0)
-        return -1;
+    if (dictionaryWriteInt(stream, 0) != 0) return -1;
 
     return 0;
 }

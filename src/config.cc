@@ -571,44 +571,4 @@ bool configSetBool(Config* config, const char* sectionKey, const char* key, bool
     return configSetInt(config, sectionKey, key, value ? 1 : 0);
 }
 
-// Helper functions for arrays
-void configSetIntArray(Config* config, const char* section, const char* key, const int* values, int count)
-{
-    char buffer[256];
-    char* ptr = buffer;
-    size_t remaining = sizeof(buffer);
-
-    for (int i = 0; i < count && remaining > 1; i++) {
-        if (i > 0) {
-            *ptr++ = ',';
-            remaining--;
-        }
-        int written = snprintf(ptr, remaining, "%d", values[i]);
-        ptr += written;
-        remaining -= written;
-    }
-
-    configSetString(config, section, key, buffer);
-}
-
-bool configGetIntArray(Config* config, const char* section, const char* key, int* values, int count)
-{
-    char* string = nullptr; // Pointer that will receive the string
-    if (!configGetString(config, section, key, &string)) {
-        return false;
-    }
-
-    // Make a copy since strtok modifies the string
-    char buffer[256];
-    strncpy(buffer, string, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = '\0';
-
-    char* token = strtok(buffer, ",");
-    for (int i = 0; i < count && token != nullptr; i++) {
-        values[i] = atoi(token);
-        token = strtok(nullptr, ",");
-    }
-    return true;
-}
-
 } // namespace fallout

@@ -110,7 +110,7 @@ void check_int_data(
     while (i < end_pos) {
         auto opcode = fallout::stackReadInt16(data, i);
         if (!((opcode >> 8) & 0x80)) {
-            printf("ERROR: Wrong opcode %x in file %s at pos=0x%zx\n", opcode, fName.c_str(), i);
+            printf("ERROR: Wrong opcode %x in file %s at pos=0x%lx\n", opcode, fName.c_str(), i);
             return;
         };
         unsigned int opcodeIndex = opcode & 0x3FF;
@@ -126,7 +126,7 @@ void check_int_data(
                 // All hooks are unknown atm
                 unknown_hooks[hookProcIndex].insert(fName);
             } else {
-                printf("ERROR: Unknown usage of register_hook in file %s at pos=0x%zx\n", fName.c_str(), i);
+                printf("ERROR: Unknown usage of register_hook in file %s at pos=0x%lx\n", fName.c_str(), i);
                 exit(1);
             }
         } else if (opcodeIndex == 0x262 || opcodeIndex == 0x27d) { // register_hook_proc / register_hook_proc_spec
@@ -136,12 +136,12 @@ void check_int_data(
                 // All hooks are unknown atm
                 unknown_hooks[hookProcIndex].insert(fName);
             } else {
-                printf("ERROR: Unknown usage of register_hook_proc in file %s at pos=0x%zx\n", fName.c_str(), i);
+                printf("ERROR: Unknown usage of register_hook_proc in file %s at pos=0x%lx\n", fName.c_str(), i);
                 exit(1);
             }
         }
 
-        // printf("DEBUG: pos=0x%zx opcode=0x%x (%x) handler=%s\n", i, opcode, opcodeIndex, handler ? "yes": "no=======================");
+        // printf("DEBUG: pos=0x%lx opcode=0x%x (%x) handler=%s\n", i, opcode, opcodeIndex, handler ? "yes": "no=======================");
 
         i += 2;
 

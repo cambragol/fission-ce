@@ -426,8 +426,7 @@ public:
         if (newLen >= 0 && newLen < size()) {
             pairs.resize(newLen);
         } else if (newLen < 0) {
-            if (newLen < (ARRAY_ACTION_SHUFFLE - 2))
-                return;
+            if (newLen < (ARRAY_ACTION_SHUFFLE - 2)) return;
             MapSort(newLen);
         }
     }

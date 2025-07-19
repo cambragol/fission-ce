@@ -16,8 +16,7 @@ PointerRegistry::PointerRegistry()
 
 int PointerRegistry::store(void* ptr)
 {
-    if (ptr == nullptr)
-        return 0;
+    if (ptr == nullptr) return 0;
     int ref = _next++;
     _map[ref] = ptr;
     return ref;
@@ -25,8 +24,7 @@ int PointerRegistry::store(void* ptr)
 
 void* PointerRegistry::fetch(int ref, bool remove)
 {
-    if (ref == 0)
-        return nullptr;
+    if (ref == 0) return nullptr;
     void* ptr = _map[ref];
     if (remove) {
         _map.erase(ref);
