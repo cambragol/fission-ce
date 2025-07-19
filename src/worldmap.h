@@ -7,6 +7,83 @@ namespace fallout {
 
 #define CAR_FUEL_MAX (80000)
 
+// worldmap_offsets.h
+struct WorldmapOffsets {
+    // Window
+    int windowWidth;
+    int windowHeight;
+
+    // Viewport
+    int viewX; // New: Viewport X position
+    int viewY; // New: Viewport Y position
+    int viewWidth;
+    int viewHeight;
+
+    // UI Elements
+    int dialX;
+    int dialY;
+    int globeOverlayX;
+    int globeOverlayY;
+    int carX;
+    int carY;
+    int carOverlayX;
+    int carOverlayY;
+    int carFuelBarX;
+    int carFuelBarY;
+    int carFuelBarHeight;
+
+    // Scroll Area
+    int scrollAreaX; // New: Scroll area X position
+    int scrollAreaY; // New: Scroll area Y position
+
+    // Destination List
+    int destListX; // X position of destination list (508 vs 668)
+    int destListFirstY; // Y of first destination button (138)
+    int destListSpacing; // Vertical spacing (27)
+
+    // Scroll Buttons
+    int scrollUpX;
+    int scrollUpY;
+    int scrollDownX;
+    int scrollDownY;
+
+    // Town/World Switch
+    int townWorldSwitchX;
+    int townWorldSwitchY;
+
+    // Date Display
+    int dateDisplayX; // X position (487 vs 647)
+    int dateDisplayY; // Y position (12)
+    int dateDisplayWidth; // Width (143 = 630-487 vs 143 = 790-647)
+
+    // Viewport Boundaries
+    int viewportMaxX; // Max X coordinate (631 for 800x500)
+    int viewportMaxY; // Max Y coordinate (485 for 800x500)
+
+    // City Name Drawing
+    int cityNameMaxY; // 464 vs 485 (max Y position for city names)
+
+    // Subtile Drawing Boundaries
+    int subtileViewportMaxX; // Right edge for subtile drawing (632 in 800x500)
+    int subtileViewportMaxY; // Bottom edge for subtile drawing (485 in 800x500)
+
+    // Town Map
+    int townMapBgX; // X for town map background (0 in 640x480)
+    int townMapBgY; // Y for town map background (0 in 640x480)
+    int townMapImageX; // X for town map image (95 vs 100)
+    int townMapImageY; // Y for town map image (22 vs 31)
+    int townMapButtonXOffset; // Button X offset (0 vs 78)
+    int townMapButtonYOffset; // Button Y offset (0 vs 10)
+    int townMapLabelXOffset; // Label X offset (0 vs 78)
+    int townMapLabelYOffset; // Label Y offset (4 vs 14)
+
+    int townBackgroundWidth; // Width of widescreen town background
+    int townBackgroundHeight; // Height of widescreen town background
+
+    int mapcenterX;
+    int mapcenterY;
+};
+
 typedef enum MapFlags {
     MAP_SAVED = 0x01,
     MAP_DEAD_BODIES_AGE = 0x02,

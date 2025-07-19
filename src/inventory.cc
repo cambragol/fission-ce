@@ -39,6 +39,7 @@
 #include "random.h"
 #include "reaction.h"
 #include "scripts.h"
+#include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
 #include "svga.h"
@@ -521,6 +522,12 @@ static Inventory* _target_pud;
 // 0x59E97C
 static int _barter_back_win;
 
+// Tracks insult-based price increases
+static int gBarterInsultIncrease = 0;
+
+// used to switch enhancedBarter on/off from config
+static bool enhancedBarter = false;
+
 static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
@@ -744,6 +751,9 @@ static bool _setup_inventory(int inventoryWindowType)
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
 
+    // turn enhanced barter on or off from conifg
+    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ENHANCED_BARTER, &enhancedBarter);
+
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);
 
@@ -759,7 +769,7 @@ static bool _setup_inventory(int inventoryWindowType)
             windowDescription->width,
             windowDescription->height,
             257,
-            WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+            WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
         gInventoryWindowMaxX = windowDescription->width + inventoryWindowX;
         gInventoryWindowMaxY = windowDescription->height + inventoryWindowY;
 
@@ -1011,10 +1021,10 @@ static bool _setup_inventory(int inventoryWindowType)
     int fid;
     int btn;
 
-    fid = buildFid(OBJ_TYPE_INTERFACE, 8, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, 96, 0, 0, 0);
     _inventoryFrmImages[0].lock(fid);
 
-    fid = buildFid(OBJ_TYPE_INTERFACE, 9, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, 95, 0, 0, 0);
     _inventoryFrmImages[1].lock(fid);
 
     if (_inventoryFrmImages[0].isLocked() && _inventoryFrmImages[1].isLocked()) {
@@ -1023,10 +1033,10 @@ static bool _setup_inventory(int inventoryWindowType)
         case INVENTORY_WINDOW_TYPE_NORMAL:
             // Done button
             btn = buttonCreate(gInventoryWindow,
-                437,
+                438,
                 329,
-                15,
-                16,
+                14,
+                14,
                 -1,
                 -1,
                 -1,
@@ -1039,10 +1049,10 @@ static bool _setup_inventory(int inventoryWindowType)
         case INVENTORY_WINDOW_TYPE_USE_ITEM_ON:
             // Cancel button
             btn = buttonCreate(gInventoryWindow,
-                233,
-                328,
-                15,
-                16,
+                234,
+                329,
+                14,
+                14,
                 -1,
                 -1,
                 -1,
@@ -1057,8 +1067,8 @@ static bool _setup_inventory(int inventoryWindowType)
             btn = buttonCreate(gInventoryWindow,
                 476,
                 331,
-                15,
-                16,
+                14,
+                14,
                 -1,
                 -1,
                 -1,
@@ -1087,10 +1097,10 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked()) {
             // Left inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                109,
-                56,
+                111,
+                57,
+                22,
                 23,
-                24,
                 -1,
                 -1,
                 KEY_ARROW_UP,
@@ -1106,9 +1116,9 @@ static bool _setup_inventory(int inventoryWindowType)
             // Right inventory up button.
             btn = buttonCreate(gInventoryWindow,
                 342,
-                56,
+                57,
+                22,
                 23,
-                24,
                 -1,
                 -1,
                 KEY_CTRL_ARROW_UP,
@@ -1193,10 +1203,10 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked()) {
             // Left inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                109,
+                111,
                 82,
-                24,
-                25,
+                22,
+                23,
                 -1,
                 -1,
                 KEY_ARROW_DOWN,
@@ -1213,8 +1223,8 @@ static bool _setup_inventory(int inventoryWindowType)
             btn = buttonCreate(gInventoryWindow,
                 342,
                 82,
-                24,
-                25,
+                22,
+                23,
                 -1,
                 -1,
                 KEY_CTRL_ARROW_DOWN,
@@ -1402,7 +1412,7 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[8].isLocked() && _inventoryFrmImages[9].isLocked()) {
             // Left offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                128,
+                118,
                 113,
                 22,
                 23,
@@ -1420,7 +1430,7 @@ static bool _setup_inventory(int inventoryWindowType)
 
             // Right offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                333,
+                336,
                 113,
                 22,
                 23,
@@ -1448,7 +1458,7 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[10].isLocked() && _inventoryFrmImages[11].isLocked()) {
             // Left offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                128,
+                118,
                 136,
                 22,
                 23,
@@ -1466,7 +1476,7 @@ static bool _setup_inventory(int inventoryWindowType)
 
             // Right offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                333,
+                336,
                 136,
                 22,
                 23,
@@ -4657,8 +4667,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
     return result;
 }
 
-// 0x474B2C
-static int _barter_compute_value(Object* dude, Object* npc)
+static int _barter_compute_value_original(Object* dude, Object* npc)
 {
     if (gGameDialogSpeakerIsPartyMember) {
         return objectGetInventoryWeight(_btable);
@@ -4690,8 +4699,47 @@ static int _barter_compute_value(Object* dude, Object* npc)
     return rounded;
 }
 
-// 0x474C50
-static int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
+static int _barter_compute_value_enhanced(Object* dude, Object* npc)
+{
+    if (gGameDialogSpeakerIsPartyMember) {
+        return objectGetInventoryWeight(_btable);
+    }
+
+    int baseTrueValue = objectGetCost(_btable);
+    int caps = itemGetTotalCaps(_btable);
+    int costWithoutCaps = baseTrueValue - caps;
+
+    // Reaction modifiers
+    // Ensure _barter_mod can't override skill dominance
+    double perkBonus = (dude == gDude && perkHasRank(gDude, PERK_MASTER_TRADER)) ? 25.0 : 0.0;
+    _barter_mod = std::clamp(_barter_mod, -35, 35); // Hard cap on reaction impact
+
+    // Apply reaction modifiers to NPC's and PC's effective skill
+    int npcBarter = skillGetValue(npc, SKILL_BARTER) + _barter_mod;
+    int playerBarter = partyGetBestSkillValue(SKILL_BARTER) + perkBonus;
+
+    // Calculate price modification
+    double skillRatio = (double)(160 + npcBarter) / (160 + playerBarter);
+    double priceMod = 1.15 * skillRatio;
+
+    // Price bounds for better skill progression
+    if (priceMod < 0.75)
+        priceMod = 0.75; // 25% max discount
+    if (priceMod > 1.6)
+        priceMod = 1.6; // 60% max markup
+
+    return (int)(costWithoutCaps * priceMod) + caps;
+}
+
+// Unified entry point
+int _barter_compute_value(Object* dude, Object* npc)
+{
+    return enhancedBarter
+        ? _barter_compute_value_enhanced(dude, npc)
+        : _barter_compute_value_original(dude, npc);
+}
+
+static int _barter_attempt_transaction_original(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
 {
     MessageListItem messageListItem;
 
@@ -4747,6 +4795,138 @@ static int _barter_attempt_transaction(Object* dude, Object* offerTable, Object*
     itemMoveAll(barterTable, dude);
     itemMoveAll(offerTable, npc);
     return 0;
+}
+
+static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
+{
+    MessageListItem messageListItem;
+
+    // Weight checks for companion trades
+    int weightAvailable = critterGetStat(dude, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(dude);
+    if (objectGetInventoryWeight(barterTable) > weightAvailable) {
+        // Sorry, you cannot carry that much.
+        messageListItem.num = 31;
+        if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+            gameDialogRenderSupplementaryMessage(messageListItem.text);
+        }
+        return -1;
+    }
+
+    if (gGameDialogSpeakerIsPartyMember) {
+        int npcWeightAvailable = critterGetStat(npc, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(npc);
+        if (objectGetInventoryWeight(offerTable) > npcWeightAvailable) {
+            // Sorry, that's too much to carry.
+            messageListItem.num = 32;
+            if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                gameDialogRenderSupplementaryMessage(messageListItem.text);
+            }
+            return -1;
+        }
+    } else {
+        bool badOffer = false;
+        if (offerTable->data.inventory.length == 0) {
+            badOffer = true;
+        } else if (itemIsQueued(offerTable)) {
+            if (offerTable->pid == PROTO_ID_GEIGER_COUNTER_I) {
+                if (miscItemTurnOff(offerTable) == -1) {
+                    // Could not turn off the Geiger Counter — reject with message
+                    messageListItem.num = 36; // "Turn that gadget off first. Then we’ll get down to business."
+                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    }
+                    return -1;
+                }
+            } else {
+                // All other active/queued items are rejected
+                messageListItem.num = 37; // "I don't deal in gadgets like that. Take it off the table."
+                if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                    gameDialogRenderSupplementaryMessage(messageListItem.text);
+                }
+                return -1;
+            }
+        }
+
+        if (!badOffer) {
+            int baseTrueValue = objectGetCost(barterTable);
+            int displayedPrice = _barter_compute_value(dude, npc);
+            int playerOffer = objectGetCost(offerTable);
+            double perkBonus = (dude == gDude && perkHasRank(gDude, PERK_MASTER_TRADER)) ? 25.0 : 0.0;
+
+            // Apply reaction modifiers
+            int npcBarter = skillGetValue(npc, SKILL_BARTER) + _barter_mod;
+            int playerBarter = partyGetBestSkillValue(SKILL_BARTER) + perkBonus;
+            int barterDifference = playerBarter - npcBarter; // Range: -200 to +200
+
+            // Dynamic threshold based on skill difference
+            int minAcceptablePercent = 90 - (barterDifference * 30) / 200; // 60% to 90%
+            minAcceptablePercent = std::clamp(minAcceptablePercent, 60, 90);
+            int minAcceptablePrice = ((displayedPrice + gBarterInsultIncrease) * minAcceptablePercent) / 100;
+
+            // Insult threshold scales similarly but with wider range (40-80% of base)
+            int insultPercent = 80 - (barterDifference * 40) / 200; // 40% to 80%
+            insultPercent = std::clamp(insultPercent, 40, 80);
+            int insultThreshold = (baseTrueValue * insultPercent) / 100;
+
+            // Calculate intermediate thresholds for additional feedback levels
+            int seriousThreshold = (minAcceptablePrice + insultThreshold) / 2; // Midpoint between insult and min acceptable
+            int almostDealThreshold = (minAcceptablePrice + seriousThreshold) / 2; // Midpiont between serious and min acceptable
+
+            if (playerOffer >= displayedPrice) {
+                gBarterInsultIncrease = 0;
+            } else if (playerOffer >= minAcceptablePrice) {
+                gBarterInsultIncrease = 0;
+            } else {
+                badOffer = true;
+
+                if (playerOffer < insultThreshold) {
+                    gBarterInsultIncrease += baseTrueValue * 10 / 100; // increases minAcceptablePrice by 10%
+                    messageListItem.num = 33; // "Your offer is insulting."
+                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    }
+                    return -1;
+                } else if (playerOffer < seriousThreshold) {
+                    gBarterInsultIncrease += baseTrueValue * 2 / 100; // increases minAcceptablePrice by 2%
+                    messageListItem.num = 34; // "Let's be serious here."
+                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    }
+                    return -1;
+                } else if (playerOffer < almostDealThreshold) {
+                    messageListItem.num = 35; // "We almost have a deal..."
+                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    }
+                    return -1;
+                }
+
+                if (gBarterInsultIncrease > baseTrueValue * 25 / 100) {
+                    gBarterInsultIncrease = baseTrueValue * 25 / 100; // caps insult minAcceptablePrice increase at 25%
+                }
+            }
+        }
+
+        if (badOffer) {
+            messageListItem.num = 28; // "No, your offer is not good enough."
+            if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                gameDialogRenderSupplementaryMessage(messageListItem.text);
+            }
+            return -1;
+        }
+    }
+
+    // Successful trade
+    itemMoveAll(barterTable, dude);
+    itemMoveAll(offerTable, npc);
+    gBarterInsultIncrease = 0; // Reset on successful trade
+    return 0;
+}
+
+int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
+{
+    return enhancedBarter
+        ? _barter_attempt_transaction_enhanced(dude, offerTable, npc, barterTable)
+        : _barter_attempt_transaction_original(dude, offerTable, npc, barterTable);
 }
 
 static int _barter_get_quantity_moved_items(Object* item, int maxQuantity, bool fromPlayer, bool fromInventory, bool immediate)
@@ -5877,7 +6057,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
     if (_moveFrmImages[2].isLocked() && _moveFrmImages[3].isLocked()) {
         btn = buttonCreate(_mt_wid,
             x,
-            y + 12,
+            y + 11,
             17,
             12,
             -1,

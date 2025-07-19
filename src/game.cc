@@ -177,6 +177,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     debugPrint(">init_options_menu\n");
 
     if (!gIsMapper && skipOpeningMovies < 2) {
+        resizeContent(640, 480);
         showSplash();
     }
 
@@ -1196,6 +1197,9 @@ static void showHelp()
 {
     ScopedGameMode gm(GameMode::kHelp);
 
+    restoreUserAspectPreference();
+    resizeContent(640, 480);
+
     bool isoWasEnabled = isoDisable();
     gameMouseObjectsHide();
 
@@ -1268,6 +1272,7 @@ static void showHelp()
     if (isoWasEnabled) {
         isoEnable();
     }
+    resizeContent(screenGetWidth(), screenGetHeight(), true);
 }
 
 // 0x4440B8
@@ -1330,12 +1335,36 @@ static int gameDbInit()
 {
     const char* main_file_name;
     const char* patch_file_name;
-    int patch_index;
     char filename[COMPAT_MAX_PATH];
+    int patch_index;
+    bool is_original = false;
 
-    main_file_name = nullptr;
-    patch_file_name = nullptr;
+    // Check if master.dat is the original version (multiple versions?)
+    const char* master_path = settings.system.master_dat_path.c_str();
+    if (*master_path != '\0') {
+        FILE* f = fopen(master_path, "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            is_original = (ftell(f) == 333177805);
+            fclose(f);
+        }
+    }
 
+    // Load falloutce.dat BEFORE master if not original & master_override not true
+    if ((is_original || settings.system.master_override) && !settings.system.falloutce_dat_path.empty()) {
+        main_file_name = settings.system.falloutce_dat_path.c_str();
+        patch_file_name = settings.system.falloutce_patches_path.c_str();
+        if (*patch_file_name == '\0')
+            patch_file_name = nullptr;
+
+        int falloutce_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        if (falloutce_db_handle == -1) {
+            showMesageBox("Could not find the falloutce datafile. Please make sure the falloutce.dat file is in the folder that you are running FALLOUT from.");
+            return -1;
+        }
+    }
+
+    // Load master.dat
     main_file_name = settings.system.master_dat_path.c_str();
     if (*main_file_name == '\0') {
         main_file_name = nullptr;
@@ -1348,10 +1377,25 @@ static int gameDbInit()
 
     int master_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
     if (master_db_handle == -1) {
-        showMesageBox("Could not find the master datafile. Please make sure the FALLOUT CD is in the drive and that you are running FALLOUT from the directory you installed it to.");
+        showMesageBox("Could not find the master datafile. Please make sure the master.dat file is in the folder that you are running FALLOUT from.");
         return -1;
     }
 
+    // Load falloutce.dat AFTER master if original
+    if (is_original && !settings.system.falloutce_dat_path.empty() || settings.system.master_override) {
+        main_file_name = settings.system.falloutce_dat_path.c_str();
+        patch_file_name = settings.system.falloutce_patches_path.c_str();
+        if (*patch_file_name == '\0')
+            patch_file_name = nullptr;
+
+        int falloutce_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        if (falloutce_db_handle == -1) {
+            showMesageBox("Could not find the falloutce datafile. Please make sure the falloutce.dat file is in the folder that you are running FALLOUT from.");
+            return -1;
+        }
+    }
+
+    // Load critter.dat
     main_file_name = settings.system.critter_dat_path.c_str();
     if (*main_file_name == '\0') {
         main_file_name = nullptr;
@@ -1364,7 +1408,7 @@ static int gameDbInit()
 
     int critter_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
     if (critter_db_handle == -1) {
-        showMesageBox("Could not find the critter datafile. Please make sure the FALLOUT CD is in the drive and that you are running FALLOUT from the directory you installed it to.");
+        showMesageBox("Could not find the critter datafile. Please make sure the critter.dat file is in the folder that you are running FALLOUT from.");
         return -1;
     }
 
@@ -1384,10 +1428,6 @@ static int gameDbInit()
     }
 
     sfallLoadMods();
-
-    if (compat_access("f2_res.dat", 0) == 0) {
-        dbOpen("f2_res.dat", 0, nullptr, 1);
-    }
 
     return 0;
 }
@@ -1470,17 +1510,7 @@ static void showSplash()
         }
     }
 
-    int size = 0;
-
-    // TODO: Move to settings.
-    Config config;
-    if (configInit(&config)) {
-        if (configRead(&config, "f2_res.ini", false)) {
-            configGetInt(&config, "STATIC_SCREENS", "SPLASH_SCRN_SIZE", &size);
-        }
-
-        configFree(&config);
-    }
+    int size = settings.graphics.splash_size;
 
     int screenWidth = screenGetWidth();
     int screenHeight = screenGetHeight();

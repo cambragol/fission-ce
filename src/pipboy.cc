@@ -655,7 +655,7 @@ static int pipboyWindowInit(int intent)
 
     int pipboyWindowX = (screenGetWidth() - PIPBOY_WINDOW_WIDTH) / 2;
     int pipboyWindowY = (screenGetHeight() - PIPBOY_WINDOW_HEIGHT) / 2;
-    gPipboyWindow = windowCreate(pipboyWindowX, pipboyWindowY, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_HEIGHT, _colorTable[0], WINDOW_MODAL);
+    gPipboyWindow = windowCreate(pipboyWindowX, pipboyWindowY, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_HEIGHT, _colorTable[0], WINDOW_MODAL | WINDOW_TRANSPARENT);
     if (gPipboyWindow == -1) {
         debugPrint("\n** Error opening pipboy window! **\n");
         for (int index = 0; index < PIPBOY_FRM_COUNT; index++) {
@@ -1544,8 +1544,10 @@ static int pipboyWindowRenderHolodiskList(int selectedHolodiskEntry)
 
     // Calculate pagination
     int totalPages = (knownHolodisksCount + maxEntriesPerPage - 1) / maxEntriesPerPage;
-    if (_view_page_holodisk >= totalPages) _view_page_holodisk = totalPages - 1;
-    if (_view_page_holodisk < 0) _view_page_holodisk = 0;
+    if (_view_page_holodisk >= totalPages)
+        _view_page_holodisk = totalPages - 1;
+    if (_view_page_holodisk < 0)
+        _view_page_holodisk = 0;
 
     int startIdx = _view_page_holodisk * maxEntriesPerPage;
     int currentIndex = 0;
@@ -1554,7 +1556,8 @@ static int pipboyWindowRenderHolodiskList(int selectedHolodiskEntry)
     int displayedHolodisks = 0;
     for (int index = 0; index < gHolodisksCount; index++) {
         HolodiskDescription* holodisk = &(gHolodiskDescriptions[index]);
-        if (gGameGlobalVars[holodisk->gvar] == 0) continue;
+        if (gGameGlobalVars[holodisk->gvar] == 0)
+            continue;
 
         if (currentIndex >= startIdx && currentIndex < startIdx + maxEntriesPerPage) {
             int color = ((gPipboyCurrentLine - 1) / 2 == selectedHolodiskEntry - 1) ? _colorTable[32747] : _colorTable[992];
