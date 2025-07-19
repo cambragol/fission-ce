@@ -70,9 +70,6 @@ static int gDisplayMonitorScrollUpButton = -1;
 // 0x56DBFC
 static char gDisplayMonitorLines[DISPLAY_MONITOR_LINES_CAPACITY][DISPLAY_MONITOR_LINE_LENGTH];
 
-// 0x56FB3C
-static unsigned char* gDisplayMonitorBackgroundFrmData;
-
 // 0x56FB40
 static int _max_disp;
 
@@ -97,6 +94,8 @@ static unsigned int gDisplayMonitorLastBeepTimestamp;
 static std::ofstream gConsoleFileStream;
 static int gConsoleFilePrintCount = 0;
 
+static FrmImage backgroundFrmImage;
+
 // 0x431610
 int displayMonitorInit()
 {
@@ -117,37 +116,11 @@ int displayMonitorInit()
         _disp_curr = 0;
         fontSetCurrent(oldFont);
 
-        gDisplayMonitorBackgroundFrmData = (unsigned char*)internal_malloc(DISPLAY_MONITOR_WIDTH * DISPLAY_MONITOR_HEIGHT);
-        if (gDisplayMonitorBackgroundFrmData == nullptr) {
+        int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, "_800", gInterfaceBarIsWide);
+        if (!backgroundFrmImage.lock(backgroundFid)) {
             return -1;
         }
-
-        if (gInterfaceBarIsCustom) {
-            _intface_full_width = gInterfaceBarWidth;
-            blitBufferToBuffer(customInterfaceBarGetBackgroundImageData() + gInterfaceBarWidth * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X,
-                DISPLAY_MONITOR_WIDTH,
-                DISPLAY_MONITOR_HEIGHT,
-                gInterfaceBarWidth,
-                gDisplayMonitorBackgroundFrmData,
-                DISPLAY_MONITOR_WIDTH);
-        } else {
-            FrmImage backgroundFrmImage;
-            int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 16, 0, 0, 0);
-            if (!backgroundFrmImage.lock(backgroundFid)) {
-                internal_free(gDisplayMonitorBackgroundFrmData);
-                return -1;
-            }
-
-            unsigned char* backgroundFrmData = backgroundFrmImage.getData();
-            _intface_full_width = backgroundFrmImage.getWidth();
-
-            blitBufferToBuffer(backgroundFrmData + _intface_full_width * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X,
-                DISPLAY_MONITOR_WIDTH,
-                DISPLAY_MONITOR_HEIGHT,
-                _intface_full_width,
-                gDisplayMonitorBackgroundFrmData,
-                DISPLAY_MONITOR_WIDTH);
-        }
+        _intface_full_width = backgroundFrmImage.getWidth();
 
         gDisplayMonitorScrollUpButton = buttonCreate(gInterfaceBarWindow,
             DISPLAY_MONITOR_X,
@@ -223,7 +196,7 @@ void displayMonitorExit()
         // SFALL
         consoleFileExit();
 
-        internal_free(gDisplayMonitorBackgroundFrmData);
+        backgroundFrmImage.unlock();
         gDisplayMonitorInitialized = false;
     }
 }
@@ -352,12 +325,15 @@ static void displayMonitorRefresh()
     }
 
     buf += _intface_full_width * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X;
-    blitBufferToBuffer(gDisplayMonitorBackgroundFrmData,
+
+    blitBufferToBuffer(
+        backgroundFrmImage.getData() + _intface_full_width * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X, // Source with offset
         DISPLAY_MONITOR_WIDTH,
         DISPLAY_MONITOR_HEIGHT,
-        DISPLAY_MONITOR_WIDTH,
-        buf,
-        _intface_full_width);
+        _intface_full_width, // Source stride
+        buf, // Destination without offset
+        _intface_full_width // Destination stride
+    );
 
     int oldFont = fontGetCurrent();
     fontSetCurrent(DISPLAY_MONITOR_FONT);

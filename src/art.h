@@ -8,6 +8,8 @@
 #include "platform_compat.h"
 #include "proto_types.h"
 
+#define FILENAME_LENGTH 32 // Standardized filename buffer size
+
 namespace fallout {
 
 typedef enum Head {
@@ -171,6 +173,28 @@ private:
     int _width;
     int _height;
 };
+
+/**
+ * Looks for a variant (e.g. “_800.frm”, “_HD.frm”) of the base entry at `baseIndex`
+ * in the merged fileNames[] list for `objectType`.  Returns the new index, or –1 if not found.
+ *
+ * @param objectType  One of your OBJ_TYPE_* enums
+ * @param baseIndex   Index of the original entry (0 .. origCount-1)
+ * @param suffix      Suffix to append (e.g. "_800.frm")
+ * @return            Index of the variant in fileNames[], or –1
+ */
+int artFindVariant(int objectType, int baseIndex, const char* suffix);
+
+/**
+ * @brief Gets a FID with optional variant suffix.
+ *
+ * @param objectType The object type (OBJ_TYPE_*)
+ * @param baseId The base art ID
+ * @param suffix The variant suffix (e.g., "_800")
+ * @param useVariant Whether to attempt variant lookup
+ * @return int The final FID
+ */
+int artGetFidWithVariant(int objectType, int baseId, const char* suffix, bool useVariant);
 
 } // namespace fallout
 

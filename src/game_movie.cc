@@ -170,6 +170,10 @@ int gameMoviePlay(int movie, int flags)
         gGameMovieFaded = true;
     }
 
+    // Must restore preference in case coming from Game area
+    restoreUserAspectPreference();
+    resizeContent(640, 480);
+
     int gameMovieWindowX = (screenGetWidth() - GAME_MOVIE_WINDOW_WIDTH) / 2;
     int gameMovieWindowY = (screenGetHeight() - GAME_MOVIE_WINDOW_HEIGHT) / 2;
     int win = windowCreate(gameMovieWindowX,
@@ -288,6 +292,16 @@ int gameMoviePlay(int movie, int flags)
         windowSetTextColor(r, g, b);
     }
 
+    if (GameMode::isInGameMode(GameMode::kPipboy)) {
+        // other movies play from outside game area - main, scripts(worldmap)
+        resizeContent(screenGetWidth(), screenGetHeight(), true);
+    } else {
+        if (gameIsWidescreen()) {
+            resizeContent(800, 500);
+        } else {
+            resizeContent(640, 480);
+        }
+    }
     windowDestroy(win);
 
     // CE: Destroying a window redraws only content it was covering (centered

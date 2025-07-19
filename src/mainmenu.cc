@@ -9,9 +9,12 @@
 #include "game_sound.h"
 #include "input.h"
 #include "kb.h"
+#include "memory.h"
 #include "mouse.h"
 #include "palette.h"
+#include "platform_compat.h"
 #include "preferences.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "svga.h"
 #include "text_font.h"
@@ -21,9 +24,6 @@
 #include "platform/git_version.h"
 
 namespace fallout {
-
-#define MAIN_MENU_WINDOW_WIDTH 640
-#define MAIN_MENU_WINDOW_HEIGHT 480
 
 typedef enum MainMenuButton {
     MAIN_MENU_BUTTON_INTRO,
@@ -73,6 +73,41 @@ static const int _return_values[MAIN_MENU_BUTTON_COUNT] = {
     MAIN_MENU_EXIT,
 };
 
+// Hardcoded offsets
+const MainMenuOffsets gMainMenuOffsets640 = {
+    /*copyrightX*/ 15,
+    /*copyrightY*/ 460,
+    /*versionX*/ 615,
+    /*versionY*/ 460,
+    /*hashX*/ 615,
+    /*hashX*/ 450,
+    /*buildDateX*/ 615,
+    /*buildDateX*/ 440,
+    /*buttonBaseX*/ 30,
+    /*buttonBaseY*/ 19,
+    /*buttonTextOffsetX*/ 0,
+    /*buttonTextOffsetY*/ 0,
+    640,
+    480
+};
+
+const MainMenuOffsets gMainMenuOffsets800 = {
+    /*copyrightX*/ 15,
+    /*copyrightY*/ 480,
+    /*versionX*/ 780,
+    /*versionY*/ 480,
+    /*hashX*/ 780,
+    /*hashX*/ 470,
+    /*buildDateX*/ 780,
+    /*buildDateX*/ 460,
+    /*buttonBaseX*/ 47,
+    /*buttonBaseY*/ 45,
+    /*buttonTextOffsetX*/ 17,
+    /*buttonTextOffsetY*/ 26,
+    800,
+    500
+};
+
 // 0x614840
 static int gMainMenuButtons[MAIN_MENU_BUTTON_COUNT];
 
@@ -82,6 +117,56 @@ static bool gMainMenuWindowHidden;
 static FrmImage _mainMenuBackgroundFrmImage;
 static FrmImage _mainMenuButtonNormalFrmImage;
 static FrmImage _mainMenuButtonPressedFrmImage;
+
+// move to seperate widescreen.cc file later?
+bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
+{
+    const char* section = isWidescreen ? "mainmenu800" : "mainmenu640";
+    const MainMenuOffsets* fallback = isWidescreen ? &gMainMenuOffsets800 : &gMainMenuOffsets640;
+
+    // Initialize with fallback values
+    *offsets = *fallback;
+
+    // Load all values from config
+    configGetInt(&gGameConfig, section, "copyrightX", &offsets->copyrightX);
+    configGetInt(&gGameConfig, section, "copyrightY", &offsets->copyrightY);
+    configGetInt(&gGameConfig, section, "versionX", &offsets->versionX);
+    configGetInt(&gGameConfig, section, "versionY", &offsets->versionY);
+    configGetInt(&gGameConfig, section, "hashX", &offsets->hashX);
+    configGetInt(&gGameConfig, section, "hashY", &offsets->hashY);
+    configGetInt(&gGameConfig, section, "buildDateX", &offsets->buildDateX);
+    configGetInt(&gGameConfig, section, "buildDateY", &offsets->buildDateY);
+    configGetInt(&gGameConfig, section, "buttonBaseX", &offsets->buttonBaseX);
+    configGetInt(&gGameConfig, section, "buttonBaseY", &offsets->buttonBaseY);
+    configGetInt(&gGameConfig, section, "buttonTextOffsetX", &offsets->buttonTextOffsetX);
+    configGetInt(&gGameConfig, section, "buttonTextOffsetY", &offsets->buttonTextOffsetY);
+    configGetInt(&gGameConfig, section, "width", &offsets->width);
+    configGetInt(&gGameConfig, section, "height", &offsets->height);
+
+    return true;
+}
+
+// move to seperate widescreen.cc file later?
+void mainMenuWriteDefaultOffsetsToConfig(bool isWidescreen, const MainMenuOffsets* defaults)
+{
+    const char* section = isWidescreen ? "mainmenu800" : "mainmenu640";
+
+    // Write all default values to config
+    configSetInt(&gGameConfig, section, "copyrightX", defaults->copyrightX);
+    configSetInt(&gGameConfig, section, "copyrightY", defaults->copyrightY);
+    configSetInt(&gGameConfig, section, "versionX", defaults->versionX);
+    configSetInt(&gGameConfig, section, "versionY", defaults->versionY);
+    configSetInt(&gGameConfig, section, "hashX", defaults->hashX);
+    configSetInt(&gGameConfig, section, "hashY", defaults->hashY);
+    configSetInt(&gGameConfig, section, "buildDateX", defaults->buildDateX);
+    configSetInt(&gGameConfig, section, "buildDateY", defaults->buildDateY);
+    configSetInt(&gGameConfig, section, "buttonBaseX", defaults->buttonBaseX);
+    configSetInt(&gGameConfig, section, "buttonBaseY", defaults->buttonBaseY);
+    configSetInt(&gGameConfig, section, "buttonTextOffsetX", defaults->buttonTextOffsetX);
+    configSetInt(&gGameConfig, section, "buttonTextOffsetY", defaults->buttonTextOffsetY);
+    configSetInt(&gGameConfig, section, "width", defaults->width);
+    configSetInt(&gGameConfig, section, "height", defaults->height);
+}
 
 // 0x481650
 int mainMenuWindowInit()
@@ -94,14 +179,38 @@ int mainMenuWindowInit()
         return 0;
     }
 
+    // Set widescreen - must be wider in both axis and set to widescreen
+    const bool isWidescreen = gameIsWidescreen();
+
+    // Check if we should write defaults
+    int writeOffsets = 0;
+    if (configGetInt(&gGameConfig, "debug", "write_offsets", &writeOffsets) && writeOffsets) {
+        // Write BOTH sets of defaults
+        mainMenuWriteDefaultOffsetsToConfig(false, &gMainMenuOffsets640); // 640x480 defaults
+        mainMenuWriteDefaultOffsetsToConfig(true, &gMainMenuOffsets800); // 800x600 defaults
+
+        // Disable writing and save
+        configSetInt(&gGameConfig, "debug", "write_offsets", 0);
+        gameConfigSave();
+    }
+
+    // Load offsets
+    MainMenuOffsets gOffsets;
+    mainMenuLoadOffsetsFromConfig(&gOffsets, isWidescreen);
+
+    // user preference must be restored after overriding
+    restoreUserAspectPreference();
+    // resize to match SDL texture size for stretching
+    resizeContent(isWidescreen ? 800 : 640, isWidescreen ? 500 : 480);
+
     colorPaletteLoad("color.pal");
 
-    int mainMenuWindowX = (screenGetWidth() - MAIN_MENU_WINDOW_WIDTH) / 2;
-    int mainMenuWindowY = (screenGetHeight() - MAIN_MENU_WINDOW_HEIGHT) / 2;
+    int mainMenuWindowX = (screenGetWidth() - gOffsets.width) / 2;
+    int mainMenuWindowY = (screenGetHeight() - gOffsets.height) / 2;
     gMainMenuWindow = windowCreate(mainMenuWindowX,
         mainMenuWindowY,
-        MAIN_MENU_WINDOW_WIDTH,
-        MAIN_MENU_WINDOW_HEIGHT,
+        gOffsets.width,
+        gOffsets.height,
         0,
         WINDOW_HIDDEN | WINDOW_MOVE_ON_TOP);
     if (gMainMenuWindow == -1) {
@@ -111,14 +220,13 @@ int mainMenuWindowInit()
 
     gMainMenuWindowBuffer = windowGetBuffer(gMainMenuWindow);
 
-    // mainmenu.frm
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 140, 0, 0, 0);
+    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 140, "_800", gameIsWidescreen());
     if (!_mainMenuBackgroundFrmImage.lock(backgroundFid)) {
         // NOTE: Uninline.
         return main_menu_fatal_error();
     }
 
-    blitBufferToBuffer(_mainMenuBackgroundFrmImage.getData(), 640, 480, 640, gMainMenuWindowBuffer, 640);
+    blitBufferToBuffer(_mainMenuBackgroundFrmImage.getData(), gOffsets.width, gOffsets.height, gOffsets.width, gMainMenuWindowBuffer, gOffsets.width);
     _mainMenuBackgroundFrmImage.unlock();
 
     int oldFont = fontGetCurrent();
@@ -142,29 +250,30 @@ int mainMenuWindowInit()
     // Copyright.
     msg.num = 20;
     if (messageListGetItem(&gMiscMessageList, &msg)) {
-        windowDrawText(gMainMenuWindow, msg.text, 0, offsetX + 15, offsetY + 460, fontSettings | 0x06000000);
+        windowDrawText(gMainMenuWindow, msg.text, 0, offsetX + gOffsets.copyrightX, offsetY + gOffsets.copyrightY, fontSettings | 0x06000000);
     }
 
     // SFALL: Make sure font settings are applied when using 0x010000 flag
     if (fontSettingsSFall)
         fontSettings = fontSettingsSFall;
 
-    // TODO: Allow to move version text
     // Version.
     char version[VERSION_MAX];
     versionGetVersion(version, sizeof(version));
     len = fontGetStringWidth(version);
-    windowDrawText(gMainMenuWindow, version, 0, 615 - len, 440, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, version, 0, gOffsets.versionX - len, gOffsets.versionY, fontSettings | 0x06000000);
 
+    // Hash
     char commitHash[VERSION_MAX] = "BUILD HASH: ";
     strcat(commitHash, _BUILD_HASH);
     len = fontGetStringWidth(commitHash);
-    windowDrawText(gMainMenuWindow, commitHash, 0, 615 - len, 450, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, commitHash, 0, gOffsets.hashX - len, gOffsets.hashY, fontSettings | 0x06000000);
 
+    // Build Date
     char buildDate[VERSION_MAX] = "DATE: ";
     strcat(buildDate, _BUILD_DATE);
     len = fontGetStringWidth(buildDate);
-    windowDrawText(gMainMenuWindow, buildDate, 0, 615 - len, 460, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, buildDate, 0, gOffsets.buildDateX - len, gOffsets.buildDateY, fontSettings | 0x06000000);
 
     // menuup.frm
     fid = buildFid(OBJ_TYPE_INTERFACE, 299, 0, 0, 0);
@@ -184,15 +293,15 @@ int mainMenuWindowInit()
         gMainMenuButtons[index] = -1;
     }
 
-    // SFALL: Allow to move menu buttons
+    // SFALL: Allow to move menu buttons via offsetX and offsetY
     offsetX = offsetY = 0;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_X_KEY, &offsetX);
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_Y_KEY, &offsetY);
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         gMainMenuButtons[index] = buttonCreate(gMainMenuWindow,
-            offsetX + 30,
-            offsetY + 19 + index * 42 - index,
+            offsetX + gOffsets.buttonBaseX,
+            offsetY + gOffsets.buttonBaseY + index * 42 - index,
             26,
             26,
             -1,
@@ -224,7 +333,7 @@ int mainMenuWindowInit()
         msg.num = 9 + index;
         if (messageListGetItem(&gMiscMessageList, &msg)) {
             len = fontGetStringWidth(msg.text);
-            fontDrawText(gMainMenuWindowBuffer + offsetX + 640 * (offsetY + 42 * index - index + 20) + 126 - (len / 2), msg.text, 640 - (126 - (len / 2)) - 1, 640, fontSettings);
+            fontDrawText(gMainMenuWindowBuffer + gOffsets.buttonTextOffsetX + offsetX + gOffsets.width * (gOffsets.buttonTextOffsetY + offsetY + 42 * index - index + 20) + 126 - (len / 2), msg.text, gOffsets.width - (126 - (len / 2)) - 1, gOffsets.width, fontSettings);
         }
     }
 
