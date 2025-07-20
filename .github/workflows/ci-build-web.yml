@@ -1,4 +1,5 @@
-name: Build and deploy webassembly version
+name: Build and deploy WebAssembly version
+
 on:
   push:
     branches:
@@ -10,11 +11,13 @@ on:
 
 jobs:
   build_webassembly_version:
-    name: Build webassembly version
+    name: Build WebAssembly + Deploy fission‑ce UI
     runs-on: ubuntu-latest
-    permissions: write-all
+    permissions:
+      contents: write  # needed for gh‑pages action
+
     steps:
-      - name: Clone
+      - name: Checkout engine
         uses: actions/checkout@v4
 
       - name: Install Emscripten SDK
@@ -24,77 +27,86 @@ jobs:
           ./emsdk install 4.0.4
           ./emsdk activate 4.0.4
 
-      - name: Build fallout2 wasm module
+      - name: Build fallout2 WASM module
         run: |
           source emsdk/emsdk_env.sh
           git config --global --add safe.directory "*"
           mkdir -p build
           cd build
-          emcmake cmake ../ -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release && emmake make VERBOSE=1 -j 4
+          emcmake cmake ../ \
+            -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain/Emscripten.cmake \
+            -DCMAKE_BUILD_TYPE=Release
+          emmake make -j4
           cd ..
 
-      - name: Add node
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/setup-node@v2
+      - name: Setup Node (for UI build)
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Checkout web interface
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Checkout fission‑ce web UI
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
         with:
-          repository: fallout2-ce/fallout2-ce-ems
+          repository: cambragol/fission‑ce‑ems
           ref: 8dc61ba6e8e62116f4810ffe89d0cece00f508d7
-          path: fallout2-ce-ems
+          path: fission‑ce‑ems
 
-      - name: Set deployment path
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Determine deploy paths
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         id: set-path
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "DEST_DIR=PR-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fallout2-ce/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/fission‑ce/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
           else
             echo "DEST_DIR=." >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fallout2-ce/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/fission‑ce/" >> $GITHUB_OUTPUT
           fi
-          echo ===============================
           cat $GITHUB_OUTPUT
 
-      - name: Build web interface
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        run: |
-          cd fallout2-ce-ems
-          npm install
-          cp ../build/fallout2-ce.js src/assets/fallout2ce
-          cp ../build/fallout2-ce.wasm src/assets/fallout2ce
-          export F2_WEB_INFO=Web=$(git rev-parse HEAD)
-          echo "F2_WEB_INFO=$F2_WEB_INFO"
-          echo "F2_GAME_VERSION=$F2_GAME_VERSION"
-          npm run build
+      - name: Build fission‑ce web UI
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
-          SITE_BASE:  ${{ steps.set-path.outputs.SITE_BASE }}
-          F2_GAME_VERSION: Game=${{github.event.pull_request.head.sha || github.sha }}
-
-      - name: Install rsync (required for the next step)
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+          SITE_BASE:     ${{ steps.set-path.outputs.SITE_BASE }}
+          PUBLIC_URL:    ${{ steps.set-path.outputs.SITE_BASE }}
+          F2_WEB_INFO:   Web=${{ github.event.pull_request.head.sha || github.sha }}
+          F2_GAME_VERSION: Game=${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          sudo apt-get update && sudo apt-get install -y rsync
+          cd fission‑ce‑ems
+          npm ci
+          # Copy the freshly built engine artifacts into the UI assets folder
+          cp ../build/fallout2-ce.js  src/assets/fallout2ce/
+          cp ../build/fallout2-ce.wasm src/assets/fallout2ce/
+          npm run build
 
-      - name: Deploy PR preview or main site
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Deploy to GitHub Pages
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          branch: gh-pages
-          folder: fallout2-ce-ems/dist
+          branch:      gh-pages
+          folder:      fission‑ce‑ems/dist
           target-folder: ${{ steps.set-path.outputs.DEST_DIR }}
-          clean: false
+          clean:       false
           single-commit: true
 
-      - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Comment Preview URL on PR
+        if: |
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "🚀 WebAssembly PR Preview for ${{github.event.pull_request.head.sha || github.sha }} is available at: https://${{ github.repository_owner }}.github.io/fallout2-ce/PR-${{ github.event.pull_request.number }}/"
+            --body "🚀 WebAssembly PR Preview is available at: https://${{ github.repository_owner }}.github.io/fission‑ce/PR-${{ github.event.pull_request.number }}/"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
