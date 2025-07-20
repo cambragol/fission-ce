@@ -108,6 +108,7 @@ typedef struct PreferenceDescription {
     int* valuePtr;
 } PreferenceDescription;*/
 
+
 static void _SetSystemPrefs();
 static void _SaveSettings();
 static void _RestoreSettings();
