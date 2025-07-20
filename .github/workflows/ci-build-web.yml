@@ -66,8 +66,8 @@ jobs:
         run: |
           cd fission-ce-ems
           npm install
-          cp ../build/fission-ce.js src/assets/fallout2ce
-          cp ../build/fission-ce.wasm src/assets/fallout2ce
+          cp ../build/fallout2-ce.js src/assets/fallout2ce
+          cp ../build/fallout2-ce.wasm src/assets/fallout2ce
           export F2_WEB_INFO=Web=$(git rev-parse HEAD)
           echo "F2_WEB_INFO=$F2_WEB_INFO"
           echo "F2_GAME_VERSION=$F2_GAME_VERSION"
