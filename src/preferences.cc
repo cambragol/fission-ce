@@ -108,7 +108,6 @@ typedef struct PreferenceDescription {
     int* valuePtr;
 } PreferenceDescription;*/
 
-
 static void _SetSystemPrefs();
 static void _SaveSettings();
 static void _RestoreSettings();
@@ -890,19 +889,20 @@ void preferencesWriteDefaultOffsetsToConfig(bool isWidescreen, const Preferences
     }
 }
 
-void applyWidescreenPreference(bool widescreen) {
+void applyWidescreenPreference(bool widescreen)
+{
     // 1) Compute and clamp your desired resolution
-    int newWidth  = widescreen ? std::max(settings.graphics.game_width, 800) : 640;
+    int newWidth = widescreen ? std::max(settings.graphics.game_width, 800) : 640;
     int newHeight = widescreen ? std::max(settings.graphics.game_height, 500) : 480;
 
     // 2) Sync into settings & .cfg
-    settings.graphics.game_width  = newWidth;
+    settings.graphics.game_width = newWidth;
     settings.graphics.game_height = newHeight;
-    //settings.graphics.widescreen  = widescreen;
+    // settings.graphics.widescreen  = widescreen;
 
-    configSetInt (&gGameConfig, "graphics", "game_width",  newWidth);
-    configSetInt (&gGameConfig, "graphics", "game_height", newHeight);
-    //configSetBool(&gGameConfig, "graphics", "widescreen", widescreen);
+    configSetInt(&gGameConfig, "graphics", "game_width", newWidth);
+    configSetInt(&gGameConfig, "graphics", "game_height", newHeight);
+    // configSetBool(&gGameConfig, "graphics", "widescreen", widescreen);
     gameConfigSave();
 
     // 3) Rebuild everything
@@ -950,7 +950,7 @@ static void _SetSystemPrefs()
     gPreferencesTargetHighlight1 = settings.preferences.target_highlight;
     gPreferencesCombatMessages1 = settings.preferences.combat_messages;
     gPreferencesWidescreen1 = settings.graphics.widescreen;
-    //gPreferencesCombatLooks1 = settings.preferences.combat_looks;
+    // gPreferencesCombatLooks1 = settings.preferences.combat_looks;
     gPreferencesCombatTaunts1 = settings.preferences.combat_taunts;
     gPreferencesLanguageFilter1 = settings.preferences.language_filter;
     gPreferencesRunning1 = settings.preferences.running;
@@ -977,7 +977,7 @@ static void _SaveSettings()
     gPreferencesViolenceLevel2 = gPreferencesViolenceLevel1;
     gPreferencesTargetHighlight2 = gPreferencesTargetHighlight1;
     gPreferencesWidescreen2 = gPreferencesWidescreen1;
-    //gPreferencesCombatLooks2 = gPreferencesCombatLooks1;
+    // gPreferencesCombatLooks2 = gPreferencesCombatLooks1;
     gPreferencesCombatMessages2 = gPreferencesCombatMessages1;
     gPreferencesCombatTaunts2 = gPreferencesCombatTaunts1;
     gPreferencesLanguageFilter2 = gPreferencesLanguageFilter1;
@@ -1003,7 +1003,7 @@ static void _RestoreSettings()
     gPreferencesViolenceLevel1 = gPreferencesViolenceLevel2;
     gPreferencesTargetHighlight1 = gPreferencesTargetHighlight2;
     gPreferencesWidescreen1 = gPreferencesWidescreen2;
-    //gPreferencesCombatLooks1 = gPreferencesCombatLooks2;
+    // gPreferencesCombatLooks1 = gPreferencesCombatLooks2;
     gPreferencesCombatMessages1 = gPreferencesCombatMessages2;
     gPreferencesCombatTaunts1 = gPreferencesCombatTaunts2;
     gPreferencesLanguageFilter1 = gPreferencesLanguageFilter2;
@@ -1031,7 +1031,7 @@ static void preferencesSetDefaults(bool a1)
     gPreferencesTargetHighlight1 = TARGET_HIGHLIGHT_TARGETING_ONLY;
     gPreferencesCombatMessages1 = 1;
     gPreferencesWidescreen1 = 0;
-    //gPreferencesCombatLooks1 = 0;
+    // gPreferencesCombatLooks1 = 0;
     gPreferencesCombatTaunts1 = 1;
     gPreferencesRunning1 = 0;
     gPreferencesSubtitles1 = 0;
@@ -1067,7 +1067,7 @@ static void _JustUpdate_()
     gPreferencesTargetHighlight1 = std::clamp(gPreferencesTargetHighlight1, 0, 2);
     gPreferencesCombatMessages1 = std::clamp(gPreferencesCombatMessages1, 0, 1);
     gPreferencesWidescreen1 = std::clamp(gPreferencesWidescreen1, 0, 1);
-    //gPreferencesCombatLooks1 = std::clamp(gPreferencesCombatLooks1, 0, 1);
+    // gPreferencesCombatLooks1 = std::clamp(gPreferencesCombatLooks1, 0, 1);
     gPreferencesCombatTaunts1 = std::clamp(gPreferencesCombatTaunts1, 0, 1);
     gPreferencesLanguageFilter1 = std::clamp(gPreferencesLanguageFilter1, 0, 1);
     gPreferencesRunning1 = std::clamp(gPreferencesRunning1, 0, 1);
@@ -1098,7 +1098,7 @@ static void _JustUpdate_()
     speechSetVolume(gPreferencesSpeechVolume1);
     mouseSetSensitivity(gPreferencesMouseSensitivity1);
     colorSetBrightness(gPreferencesBrightness1);
-    //applyWidescreenPreference(gPreferencesWidescreen1);
+    // applyWidescreenPreference(gPreferencesWidescreen1);
 }
 
 // 0x491A68
@@ -1364,7 +1364,7 @@ int _SavePrefs(bool save)
     settings.preferences.target_highlight = gPreferencesTargetHighlight1;
     settings.preferences.combat_messages = gPreferencesCombatMessages1;
     settings.graphics.widescreen = gPreferencesWidescreen1;
-    //settings.preferences.combat_looks = gPreferencesCombatLooks1;
+    // settings.preferences.combat_looks = gPreferencesCombatLooks1;
     settings.preferences.combat_taunts = gPreferencesCombatTaunts1;
     settings.preferences.language_filter = gPreferencesLanguageFilter1;
     settings.preferences.running = gPreferencesRunning1;
@@ -1416,7 +1416,7 @@ int preferencesSave(File* stream)
     if (fileWriteInt32(stream, gPreferencesTargetHighlight1) == -1)
         goto err;
     if (fileWriteInt32(stream, gPreferencesWidescreen1) == -1)
-    //if (fileWriteInt32(stream, gPreferencesCombatLooks1) == -1)
+        // if (fileWriteInt32(stream, gPreferencesCombatLooks1) == -1)
         goto err;
     if (fileWriteInt32(stream, gPreferencesCombatMessages1) == -1)
         goto err;
@@ -1476,7 +1476,7 @@ int preferencesLoad(File* stream)
     if (fileReadInt32(stream, &gPreferencesTargetHighlight1) == -1)
         goto err;
     if (fileReadInt32(stream, &gPreferencesWidescreen1) == -1)
-    //if (fileReadInt32(stream, &gPreferencesCombatLooks1) == -1)
+        // if (fileReadInt32(stream, &gPreferencesCombatLooks1) == -1)
         goto err;
     if (fileReadInt32(stream, &gPreferencesCombatMessages1) == -1)
         goto err;
