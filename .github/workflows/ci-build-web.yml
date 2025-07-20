@@ -43,9 +43,9 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
         with:
-          repository: fission-ce/fallout2-ce-ems
+          repository: cambragol/fission-ce-ems
           ref: 8dc61ba6e8e62116f4810ffe89d0cece00f508d7
-          path: fallout2-ce-ems
+          path: fission-ce-ems
 
       - name: Set deployment path
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
@@ -64,7 +64,7 @@ jobs:
       - name: Build web interface
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
-          cd fallout2-ce-ems
+          cd fission-ce-ems
           npm install
           cp ../build/fission-ce.js src/assets/fallout2ce
           cp ../build/fission-ce.wasm src/assets/fallout2ce
@@ -86,7 +86,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: fallout2-ce-ems/dist
+          folder: fission-ce-ems/dist
           target-folder: ${{ steps.set-path.outputs.DEST_DIR }}
           clean: false
           single-commit: true
