@@ -119,6 +119,7 @@ static int preferencesWindowInit();
 static int preferencesWindowFree();
 static void _DoThing(int eventCode);
 
+
 // 0x48FBD0
 /*const int _row1Ytab[PRIMARY_PREF_COUNT] = {
     48,
