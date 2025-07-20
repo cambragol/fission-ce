@@ -196,8 +196,8 @@ int falloutMain(int argc, char** argv)
                 mainMenuWindowHide(true);
                 {
 
-                mainMenuWindowFree();
-                doPreferences(true);
+                    mainMenuWindowFree();
+                    doPreferences(true);
                     // NOTE: Uninline.
                     main_unload_new();
 

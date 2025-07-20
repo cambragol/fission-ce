@@ -429,7 +429,7 @@ void handleWindowSizeChanged()
 
     // Save palette by copying data (not just pointer)
     unsigned char* originalPalette = directDrawGetPalette();
-    unsigned char paletteCopy[256 * 3];  // Standard 8-bit palette size
+    unsigned char paletteCopy[256 * 3]; // Standard 8-bit palette size
     if (originalPalette) {
         memcpy(paletteCopy, originalPalette, sizeof(paletteCopy));
     }
@@ -455,7 +455,7 @@ void handleWindowSizeChanged()
 
     // Recreate renderer
     createRenderer(newWidth, newHeight);
-    
+
     isResizing = false;
 }
 
