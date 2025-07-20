@@ -336,8 +336,10 @@ jobs:
       - name: Cache cmake build
         uses: actions/cache@v4
         with:
-          path: out
-          key: windows-${{ matrix.arch }}-cmake-v100
+          key: windows-${{ matrix.arch }}-cmake-v1-${{ hashFiles('CMakeLists.txt') }}
+          path:
+            - out/build/windows-${{ matrix.arch }}/_deps   # only your external deps
+            - out/build/windows-${{ matrix.arch }}/CMakeFiles/CMakeDirectoryInformation.cmake
 
       - name: Configure
         shell: cmd
