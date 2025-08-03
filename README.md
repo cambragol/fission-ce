@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="files/fission_engine_logo.png" alt="Fallout: F.I.S.S.I.O.N. Logo" width="480">
+</p>
+
 # Fallout: F.I.S.S.I.O.N.
 *Flexible Isometric Simulation System for Interactive Open‑world Nuclear‑roleplaying*
 
