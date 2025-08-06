@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="files/fission_logo_ver3.png" alt="Fallout: F.I.S.S.I.O.N. Logo" width="1024">
+  <img src="files/fission_logo_ver4.png" alt="Fallout: F.I.S.S.I.O.N. Logo" width="1024">
 </p>
 
 # Fallout: F.I.S.S.I.O.N.
