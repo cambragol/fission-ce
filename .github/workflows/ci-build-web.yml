@@ -43,9 +43,9 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
         with:
-          repository: cambragol/fission-ce-ems
+          repository: fallout2-ce/fallout2-ce-ems
           ref: 8dc61ba6e8e62116f4810ffe89d0cece00f508d7
-          path: fission-ce-ems
+          path: fallout2-ce-ems
 
       - name: Set deployment path
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
@@ -53,10 +53,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "DEST_DIR=PR-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fission-ce/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/fallout2-ce/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
           else
             echo "DEST_DIR=." >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fission-ce/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/fallout2-ce/" >> $GITHUB_OUTPUT
           fi
           echo ===============================
           cat $GITHUB_OUTPUT
@@ -64,7 +64,7 @@ jobs:
       - name: Build web interface
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
-          cd fission-ce-ems
+          cd fallout2-ce-ems
           npm install
           cp ../build/fallout2-ce.js src/assets/fallout2ce
           cp ../build/fallout2-ce.wasm src/assets/fallout2ce
@@ -86,7 +86,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: fission-ce-ems/dist
+          folder: fallout2-ce-ems/dist
           target-folder: ${{ steps.set-path.outputs.DEST_DIR }}
           clean: false
           single-commit: true
@@ -95,6 +95,6 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "🚀 WebAssembly PR Preview for ${{github.event.pull_request.head.sha || github.sha }} is available at: https://${{ github.repository_owner }}.github.io/fission-ce/PR-${{ github.event.pull_request.number }}/"
+            --body "🚀 WebAssembly PR Preview for ${{github.event.pull_request.head.sha || github.sha }} is available at: https://${{ github.repository_owner }}.github.io/fallout2-ce/PR-${{ github.event.pull_request.number }}/"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
