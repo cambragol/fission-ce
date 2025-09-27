@@ -177,7 +177,13 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     debugPrint(">init_options_menu\n");
 
     if (!gIsMapper && skipOpeningMovies < 2) {
-        resizeContent(640, 480);
+
+        if (gameIsWidescreen()) {
+            resizeContent(800, 500);
+        } else {
+            resizeContent(640, 480);
+        }
+        // resizeContent(640, 480);
         showSplash();
     }
 
@@ -1350,49 +1356,60 @@ static int gameDbInit()
         }
     }
 
-    // Load falloutce.dat BEFORE master if not original & master_override not true
-    if ((is_original || settings.system.master_override) && !settings.system.falloutce_dat_path.empty()) {
-        main_file_name = settings.system.falloutce_dat_path.c_str();
-        patch_file_name = settings.system.falloutce_patches_path.c_str();
-        if (*patch_file_name == '\0')
+    // Helper lambda to actually open the fission datafile
+    auto loadFission = [&]() -> int {
+        const char* main_file_name = settings.system.fission_dat_path.c_str();
+        const char* patch_file_name = settings.system.fission_patches_path.c_str();
+        if (*patch_file_name == '\0') {
             patch_file_name = nullptr;
+        }
+        int handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        if (handle == -1) {
+            showMesageBox(
+                "Could not find the fission datafile. "
+                "Please make sure the fission.dat file is in the folder "
+                "that you are running FALLOUT from.");
+        }
+        return handle;
+    };
 
-        int falloutce_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
-        if (falloutce_db_handle == -1) {
-            showMesageBox("Could not find the falloutce datafile. Please make sure the falloutce.dat file is in the folder that you are running FALLOUT from.");
+    bool hasFission = !settings.system.fission_dat_path.empty();
+    bool useMasterOverride = settings.system.master_override;
+
+    // If master.dat is *not* the “original” AND override is *not* set,
+    // then load fission.dat *before* master.dat.
+    if (!is_original && !useMasterOverride && hasFission) {
+        if (loadFission() == -1)
+            return -1;
+    }
+
+    // Now load master.dat
+    {
+        const char* main_file_name = settings.system.master_dat_path.c_str();
+        const char* patch_file_name = settings.system.master_patches_path.c_str();
+        if (*main_file_name == '\0') {
+            main_file_name = nullptr;
+        }
+        if (*patch_file_name == '\0') {
+            patch_file_name = nullptr;
+        }
+
+        int master_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        if (master_db_handle == -1) {
+            showMesageBox(
+                "Could not find the master datafile. "
+                "Please make sure the master.dat file is in the folder "
+                "that you are running FALLOUT from.");
             return -1;
         }
     }
 
-    // Load master.dat
-    main_file_name = settings.system.master_dat_path.c_str();
-    if (*main_file_name == '\0') {
-        main_file_name = nullptr;
-    }
+    // If master.dat *is* the original, OR if override is set,
+    // then load fission.dat *after* master.dat.
+    if ((is_original || useMasterOverride) && hasFission) {
 
-    patch_file_name = settings.system.master_patches_path.c_str();
-    if (*patch_file_name == '\0') {
-        patch_file_name = nullptr;
-    }
-
-    int master_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
-    if (master_db_handle == -1) {
-        showMesageBox("Could not find the master datafile. Please make sure the master.dat file is in the folder that you are running FALLOUT from.");
-        return -1;
-    }
-
-    // Load falloutce.dat AFTER master if original
-    if (is_original && !settings.system.falloutce_dat_path.empty() || settings.system.master_override) {
-        main_file_name = settings.system.falloutce_dat_path.c_str();
-        patch_file_name = settings.system.falloutce_patches_path.c_str();
-        if (*patch_file_name == '\0')
-            patch_file_name = nullptr;
-
-        int falloutce_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
-        if (falloutce_db_handle == -1) {
-            showMesageBox("Could not find the falloutce datafile. Please make sure the falloutce.dat file is in the folder that you are running FALLOUT from.");
+        if (loadFission() == -1)
             return -1;
-        }
     }
 
     // Load critter.dat
@@ -1408,7 +1425,10 @@ static int gameDbInit()
 
     int critter_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
     if (critter_db_handle == -1) {
-        showMesageBox("Could not find the critter datafile. Please make sure the critter.dat file is in the folder that you are running FALLOUT from.");
+        showMesageBox(
+            "Could not find the critter datafile. "
+            "Please make sure the critter.dat file is in the folder "
+            "that you are running FALLOUT from.");
         return -1;
     }
 
@@ -1445,9 +1465,21 @@ static void showSplash()
         snprintf(path, sizeof(path), "art\\splash\\");
     }
 
-    File* stream;
+    File* stream = nullptr;
     for (int index = 0; index < SPLASH_COUNT; index++) {
         char filePath[64];
+
+        // First try widescreen version if in widescreen mode
+        if (gameIsWidescreen()) {
+            snprintf(filePath, sizeof(filePath), "%ssplash%d%s.rix", path, splash,
+                settings.graphics.widescreen_variant_suffix.c_str());
+            stream = fileOpen(filePath, "rb");
+            if (stream != nullptr) {
+                break;
+            }
+        }
+
+        // If widescreen version not found or not in widescreen mode, try regular version
         snprintf(filePath, sizeof(filePath), "%ssplash%d.rix", path, splash);
         stream = fileOpen(filePath, "rb");
         if (stream != nullptr) {
@@ -1455,7 +1487,6 @@ static void showSplash()
         }
 
         splash++;
-
         if (splash >= SPLASH_COUNT) {
             splash = 0;
         }
@@ -1510,45 +1541,16 @@ static void showSplash()
         }
     }
 
-    int size = settings.graphics.splash_size;
-
     int screenWidth = screenGetWidth();
     int screenHeight = screenGetHeight();
 
-    if (size != 0 || screenWidth < width || screenHeight < height) {
-        int scaledWidth;
-        int scaledHeight;
+    // Calculate centered position
+    int x = (screenWidth - width) / 2;
+    int y = (screenHeight - height) / 2;
 
-        if (size == 2) {
-            scaledWidth = screenWidth;
-            scaledHeight = screenHeight;
-        } else {
-            if (screenHeight * width >= screenWidth * height) {
-                scaledWidth = screenWidth;
-                scaledHeight = screenWidth * height / width;
-            } else {
-                scaledWidth = screenHeight * width / height;
-                scaledHeight = screenHeight;
-            }
-        }
-
-        unsigned char* scaled = reinterpret_cast<unsigned char*>(internal_malloc(scaledWidth * scaledHeight));
-        if (scaled != nullptr) {
-            blitBufferToBufferStretch(data, width, height, width, scaled, scaledWidth, scaledHeight, scaledWidth);
-
-            int x = screenWidth > scaledWidth ? (screenWidth - scaledWidth) / 2 : 0;
-            int y = screenHeight > scaledHeight ? (screenHeight - scaledHeight) / 2 : 0;
-            _scr_blit(scaled, scaledWidth, scaledHeight, 0, 0, scaledWidth, scaledHeight, x, y);
-            paletteFadeTo(palette);
-
-            internal_free(scaled);
-        }
-    } else {
-        int x = (screenWidth - width) / 2;
-        int y = (screenHeight - height) / 2;
-        _scr_blit(data, width, height, 0, 0, width, height, x, y);
-        paletteFadeTo(palette);
-    }
+    // Perform clean blit
+    _scr_blit(data, width, height, 0, 0, width, height, x, y);
+    paletteFadeTo(palette);
 
     internal_free(data);
     internal_free(palette);

@@ -13,8 +13,8 @@ struct SystemSettings {
     std::string master_patches_path = "data";
     std::string critter_dat_path = "critter.dat";
     std::string critter_patches_path = "data";
-    std::string falloutce_dat_path = "falloutce.dat";
-    std::string falloutce_patches_path = "data";
+    std::string fission_dat_path = "fission.dat";
+    std::string fission_patches_path = "data";
     std::string language = ENGLISH;
     bool master_override;
     int scroll_lock = 0;
@@ -94,15 +94,17 @@ struct MapperSettings {
 };
 
 struct GraphicSettings {
-    int game_width = 640;
-    int game_height = 480;
-    int splash_size = 0;
+    int game_width = 800;
+    int game_height = 500;
     bool fullscreen = true;
     bool stretch_enabled = true;
     bool preserve_aspect = true;
     bool high_quality = false;
     bool highres_stencil = true;
-    bool widescreen = false;
+    bool widescreen = true;
+    bool square_pixels = false;
+    int play_area = 1;
+    std::string widescreen_variant_suffix = "_800";
 };
 
 struct Settings {

@@ -48,8 +48,8 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_PATCHES_KEY, settings.system.master_patches_path);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_DAT_KEY, settings.system.critter_dat_path);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_PATCHES_KEY, settings.system.critter_patches_path);
-    settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FALLOUTCE_DAT_KEY, settings.system.falloutce_dat_path);
-    settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FALLOUTCE_PATCHES_KEY, settings.system.falloutce_patches_path);
+    settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, settings.system.fission_dat_path);
+    settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_PATCHES_KEY, settings.system.fission_patches_path);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_LANGUAGE_KEY, settings.system.language);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_OVERRIDE_KEY, settings.system.master_override);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_SCROLL_LOCK_KEY, settings.system.scroll_lock);
@@ -108,12 +108,14 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_WIDTH, settings.graphics.game_width);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_HEIGHT, settings.graphics.game_height);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_FULLSCREEN, settings.graphics.fullscreen);
-    settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_SPLASH_SIZE, settings.graphics.splash_size);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_STRETCH_ENABLED, settings.graphics.stretch_enabled);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_PRESERVE_ASPECT, settings.graphics.preserve_aspect);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_HIGH_QUALITY, settings.graphics.high_quality);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_ENABLE_HIRES_STENCIL, settings.graphics.highres_stencil);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_WIDESCREEN, settings.graphics.widescreen);
+    settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_SQUARE_PIXELS, settings.graphics.square_pixels);
+    settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_PLAY_AREA, settings.graphics.play_area);
+    settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_VARIANT_SUFFIX, settings.graphics.widescreen_variant_suffix);
 
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_OVERRIDE_LIBRARIAN_KEY, settings.mapper.override_librarian);
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_LIBRARIAN_KEY, settings.mapper.librarian);
@@ -136,8 +138,8 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_PATCHES_KEY, settings.system.master_patches_path);
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_DAT_KEY, settings.system.critter_dat_path);
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_PATCHES_KEY, settings.system.critter_patches_path);
-    settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FALLOUTCE_DAT_KEY, settings.system.falloutce_dat_path);
-    settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FALLOUTCE_PATCHES_KEY, settings.system.falloutce_patches_path);
+    settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, settings.system.fission_dat_path);
+    settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_PATCHES_KEY, settings.system.fission_patches_path);
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_LANGUAGE_KEY, settings.system.language);
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_OVERRIDE_KEY, settings.system.master_override);
     settingsWrite(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_SCROLL_LOCK_KEY, settings.system.scroll_lock);
@@ -196,12 +198,14 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_WIDTH, settings.graphics.game_width);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_HEIGHT, settings.graphics.game_height);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_FULLSCREEN, settings.graphics.fullscreen);
-    settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_SPLASH_SIZE, settings.graphics.splash_size);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_STRETCH_ENABLED, settings.graphics.stretch_enabled);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_PRESERVE_ASPECT, settings.graphics.preserve_aspect);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_HIGH_QUALITY, settings.graphics.high_quality);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_ENABLE_HIRES_STENCIL, settings.graphics.highres_stencil);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_WIDESCREEN, settings.graphics.widescreen);
+    settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_SQUARE_PIXELS, settings.graphics.square_pixels);
+    settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_PLAY_AREA, settings.graphics.play_area);
+    settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_VARIANT_SUFFIX, settings.graphics.widescreen_variant_suffix);
 
     settingsWrite(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_OVERRIDE_LIBRARIAN_KEY, settings.mapper.override_librarian);
     settingsWrite(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_LIBRARIAN_KEY, settings.mapper.librarian);

@@ -26,10 +26,14 @@ void _regionSetBound(Region* region)
 
     for (int index = 0; index < region->pointsLength; index++) {
         Point* point = &(region->points[index]);
-        if (v1 >= point->x) v1 = point->x;
-        if (v3 >= point->y) v3 = point->y;
-        if (v2 <= point->x) v2 = point->x;
-        if (v4 <= point->y) v4 = point->y;
+        if (v1 >= point->x)
+            v1 = point->x;
+        if (v3 >= point->y)
+            v3 = point->y;
+        if (v2 <= point->x)
+            v2 = point->x;
+        if (v4 <= point->y)
+            v4 = point->y;
         v6 += point->x;
         v7 += point->y;
         v5++;

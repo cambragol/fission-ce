@@ -20,7 +20,7 @@
 #include <string>
 #include <sys/stat.h>
 
-#if defined(__linux__) and not defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 #include <filesystem>
 #elif defined(_WIN32)
 #include <sys/stat.h>
@@ -67,7 +67,7 @@ std::string toHexString(unsigned int value, bool prefix = true, bool uppercase =
     return std::string(buffer);
 }
 
-#if defined(__linux__) and not defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 #define directory_iterator std::filesystem::directory_iterator
 #else
 
@@ -155,7 +155,8 @@ public:
             }
             _hFind = INVALID_HANDLE_VALUE;
 #else
-            if (!_dir) return *this;
+            if (!_dir)
+                return *this;
             struct dirent* entry;
             while ((entry = readdir(_dir))) {
                 std::string name = entry->d_name;

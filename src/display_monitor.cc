@@ -116,7 +116,7 @@ int displayMonitorInit()
         _disp_curr = 0;
         fontSetCurrent(oldFont);
 
-        int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, "_800", gInterfaceBarIsWide);
+        int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, gInterfaceBarIsWide);
         if (!backgroundFrmImage.lock(backgroundFid)) {
             return -1;
         }

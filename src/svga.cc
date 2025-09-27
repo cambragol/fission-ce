@@ -22,10 +22,12 @@ namespace fallout {
 static bool createRenderer(int width, int height);
 static void destroyRenderer();
 
-bool gStretchEnabled = false;
+static bool gStretchEnabled = true;
 static bool gPreserveAspect = true; // used internally for stretching
 static bool gUserAspectPreference = true; // store user preference for restore
-bool gHighQuality = true; // maybe false by default
+static bool gHighQuality = false; // maybe false by default
+static bool gSquarePixels = false;
+static bool gWidescreen = false;
 
 static int gContentWidth = 800;
 static int gContentHeight = 500;
@@ -116,7 +118,7 @@ void restoreUserAspectPreference()
 
 bool gameIsWidescreen()
 {
-    return (settings.graphics.game_width >= 800 && settings.graphics.game_height >= 500 && settings.graphics.widescreen);
+    return (gWidescreen); // changed to be set in init, to prevent mid-game widescreen asset changes
 }
 
 // 0x4CAE1C
@@ -128,6 +130,10 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
     height = settings.graphics.game_height;
     fullscreen = settings.graphics.fullscreen;
 
+    if (width >= 800 && height >= 500 && settings.graphics.widescreen) {
+        gWidescreen = true; // set here to prevent mid game widescreen setting changes (from preferences)
+    }
+
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_MODE, &gInterfaceBarMode);
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, &gInterfaceBarWidth);
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, &gInterfaceSidePanelsImageId);
@@ -138,6 +144,7 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
     gPreserveAspect = settings.graphics.preserve_aspect;
     gUserAspectPreference = settings.graphics.preserve_aspect; // back up the user preference for restoring after using game screen
     gHighQuality = settings.graphics.high_quality;
+    gSquarePixels = settings.graphics.square_pixels;
 
     if (_GNW95_init_window(width, height, fullscreen) == -1) {
         return -1;
@@ -366,8 +373,25 @@ int screenGetVisibleHeight()
 
 static bool createRenderer(int width, int height)
 {
-    gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, 0);
-    if (gSdlRenderer == nullptr) {
+    gSdlRenderer = SDL_CreateRenderer(
+        gSdlWindow,
+        -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    if (!gSdlRenderer) {
+        // Try without VSYNC if accelerated fails
+        gSdlRenderer = SDL_CreateRenderer(
+            gSdlWindow,
+            -1,
+            SDL_RENDERER_ACCELERATED);
+    }
+
+    if (!gSdlRenderer) {
+        // Final fallback to software
+        gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, 0);
+    }
+
+    if (!gSdlRenderer) {
         return false;
     }
 
@@ -424,7 +448,8 @@ static void destroyRenderer()
 void handleWindowSizeChanged()
 {
     static bool isResizing = false;
-    if (isResizing) return;
+    if (isResizing)
+        return;
     isResizing = true;
 
     // Save palette by copying data (not just pointer)
@@ -484,8 +509,10 @@ void renderPresent()
     int windowW, windowH;
     SDL_GetWindowSize(gSdlWindow, &windowW, &windowH);
 
+    // Calculate scale factors for DPI
     float scaleX = (float)renderW / windowW;
     float scaleY = (float)renderH / windowH;
+    float dpiScale = (scaleX < scaleY) ? scaleX : scaleY; // Use min scale for consistency
 
     // Get logical rendering size fallback
     int logicalW, logicalH;
@@ -498,7 +525,6 @@ void renderPresent()
     SDL_Rect srcRect, destRect;
 
     if (gStretchEnabled) {
-
         int contentOffsetX = (gSdlTextureSurface->w - gContentWidth) / 2;
         int contentOffsetY = (gSdlTextureSurface->h - gContentHeight) / 2;
 
@@ -509,7 +535,46 @@ void renderPresent()
             gContentHeight
         };
 
-        if (gPreserveAspect) {
+        // INTEGER SCALING MODE (with retina support)
+        if (gSquarePixels) {
+            // Use float for scale to support fractional values
+            float scale;
+
+            if (dpiScale > 1.0f) {
+                // High DPI: fractional scaling
+                float maxScaleX = (float)renderW / gContentWidth;
+                float maxScaleY = (float)renderH / gContentHeight;
+                scale = (maxScaleX < maxScaleY) ? maxScaleX : maxScaleY;
+
+                // Snap to 0.5 increments for better quality
+                scale = floorf(scale * 2.0f) / 2.0f;
+                // Ensure minimum scale of 0.5
+                if (scale < 0.5f)
+                    scale = 0.5f;
+            } else {
+                // Standard display: integer scaling
+                int maxScaleX = renderW / gContentWidth;
+                int maxScaleY = renderH / gContentHeight;
+                scale = (maxScaleX < maxScaleY) ? maxScaleX : maxScaleY;
+                // Ensure minimum scale of 1
+                if (scale < 1)
+                    scale = 1;
+            }
+
+            // Calculate scaled dimensions
+            int scaledWidth = static_cast<int>(gContentWidth * scale);
+            int scaledHeight = static_cast<int>(gContentHeight * scale);
+
+            // Center the scaled content
+            destRect = {
+                (renderW - scaledWidth) / 2,
+                (renderH - scaledHeight) / 2,
+                scaledWidth,
+                scaledHeight
+            };
+        }
+        // ASPECT-RATIO PRESERVED MODE
+        else if (gPreserveAspect) {
             float contentAspect = (float)gContentWidth / gContentHeight;
             float windowAspect = (float)renderW / renderH;
 
@@ -524,8 +589,10 @@ void renderPresent()
                 destRect.x = 0;
                 destRect.y = (renderH - destRect.h) / 2;
             }
-        } else {
-            // Stretch to fill entire window (without aspect ratio preserved)
+        }
+        // STRETCH TO FILL MODE
+        else {
+            // Stretch to fill entire window
             destRect = { 0, 0, renderW, renderH };
         }
 
@@ -535,7 +602,6 @@ void renderPresent()
 
     } else {
         // Stretching disabled — display original size scaled for DPI, centered
-
         srcRect = { 0, 0, gSdlTextureSurface->w, gSdlTextureSurface->h };
 
         destRect = {
@@ -550,7 +616,8 @@ void renderPresent()
             gSdlTextureSurface->pitch);
     }
 
-    SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 255, 255);
+    // Background color for tracking screen stretching issues
+    // SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 0, 255);
     SDL_RenderClear(gSdlRenderer);
 
     SDL_RenderCopy(gSdlRenderer, gSdlTexture, &srcRect, &destRect);

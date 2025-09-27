@@ -9,6 +9,8 @@
 #include "proto_types.h"
 
 #define FILENAME_LENGTH 32 // Standardized filename buffer size
+#define ART_INDEX_MAX 8192 // Maximum art indices supported
+#define ART_VANILLA_MAX 4095 // Last vanilla index
 
 namespace fallout {
 
@@ -194,7 +196,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix);
  * @param useVariant Whether to attempt variant lookup
  * @return int The final FID
  */
-int artGetFidWithVariant(int objectType, int baseId, const char* suffix, bool useVariant);
+int artGetFidWithVariant(int objectType, int baseId, bool useVariant);
 
 } // namespace fallout
 

@@ -58,7 +58,7 @@ int interfaceGetItemActions(int* leftItemAction, int* rightItemAction);
 int interfaceCycleItemAction();
 void _intface_use_item();
 int interfaceGetCurrentHand();
-int interfaceGetActiveItem(Object** a1);
+int interfaceGetActiveItem(Object** itemPtr);
 int _intface_update_ammo_lights();
 void interfaceBarEndButtonsShow(bool animated);
 void interfaceBarEndButtonsHide(bool animated);

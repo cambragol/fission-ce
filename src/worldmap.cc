@@ -32,6 +32,7 @@
 #include "memory.h"
 #include "mouse.h"
 #include "object.h"
+#include "offsets.h"
 #include "palette.h"
 #include "party_member.h"
 #include "perk.h"
@@ -848,239 +849,15 @@ static int worldmapTrailMarkers;
 static FrmImage _backgroundFrmImage;
 static WorldmapOffsets gOffsets;
 
-// worldmap.cc
-const WorldmapOffsets gWorldmapOffsets640 = {
-    // Window dimensions
-    640, // windowWidth
-    480, // windowHeight
-
-    // Viewport position and size
-    22, // viewX (left edge of viewport area)
-    21, // viewY (top edge of viewport area)
-    450, // viewWidth (width of scrollable map area)
-    443, // viewHeight (height of scrollable map area)
-
-    // UI Elements - dial control
-    532, // dialX (position of worldmap dial)
-    48, // dialY
-
-    // UI Elements - globe and car indicators
-    495, // globeOverlayX (position of globe graphic)
-    330, // globeOverlayY
-    514, // carX (position of car graphic)
-    336, // carY
-    499, // carOverlayX (position of car selection highlight)
-    330, // carOverlayY
-    500, // carFuelBarX (position of fuel gauge)
-    339, // carFuelBarY
-    70, // carFuelBarHeight
-
-    // Scrollable destination list area
-    501, // scrollAreaX (left edge of destination list)
-    135, // scrollAreaY (top edge of destination list)
-
-    // Destination List
-    508, // destListX
-    138, // destListFirstY
-    27, // destListSpacing
-
-    // Scroll Buttons
-    480, // scrollUpX
-    137, // scrollUpY
-    480, // scrollDownX
-    152, // scrollDownY
-
-    // Town/World Switch
-    519, // townWorldSwitchX
-    439, // townWorldSwitchY
-
-    // Date Display
-    487, // dateDisplayX
-    12, // dateDisplayY
-    143, // dateDisplayWidth (630-487)
-
-    // Viewport Boundaries
-    449, // viewportMaxX
-    442, // viewportMaxY
-
-    // City Name Drawing
-    464, // cityNameMaxY
-
-    545, // subtileViewportMaxX
-    465, // subtileViewportMaxY
-
-    0, // townMapBgX (not used)
-    0, // townMapBgY (not used)
-    95, // townMapImageX
-    22, // townMapImageY
-    0, // townMapButtonXOffset
-    0, // townMapButtonYOffset
-    0, // townMapLabelXOffset
-    4, // townMapLabelYOffset
-
-    450, // townBackgroundWidth
-    442, // townBackgroundHeight
-
-    203, // mapcenterX
-    200 // mapcenterY
-};
-
-const WorldmapOffsets gWorldmapOffsets800 = {
-    // Window dimensions
-    800, // windowWidth (widescreen width)
-    500, // windowHeight (widescreen height)
-
-    // Viewport position and size
-    22, // viewX (same X position as 640x480)
-    21, // viewY (same Y position as 640x480)
-    610, // viewWidth (wider viewport for widescreen)
-    463, // viewHeight (taller viewport for widescreen)
-
-    // UI Elements - dial control
-    692, // dialX (shifted right for widescreen)
-    48, // dialY (same vertical position)
-
-    // UI Elements - globe and car indicators
-    655, // globeOverlayX (shifted right proportionally)
-    330, // globeOverlayY (same vertical position)
-    674, // carX (shifted right proportionally)
-    336, // carY (same vertical position)
-    659, // carOverlayX (shifted right proportionally)
-    330, // carOverlayY (same vertical position)
-    660, // carFuelBarX (shifted right proportionally)
-    339, // carFuelBarY (same vertical position)
-    70, // carFuelBarHeight
-
-    // Scrollable destination list area
-    661, // scrollAreaX (shifted right for widescreen)
-    135, // scrollAreaY (same vertical position)
-
-    // Destination List
-    668, // destListX (+160)
-    138, // destListFirstY (same)
-    27, // destListSpacing (same)
-
-    // Scroll Buttons
-    640, // scrollUpX (+160)
-    137, // scrollUpY (same)
-    640, // scrollDownX (+160)
-    152, // scrollDownY (same)
-
-    // Town/World Switch
-    679, // townWorldSwitchX (+160)
-    439, // townWorldSwitchY (same)
-
-    // Date Display
-    647, // dateDisplayX (+160)
-    12, // dateDisplayY (same)
-    143, // dateDisplayWidth (same)
-
-    // Viewport Boundaries
-    631, // viewportMaxX (hardcoded)
-    485, // viewportMaxY (hardcoded)
-
-    // City Name Drawing
-    485, // cityNameMaxY
-
-    // Subtile Drawing Boundaries
-    632, // subtileViewportMaxX (hardcoded in 800x500)
-    485, // subtileViewportMaxY (hardcoded in 800x500)
-
-    78, // townMapBgX
-    10, // townMapBgY
-    100, // townMapImageX
-    31, // townMapImageY
-    78, // townMapButtonXOffset
-    10, // townMapButtonYOffset
-    78, // townMapLabelXOffset
-    14, // townMapLabelYOffset
-
-    610, // townBackgroundWidth
-    462, // townBackgroundHeight
-
-    254, // mapcenterX
-    208 // mapcenterY
-};
-
 bool worldmapLoadOffsetsFromConfig(WorldmapOffsets* offsets, bool isWidescreen)
 {
-    const char* section = isWidescreen ? "worldmap800" : "worldmap640";
-    const WorldmapOffsets* fallback = isWidescreen ? &gWorldmapOffsets800 : &gWorldmapOffsets640;
-
-    // Initialize with fallback values
-    *offsets = *fallback;
-
-    // Window
-    configGetInt(&gGameConfig, section, "windowWidth", &offsets->windowWidth);
-    configGetInt(&gGameConfig, section, "windowHeight", &offsets->windowHeight);
-
-    // Viewport
-    configGetInt(&gGameConfig, section, "viewX", &offsets->viewX);
-    configGetInt(&gGameConfig, section, "viewY", &offsets->viewY);
-    configGetInt(&gGameConfig, section, "viewWidth", &offsets->viewWidth);
-    configGetInt(&gGameConfig, section, "viewHeight", &offsets->viewHeight);
-
-    // UI Elements
-    configGetInt(&gGameConfig, section, "dialX", &offsets->dialX);
-    configGetInt(&gGameConfig, section, "dialY", &offsets->dialY);
-    configGetInt(&gGameConfig, section, "scrollUpX", &offsets->scrollUpX);
-    configGetInt(&gGameConfig, section, "scrollUpY", &offsets->scrollUpY);
-    configGetInt(&gGameConfig, section, "scrollDownX", &offsets->scrollDownX);
-    configGetInt(&gGameConfig, section, "scrollDownY", &offsets->scrollDownY);
-    configGetInt(&gGameConfig, section, "globeOverlayX", &offsets->globeOverlayX);
-    configGetInt(&gGameConfig, section, "globeOverlayY", &offsets->globeOverlayY);
-    configGetInt(&gGameConfig, section, "carX", &offsets->carX);
-    configGetInt(&gGameConfig, section, "carY", &offsets->carY);
-    configGetInt(&gGameConfig, section, "carOverlayX", &offsets->carOverlayX);
-    configGetInt(&gGameConfig, section, "carOverlayY", &offsets->carOverlayY);
-    configGetInt(&gGameConfig, section, "carFuelBarX", &offsets->carFuelBarX);
-    configGetInt(&gGameConfig, section, "carFuelBarY", &offsets->carFuelBarY);
-    configGetInt(&gGameConfig, section, "carFuelBarHeight", &offsets->carFuelBarHeight);
-    configGetInt(&gGameConfig, section, "townWorldSwitchX", &offsets->townWorldSwitchX);
-    configGetInt(&gGameConfig, section, "townWorldSwitchY", &offsets->townWorldSwitchY);
-
-    // Scroll Area
-    configGetInt(&gGameConfig, section, "scrollAreaX", &offsets->scrollAreaX);
-    configGetInt(&gGameConfig, section, "scrollAreaY", &offsets->scrollAreaY);
-
-    // Destination List
-    configGetInt(&gGameConfig, section, "destListX", &offsets->destListX);
-    configGetInt(&gGameConfig, section, "destListFirstY", &offsets->destListFirstY);
-    configGetInt(&gGameConfig, section, "destListSpacing", &offsets->destListSpacing);
-
-    // Date Display
-    configGetInt(&gGameConfig, section, "dateDisplayX", &offsets->dateDisplayX);
-    configGetInt(&gGameConfig, section, "dateDisplayY", &offsets->dateDisplayY);
-    configGetInt(&gGameConfig, section, "dateDisplayWidth", &offsets->dateDisplayWidth);
-
-    // Viewport Boundaries
-    configGetInt(&gGameConfig, section, "viewportMaxX", &offsets->viewportMaxX);
-    configGetInt(&gGameConfig, section, "viewportMaxY", &offsets->viewportMaxY);
-
-    // City Name Drawing
-    configGetInt(&gGameConfig, section, "cityNameMaxY", &offsets->cityNameMaxY);
-
-    // Subtile Drawing Boundaries
-    configGetInt(&gGameConfig, section, "subtileViewportMaxX", &offsets->subtileViewportMaxX);
-    configGetInt(&gGameConfig, section, "subtileViewportMaxY", &offsets->subtileViewportMaxY);
-
-    // Town Map
-    configGetInt(&gGameConfig, section, "townMapBgX", &offsets->townMapBgX);
-    configGetInt(&gGameConfig, section, "townMapBgY", &offsets->townMapBgY);
-    configGetInt(&gGameConfig, section, "townMapImageX", &offsets->townMapImageX);
-    configGetInt(&gGameConfig, section, "townMapImageY", &offsets->townMapImageY);
-    configGetInt(&gGameConfig, section, "townMapButtonXOffset", &offsets->townMapButtonXOffset);
-    configGetInt(&gGameConfig, section, "townMapButtonYOffset", &offsets->townMapButtonYOffset);
-    configGetInt(&gGameConfig, section, "townMapLabelXOffset", &offsets->townMapLabelXOffset);
-    configGetInt(&gGameConfig, section, "townMapLabelYOffset", &offsets->townMapLabelYOffset);
-
-    configGetInt(&gGameConfig, section, "townBackgroundWidth", &offsets->townBackgroundWidth);
-    configGetInt(&gGameConfig, section, "townBackgroundHeight", &offsets->townBackgroundHeight);
-
-    configGetInt(&gGameConfig, section, "mapcenterX", &offsets->mapcenterX);
-    configGetInt(&gGameConfig, section, "mapcenterY", &offsets->mapcenterY);
-
-    return true;
+    return loadOffsetsFromConfig<WorldmapOffsets>(
+        offsets,
+        isWidescreen,
+        "worldmap",
+        gWorldmapOffsets640,
+        gWorldmapOffsets800,
+        applyConfigToWorldmapOffsets);
 }
 
 void worldmapWriteDefaultOffsetsToConfig(bool isWidescreen, const WorldmapOffsets* defaults)
@@ -4146,7 +3923,8 @@ int wmSetupRandomEncounter()
                 if (prevCritter != nullptr) {
                     if (prevCritter != critter) {
                         if (encounterTableEntry->subEntiesLength != 1) {
-                            if (encounterTableEntry->subEntiesLength == 2 && !isInCombat()) {
+                            // prevents crash on worldmap when one of two groups of critters fails to spawn
+                            if (encounterTableEntry->subEntiesLength == 2 && !isInCombat() && critter != nullptr) {
                                 prevCritter->data.critter.combat.whoHitMe = critter;
                                 critter->data.critter.combat.whoHitMe = prevCritter;
 
@@ -4919,7 +4697,7 @@ static int wmInterfaceInit()
     }
 
     fid = gameIsWidescreen()
-        ? artGetFidWithVariant(OBJ_TYPE_INTERFACE, 136, "_800", true)
+        ? artGetFidWithVariant(OBJ_TYPE_INTERFACE, 136, true)
         : buildFid(OBJ_TYPE_INTERFACE, 136, 0, 0, 0);
 
     if (!_backgroundFrmImage.lock(fid)) {
@@ -6531,7 +6309,7 @@ static int wmTownMapInit()
         return -1;
     }
 
-    int fid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 167, "_800", gameIsWidescreen());
+    int fid = buildFid(OBJ_TYPE_INTERFACE, 4132, 0, 0, 0);
     if (!_townBackgroundFrmImage.lock(fid)) {
         return -1;
     }

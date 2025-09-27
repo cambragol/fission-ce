@@ -225,7 +225,7 @@ static int optionsWindowInit()
         _optionsFrmImages[0].getWidth(),
         _optionsFrmImages[0].getHeight(),
         256,
-        WINDOW_MODAL | WINDOW_DONT_MOVE_TOP);
+        WINDOW_MODAL | WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT);
 
     if (gOptionsWindow == -1) {
         for (int index = 0; index < OPTIONS_WINDOW_BUTTONS_COUNT; index++) {
@@ -380,7 +380,7 @@ int showPause(bool a1)
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getWidth(),
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getHeight(),
         256,
-        WINDOW_MODAL | WINDOW_DONT_MOVE_TOP);
+        WINDOW_MODAL | WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT);
     if (window == -1) {
         messageListFree(&gPreferencesMessageList);
 

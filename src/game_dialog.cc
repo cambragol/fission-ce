@@ -4489,7 +4489,8 @@ int gameDialogWindowRenderBackground()
 {
     FrmImage backgroundFrmImage;
     // alltlk.frm - dialog screen background
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 103, 0, 0, 0);
+    // use 800 variant with borders in widescreen mode (still 640x480)
+    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 103, gameIsWidescreen());
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return -1;
     }

@@ -85,7 +85,6 @@ int falloutMain(int argc, char** argv)
     int skipOpeningMovies;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
     if (skipOpeningMovies < 1) {
-        resizeContent(640, 480);
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);
@@ -149,41 +148,50 @@ int falloutMain(int argc, char** argv)
 
                 break;
             case MAIN_MENU_LOAD_GAME:
+                mainMenuWindowHide(true);
+                mainMenuWindowFree();
                 if (1) {
                     int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
-                    mainMenuWindowHide(true);
-                    mainMenuWindowFree();
 
-                    // NOTE: Uninline.
-                    main_loadgame_new();
+                    main_loadgame_new(); // NOTE: Uninline.
 
-                    colorPaletteLoad("color.pal");
-                    paletteFadeTo(_cmap);
                     int loadGameRc = lsgLoadGame(LOAD_SAVE_MODE_FROM_MAIN_MENU);
+
                     if (loadGameRc == -1) {
                         debugPrint("\n ** Error running LoadGame()! **\n");
                     } else if (loadGameRc != 0) {
+                        // Handle successful load (non-zero return)
+                        // fade to white on entering loaded game
+                        paletteFadeTo(gPaletteWhite);
+
                         windowDestroy(win);
+
+                        // fade in from white on entering loaded game
+                        colorPaletteLoad("color.pal");
+                        paletteFadeTo(_cmap);
                         win = -1;
+
                         mainLoop();
+
+                        // fade to white when leaving game
+                        paletteFadeTo(gPaletteWhite);
                     }
-                    paletteFadeTo(gPaletteWhite);
+
+                    // Cleanup (runs whether loadGameRc was 0, -1, or non-zero)
                     if (win != -1) {
                         windowDestroy(win);
                     }
 
-                    // NOTE: Uninline.
-                    main_unload_new();
+                    main_unload_new(); // Called exactly once
+                    main_reset_system(); // Called exactly once
 
-                    // NOTE: Uninline.
-                    main_reset_system();
-
+                    // Show death scene if flagged
                     if (_main_show_death_scene != 0) {
                         showDeath();
                         _main_show_death_scene = 0;
                     }
-                    mainMenuWindowInit();
                 }
+                mainMenuWindowInit();
                 break;
             case MAIN_MENU_TIMEOUT:
                 debugPrint("Main menu timed-out\n");
@@ -379,33 +387,44 @@ static void showDeath()
     colorCycleDisable();
     gameMouseSetCursor(MOUSE_CURSOR_NONE);
 
+    // Load DEATH.FRM here, to check is there is a _800 variant
+    // artGetFidWithVariant falls back to vanilla if none
+    FrmImage backgroundFrmImage;
+    int fid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 309, gameIsWidescreen());
+    if (!backgroundFrmImage.lock(fid)) {
+        return;
+    }
+
+    int game_width, game_height;
+
     restoreUserAspectPreference();
-    resizeContent(640, 480);
+    if (gameIsWidescreen() && backgroundFrmImage.getWidth() >= 800) {
+        resizeContent(800, 500);
+        game_width = 800;
+        game_height = 500;
+    } else {
+        resizeContent(640, 480);
+        game_width = 640;
+        game_height = 480;
+    }
 
     bool oldCursorIsHidden = cursorIsHidden();
     if (oldCursorIsHidden) {
         mouseShowCursor();
     }
 
-    int deathWindowX = (screenGetWidth() - DEATH_WINDOW_WIDTH) / 2;
-    int deathWindowY = (screenGetHeight() - DEATH_WINDOW_HEIGHT) / 2;
+    int deathWindowX = (screenGetWidth() - game_width) / 2;
+    int deathWindowY = (screenGetHeight() - game_height) / 2;
     int win = windowCreate(deathWindowX,
         deathWindowY,
-        DEATH_WINDOW_WIDTH,
-        DEATH_WINDOW_HEIGHT,
+        game_width,
+        game_height,
         0,
         WINDOW_MOVE_ON_TOP);
     if (win != -1) {
         do {
             unsigned char* windowBuffer = windowGetBuffer(win);
             if (windowBuffer == nullptr) {
-                break;
-            }
-
-            // DEATH.FRM
-            FrmImage backgroundFrmImage;
-            int fid = buildFid(OBJ_TYPE_INTERFACE, 309, 0, 0, 0);
-            if (!backgroundFrmImage.lock(fid)) {
                 break;
             }
 
@@ -421,7 +440,7 @@ static void showDeath()
             keyboardReset();
             inputEventQueueReset();
 
-            blitBufferToBuffer(backgroundFrmImage.getData(), 640, 480, 640, windowBuffer, 640);
+            blitBufferToBuffer(backgroundFrmImage.getData(), game_width, game_height, game_width, windowBuffer, game_width);
             backgroundFrmImage.unlock();
 
             const char* deathFileName = endgameDeathEndingGetFileName();
@@ -433,13 +452,13 @@ static void showDeath()
 
                     short beginnings[WORD_WRAP_MAX_COUNT];
                     short count;
-                    if (_mainDeathWordWrap(text, 560, beginnings, &count) == 0) {
-                        unsigned char* p = windowBuffer + 640 * (480 - fontGetLineHeight() * count - 8);
-                        bufferFill(p - 602, 564, fontGetLineHeight() * count + 2, 640, 0);
+                    if (_mainDeathWordWrap(text, game_width - 80, beginnings, &count) == 0) {
+                        unsigned char* p = windowBuffer + game_width * (game_height - fontGetLineHeight() * count - 8);
+                        bufferFill(p - (game_width - 38), game_width - 76, fontGetLineHeight() * count + 2, game_width, 0);
                         p += 40;
                         for (int index = 0; index < count; index++) {
-                            fontDrawText(p, text + beginnings[index], 560, 640, _colorTable[32767]);
-                            p += 640 * fontGetLineHeight();
+                            fontDrawText(p, text + beginnings[index], game_width - 80, game_width, _colorTable[32767]);
+                            p += game_width * fontGetLineHeight();
                         }
                     }
                 }

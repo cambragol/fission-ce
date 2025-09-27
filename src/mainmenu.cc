@@ -4,6 +4,7 @@
 
 #include "art.h"
 #include "color.h"
+#include "dbox.h"
 #include "draw.h"
 #include "game.h"
 #include "game_sound.h"
@@ -11,6 +12,7 @@
 #include "kb.h"
 #include "memory.h"
 #include "mouse.h"
+#include "offsets.h"
 #include "palette.h"
 #include "platform_compat.h"
 #include "preferences.h"
@@ -53,6 +55,10 @@ static bool gMainMenuWindowInitialized = false;
 // 0x51950C
 static unsigned int gMainMenuScreensaverDelay = 120000;
 
+static MessageList gFissionMessageList;
+
+static MessageListItem gFissionMessageListItem;
+
 // 0x519510
 static const int gMainMenuButtonKeyBindings[MAIN_MENU_BUTTON_COUNT] = {
     KEY_LOWERCASE_I, // intro
@@ -73,41 +79,6 @@ static const int _return_values[MAIN_MENU_BUTTON_COUNT] = {
     MAIN_MENU_EXIT,
 };
 
-// Hardcoded offsets
-const MainMenuOffsets gMainMenuOffsets640 = {
-    /*copyrightX*/ 15,
-    /*copyrightY*/ 460,
-    /*versionX*/ 615,
-    /*versionY*/ 460,
-    /*hashX*/ 615,
-    /*hashX*/ 450,
-    /*buildDateX*/ 615,
-    /*buildDateX*/ 440,
-    /*buttonBaseX*/ 30,
-    /*buttonBaseY*/ 19,
-    /*buttonTextOffsetX*/ 0,
-    /*buttonTextOffsetY*/ 0,
-    640,
-    480
-};
-
-const MainMenuOffsets gMainMenuOffsets800 = {
-    /*copyrightX*/ 15,
-    /*copyrightY*/ 480,
-    /*versionX*/ 780,
-    /*versionY*/ 480,
-    /*hashX*/ 780,
-    /*hashX*/ 470,
-    /*buildDateX*/ 780,
-    /*buildDateX*/ 460,
-    /*buttonBaseX*/ 47,
-    /*buttonBaseY*/ 45,
-    /*buttonTextOffsetX*/ 17,
-    /*buttonTextOffsetY*/ 26,
-    800,
-    500
-};
-
 // 0x614840
 static int gMainMenuButtons[MAIN_MENU_BUTTON_COUNT];
 
@@ -118,32 +89,17 @@ static FrmImage _mainMenuBackgroundFrmImage;
 static FrmImage _mainMenuButtonNormalFrmImage;
 static FrmImage _mainMenuButtonPressedFrmImage;
 
-// move to seperate widescreen.cc file later?
+static FrmImage _mainMenuFissionLogoFrmImage;
+
 bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
 {
-    const char* section = isWidescreen ? "mainmenu800" : "mainmenu640";
-    const MainMenuOffsets* fallback = isWidescreen ? &gMainMenuOffsets800 : &gMainMenuOffsets640;
-
-    // Initialize with fallback values
-    *offsets = *fallback;
-
-    // Load all values from config
-    configGetInt(&gGameConfig, section, "copyrightX", &offsets->copyrightX);
-    configGetInt(&gGameConfig, section, "copyrightY", &offsets->copyrightY);
-    configGetInt(&gGameConfig, section, "versionX", &offsets->versionX);
-    configGetInt(&gGameConfig, section, "versionY", &offsets->versionY);
-    configGetInt(&gGameConfig, section, "hashX", &offsets->hashX);
-    configGetInt(&gGameConfig, section, "hashY", &offsets->hashY);
-    configGetInt(&gGameConfig, section, "buildDateX", &offsets->buildDateX);
-    configGetInt(&gGameConfig, section, "buildDateY", &offsets->buildDateY);
-    configGetInt(&gGameConfig, section, "buttonBaseX", &offsets->buttonBaseX);
-    configGetInt(&gGameConfig, section, "buttonBaseY", &offsets->buttonBaseY);
-    configGetInt(&gGameConfig, section, "buttonTextOffsetX", &offsets->buttonTextOffsetX);
-    configGetInt(&gGameConfig, section, "buttonTextOffsetY", &offsets->buttonTextOffsetY);
-    configGetInt(&gGameConfig, section, "width", &offsets->width);
-    configGetInt(&gGameConfig, section, "height", &offsets->height);
-
-    return true;
+    return loadOffsetsFromConfig<MainMenuOffsets>(
+        offsets,
+        isWidescreen,
+        "mainmenu",
+        gMainMenuOffsets640,
+        gMainMenuOffsets800,
+        applyConfigToMainMenuOffsets);
 }
 
 // move to seperate widescreen.cc file later?
@@ -174,9 +130,20 @@ int mainMenuWindowInit()
     int fid;
     MessageListItem msg;
     int len;
+    int btn;
 
     if (gMainMenuWindowInitialized) {
         return 0;
+    }
+
+    if (!messageListInit(&gFissionMessageList)) {
+        return -1;
+    }
+
+    char fissionPath[COMPAT_MAX_PATH];
+    snprintf(fissionPath, sizeof(fissionPath), "%s%s", asc_5186C8, "fission.msg");
+    if (!messageListLoad(&gFissionMessageList, fissionPath)) {
+        return -1;
     }
 
     // Set widescreen - must be wider in both axis and set to widescreen
@@ -220,7 +187,7 @@ int mainMenuWindowInit()
 
     gMainMenuWindowBuffer = windowGetBuffer(gMainMenuWindow);
 
-    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 140, "_800", gameIsWidescreen());
+    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 140, gameIsWidescreen());
     if (!_mainMenuBackgroundFrmImage.lock(backgroundFid)) {
         // NOTE: Uninline.
         return main_menu_fatal_error();
@@ -257,23 +224,43 @@ int mainMenuWindowInit()
     if (fontSettingsSFall)
         fontSettings = fontSettingsSFall;
 
+    // fission.frm
+    fid = buildFid(OBJ_TYPE_INTERFACE, 4503, 0, 0, 0);
+    if (!_mainMenuFissionLogoFrmImage.lock(fid)) {
+        return main_menu_fatal_error();
+    }
+
+    btn = buttonCreate(gMainMenuWindow,
+        gOffsets.hashX - _mainMenuFissionLogoFrmImage.getWidth(),
+        gOffsets.hashY - 2,
+        _mainMenuFissionLogoFrmImage.getWidth(),
+        _mainMenuFissionLogoFrmImage.getHeight(),
+        -1,
+        -1,
+        -1,
+        501,
+        _mainMenuFissionLogoFrmImage.getData(),
+        _mainMenuFissionLogoFrmImage.getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+
     // Version.
     char version[VERSION_MAX];
     versionGetVersion(version, sizeof(version));
     len = fontGetStringWidth(version);
-    windowDrawText(gMainMenuWindow, version, 0, gOffsets.versionX - len, gOffsets.versionY, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, version, 0, gOffsets.hashX - len - _mainMenuFissionLogoFrmImage.getWidth() - 3, gOffsets.hashY, fontSettings | 0x06000000);
 
-    // Hash
-    char commitHash[VERSION_MAX] = "BUILD HASH: ";
-    strcat(commitHash, _BUILD_HASH);
+    // Hash - modified for release/fission logo
+    char commitHash[VERSION_MAX] = "POWERED BY: ";
+    // strcat(commitHash, _BUILD_HASH);
     len = fontGetStringWidth(commitHash);
-    windowDrawText(gMainMenuWindow, commitHash, 0, gOffsets.hashX - len, gOffsets.hashY, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, commitHash, 0, gOffsets.versionX - len - _mainMenuFissionLogoFrmImage.getWidth() - 3, gOffsets.versionY, fontSettings | 0x06000000);
 
-    // Build Date
-    char buildDate[VERSION_MAX] = "DATE: ";
+    // Build Date - removed for release
+    /*char buildDate[VERSION_MAX] = "DATE: ";
     strcat(buildDate, _BUILD_DATE);
     len = fontGetStringWidth(buildDate);
-    windowDrawText(gMainMenuWindow, buildDate, 0, gOffsets.buildDateX - len, gOffsets.buildDateY, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, buildDate, 0, gOffsets.buildDateX - len, gOffsets.buildDateY, fontSettings | 0x06000000);*/
 
     // menuup.frm
     fid = buildFid(OBJ_TYPE_INTERFACE, 299, 0, 0, 0);
@@ -361,6 +348,7 @@ void mainMenuWindowFree()
 
     _mainMenuButtonPressedFrmImage.unlock();
     _mainMenuButtonNormalFrmImage.unlock();
+    _mainMenuFissionLogoFrmImage.unlock();
 
     if (gMainMenuWindow != -1) {
         windowDestroy(gMainMenuWindow);
@@ -421,6 +409,27 @@ int _main_menu_is_enabled()
     return 1;
 }
 
+static int showFissionAbout()
+{
+    // Info dialog (OK)
+    const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 300);
+    const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 301);
+    const char* bodyText2 = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 302);
+    const char* bodyLines[] = { bodyText, bodyText2 };
+
+    showDialogBox(
+        title,
+        bodyLines,
+        2,
+        192, 135,
+        _colorTable[32328],
+        nullptr,
+        _colorTable[32328],
+        1 // DIALOG_BOX_OK
+    );
+    return 1;
+}
+
 // 0x481AEC
 int mainMenuWindowHandleEvents()
 {
@@ -464,6 +473,10 @@ int mainMenuWindowHandleEvents()
                 brightnessDecrease();
             } else if (keyCode == KEY_UPPERCASE_D || keyCode == KEY_LOWERCASE_D) {
                 rc = MAIN_MENU_SCREENSAVER;
+                continue;
+            } else if (keyCode == 501) {
+                main_menu_play_sound("nmselec0");
+                showFissionAbout();
                 continue;
             } else if (keyCode == 1111) {
                 if (!(mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_REPEAT)) {

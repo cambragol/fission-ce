@@ -21,6 +21,7 @@
 #include "message.h"
 #include "mouse.h"
 #include "object.h"
+#include "offsets.h"
 #include "palette.h"
 #include "platform_compat.h"
 #include "preferences.h"
@@ -104,66 +105,6 @@ static PremadeCharacterDescription gPremadeCharacterDescriptions[PREMADE_CHARACT
 // Added for offsets handling
 static CharacterSelectorOffsets gOffsets;
 
-const CharacterSelectorOffsets gCharSelectorOffsets640 = {
-    // Window
-    640, 480,
-
-    // Background
-    40, 30, 560, 300,
-
-    // Buttons
-    292, 320, // Previous
-    318, 320, // Next
-    81, 323, // Take
-    435, 320, // Modify
-    80, 425, // Create
-    461, 425, // Back
-
-    // Text positions
-    318, // nameMidX
-    362, // primaryStatMidX
-    379, // secondaryStatMidX
-    438, // bioX
-    40, // textBaseY
-    23, // faceY
-
-    // Face position
-    27, // faceX
-
-    // Bio rendering
-    260, // bioMaxY
-};
-
-const CharacterSelectorOffsets gCharSelectorOffsets800 = {
-    // Window
-    800, 500,
-
-    // Background
-    40, 30, 820, 300,
-
-    // Buttons
-    374, 330, // Previous
-    397, 330, // Next
-    100, 333, // Take
-    583, 330, // Modify
-    100, 435, // Create
-    607, 435, // Back
-
-    // Text positions
-    396, // nameMidX
-    462, // primaryStatMidX
-    479, // secondaryStatMidX
-    538, // bioX
-    50, // textBaseY
-    33, // faceY
-
-    // Face position
-    67, // faceX
-
-    // Bio rendering
-    260, // bioMaxY (same as 640)
-};
-
 // 0x51C8D4
 static int gPremadeCharacterCount = PREMADE_CHARACTER_COUNT;
 
@@ -211,51 +152,13 @@ static std::vector<PremadeCharacterDescription> gCustomPremadeCharacterDescripti
 
 bool characterSelectorLoadOffsetsFromConfig(CharacterSelectorOffsets* offsets, bool isWidescreen)
 {
-    const char* section = isWidescreen ? "charselect800" : "charselect640";
-    const CharacterSelectorOffsets* fallback = isWidescreen ? &gCharSelectorOffsets800 : &gCharSelectorOffsets640;
-
-    // Initialize with fallback values
-    *offsets = *fallback;
-
-    // Load all values from config
-    configGetInt(&gGameConfig, section, "width", &offsets->width);
-    configGetInt(&gGameConfig, section, "height", &offsets->height);
-
-    // Background
-    configGetInt(&gGameConfig, section, "backgroundX", &offsets->backgroundX);
-    configGetInt(&gGameConfig, section, "backgroundY", &offsets->backgroundY);
-    configGetInt(&gGameConfig, section, "backgroundWidth", &offsets->backgroundWidth);
-    configGetInt(&gGameConfig, section, "backgroundHeight", &offsets->backgroundHeight);
-
-    // Buttons
-    configGetInt(&gGameConfig, section, "previousButtonX", &offsets->previousButtonX);
-    configGetInt(&gGameConfig, section, "previousButtonY", &offsets->previousButtonY);
-    configGetInt(&gGameConfig, section, "nextButtonX", &offsets->nextButtonX);
-    configGetInt(&gGameConfig, section, "nextButtonY", &offsets->nextButtonY);
-    configGetInt(&gGameConfig, section, "takeButtonX", &offsets->takeButtonX);
-    configGetInt(&gGameConfig, section, "takeButtonY", &offsets->takeButtonY);
-    configGetInt(&gGameConfig, section, "modifyButtonX", &offsets->modifyButtonX);
-    configGetInt(&gGameConfig, section, "modifyButtonY", &offsets->modifyButtonY);
-    configGetInt(&gGameConfig, section, "createButtonX", &offsets->createButtonX);
-    configGetInt(&gGameConfig, section, "createButtonY", &offsets->createButtonY);
-    configGetInt(&gGameConfig, section, "backButtonX", &offsets->backButtonX);
-    configGetInt(&gGameConfig, section, "backButtonY", &offsets->backButtonY);
-
-    // Text positions
-    configGetInt(&gGameConfig, section, "nameMidX", &offsets->nameMidX);
-    configGetInt(&gGameConfig, section, "primaryStatMidX", &offsets->primaryStatMidX);
-    configGetInt(&gGameConfig, section, "secondaryStatMidX", &offsets->secondaryStatMidX);
-    configGetInt(&gGameConfig, section, "bioX", &offsets->bioX);
-    configGetInt(&gGameConfig, section, "textBaseY", &offsets->textBaseY);
-    configGetInt(&gGameConfig, section, "faceY", &offsets->faceY);
-
-    // Face position
-    configGetInt(&gGameConfig, section, "faceX", &offsets->faceX);
-
-    // Bio rendering
-    configGetInt(&gGameConfig, section, "bioMaxY", &offsets->bioMaxY);
-
-    return true;
+    return loadOffsetsFromConfig<CharacterSelectorOffsets>(
+        offsets,
+        isWidescreen,
+        "charselect",
+        gCharSelectorOffsets640,
+        gCharSelectorOffsets800,
+        applyConfigToCharacterSelectorOffsets);
 }
 
 void characterSelectorWriteDefaultOffsetsToConfig(bool isWidescreen, const CharacterSelectorOffsets* defaults)
@@ -448,7 +351,7 @@ static bool characterSelectorWindowInit()
     }
 
     FrmImage backgroundFrmImage;
-    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 174, "_800", gameIsWidescreen());
+    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 174, gameIsWidescreen());
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return characterSelectorWindowFatalError(false);
     }
@@ -769,7 +672,7 @@ static bool characterSelectorWindowRenderFace()
     bool success = false;
 
     FrmImage faceFrmImage;
-    int faceFid = buildFid(OBJ_TYPE_INTERFACE, gCustomPremadeCharacterDescriptions[gCurrentPremadeCharacter].face, 0, 0, 0);
+    int faceFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, gCustomPremadeCharacterDescriptions[gCurrentPremadeCharacter].face, gameIsWidescreen());
     if (faceFrmImage.lock(faceFid)) {
         unsigned char* data = faceFrmImage.getData();
         if (data != nullptr) {

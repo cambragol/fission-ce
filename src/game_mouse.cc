@@ -1730,10 +1730,10 @@ int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int heig
 }
 
 // 0x44D200
-int _gmouse_3d_pick_frame_hot(int* a1, int* a2)
+int _gmouse_3d_pick_frame_hot(int* x, int* y)
 {
-    *a1 = _gmouse_3d_pick_frame_hot_x;
-    *a2 = _gmouse_3d_pick_frame_hot_y;
+    *x = _gmouse_3d_pick_frame_hot_x;
+    *y = _gmouse_3d_pick_frame_hot_y;
     return 0;
 }
 

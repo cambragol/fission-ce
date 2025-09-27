@@ -183,15 +183,20 @@ int textFontLoad(int font)
     // NOTE: Original code reads entire descriptor in one go. This does not work
     // in x64 because of the two pointers.
 
-    if (fileRead(&(textFontDescriptor->glyphCount), 4, 1, stream) != 1) goto out;
-    if (fileRead(&(textFontDescriptor->lineHeight), 4, 1, stream) != 1) goto out;
-    if (fileRead(&(textFontDescriptor->letterSpacing), 4, 1, stream) != 1) goto out;
+    if (fileRead(&(textFontDescriptor->glyphCount), 4, 1, stream) != 1)
+        goto out;
+    if (fileRead(&(textFontDescriptor->lineHeight), 4, 1, stream) != 1)
+        goto out;
+    if (fileRead(&(textFontDescriptor->letterSpacing), 4, 1, stream) != 1)
+        goto out;
 
     int glyphsPtr;
-    if (fileRead(&glyphsPtr, 4, 1, stream) != 1) goto out;
+    if (fileRead(&glyphsPtr, 4, 1, stream) != 1)
+        goto out;
 
     int dataPtr;
-    if (fileRead(&dataPtr, 4, 1, stream) != 1) goto out;
+    if (fileRead(&dataPtr, 4, 1, stream) != 1)
+        goto out;
 
     textFontDescriptor->glyphs = (TextFontGlyph*)internal_malloc(textFontDescriptor->glyphCount * sizeof(TextFontGlyph));
     if (textFontDescriptor->glyphs == nullptr) {

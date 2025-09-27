@@ -36,6 +36,8 @@
 #include "message.h"
 #include "mouse.h"
 #include "object.h"
+#include "offsets.h"
+#include "palette.h"
 #include "party_member.h"
 #include "perk.h"
 #include "pipboy.h"
@@ -346,280 +348,15 @@ static bool autoQuickSaveSlots = false;
 
 static LoadSaveOffsets gOffsets;
 
-const LoadSaveOffsets gLoadSaveOffsets640 = {
-    // Window
-    640, // windowWidth
-    480, // windowHeight
-
-    // Preview
-    224, // previewWidth
-    133, // previewHeight
-    366, // previewX
-    58, // previewY
-    340, // previewCoverX
-    39, // previewCoverY
-
-    // Title and Text
-    48, // titleTextX
-    27, // titleTextY
-    410, // doneLabelX
-    348, // doneLabelY
-    515, // cancelLabelX
-    348, // cancelLabelY
-
-    // Buttons
-    391, // doneButtonX
-    349, // doneButtonY
-    495, // cancelButtonX
-    349, // cancelButtonY
-    35, // arrowUpX
-    58, // arrowUpY
-    35, // arrowDownX
-    79, // arrowDownY
-
-    // Slot List Area
-    55, // slotListAreaX
-    87, // slotListAreaY
-    230, // slotListAreaWidth
-    348, // slotListAreaHeight
-
-    // Comment Window
-    169, // commentWindowX
-    116, // commentWindowY
-
-    // Slot List
-    55, // slotListX
-    87, // slotListY
-    230, // slotListWidth
-    40, // slotListBottomOffset
-
-    // Info Box
-    396, // infoBoxX
-    253, // infoBoxY
-    164, // infoBoxWidth
-    60, // infoBoxHeight
-
-    // Info Box Text Positions
-    396, // characterNameX
-    253, // characterNameY
-    397, // gameDateX
-    270, // gameDateY
-    399, // locationX
-    287, // locationY
-
-    // Page Navigation Buttons
-    195, // nextPageButtonX
-    425, // nextPageButtonY
-    85, // nextPageButtonWidth
-    10, // nextPageButtonHeight
-    55, // prevPageButtonX
-    425, // prevPageButtonY
-    125, // prevPageButtonWidth
-    10, // prevPageButtonHeight
-
-    // Text Block Position
-    253, // infoBoxTextBlockY
-
-    // Cover Image Parameters
-    275, // coverWidth
-    173, // coverHeight
-    340, // coverX
-    39, // coverY
-    275, // coverPitch
-
-    // Slot Text Padding
-    0, // slotTextPadding
-
-    // Pagination text positions
-    40, // backTextOffsetX
-    155 // moreTextOffsetX
-};
-
-const LoadSaveOffsets gLoadSaveOffsets800 = {
-    // Window
-    800, // windowWidth
-    500, // windowHeight
-
-    // Preview
-    268, // previewWidth
-    145, // previewHeight
-    452, // previewX
-    55, // previewY
-    421, // previewCoverX
-    34, // previewCoverY
-
-    // Title and Text
-    69, // titleTextX
-    37, // titleTextY
-    518, // doneLabelX
-    358, // doneLabelY
-    623, // cancelLabelX
-    358, // cancelLabelY
-
-    // Buttons
-    499, // doneButtonX
-    359, // doneButtonY
-    603, // cancelButtonX
-    359, // cancelButtonY
-    56, // arrowUpX
-    68, // arrowUpY
-    56, // arrowDownX
-    89, // arrowDownY
-
-    // Slot List Area
-    76, // slotListAreaX
-    97, // slotListAreaY
-    290, // slotListAreaWidth
-    363, // slotListAreaHeight
-
-    // Comment Window
-    169, // commentWindowX
-    116, // commentWindowY
-
-    // Slot List
-    76, // slotListX
-    97, // slotListY
-    230, // slotListWidth
-    40, // slotListBottomOffset
-
-    // Info Box
-    477, // infoBoxX
-    262, // infoBoxY
-    224, // infoBoxWidth
-    60, // infoBoxHeight
-
-    // Info Box Text Positions
-    477, // characterNameX
-    262, // characterNameY
-    479, // gameDateX
-    279, // gameDateY
-    480, // locationX
-    296, // locationY
-
-    // Page Navigation Buttons
-    245, // nextPageButtonX
-    445, // nextPageButtonY
-    85, // nextPageButtonWidth
-    10, // nextPageButtonHeight
-    105, // prevPageButtonX
-    445, // prevPageButtonY
-    125, // prevPageButtonWidth
-    10, // prevPageButtonHeight
-
-    // Text Block Position
-    262, // infoBoxTextBlockY
-
-    // Cover Image Parameters
-    330, // coverWidth
-    188, // coverHeight
-    421, // coverX
-    34, // coverY
-    330, // coverPitch
-
-    // Slot Text Padding
-    3, // slotTextPadding
-
-    // Pagination text positions
-    50, // backTextOffsetX
-    194 // moreTextOffsetX
-};
-
 bool loadSaveLoadOffsetsFromConfig(LoadSaveOffsets* offsets, bool isWidescreen)
 {
-    const char* section = isWidescreen ? "loadsave800" : "loadsave640";
-    const LoadSaveOffsets* fallback = isWidescreen ? &gLoadSaveOffsets800 : &gLoadSaveOffsets640;
-
-    // Initialize with fallback values
-    *offsets = *fallback;
-
-    // Window
-    configGetInt(&gGameConfig, section, "windowWidth", &offsets->windowWidth);
-    configGetInt(&gGameConfig, section, "windowHeight", &offsets->windowHeight);
-
-    // Preview
-    configGetInt(&gGameConfig, section, "previewWidth", &offsets->previewWidth);
-    configGetInt(&gGameConfig, section, "previewHeight", &offsets->previewHeight);
-    configGetInt(&gGameConfig, section, "previewX", &offsets->previewX);
-    configGetInt(&gGameConfig, section, "previewY", &offsets->previewY);
-    configGetInt(&gGameConfig, section, "previewCoverX", &offsets->previewCoverX);
-    configGetInt(&gGameConfig, section, "previewCoverY", &offsets->previewCoverY);
-
-    // Title and Text
-    configGetInt(&gGameConfig, section, "titleTextX", &offsets->titleTextX);
-    configGetInt(&gGameConfig, section, "titleTextY", &offsets->titleTextY);
-    configGetInt(&gGameConfig, section, "doneLabelX", &offsets->doneLabelX);
-    configGetInt(&gGameConfig, section, "doneLabelY", &offsets->doneLabelY);
-    configGetInt(&gGameConfig, section, "cancelLabelX", &offsets->cancelLabelX);
-    configGetInt(&gGameConfig, section, "cancelLabelY", &offsets->cancelLabelY);
-
-    // Buttons
-    configGetInt(&gGameConfig, section, "doneButtonX", &offsets->doneButtonX);
-    configGetInt(&gGameConfig, section, "doneButtonY", &offsets->doneButtonY);
-    configGetInt(&gGameConfig, section, "cancelButtonX", &offsets->cancelButtonX);
-    configGetInt(&gGameConfig, section, "cancelButtonY", &offsets->cancelButtonY);
-    configGetInt(&gGameConfig, section, "arrowUpX", &offsets->arrowUpX);
-    configGetInt(&gGameConfig, section, "arrowUpY", &offsets->arrowUpY);
-    configGetInt(&gGameConfig, section, "arrowDownX", &offsets->arrowDownX);
-    configGetInt(&gGameConfig, section, "arrowDownY", &offsets->arrowDownY);
-
-    // Slot List Area
-    configGetInt(&gGameConfig, section, "slotListAreaX", &offsets->slotListAreaX);
-    configGetInt(&gGameConfig, section, "slotListAreaY", &offsets->slotListAreaY);
-    configGetInt(&gGameConfig, section, "slotListAreaWidth", &offsets->slotListAreaWidth);
-    configGetInt(&gGameConfig, section, "slotListAreaHeight", &offsets->slotListAreaHeight);
-
-    // Comment Window
-    configGetInt(&gGameConfig, section, "commentWindowX", &offsets->commentWindowX);
-    configGetInt(&gGameConfig, section, "commentWindowY", &offsets->commentWindowY);
-
-    // Slot List
-    configGetInt(&gGameConfig, section, "slotListX", &offsets->slotListX);
-    configGetInt(&gGameConfig, section, "slotListY", &offsets->slotListY);
-    configGetInt(&gGameConfig, section, "slotListWidth", &offsets->slotListWidth);
-    configGetInt(&gGameConfig, section, "slotListBottomOffset", &offsets->slotListBottomOffset);
-
-    // Info Box
-    configGetInt(&gGameConfig, section, "infoBoxX", &offsets->infoBoxX);
-    configGetInt(&gGameConfig, section, "infoBoxY", &offsets->infoBoxY);
-    configGetInt(&gGameConfig, section, "infoBoxWidth", &offsets->infoBoxWidth);
-    configGetInt(&gGameConfig, section, "infoBoxHeight", &offsets->infoBoxHeight);
-
-    // Info Box Text Positions
-    configGetInt(&gGameConfig, section, "characterNameX", &offsets->characterNameX);
-    configGetInt(&gGameConfig, section, "characterNameY", &offsets->characterNameY);
-    configGetInt(&gGameConfig, section, "gameDateX", &offsets->gameDateX);
-    configGetInt(&gGameConfig, section, "gameDateY", &offsets->gameDateY);
-    configGetInt(&gGameConfig, section, "locationX", &offsets->locationX);
-    configGetInt(&gGameConfig, section, "locationY", &offsets->locationY);
-
-    // Page Navigation Buttons
-    configGetInt(&gGameConfig, section, "nextPageButtonX", &offsets->nextPageButtonX);
-    configGetInt(&gGameConfig, section, "nextPageButtonY", &offsets->nextPageButtonY);
-    configGetInt(&gGameConfig, section, "nextPageButtonWidth", &offsets->nextPageButtonWidth);
-    configGetInt(&gGameConfig, section, "nextPageButtonHeight", &offsets->nextPageButtonHeight);
-    configGetInt(&gGameConfig, section, "prevPageButtonX", &offsets->prevPageButtonX);
-    configGetInt(&gGameConfig, section, "prevPageButtonY", &offsets->prevPageButtonY);
-    configGetInt(&gGameConfig, section, "prevPageButtonWidth", &offsets->prevPageButtonWidth);
-    configGetInt(&gGameConfig, section, "prevPageButtonHeight", &offsets->prevPageButtonHeight);
-
-    // Text Block Position
-    configGetInt(&gGameConfig, section, "infoBoxTextBlockY", &offsets->infoBoxTextBlockY);
-
-    // Cover Image Parameters
-    configGetInt(&gGameConfig, section, "coverWidth", &offsets->coverWidth);
-    configGetInt(&gGameConfig, section, "coverHeight", &offsets->coverHeight);
-    configGetInt(&gGameConfig, section, "coverX", &offsets->coverX);
-    configGetInt(&gGameConfig, section, "coverY", &offsets->coverY);
-    configGetInt(&gGameConfig, section, "coverPitch", &offsets->coverPitch);
-
-    // Slot Text Padding
-    configGetInt(&gGameConfig, section, "slotTextPadding", &offsets->slotTextPadding);
-
-    // Pagination text positions
-    configGetInt(&gGameConfig, section, "backTextOffsetX", &offsets->backTextOffsetX);
-    configGetInt(&gGameConfig, section, "moreTextOffsetX", &offsets->moreTextOffsetX);
-
-    return true;
+    return loadOffsetsFromConfig<LoadSaveOffsets>(
+        offsets,
+        isWidescreen,
+        "loadsave",
+        gLoadSaveOffsets640,
+        gLoadSaveOffsets800,
+        applyConfigToLoadSaveOffsets);
 }
 
 void loadSaveWriteDefaultOffsetsToConfig(bool isWidescreen, const LoadSaveOffsets* defaults)
@@ -1509,6 +1246,11 @@ int lsgLoadGame(int mode)
     renderPresent();
     _dbleclkcntr = 24;
 
+    // palette handled here to allow fade in from black like other main menu pages
+    // fades into Load/Save screen from black (from Main Menu)
+    colorPaletteLoad("color.pal");
+    paletteFadeTo(_cmap);
+
     int rc = -1;
     int doubleClickSlot = -1;
     while (rc == -1) {
@@ -1751,8 +1493,8 @@ int lsgLoadGame(int mode)
                             gOffsets.windowWidth);
                         blitBufferToBufferStretch(
                             _thumbnail_image,
-                            LS_PREVIEW_WIDTH,
-                            LS_PREVIEW_HEIGHT,
+                            LS_PREVIEW_WIDTH - 1,
+                            LS_PREVIEW_HEIGHT - 1,
                             LS_PREVIEW_WIDTH,
                             gLoadSaveWindowBuffer + gOffsets.windowWidth * gOffsets.previewY + gOffsets.previewX,
                             gOffsets.previewWidth,
@@ -1801,8 +1543,8 @@ int lsgLoadGame(int mode)
                         gOffsets.windowWidth);
                     blitBufferToBufferStretch(
                         _thumbnail_image,
-                        LS_PREVIEW_WIDTH,
-                        LS_PREVIEW_HEIGHT,
+                        LS_PREVIEW_WIDTH - 1,
+                        LS_PREVIEW_HEIGHT - 1,
                         LS_PREVIEW_WIDTH,
                         gLoadSaveWindowBuffer + gOffsets.windowWidth * gOffsets.previewY + gOffsets.previewX,
                         gOffsets.previewWidth,
@@ -1859,9 +1601,17 @@ int lsgLoadGame(int mode)
         sharedFpsLimiter.throttle();
     }
 
-    lsgWindowFree(mode == LOAD_SAVE_MODE_FROM_MAIN_MENU
-            ? LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU
-            : LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
+    if (mode == LOAD_SAVE_MODE_FROM_MAIN_MENU) {
+        if (rc == 0) {
+            // fade to black on return to Main Menu
+            paletteFadeTo(gPaletteBlack);
+            lsgWindowFree(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU);
+        } else {
+            lsgWindowFree(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU);
+        }
+    } else {
+        lsgWindowFree(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
+    }
 
     pipboyMessageListFree();
 
@@ -1956,7 +1706,7 @@ static int lsgWindowInit(int windowType)
     // Load interface images
     for (int index = 0; index < LOAD_SAVE_FRM_COUNT; index++) {
         // Use widescreen variants when available
-        int fid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, gLoadSaveFrmIds[index], "_800", isWidescreen);
+        int fid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, gLoadSaveFrmIds[index], isWidescreen);
 
         if (!_loadsaveFrmImages[index].lock(fid)) {
             // Fallback to base FID if variant fails
@@ -1990,7 +1740,7 @@ static int lsgWindowInit(int windowType)
         gOffsets.windowWidth,
         gOffsets.windowHeight,
         256,
-        WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+        WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
     if (gLoadSaveWindow == -1) {
         // Cleanup FRM images
         for (int i = 0; i < LOAD_SAVE_FRM_COUNT; i++) {
@@ -2938,7 +2688,7 @@ static int _GetComment(int slot)
         _loadsaveFrmImages[LOAD_SAVE_FRM_BOX].getWidth(),
         _loadsaveFrmImages[LOAD_SAVE_FRM_BOX].getHeight(),
         256,
-        WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+        WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
     if (window == -1) {
         return -1;
     }

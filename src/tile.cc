@@ -1580,7 +1580,8 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
         height = gTileWindowHeight - top;
     }
 
-    if (x >= gTileWindowWidth || x > rect->right || y >= gTileWindowHeight || y > rect->bottom) goto out;
+    if (x >= gTileWindowWidth || x > rect->right || y >= gTileWindowHeight || y > rect->bottom)
+        goto out;
 
     frameWidth = artGetWidth(art, 0, 0);
     frameHeight = artGetHeight(art, 0, 0);
@@ -1611,7 +1612,8 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
         }
     }
 
-    if (v77 <= 0 || v76 <= 0) goto out;
+    if (v77 <= 0 || v76 <= 0)
+        goto out;
 
     tile = tileFromScreenXY(savedX, savedY + 13, gElevation);
     if (tile != -1) {

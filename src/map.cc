@@ -1,5 +1,6 @@
 #include "map.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -953,6 +954,10 @@ static int mapLoad(File* stream)
 
         strcat(path, ".GAM");
         globalVarsRead(path, "MAP_GLOBAL_VARS:", &gMapGlobalVarsLength, &gMapGlobalVars);
+        if (gMapHeader.globalVariablesCount != gMapGlobalVarsLength) {
+            assert(gMapHeader.globalVariablesCount == gMapGlobalPointers.size());
+            gMapGlobalPointers.resize(gMapGlobalVarsLength);
+        }
         gMapHeader.globalVariablesCount = gMapGlobalVarsLength;
     }
 
@@ -1757,19 +1762,32 @@ static int _square_load(File* stream, int flags)
 // 0x4843B8
 static int mapHeaderWrite(MapHeader* ptr, File* stream)
 {
-    if (fileWriteInt32(stream, ptr->version) == -1) return -1;
-    if (fileWriteFixedLengthString(stream, ptr->name, 16) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->enteringTile) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->enteringElevation) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->enteringRotation) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->localVariablesCount) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->scriptIndex) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->flags) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->darkness) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->globalVariablesCount) == -1) return -1;
-    if (fileWriteInt32(stream, ptr->index) == -1) return -1;
-    if (fileWriteUInt32(stream, ptr->lastVisitTime) == -1) return -1;
-    if (fileWriteInt32List(stream, ptr->field_3C, 44) == -1) return -1;
+    if (fileWriteInt32(stream, ptr->version) == -1)
+        return -1;
+    if (fileWriteFixedLengthString(stream, ptr->name, 16) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->enteringTile) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->enteringElevation) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->enteringRotation) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->localVariablesCount) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->scriptIndex) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->flags) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->darkness) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->globalVariablesCount) == -1)
+        return -1;
+    if (fileWriteInt32(stream, ptr->index) == -1)
+        return -1;
+    if (fileWriteUInt32(stream, ptr->lastVisitTime) == -1)
+        return -1;
+    if (fileWriteInt32List(stream, ptr->field_3C, 44) == -1)
+        return -1;
 
     return 0;
 }
@@ -1777,19 +1795,32 @@ static int mapHeaderWrite(MapHeader* ptr, File* stream)
 // 0x4844B4
 static int mapHeaderRead(MapHeader* ptr, File* stream)
 {
-    if (fileReadInt32(stream, &(ptr->version)) == -1) return -1;
-    if (fileReadFixedLengthString(stream, ptr->name, 16) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->enteringTile)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->enteringElevation)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->enteringRotation)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->localVariablesCount)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->scriptIndex)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->flags)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->darkness)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->globalVariablesCount)) == -1) return -1;
-    if (fileReadInt32(stream, &(ptr->index)) == -1) return -1;
-    if (fileReadUInt32(stream, &(ptr->lastVisitTime)) == -1) return -1;
-    if (fileReadInt32List(stream, ptr->field_3C, 44) == -1) return -1;
+    if (fileReadInt32(stream, &(ptr->version)) == -1)
+        return -1;
+    if (fileReadFixedLengthString(stream, ptr->name, 16) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->enteringTile)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->enteringElevation)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->enteringRotation)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->localVariablesCount)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->scriptIndex)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->flags)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->darkness)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->globalVariablesCount)) == -1)
+        return -1;
+    if (fileReadInt32(stream, &(ptr->index)) == -1)
+        return -1;
+    if (fileReadUInt32(stream, &(ptr->lastVisitTime)) == -1)
+        return -1;
+    if (fileReadInt32List(stream, ptr->field_3C, 44) == -1)
+        return -1;
 
     return 0;
 }

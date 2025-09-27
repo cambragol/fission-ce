@@ -27,7 +27,7 @@ typedef struct ProgramListNode {
 
 static unsigned int _defaultTimerFunc();
 static char* _defaultFilename_(char* s);
-static int _outputStr(char* a1);
+static int _outputStr(char* s);
 static int _checkWait(Program* program);
 static char* programGetCurrentProcedureName(Program* s);
 opcode_t stackReadInt16(unsigned char* data, int pos);
@@ -187,8 +187,8 @@ char* _interpretMangleName(char* s)
     return _filenameFunc(s);
 }
 
-// 0x4670C0
-static int _outputStr(char* a1)
+// 0x4670C0 (unused)
+static int _outputStr(char* s)
 {
     return 1;
 }

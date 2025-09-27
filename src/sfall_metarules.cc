@@ -348,24 +348,33 @@ static bool FalloutStringCompare(const char* str1, const char* str2, long codePa
         unsigned char c1 = *str1;
         unsigned char c2 = *str2;
 
-        if (c1 == 0 && c2 == 0) return true; // end - strings are equal
-        if (c1 == 0 || c2 == 0) return false; // strings are not equal
+        if (c1 == 0 && c2 == 0)
+            return true; // end - strings are equal
+        if (c1 == 0 || c2 == 0)
+            return false; // strings are not equal
         str1++;
         str2++;
-        if (c1 == c2) continue;
+        if (c1 == c2)
+            continue;
 
         if (codePage == 866) {
             // replace Russian 'x' with English (Fallout specific)
-            if (c1 == 229) c1 -= 229 - 'x';
-            if (c2 == 229) c2 -= 229 - 'x';
+            if (c1 == 229)
+                c1 -= 229 - 'x';
+            if (c2 == 229)
+                c2 -= 229 - 'x';
         }
 
         // 0 - 127 (standard ASCII)
         // upper to lower case
-        if (c1 >= 'A' && c1 <= 'Z') c1 |= 32;
-        if (c2 >= 'A' && c2 <= 'Z') c2 |= 32;
-        if (c1 == c2) continue;
-        if (c1 < 128 || c2 < 128) return false;
+        if (c1 >= 'A' && c1 <= 'Z')
+            c1 |= 32;
+        if (c2 >= 'A' && c2 <= 'Z')
+            c2 |= 32;
+        if (c1 == c2)
+            continue;
+        if (c1 < 128 || c2 < 128)
+            return false;
 
         // 128 - 255 (international/extended)
         switch (codePage) {
@@ -390,20 +399,27 @@ static bool FalloutStringCompare(const char* str1, const char* str2, long codePa
             break;
         case 1251:
             // upper to lower case
-            if (c1 >= 0xC0 && c1 <= 0xDF) c1 |= 32;
-            if (c2 >= 0xC0 && c2 <= 0xDF) c2 |= 32;
-            if (c1 == 0xA8) c1 += 16;
-            if (c2 == 0xA8) c2 += 16;
+            if (c1 >= 0xC0 && c1 <= 0xDF)
+                c1 |= 32;
+            if (c2 >= 0xC0 && c2 <= 0xDF)
+                c2 |= 32;
+            if (c1 == 0xA8)
+                c1 += 16;
+            if (c2 == 0xA8)
+                c2 += 16;
             break;
         case 1250:
         case 1252:
             if (c1 != 0xD7 && c1 != 0xF7 && c2 != 0xD7 && c2 != 0xF7) {
-                if (c1 >= 0xC0 && c1 <= 0xDE) c1 |= 32;
-                if (c2 >= 0xC0 && c2 <= 0xDE) c2 |= 32;
+                if (c1 >= 0xC0 && c1 <= 0xDE)
+                    c1 |= 32;
+                if (c2 >= 0xC0 && c2 <= 0xDE)
+                    c2 |= 32;
             }
             break;
         }
-        if (c1 != c2) return false; // strings are not equal
+        if (c1 != c2)
+            return false; // strings are not equal
     }
 }
 
@@ -505,7 +521,8 @@ void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
     int newFmtLen = fmtLen;
 
     for (int i = 0; i < fmtLen; i++) {
-        if (format[i] == '%') newFmtLen++; // will possibly be escaped, need space for that
+        if (format[i] == '%')
+            newFmtLen++; // will possibly be escaped, need space for that
     }
 
     // parse format to make it safe
@@ -525,7 +542,8 @@ void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
         char c = format[i];
         if (!conversion) {
             // Start conversion.
-            if (c == '%') conversion = true;
+            if (c == '%')
+                conversion = true;
         } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '%') {
             int partLen;
             if (c == '%') {
@@ -536,7 +554,8 @@ void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
                 partLen = j;
             } else {
                 // ignore size prefixes
-                if (c == 'h' || c == 'l' || c == 'j' || c == 'z' || c == 't' || c == 'w' || c == 'L' || c == 'I') continue;
+                if (c == 'h' || c == 'l' || c == 'j' || c == 'z' || c == 't' || c == 'w' || c == 'L' || c == 'I')
+                    continue;
                 // Type specifier, perform conversion.
                 if (++valIdx == numArgs) {
                     debugPrint("%s() - format string contains more conversions than passed arguments (%d): %s",
