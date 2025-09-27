@@ -16,9 +16,7 @@ defaults:
 jobs:
   static-analysis:
     name: Static analysis
-
     runs-on: ubuntu-latest
-
     steps:
       - name: Install
         run: |
@@ -32,37 +30,70 @@ jobs:
         run: cppcheck --std=c++17 src/
 
   code-format:
-    name: Code format check
+    name: Code Formatting
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
+    if: |
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name != 'push' || github.event.head_commit.message != 'chore: auto-format with clang-format') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Show clang-format version
-        run: clang-format --version
-
-      - name: clang-format
+      - name: Set up clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+          echo "CLANG_FORMAT_VERSION=$(clang-format-18 --version)" >> $GITHUB_ENV
+          
+      - name: Check for skip-formatting label (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking PR labels..."
+          if gh pr view ${{ github.event.pull_request.number }} --repo "${{ github.repository }}" --json labels --jq '.labels[].name' | grep -q "skip-formatting"; then
+            echo "skip-formatting=true" >> $GITHUB_ENV
+            echo "skip-formatting label found - skipping format checks"
+          else
+            echo "No skip-formatting label found"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check formatting
+        if: env.skip-formatting != 'true'
+        id: check-formatting
         run: |
-          echo "Checking for skip-formatting label on PR #${{ github.event.pull_request.number }}…"
-          if gh pr view ${{ github.event.pull_request.number }} \
-              --repo "${{ github.repository }}" \
-              --json labels \
-              --jq '.labels[].name' \
-            | grep -q skip-formatting; then
-            echo "skip-formatting label found — skipping clang-format check"
-            exit 0
+          echo "Checking code formatting with $CLANG_FORMAT_VERSION"
+          if ! find src -type f \( -name "*.cc" -o -name "*.h" \) -print0 | xargs -0 clang-format-18 --dry-run --Werror; then
+            echo "format_needed=true" >> $GITHUB_ENV
+            echo "Formatting issues found - will attempt to auto-format"
+          else
+            echo "Code is properly formatted"
           fi
-
-          echo "No skip-formatting label — enforcing clang-format"
-          find src -type f \( -name '*.cc' -o -name '*.h' \) \
-            | xargs clang-format --dry-run --Werror
-
-          echo "Code is formatted correctly"
-
+          
+      - name: Auto-format if needed
+        if: env.format_needed == 'true' && env.skip-formatting != 'true'
+        run: |
+          echo "Applying clang-format..."
+          find src -type f \( -name "*.cc" -o -name "*.h" \) -print0 | xargs -0 clang-format-18 -i
+          
+          # Check if there are changes after formatting
+          if ! git diff --quiet; then
+            echo "Committing formatting changes..."
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -u
+            git commit -m "chore: auto-format with clang-format"
+            git push
+            echo "Formatting changes pushed"
+          else
+            echo "No formatting changes after auto-format"
+          fi
+          
   android:
     name: Android
 
@@ -143,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fallout2-ce.ipa
-          path:  out/build/ios/fallout2-ce.ipa
+          path:  out/build/ios/fallout-fission.ipa
           retention-days: 7
 
   linux:
@@ -303,7 +334,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fallout2-ce-macos.dmg
-          path: out/build/macos/Fallout II Community Edition.dmg
+          path: out/build/macos/Fallout-Fission.dmg
           retention-days: 7
 
   windows:
