@@ -408,7 +408,7 @@ jobs:
         run: |
           mkdir -p dmg_output
           create-dmg \
-            --dmg-title "Fallout Fission" \
+            --dmg-title "Fallout-Fission" \
             --no-version-in-filename \
             --no-code-sign \
             "$APP_PATH" \
