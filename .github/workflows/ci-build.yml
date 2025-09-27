@@ -135,11 +135,26 @@ jobs:
         run: |
           mv os/android/app/build/outputs/apk/debug/app-debug.apk os/android/app/build/outputs/apk/debug/fallout-fission.apk
 
-      - name: Upload
+      - name: Package Android with fission.dat
+        run: |
+          mkdir -p packaged
+          # Copy APK
+          cp os/android/app/build/outputs/apk/debug/fallout-fission.apk packaged/
+          # Copy fission.dat
+          cp os/macos/fission.dat packaged/
+          # Create zip
+          cd packaged
+          zip fallout-fission-android.zip fallout-fission.apk fission.dat
+          cd ..
+          # Also copy zip to a common directory for the combined package job
+          mkdir -p packages
+          cp packaged/fallout-fission-android.zip packages/
+
+      - name: Upload Android package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-debug.apk
-          path: os/android/app/build/outputs/apk/debug/fallout-fission.apk
+          name: fallout-fission-android
+          path: packages/fallout-fission-android.zip
           retention-days: 7
 
   ios:
@@ -224,11 +239,26 @@ jobs:
         run: |
           mv out/build/linux-${{ matrix.arch }}-debug/fallout2-ce out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }}
 
-      - name: Upload
+      - name: Package Linux ${{ matrix.arch }} with fission.dat
+        run: |
+          mkdir -p packaged
+          # Copy binary
+          cp out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }} packaged/
+          # Copy fission.dat
+          cp os/macos/fission.dat packaged/
+          # Create zip
+          cd packaged
+          zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
+          cd ..
+          # Also copy zip to a common directory for the combined package job
+          mkdir -p packages
+          cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
+
+      - name: Upload Linux ${{ matrix.arch }} package
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-linux-${{ matrix.arch }}
-          path:  out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }}
+          path: packages/fallout-fission-linux-${{ matrix.arch }}.zip
           retention-days: 7
 
   linux-armhf:
@@ -264,11 +294,26 @@ jobs:
         run: |
           mv build/fallout2-ce build/fallout-fission-linux-armhf
 
-      - name: Upload
+      - name: Package Linux ARMHF with fission.dat
+        run: |
+          mkdir -p packaged
+          # Copy binary
+          cp build/fallout-fission-linux-armhf packaged/
+          # Copy fission.dat
+          cp os/macos/fission.dat packaged/
+          # Create zip
+          cd packaged
+          zip fallout-fission-linux-armhf.zip fallout-fission-linux-armhf fission.dat
+          cd ..
+          # Also copy zip to a common directory for the combined package job
+          mkdir -p packages
+          cp packaged/fallout-fission-linux-armhf.zip packages/
+
+      - name: Upload Linux ARMHF package
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-linux-armhf
-          path:  build/fallout-fission-linux-armhf
+          path: packages/fallout-fission-linux-armhf.zip
           retention-days: 7
 
   linux-arm64:
@@ -295,11 +340,26 @@ jobs:
         run: |
           mv build/fallout2-ce build/fallout-fission-linux-arm64
 
-      - name: Upload
+      - name: Package Linux ARM64 with fission.dat
+        run: |
+          mkdir -p packaged
+          # Copy binary
+          cp build/fallout-fission-linux-arm64 packaged/
+          # Copy fission.dat
+          cp os/macos/fission.dat packaged/
+          # Create zip
+          cd packaged
+          zip fallout-fission-linux-arm64.zip fallout-fission-linux-arm64 fission.dat
+          cd ..
+          # Also copy zip to a common directory for the combined package job
+          mkdir -p packages
+          cp packaged/fallout-fission-linux-arm64.zip packages/
+
+      - name: Upload Linux ARM64 package
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-linux-arm64
-          path:  build/fallout-fission-linux-arm64
+          path: packages/fallout-fission-linux-arm64.zip
           retention-days: 7
 
   macos:
@@ -384,27 +444,93 @@ jobs:
         run: |
           mv out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout2-ce.exe out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout-fission-${{ matrix.arch }}.exe
 
-      - name: Upload
+      - name: Package Windows ${{ matrix.arch }} with fission.dat
+        shell: cmd
+        run: |
+          mkdir packaged
+          copy out\build\windows-${{ matrix.arch }}\RelWithDebInfo\fallout-fission-${{ matrix.arch }}.exe packaged\
+          copy os\macos\fission.dat packaged\
+          cd packaged
+          "C:\Program Files\7-Zip\7z.exe" a fallout-fission-windows-${{ matrix.arch }}.zip fallout-fission-${{ matrix.arch }}.exe fission.dat
+          cd ..
+          mkdir packages
+          copy packaged\fallout-fission-windows-${{ matrix.arch }}.zip packages\
+
+      - name: Upload Windows ${{ matrix.arch }} package
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-windows-${{ matrix.arch }}
-          path:  out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout-fission-${{ matrix.arch }}.exe
+          path: packages/fallout-fission-windows-${{ matrix.arch }}.zip
+          retention-days: 7
+
+  package-combined:
+    name: Package Combined Archive
+    runs-on: ubuntu-latest
+    needs: [android, linux, linux-armhf, linux-arm64, windows]  # Exclude ios and macos
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    
+    steps:
+      - name: Download packaged artifacts (excluding macOS and iOS)
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          
+      - name: Create combined directory structure
+        run: |
+          # Create main directory
+          mkdir -p fallout-fission-combined
+          
+          # Copy fission.dat file 
+          cp os/macos/fission.dat fallout-fission-combined/
+          
+          # Process downloaded artifacts and extract them to combined directory
+          cd artifacts
+          
+          for artifact_dir in *; do
+            if [ -d "$artifact_dir" ]; then
+              cd "$artifact_dir"
+              # Extract each zip to the combined directory
+              for zipfile in *.zip; do
+                if [ -f "$zipfile" ]; then
+                  echo "Extracting $zipfile"
+                  unzip -o "$zipfile" -d ../../fallout-fission-combined/
+                fi
+              done
+              cd ..
+            fi
+          done
+          cd ..
+          
+          # List contents for verification
+          echo "Combined package contents:"
+          ls -la fallout-fission-combined/
+          
+      - name: Create combined zip archive
+        run: |
+          zip -r fallout-fission-combined.zip fallout-fission-combined/
+          ls -la *.zip
+          
+      - name: Upload combined archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallout-fission-combined
+          path: fallout-fission-combined.zip
           retention-days: 7
 
   release:
     name: Release Continuous build
     runs-on: ubuntu-latest
-    needs: [android, ios, linux, linux-armhf, linux-arm64, macos, windows]
+    needs: [android, ios, linux, linux-armhf, linux-arm64, macos, windows, package-combined]
     permissions: write-all
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    
     steps:
       - name: Fetch artifacts
-        if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v4
         with:
           path: artifacts/
 
       - name: Remove old release
-        if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:
           delete_release: true
@@ -412,51 +538,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Move unpacked artifacts to root folder
-        if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      - name: Process artifacts for release
         run: |
-          ls -Rlah .
-          find .
-          cd artifacts/
-          for folder in *; do
-            if [[ -d "$folder" && "$folder" != "." ]]; then
-              echo "Processing $folder"
-              mv "$folder" "$folder.dir"
-              cd "$folder.dir"
+          # Create release directory
+          mkdir -p release-files
+          
+          # Move all packaged zips to release files
+          cd artifacts
+          for artifact_dir in *; do
+            if [ -d "$artifact_dir" ]; then
+              cd "$artifact_dir"
               for file in *; do
                 if [ -f "$file" ]; then
-                  if [ -f "../$file" ]; then
-                    echo "ERROR: Duplicate artifact file name $file"
-                    exit 1
-                  fi
-                  if [ -d "../$file" ]; then
-                    echo "ERROR: Duplicate artifact folder $file"
-                    exit 1
-                  fi
-
-                  echo "Moving $file"
-                  mv "$file" "../$file"
+                  echo "Moving $file to release-files/"
+                  mv "$file" ../../release-files/
                 fi
               done
               cd ..
-              rm -rf "$folder.dir"
             fi
           done
-          ls -Rlah .
-          find .
-          cd ../
+          cd ..
+          
+          # List release files
+          echo "Release files:"
+          ls -la release-files/
 
       - name: Allow GitHub to process removed release for few seconds
-        if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         run: |
           sleep 20s
 
       - name: Upload new release
-        if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         uses: softprops/action-gh-release@v0.1.15
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: artifacts/*
+          files: release-files/*
           tag_name: continious
           draft: false
           prerelease: true
