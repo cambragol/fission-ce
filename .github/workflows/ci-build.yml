@@ -377,6 +377,10 @@ jobs:
           path: out
           key: macos-cmake-v100
 
+      - name: Install GraphicsMagick and ImageMagick for DMG icon
+        run: |
+          brew install graphicsmagick imagemagick
+
       - name: Configure
         run: |
           cmake --preset macos
