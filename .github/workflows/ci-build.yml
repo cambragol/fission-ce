@@ -385,10 +385,33 @@ jobs:
         run: |
           cmake --build --preset macos-debug
 
-      - name: Pack
+      - name: Install create-dmg
         run: |
-          cd out/build/macos
-          cpack -C Debug
+          npm install --global create-dmg
+
+      - name: Find the built app
+        run: |
+          # The app should be at a known location from your CMake build
+          APP_PATH="out/build/macos/Fallout-Fission.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Error: App not found at expected location: $APP_PATH"
+            find out/build/macos -name "*.app" -type d
+            exit 1
+          fi
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+
+      - name: Create DMG with create-dmg
+        run: |
+          mkdir -p dmg_output
+          create-dmg \
+            --dmg-title "Fallout Fission" \
+            --no-version-in-filename \
+            "$APP_PATH" \
+            dmg_output/
+
+      - name: Rename DMG to consistent name
+        run: |
+          mv dmg_output/Fallout-Fission.dmg dmg_output/fallout-fission-macos.dmg
 
       - name: Upload
         uses: actions/upload-artifact@v4
