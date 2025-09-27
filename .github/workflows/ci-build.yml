@@ -391,13 +391,17 @@ jobs:
 
       - name: Find the built app
         run: |
-          # The app should be at a known location from your CMake build
-          APP_PATH="out/build/macos/Fallout-Fission.app"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "Error: App not found at expected location: $APP_PATH"
+          # Try the Debug location first, then the CPack location
+          if [ -d "out/build/macos/Debug/Fallout-Fission.app" ]; then
+            APP_PATH="out/build/macos/Debug/Fallout-Fission.app"
+          elif [ -d "out/build/macos/_CPack_Packages/Darwin/DragNDrop/Fallout-Fission/Fallout-Fission.app" ]; then
+            APP_PATH="out/build/macos/_CPack_Packages/Darwin/DragNDrop/Fallout-Fission/Fallout-Fission.app"
+          else
+            echo "Error: App not found in expected locations"
             find out/build/macos -name "*.app" -type d
             exit 1
           fi
+          echo "Found app at: $APP_PATH"
           echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
       - name: Create DMG with create-dmg
