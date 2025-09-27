@@ -9,6 +9,7 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 > ⚛️ **Powered by the F.I.S.S.I.O.N. Engine**
 > *Flexible. Isometric. Simulation. System. Interactive. Open‑world. Nuclear‑roleplay.*
+> **Split from the past, Powering the future**
 
 ---
 
@@ -72,7 +73,7 @@ You must own Fallout 2. Purchase it from [GOG](https://www.gog.com/game/fallout_
 ### ▶️ Quick Start by Platform
 
 #### 🪟 Windows
-1. Copy `fallout2-ce.exe` into your `Fallout2` folder.
+1. Copy `fallout-fission.exe` into your `Fallout2` folder.
 2. Run it instead of `fallout2.exe`.
 
 #### 🐧 Linux
@@ -87,36 +88,32 @@ cd ~/Fallout2 && ./fallout2-ce
 #### 🍎 macOS
 Requires macOS 10.11+ (Intel or Apple Silicon)
 1. Use a Windows or MacPlay install as a base.
-2. Copy `fallout2-ce.app` into that folder.
-3. Launch `fallout2-ce.app`.
+2. Copy `fallout-fission.app` into that folder.
+3. Launch `fallout-fission.app`.
 
 #### 🤖 Android / 🍏 iOS
 1. Copy game data (`master.dat`, `critter.dat`, `patch000.dat`, `data/`).
-2. Install `fallout2-ce.apk` (Android) or sideload `fallout2-ce.ipa` (iOS).
+2. Install `fallout-fission.apk` (Android) or sideload `fallout2-ce.ipa` (iOS).
 3. Launch and select your data folder.
 
 ---
 
 ## ⚙️ Configuration
 
-Edit `fallout2.cfg` for file paths and graphics settings. Example graphics block:
+Use the in-game 'preferences' screen for 'graphics' configuration.
 
-```ini
-[graphics]
-fullscreen=0
-game_width=1920
-game_height=1080
-preserve_aspect=1
-widescreen=1
-stretch_enabled=1
-```
+Other conifguration can be done fia the fallout2.cfg file
+
+*Do not configure graphics through the fallout2.cfg file.*
+
 
 For advanced tweaks, use `ddraw.ini` (Sfall):
 
 ```ini
 [Misc]
-IFACE_BAR_MODE=0
-IFACE_BAR_SIDE_ART=2
+WorldMapTravelMarkers=1
+GaplessMusic=1
+EnhancedBarter=1
 ```
 
 ---
