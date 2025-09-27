@@ -1648,4 +1648,4 @@ void applyConfigToWorldmapOffsets(Config* config, const char* section, WorldmapO
     configGetInt(config, section, "mapcenterY", &offsets->mapcenterY);
 }
 
-}
+} // namespace fallout

@@ -644,4 +644,4 @@ void applyConfigToPreferencesOffsets(Config* config, char const* section, Prefer
 void applyConfigToLoadSaveOffsets(Config* config, char const* section, LoadSaveOffsets* offsets);
 void applyConfigToWorldmapOffsets(Config* config, char const* section, WorldmapOffsets* offsets);
 
-}
+} // namespace fallout
