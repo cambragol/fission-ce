@@ -422,7 +422,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-macos.dmg
-          path: out/build/macos/Fallout-Fission.dmg
+          path: dmg_output/fallout-fission-macos.dmg  # New create-dmg DMG
           retention-days: 7
 
   windows:
