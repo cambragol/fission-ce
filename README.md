@@ -18,9 +18,9 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 - 🔲 **Authentic isometric, turn‑based experience** (SPECIAL, AP‑driven combat)
 - 💻 **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
 - 🖥️ **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
-- 🧩 **Modular, customizable systems**—community mods plug in seamlessly
-- 📦 **100% compatible** with original Fallout 1 & 2 assets  
-- 🌎 **Future‑proof**: easily extended for new content and Fallout 1 integration
+- 🧩 **Modular, customizable systems**—community mods plug in seamlessly (one day)
+- 📦 **100% compatible** with original Fallout 1 & 2 assets  (can't run Fallout 1 yet)
+- 🌎 **Future‑proof**: easily extended for new content and Fallout 2 integration (yeah, not yet)
 
 ---
 
@@ -65,15 +65,15 @@ You must own Fallout 2. Purchase it from [GOG](https://www.gog.com/game/fallout_
 - **Download** the latest [F.I.S.S.I.O.N. release](https://github.com/fallout2-ce/fallout2-ce/releases)
 - Or **build from source**:
   ```bash
-  git clone https://github.com/fallout2-ce/fallout2-ce
-  cd fallout2-ce
+  git clone https://github.com/cambragol/fission-ce
+  cd fission-ce
   make
   ```
 
 ### ▶️ Quick Start by Platform
 
 #### 🪟 Windows
-1. Copy `fallout-fission.exe` into your `Fallout2` folder.
+1. Copy `fallout-fission.exe` and `fission.dat` into your `Fallout2` folder.
 2. Run it instead of `fallout2.exe`.
 
 #### 🐧 Linux
@@ -93,7 +93,7 @@ Requires macOS 10.11+ (Intel or Apple Silicon)
 
 #### 🤖 Android / 🍏 iOS
 1. Copy game data (`master.dat`, `critter.dat`, `patch000.dat`, `data/`).
-2. Install `fallout-fission.apk` (Android) or sideload `fallout2-ce.ipa` (iOS).
+2. Install `fallout-fission.apk` and `fission.dat` (Android) or sideload `fallout-fission.ipa` and `fission.dat` (iOS).
 3. Launch and select your data folder.
 
 ---
