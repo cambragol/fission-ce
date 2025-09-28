@@ -553,7 +553,7 @@ jobs:
           retention-days: 7
 
   release:
-    name: Release Continuous build
+    name: Release Beta build
     runs-on: ubuntu-latest
     needs: [android, ios, linux, linux-armhf, linux-arm64, macos, windows, package-combined]
     permissions: write-all
@@ -569,7 +569,7 @@ jobs:
         uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:
           delete_release: true
-          tag_name: continious
+          tag_name: beta
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -607,7 +607,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: release-files/*
-          tag_name: continious
+          tag_name: beta
           draft: false
           prerelease: true
-          name: Fallout Fission Continuous Build
+          name: Fallout Fission Beta Build
