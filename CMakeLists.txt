@@ -321,8 +321,8 @@ endif()
 
 if(WIN32)
     target_sources(${EXECUTABLE_NAME} PUBLIC
-        "os/windows/fallout2-ce.ico"
-        "os/windows/fallout2-ce.rc"
+        "os/windows/fission.ico"
+        "os/windows/fission.rc"
     )
 endif()
 
