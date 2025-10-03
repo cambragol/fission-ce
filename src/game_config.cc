@@ -68,17 +68,17 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_DAT_KEY, "critter.dat");
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_PATCHES_KEY, "data");
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE
-        // iOS path
-        configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/fission.dat");
-    #elif TARGET_OS_MAC
-        // macOS path
-        configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/Contents/Resources/fission.dat");
-    #else
-        // Other Apple platform fallback
-        configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
-    #endif
+#include "TargetConditionals.h"
+#if TARGET_OS_IPHONE
+    // iOS path
+    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/fission.dat");
+#elif TARGET_OS_MAC
+    // macOS path
+    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/Contents/Resources/fission.dat");
+#else
+    // Other Apple platform fallback
+    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
+#endif
 #else
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
 #endif
