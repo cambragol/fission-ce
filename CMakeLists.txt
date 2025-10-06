@@ -321,8 +321,8 @@ endif()
 
 if(WIN32)
     target_sources(${EXECUTABLE_NAME} PUBLIC
-        "os/windows/fission.ico"
-        "os/windows/fission.rc"
+        "os/windows/sonora.ico"
+        "os/windows/sonora.rc"
     )
 endif()
 
@@ -348,7 +348,7 @@ if(APPLE)
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Fission")
     else()
         set(RESOURCES
-            "os/macos/fallout-fission.icns"
+            "os/macos/fallout2-sonora.icns"
             "os/macos/fission.dat"
         )
 
