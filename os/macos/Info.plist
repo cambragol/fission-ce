@@ -33,6 +33,6 @@
     <key>LSMinimumSystemVersion</key>
     <string>10.11</string>
     <key>SDL_FILESYSTEM_BASE_DIR_TYPE</key>
-    <string>parent</string>
+    <string>resource</string>
 </dict>
 </plist>
