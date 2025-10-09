@@ -68,7 +68,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_DAT_KEY, "critter.dat");
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_PATCHES_KEY, "data");
 #ifdef __APPLE__
-    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/Contents/Resources/fission.dat");
+    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
 #else
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
 #endif
