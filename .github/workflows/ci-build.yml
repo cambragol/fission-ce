@@ -133,28 +133,28 @@ jobs:
 
       - name: Change apk file name
         run: |
-          mv os/android/app/build/outputs/apk/debug/app-debug.apk os/android/app/build/outputs/apk/debug/fallout-fission.apk
+          mv os/android/app/build/outputs/apk/debug/app-debug.apk os/android/app/build/outputs/apk/debug/fallout-sonora.apk
 
       - name: Package Android with fission.dat
         run: |
           mkdir -p packaged
           # Copy APK
-          cp os/android/app/build/outputs/apk/debug/fallout-fission.apk packaged/
+          cp os/android/app/build/outputs/apk/debug/fallout-sonora.apk packaged/
           # Copy fission.dat
           cp os/macos/fission.dat packaged/
           # Create zip
           cd packaged
-          zip fallout-fission-android.zip fallout-fission.apk fission.dat
+          zip fallout-sonora-android.zip fallout-sonora.apk fission.dat
           cd ..
           # Also copy zip to a common directory for the combined package job
           mkdir -p packages
-          cp packaged/fallout-fission-android.zip packages/
+          cp packaged/fallout-sonora-android.zip packages/
 
       - name: Upload Android package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-android
-          path: packages/fallout-fission-android.zip
+          name: fallout-sonora-android
+          path: packages/fallout-sonora-android.zip
           retention-days: 7
 
   ios:
@@ -188,8 +188,8 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission.ipa
-          path:  out/build/ios/fallout-fission.ipa
+          name: fallout-sonora.ipa
+          path:  out/build/ios/fallout-sonora.ipa
           retention-days: 7
 
   linux:
@@ -237,28 +237,28 @@ jobs:
 
       - name: Change executable file name
         run: |
-          mv out/build/linux-${{ matrix.arch }}-debug/fallout2-ce out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }}
+          mv out/build/linux-${{ matrix.arch }}-debug/fallout2-ce out/build/linux-${{ matrix.arch }}-debug/fallout-sonora-linux-${{ matrix.arch }}
 
       - name: Package Linux ${{ matrix.arch }} with fission.dat
         run: |
           mkdir -p packaged
           # Copy binary
-          cp out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }} packaged/
+          cp out/build/linux-${{ matrix.arch }}-debug/fallout-sonora-linux-${{ matrix.arch }} packaged/
           # Copy fission.dat
           cp os/macos/fission.dat packaged/
           # Create zip
           cd packaged
-          zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
+          zip fallout-sonora-linux-${{ matrix.arch }}.zip fallout-sonora-linux-${{ matrix.arch }} fission.dat
           cd ..
           # Also copy zip to a common directory for the combined package job
           mkdir -p packages
-          cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
+          cp packaged/fallout-sonora-linux-${{ matrix.arch }}.zip packages/
 
       - name: Upload Linux ${{ matrix.arch }} package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-linux-${{ matrix.arch }}
-          path: packages/fallout-fission-linux-${{ matrix.arch }}.zip
+          name: fallout-sonora-linux-${{ matrix.arch }}
+          path: packages/fallout-sonora-linux-${{ matrix.arch }}.zip
           retention-days: 7
 
   linux-armhf:
@@ -292,28 +292,28 @@ jobs:
 
       - name: Change executable file name
         run: |
-          mv build/fallout2-ce build/fallout-fission-linux-armhf
+          mv build/fallout2-ce build/fallout-sonora-linux-armhf
 
       - name: Package Linux ARMHF with fission.dat
         run: |
           mkdir -p packaged
           # Copy binary
-          cp build/fallout-fission-linux-armhf packaged/
+          cp build/fallout-sonora-linux-armhf packaged/
           # Copy fission.dat
           cp os/macos/fission.dat packaged/
           # Create zip
           cd packaged
-          zip fallout-fission-linux-armhf.zip fallout-fission-linux-armhf fission.dat
+          zip fallout-sonora-linux-armhf.zip fallout-sonora-linux-armhf fission.dat
           cd ..
           # Also copy zip to a common directory for the combined package job
           mkdir -p packages
-          cp packaged/fallout-fission-linux-armhf.zip packages/
+          cp packaged/fallout-sonora-linux-armhf.zip packages/
 
       - name: Upload Linux ARMHF package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-linux-armhf
-          path: packages/fallout-fission-linux-armhf.zip
+          name: fallout-sonora-linux-armhf
+          path: packages/fallout-sonora-linux-armhf.zip
           retention-days: 7
 
   linux-arm64:
@@ -338,28 +338,28 @@ jobs:
 
       - name: Change executable file name
         run: |
-          mv build/fallout2-ce build/fallout-fission-linux-arm64
+          mv build/fallout2-ce build/fallout-sonora-linux-arm64
 
       - name: Package Linux ARM64 with fission.dat
         run: |
           mkdir -p packaged
           # Copy binary
-          cp build/fallout-fission-linux-arm64 packaged/
+          cp build/fallout-sonora-linux-arm64 packaged/
           # Copy fission.dat
           cp os/macos/fission.dat packaged/
           # Create zip
           cd packaged
-          zip fallout-fission-linux-arm64.zip fallout-fission-linux-arm64 fission.dat
+          zip fallout-sonora-linux-arm64.zip fallout-sonora-linux-arm64 fission.dat
           cd ..
           # Also copy zip to a common directory for the combined package job
           mkdir -p packages
-          cp packaged/fallout-fission-linux-arm64.zip packages/
+          cp packaged/fallout-sonora-linux-arm64.zip packages/
 
       - name: Upload Linux ARM64 package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-linux-arm64
-          path: packages/fallout-fission-linux-arm64.zip
+          name: fallout-sonora-linux-arm64
+          path: packages/fallout-sonora-linux-arm64.zip
           retention-days: 7
 
   macos:
@@ -396,10 +396,10 @@ jobs:
       - name: Find the built app
         run: |
           # Try the Debug location first, then the CPack location
-          if [ -d "out/build/macos/Debug/Fallout-Fission.app" ]; then
-            APP_PATH="out/build/macos/Debug/Fallout-Fission.app"
-          elif [ -d "out/build/macos/_CPack_Packages/Darwin/DragNDrop/Fallout-Fission/Fallout-Fission.app" ]; then
-            APP_PATH="out/build/macos/_CPack_Packages/Darwin/DragNDrop/Fallout-Fission/Fallout-Fission.app"
+          if [ -d "out/build/macos/Debug/fallout-sonora.app" ]; then
+            APP_PATH="out/build/macos/Debug/fallout-sonora.app"
+          elif [ -d "out/build/macos/_CPack_Packages/Darwin/DragNDrop/fallout-sonora/fallout-sonora.app" ]; then
+            APP_PATH="out/build/macos/_CPack_Packages/Darwin/DragNDrop/fallout-sonora/fallout-sonora.app"
           else
             echo "Error: App not found in expected locations"
             find out/build/macos -name "*.app" -type d
@@ -412,7 +412,7 @@ jobs:
         run: |
           mkdir -p dmg_output
           create-dmg \
-            --dmg-title "Fallout-Fission" \
+            --dmg-title "fallout-sonora" \
             --no-version-in-filename \
             --no-code-sign \
             "$APP_PATH" \
@@ -420,13 +420,13 @@ jobs:
 
       - name: Rename DMG to consistent name
         run: |
-          mv dmg_output/Fallout-Fission.dmg dmg_output/fallout-fission-macos.dmg
+          mv dmg_output/fallout-sonora.dmg dmg_output/fallout-sonora-macos.dmg
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-macos.dmg
-          path: dmg_output/fallout-fission-macos.dmg  # New create-dmg DMG
+          name: fallout-sonora-macos.dmg
+          path: dmg_output/fallout-sonora-macos.dmg  # New create-dmg DMG
           retention-days: 7
 
   windows:
@@ -474,25 +474,25 @@ jobs:
 
       - name: Change executable file name
         run: |
-          mv out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout2-ce.exe out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout-fission-${{ matrix.arch }}.exe
+          mv out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout2-ce.exe out/build/windows-${{ matrix.arch }}/RelWithDebInfo/fallout-sonora-${{ matrix.arch }}.exe
 
       - name: Package Windows ${{ matrix.arch }} with fission.dat
         shell: cmd
         run: |
           mkdir packaged
-          copy out\build\windows-${{ matrix.arch }}\RelWithDebInfo\fallout-fission-${{ matrix.arch }}.exe packaged\
+          copy out\build\windows-${{ matrix.arch }}\RelWithDebInfo\fallout-sonora-${{ matrix.arch }}.exe packaged\
           copy os\macos\fission.dat packaged\
           cd packaged
-          "C:\Program Files\7-Zip\7z.exe" a fallout-fission-windows-${{ matrix.arch }}.zip fallout-fission-${{ matrix.arch }}.exe fission.dat
+          "C:\Program Files\7-Zip\7z.exe" a fallout-sonora-windows-${{ matrix.arch }}.zip fallout-sonora-${{ matrix.arch }}.exe fission.dat
           cd ..
           mkdir packages
-          copy packaged\fallout-fission-windows-${{ matrix.arch }}.zip packages\
+          copy packaged\fallout-sonora-windows-${{ matrix.arch }}.zip packages\
 
       - name: Upload Windows ${{ matrix.arch }} package
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-windows-${{ matrix.arch }}
-          path: packages/fallout-fission-windows-${{ matrix.arch }}.zip
+          name: fallout-sonora-windows-${{ matrix.arch }}
+          path: packages/fallout-sonora-windows-${{ matrix.arch }}.zip
           retention-days: 7
 
   package-combined:
@@ -513,10 +513,10 @@ jobs:
       - name: Create combined directory structure
         run: |
           # Create main directory
-          mkdir -p fallout-fission-combined
+          mkdir -p fallout-sonora-combined
           
           # Copy fission.dat file 
-          cp os/macos/fission.dat fallout-fission-combined/
+          cp os/macos/fission.dat fallout-sonora-combined/
           
           # Process downloaded artifacts and extract them to combined directory
           cd artifacts
@@ -528,7 +528,7 @@ jobs:
               for zipfile in *.zip; do
                 if [ -f "$zipfile" ]; then
                   echo "Extracting $zipfile"
-                  unzip -o "$zipfile" -d ../../fallout-fission-combined/
+                  unzip -o "$zipfile" -d ../../fallout-sonora-combined/
                 fi
               done
               cd ..
@@ -538,18 +538,18 @@ jobs:
           
           # List contents for verification
           echo "Combined package contents:"
-          ls -la fallout-fission-combined/
+          ls -la fallout-sonora-combined/
           
       - name: Create combined zip archive
         run: |
-          zip -r fallout-fission-combined.zip fallout-fission-combined/
+          zip -r fallout-sonora-combined.zip fallout-sonora-combined/
           ls -la *.zip
           
       - name: Upload combined archive as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-fission-combined
-          path: fallout-fission-combined.zip
+          name: fallout-sonora-combined
+          path: fallout-sonora-combined.zip
           retention-days: 7
 
   release:
