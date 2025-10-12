@@ -5,11 +5,12 @@
 
 namespace fallout {
 
-#define SFALL_CONFIG_FILE_NAME "ddraw.ini"
+#define SFALL_CONFIG_FILE_NAME "fallout2.cfg"
 
-#define SFALL_CONFIG_MAIN_KEY "Main"
-#define SFALL_CONFIG_MISC_KEY "Misc"
-#define SFALL_CONFIG_SCRIPTS_KEY "Scripts"
+// Changed category headers for better crouping in .cfg file
+#define SFALL_CONFIG_MAIN_KEY "sfall-main"
+#define SFALL_CONFIG_MISC_KEY "sfall-misc"
+#define SFALL_CONFIG_SCRIPTS_KEY "sfall-scripts"
 
 #define SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY "MaleDefaultModel"
 #define SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY "FemaleDefaultModel"
