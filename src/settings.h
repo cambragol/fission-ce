@@ -201,8 +201,8 @@ struct Settings {
     DebugSettings debug;
     MapperSettings mapper;
     GraphicSettings graphics;
-    SfallMainSettings sfall_main;      // [sfall_main] section
-    SfallMiscSettings sfall_misc;      // [sfall_misc] section  
+    SfallMainSettings sfall_main; // [sfall_main] section
+    SfallMiscSettings sfall_misc; // [sfall_misc] section
     SfallScriptsSettings sfall_scripts; // [sfall_scripts] section
 };
 
