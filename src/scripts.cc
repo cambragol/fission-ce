@@ -1431,7 +1431,7 @@ static int scriptsLoadScriptsList()
     // same pattern used in art.cc for .dat compatibility - very finicky
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern),
-        "%sscripts%c*.lst",
+        "%sscripts%cscripts_*.lst",
         _cd_path_base,
         DIR_SEPARATOR);
 
