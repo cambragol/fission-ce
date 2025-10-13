@@ -42,7 +42,7 @@
 #include "worldmap.h"
 
 namespace fallout {
- 
+
 #define DIR_SEPARATOR '/'
 #define SCRIPT_LIST_EXTENT_SIZE 16
 
@@ -1381,12 +1381,12 @@ static int scriptsLoadScriptsList()
 {
     char path[COMPAT_MAX_PATH];
     _script_make_path(path);
-    
+
     // Load base scripts.lst first
     char basePath[COMPAT_MAX_PATH];
     strcpy(basePath, path);
     strcat(basePath, "scripts.lst");
-    
+
     File* stream = fileOpen(basePath, "rt");
     if (stream == nullptr) {
         return -1;
@@ -1464,7 +1464,7 @@ static int scriptsLoadScriptsList()
                 _cd_path_base,
                 DIR_SEPARATOR,
                 foundModFiles[i]);
-            
+
             File* supplementaryStream = fileOpen(filePath, "rt");
             if (supplementaryStream == nullptr) {
                 continue;
@@ -1520,16 +1520,16 @@ static int scriptsLoadScriptsList()
 
     // Generate debug scripts_list file in game root directory
     char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./scripts_list.txt"); 
+    snprintf(debugPath, sizeof(debugPath), "./scripts_list.txt");
 
     File* debugStream = fileOpen(debugPath, "wt");
     if (debugStream != nullptr) {
         for (int i = 0; i < gScriptsListEntriesLength; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 char buffer[256];
-                snprintf(buffer, sizeof(buffer), "%d: %s (local_vars=%d)\n", 
-                        i, gScriptsListEntries[i].name, 
-                        gScriptsListEntries[i].local_vars_num);
+                snprintf(buffer, sizeof(buffer), "%d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
                 fileWrite(buffer, strlen(buffer), 1, debugStream);
             }
         }
