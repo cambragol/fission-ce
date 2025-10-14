@@ -95,6 +95,6 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "🚀 WebAssembly PR Preview for ${{github.event.pull_request.head.sha || github.sha }} is available at: https://${{ github.repository_owner }}.github.io/fallout2-ce/PR-${{ github.event.pull_request.number }}/"
+            --body "🚀 WebAssembly PR Preview for ${{github.event.pull_request.head.sha || github.sha }} is available at: https://${{ github.repository_owner }}.github.io/fission-ce/PR-${{ github.event.pull_request.number }}/"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
