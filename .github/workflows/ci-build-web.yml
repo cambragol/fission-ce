@@ -86,7 +86,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: fallout2-ce-ems/dist
+          folder: fission-ce-ems/dist
           target-folder: ${{ steps.set-path.outputs.DEST_DIR }}
           clean: false
           single-commit: true
