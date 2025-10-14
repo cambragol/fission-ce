@@ -7,7 +7,7 @@
 
 namespace fallout {
 
-#define SFALL_CONFIG_FILE_NAME "ddraw.ini"
+#define SFALL_CONFIG_FILE_NAME "ddraw.ini" 
 
 bool gSfallConfigInitialized = false;
 Config gSfallConfig;
