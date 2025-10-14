@@ -43,7 +43,7 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
         with:
-          repository: fission-ce/fission-ce-ems
+          repository: fission-ce-ems
           ref: 8dc61ba6e8e62116f4810ffe89d0cece00f508d7
           path: fission-ce-ems
 
@@ -53,10 +53,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "DEST_DIR=PR-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fission-ce/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/PR-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
           else
             echo "DEST_DIR=." >> $GITHUB_OUTPUT
-            echo "SITE_BASE=/fission-ce/" >> $GITHUB_OUTPUT
+            echo "SITE_BASE=/" >> $GITHUB_OUTPUT
           fi
           echo ===============================
           cat $GITHUB_OUTPUT
