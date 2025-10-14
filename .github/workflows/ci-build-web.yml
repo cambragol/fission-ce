@@ -43,7 +43,7 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/checkout@v4
         with:
-          repository: fission-ce-ems
+          repository: cambragol/fission-ce-ems
           ref: 8dc61ba6e8e62116f4810ffe89d0cece00f508d7
           path: fission-ce-ems
 
