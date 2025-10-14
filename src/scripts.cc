@@ -43,7 +43,7 @@
 
 namespace fallout {
 
-#define DIR_SEPARATOR '/'
+#define DIR_SEPARATOR '/' 
 #define SCRIPT_LIST_EXTENT_SIZE 16
 
 // SFALL: Increase number of message lists for scripted dialogs.
