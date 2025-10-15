@@ -668,22 +668,22 @@ int scriptSetActionBeingUsed(int sid, int value)
 static Program* scriptsCreateProgramByName(const char* name)
 {
     char path[COMPAT_MAX_PATH];
-    
+
     // Try localized path first
     if (gScriptLanguageInitialized) {
-        snprintf(path, sizeof(path), "%sscripts%c%s%c%s.int", 
-                 _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR, name);
-        
+        snprintf(path, sizeof(path), "%sscripts%c%s%c%s.int",
+            _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR, name);
+
         Program* program = programCreateByPath(path);
         if (program != nullptr) {
             return program;
         }
     }
-    
+
     // Fall back to default path
-    snprintf(path, sizeof(path), "%s%s%s.int", 
-             _cd_path_base, gScriptsBasePath, name);
-    
+    snprintf(path, sizeof(path), "%s%s%s.int",
+        _cd_path_base, gScriptsBasePath, name);
+
     return programCreateByPath(path);
 }
 
@@ -1274,11 +1274,11 @@ void _script_make_path(char* path)
 {
     // First try localized scripts directory if language is set
     if (gScriptLanguageInitialized) {
-        snprintf(path, COMPAT_MAX_PATH, "%sscripts%c%s%c", 
-                 _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR);
+        snprintf(path, COMPAT_MAX_PATH, "%sscripts%c%s%c",
+            _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR);
         return; // Return the localized path and let fileOpen handle if it doesn't exist
     }
-    
+
     // Fall back to standard scripts path
     snprintf(path, COMPAT_MAX_PATH, "%s%s", _cd_path_base, gScriptsBasePath);
 }
@@ -1659,7 +1659,7 @@ void scriptsInitLanguage()
     if (compat_stricmp(language, "english") != 0) {
         strcpy(gScriptLanguage, language);
         gScriptLanguageInitialized = true;
-        
+
         // Debug output to verify localization is working
         debugPrint("Scripts localization enabled for language: %s\n", gScriptLanguage);
     }
