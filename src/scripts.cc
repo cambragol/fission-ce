@@ -43,6 +43,7 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
 #define SCRIPT_LIST_EXTENT_SIZE 16
 
 // SFALL: Increase number of message lists for scripted dialogs.
@@ -1380,9 +1381,13 @@ static int scriptsLoadScriptsList()
 {
     char path[COMPAT_MAX_PATH];
     _script_make_path(path);
-    strcat(path, "scripts.lst");
 
-    File* stream = fileOpen(path, "rt");
+    // Load base scripts.lst first
+    char basePath[COMPAT_MAX_PATH];
+    strcpy(basePath, path);
+    strcat(basePath, "scripts.lst");
+
+    File* stream = fileOpen(basePath, "rt");
     if (stream == nullptr) {
         return -1;
     }
@@ -1393,6 +1398,7 @@ static int scriptsLoadScriptsList()
 
         ScriptsListEntry* entries = (ScriptsListEntry*)internal_realloc(gScriptsListEntries, sizeof(*entries) * gScriptsListEntriesLength);
         if (entries == nullptr) {
+            fileClose(stream);
             return -1;
         }
 
@@ -1405,6 +1411,7 @@ static int scriptsLoadScriptsList()
         if (substr != nullptr) {
             int length = substr - string;
             if (length > 13) {
+                fileClose(stream);
                 return -1;
             }
 
@@ -1419,8 +1426,115 @@ static int scriptsLoadScriptsList()
             }
         }
     }
-
     fileClose(stream);
+
+    // same pattern used in art.cc for .dat compatibility - very finicky
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sscripts%cscripts_*.lst",
+        _cd_path_base,
+        DIR_SEPARATOR);
+
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        // Sort files alphabetically for consistent loading order
+        for (int i = 0; i < modFileCount - 1; i++) {
+            for (int j = i + 1; j < modFileCount; j++) {
+                // Simple alphabetical sort
+                if (strcmp(foundModFiles[i], foundModFiles[j]) > 0) {
+                    char* temp = foundModFiles[i];
+                    foundModFiles[i] = foundModFiles[j];
+                    foundModFiles[j] = temp;
+                }
+            }
+        }
+
+        for (int i = 0; i < modFileCount; i++) {
+            // Skip base scripts.lst since we already loaded it
+            if (strcmp(foundModFiles[i], "scripts.lst") == 0) {
+                continue;
+            }
+
+            // Build path exactly like art.cc
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath),
+                "%sscripts%c%s",
+                _cd_path_base,
+                DIR_SEPARATOR,
+                foundModFiles[i]);
+
+            File* supplementaryStream = fileOpen(filePath, "rt");
+            if (supplementaryStream == nullptr) {
+                continue;
+            }
+
+            // Process supplementary script list files
+            char supplementaryString[260];
+            while (fileReadString(supplementaryString, 260, supplementaryStream)) {
+                ScriptsListEntry entry;
+                entry.local_vars_num = 0;
+                entry.name[0] = '\0';
+
+                // Parse script name and local_vars (same as base scripst.lst file)
+                char* substr = strstr(supplementaryString, ".int");
+                if (substr != nullptr) {
+                    int length = substr - supplementaryString;
+                    if (length > 13) {
+                        fileClose(supplementaryStream);
+                        break;
+                    }
+
+                    strncpy(entry.name, supplementaryString, 13);
+                    entry.name[length] = '\0';
+                }
+
+                if (strstr(supplementaryString, "#") != nullptr) {
+                    substr = strstr(supplementaryString, "local_vars=");
+                    if (substr != nullptr) {
+                        entry.local_vars_num = atoi(substr + 11);
+                    }
+                }
+
+                // Skip empty entries
+                if (entry.name[0] == '\0') {
+                    continue;
+                }
+
+                gScriptsListEntriesLength++;
+
+                ScriptsListEntry* entries = (ScriptsListEntry*)internal_realloc(gScriptsListEntries, sizeof(*entries) * gScriptsListEntriesLength);
+                if (entries == nullptr) {
+                    fileClose(supplementaryStream);
+                    break;
+                }
+
+                gScriptsListEntries = entries;
+                gScriptsListEntries[gScriptsListEntriesLength - 1] = entry;
+            }
+            fileClose(supplementaryStream);
+        }
+        fileNameListFree(&foundModFiles, modFileCount);
+    }
+
+    // Generate debug scripts_list file in game root directory
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./scripts_list.txt");
+
+    File* debugStream = fileOpen(debugPath, "wt");
+    if (debugStream != nullptr) {
+        for (int i = 0; i < gScriptsListEntriesLength; i++) {
+            if (gScriptsListEntries[i].name[0] != '\0') {
+                char buffer[256];
+                snprintf(buffer, sizeof(buffer), "%d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
+                fileWrite(buffer, strlen(buffer), 1, debugStream);
+            }
+        }
+        fileClose(debugStream);
+    }
 
     return 0;
 }
