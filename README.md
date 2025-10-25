@@ -107,10 +107,10 @@ Other conifguration can be done fia the fallout2.cfg file
 *Do not configure graphics through the fallout2.cfg file.*
 
 
-For advanced tweaks, use `ddraw.ini` (Sfall):
+For advanced tweaks, use the [sfall] sections in 'fallout2.cfg' (Sfall):
 
 ```ini
-[Misc]
+[sfall-misc]
 WorldMapTravelMarkers=1
 GaplessMusic=1
 EnhancedBarter=1
