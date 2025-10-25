@@ -102,10 +102,7 @@ Requires macOS 10.11+ (Intel or Apple Silicon)
 
 Use the in-game 'preferences' screen for 'graphics' configuration.
 
-Other conifguration can be done fia the fallout2.cfg file
-
-*Do not configure graphics through the fallout2.cfg file.*
-
+Other configuration can be done fia the fallout2.cfg file.
 
 For advanced tweaks, use the [sfall] sections in 'fallout2.cfg' (Sfall):
 
