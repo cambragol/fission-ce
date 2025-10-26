@@ -72,11 +72,17 @@ You must own Fallout 2. Purchase it from [GOG](https://www.gog.com/game/fallout_
 
 ### ▶️ Quick Start by Platform
 
-#### 🪟 Windows
+#### 🍎 macOS
+Requires macOS 10.11+ (Intel or Apple Silicon)
+1. Use a Windows or MacPlay install as a base.
+2. Copy `fallout-fission.app` into that folder.
+3. Launch `fallout-fission.app`.
+
+#### 🪟 Windows (partially tested)
 1. Copy `fallout-fission.exe` and `fission.dat` into your `Fallout2` folder.
 2. Run it instead of `fallout2.exe`.
 
-#### 🐧 Linux
+#### 🐧 Linux (untested)
 ```bash
 sudo apt install innoextract libsdl2-2.0-0
 innoextract ~/Downloads/setup_fallout2_*.exe -I app
@@ -85,13 +91,7 @@ cp fallout2-ce ~/Fallout2/
 cd ~/Fallout2 && ./fallout2-ce
 ```
 
-#### 🍎 macOS
-Requires macOS 10.11+ (Intel or Apple Silicon)
-1. Use a Windows or MacPlay install as a base.
-2. Copy `fallout-fission.app` into that folder.
-3. Launch `fallout-fission.app`.
-
-#### 🤖 Android / 🍏 iOS
+#### 🤖 Android / 🍏 iOS (untested)
 1. Copy game data (`master.dat`, `critter.dat`, `patch000.dat`, `data/`).
 2. Install `fallout-fission.apk` and `fission.dat` (Android) or sideload `fallout-fission.ipa` and `fission.dat` (iOS).
 3. Launch and select your data folder.
