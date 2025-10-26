@@ -118,9 +118,9 @@ struct SfallMiscSettings {
     std::string dude_native_look_jumpsuit_female = "";
     std::string dude_native_look_tribal_male = "";
     std::string dude_native_look_tribal_female = "";
-    int start_year = 2241;
-    int start_month = 6;
-    int start_day = 24;
+    int start_year = 2167;
+    int start_month = 3;
+    int start_day = 11;
     int main_menu_big_font_color = 0;
     int main_menu_credits_offset_x = 0;
     int main_menu_credits_offset_y = 0;
@@ -150,10 +150,10 @@ struct SfallMiscSettings {
     std::string plastic_explosive_min_damage = "";
     std::string plastic_explosive_max_damage = "";
     bool explosion_emits_light = false;
-    int movie_timer_artimer1 = 90;
-    int movie_timer_artimer2 = 180;
-    int movie_timer_artimer3 = 270;
-    int movie_timer_artimer4 = 360;
+    int movie_timer_artimer1 = 5000;
+    int movie_timer_artimer2 = 5000;
+    int movie_timer_artimer3 = 5000;
+    int movie_timer_artimer4 = 5000;
     std::string city_reputation_list = "";
     std::string unarmed_file = "";
     int damage_mod_formula = 0;
