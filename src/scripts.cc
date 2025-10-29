@@ -30,6 +30,7 @@
 #include "proto_instance.h"
 #include "queue.h"
 #include "scan_unimplemented.h"
+#include "settings.h"
 #include "sfall_arrays.h"
 #include "sfall_config.h"
 #include "sfall_global_scripts.h"
@@ -49,6 +50,10 @@ namespace fallout {
 // SFALL: Increase number of message lists for scripted dialogs.
 // CE: In Sfall this increase is configurable with `BoostScriptDialogLimit`.
 #define SCRIPT_DIALOG_MESSAGE_LIST_CAPACITY 10000
+
+// added for script localization
+static char gScriptLanguage[32];
+static bool gScriptLanguageInitialized = false;
 
 typedef struct ScriptsListEntry {
     char name[16];
@@ -664,10 +669,20 @@ static Program* scriptsCreateProgramByName(const char* name)
 {
     char path[COMPAT_MAX_PATH];
 
-    strcpy(path, _cd_path_base);
-    strcat(path, gScriptsBasePath);
-    strcat(path, name);
-    strcat(path, ".int");
+    // Try localized path first
+    if (gScriptLanguageInitialized) {
+        snprintf(path, sizeof(path), "%sscripts%c%s%c%s.int",
+            _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR, name);
+
+        Program* program = programCreateByPath(path);
+        if (program != nullptr) {
+            return program;
+        }
+    }
+
+    // Fall back to default path
+    snprintf(path, sizeof(path), "%s%s%s.int",
+        _cd_path_base, gScriptsBasePath, name);
 
     return programCreateByPath(path);
 }
@@ -1255,11 +1270,17 @@ int scriptsRequestStealing(Object* a1, Object* a2)
     return 0;
 }
 
-// NOTE: Inlined.
 void _script_make_path(char* path)
 {
-    strcpy(path, _cd_path_base);
-    strcat(path, gScriptsBasePath);
+    // First try localized scripts directory if language is set
+    if (gScriptLanguageInitialized) {
+        snprintf(path, COMPAT_MAX_PATH, "%sscripts%c%s%c",
+            _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR);
+        return; // Return the localized path and let fileOpen handle if it doesn't exist
+    }
+
+    // Fall back to standard scripts path
+    snprintf(path, COMPAT_MAX_PATH, "%s%s", _cd_path_base, gScriptsBasePath);
 }
 
 // exec_script_proc
@@ -1631,6 +1652,19 @@ int scriptsClearDudeScript()
     return 0;
 }
 
+// Initialize script language support
+void scriptsInitLanguage()
+{
+    const char* language = settings.system.language.c_str();
+    if (compat_stricmp(language, "english") != 0) {
+        strcpy(gScriptLanguage, language);
+        gScriptLanguageInitialized = true;
+
+        // Debug output to verify localization is working
+        debugPrint("Scripts localization enabled for language: %s\n", gScriptLanguage);
+    }
+}
+
 // scr_init
 // 0x4A50A8
 int scriptsInit()
@@ -1638,6 +1672,9 @@ int scriptsInit()
     if (!messageListInit(&gScrMessageList)) {
         return -1;
     }
+
+    // Initialize script language support
+    scriptsInitLanguage();
 
     for (int index = 0; index < SCRIPT_DIALOG_MESSAGE_LIST_CAPACITY; index++) {
         if (!messageListInit(&(_script_dialog_msgs[index]))) {
