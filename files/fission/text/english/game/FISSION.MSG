@@ -1,0 +1,62 @@
+#
+# ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+#
+# Text labels and messages used by FISSION
+#
+# ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+
+#
+# Preferences
+#
+
+#
+# Message Box
+#
+
+{100}{}{Turning off Widescreen will disable}
+{101}{}{the extended preference screen.}
+{102}{}{Are you sure you want to continue?}
+{103}{}{Graphics changes will take effect}
+{104}{}{on restart.}
+{105}{}{Setting Play Area to original will disable}
+
+#
+# Extended Titles
+#
+
+{124}{}{SCREEN}
+{125}{}{STRETCHING}
+{126}{}{QUALITY}
+{127}{}{PLAY AREA}
+{128}{}{} #Leave blank
+{129}{}{} #Leave blank
+
+#
+# Extended Label text
+#
+
+{225}{}{Off}
+{226}{}{Fullscreen}        
+{227}{}{Off}        
+{228}{}{Widescreen} 
+{229}{}{Off}           
+{230}{}{Stretch} 
+{231}{}{Off}
+{232}{}{Aspect Ratio}
+{233}{}{Off}         
+{234}{}{High Quality}        
+{235}{}{Off}
+{236}{}{Square Pixels}
+{237}{}{Original}      
+{238}{}{Default}        
+{239}{}{Large}
+{240}{}{Huge}
+
+#
+# Fission About
+#
+
+{300}{}{F.I.S.S.I.O.N.}
+{301}{}{Flexible Isometric Simulation System for}
+{302}{}{Interactive Open-world Nuclear-roleplay}
+
