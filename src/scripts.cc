@@ -1402,18 +1402,18 @@ static int scriptsLoadScriptsList()
 {
     char path[COMPAT_MAX_PATH];
     _script_make_path(path);
-    
+
     // Try to open scripts.lst from localized path first
     char basePath[COMPAT_MAX_PATH];
     File* stream = nullptr;
-    
+
     // Try localized path first
     if (gScriptLanguageInitialized) {
-        strcpy(basePath, path);  // Localized path
+        strcpy(basePath, path); // Localized path
         strcat(basePath, "scripts.lst");
         stream = fileOpen(basePath, "rt");
     }
-    
+
     // Fall back to default path if localized version doesn't exist
     if (stream == nullptr) {
         char defaultPath[COMPAT_MAX_PATH];
@@ -1421,7 +1421,7 @@ static int scriptsLoadScriptsList()
         strcat(defaultPath, "scripts.lst");
         stream = fileOpen(defaultPath, "rt");
     }
-    
+
     if (stream == nullptr) {
         return -1;
     }
