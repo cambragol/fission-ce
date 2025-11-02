@@ -668,19 +668,25 @@ int scriptSetActionBeingUsed(int sid, int value)
 static Program* scriptsCreateProgramByName(const char* name)
 {
     char path[COMPAT_MAX_PATH];
+    Program* program = nullptr;
 
     // Try localized path first
     if (gScriptLanguageInitialized) {
         snprintf(path, sizeof(path), "%sscripts%c%s%c%s.int",
             _cd_path_base, DIR_SEPARATOR, gScriptLanguage, DIR_SEPARATOR, name);
 
-        Program* program = programCreateByPath(path);
-        if (program != nullptr) {
-            return program;
+        // check if file exists
+        File* testFile = fileOpen(path, "rb");
+        if (testFile != nullptr) {
+            fileClose(testFile);
+            program = programCreateByPath(path);
+            if (program != nullptr) {
+                return program;
+            }
         }
     }
 
-    // Fall back to default path
+    // Fall back to default path if localized doesn't exist
     snprintf(path, sizeof(path), "%s%s%s.int",
         _cd_path_base, gScriptsBasePath, name);
 
