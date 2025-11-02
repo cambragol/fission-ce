@@ -1,0 +1,104 @@
+# Fallout 2 Fission - Script System Guide for Modders
+
+## Overview
+Fission extends Fallout 2's script system to support modular script loading and full localization. This allows modders to add new scripts and provide localized versions without supplying their own master scripts.lst
+
+## Adding New Scripts
+
+### Basic Method
+1. Create a `script_<modname>.lst` file in `data/scripts/`
+2. List your script names (one per line) in the same format as `scripts.lst`:
+
+	myscript.int
+	another_script.int
+	quest_script.int # local_vars=5
+
+
+### File Locations
+- Mod script lists: `data/scripts/script_*.lst`
+- Script files: `data/scripts/*.int` (or in .dat archives)
+- All paths support both filesystem and .dat archive placement
+
+### Key Features
+- **Sequential ID assignment** - No complex hashing, easy to debug
+- **Automatic registration** - Scripts are added to the global list
+- **Conflict-free** - Multiple mods can coexist without ID conflicts
+- **Debug output** - Check `scripts_list.txt` in game root for loaded scripts
+
+## Localization Support
+
+### Directory Structure
+
+	data/scripts/ (Default/English)
+	data/scripts/spanish/ (Spanish localized)
+	data/scripts/french/ (French localized)
+	data/scripts/german/ (German localized)
+
+
+### How Localization Works
+1. **Priority System**: Localized files take precedence over default ones
+2. **Automatic Fallback**: Missing localized files use default versions
+3. **Partial Localization**: Only translate what you need - rest fall back to English
+
+### Localization Files
+- **Script Lists**: `scripts.lst` and `script_*.lst` files can be localized
+- **Script Files**: Individual `.int` scripts can be localized
+- **Mixed Content**: Combine localized and default content seamlessly
+
+## Advanced Usage
+
+### Language-Specific Mods
+Create mod script lists that only load for specific languages:
+- `script_spanish_dialogue.lst` - Only loads when Spanish language is active
+- `script_french_quests.lst` - Only loads when French language is active
+
+### Partial Script Localization
+Provide localized versions of only specific scripts:
+- Keep English versions for most scripts
+- Override just dialogue or UI scripts with translations
+- System automatically mixes localized and default content
+
+### In .dat Archives
+All script files can be packaged in .dat archives:
+- Mod script lists work in .dat files
+- Localized scripts work in .dat files  
+- Same override rules apply (later-loaded .dats override earlier ones)
+
+## Best Practices
+
+### For Modders
+1. **Use descriptive names**: `script_weapon_mod.lst` not `script_1.lst`
+2. **Test fallback behavior**: Ensure mod works when localized files are missing
+3. **Check scripts_list.txt**: Verify your scripts loaded correctly
+4. **Document dependencies**: Note if your mod requires specific script load order
+
+### For Translators
+1. **Start small**: Begin with key dialogue scripts
+2. **Use existing structure**: Follow the same directory patterns
+3. **Test incrementally**: Add a few scripts at a time and verify
+4. **Leverage fallback**: Don't duplicate unchanged scripts
+
+## Troubleshooting
+
+### Common Issues
+- **Scripts not loading**: Check `scripts_list.txt` for registration
+- **Localization not working**: Verify language setting in `fallout2.cfg`
+- **Missing scripts**: Ensure both `.lst` registration and `.int` files exist
+
+### Debug Tools
+- `scripts_list.txt` - Complete list of loaded scripts and their IDs
+- Fallback testing - Remove localized files to test English versions
+
+## Example Structure
+
+	data/scripts/
+	├── scripts.lst (Vanilla base)
+	├── script_weapon_mod.lst (Mod script list)
+	├── weapon_mod_script.int (Mod script file)
+	└── spanish/ (Localized content)
+		├── scripts.lst (Optional localized base)
+		├── script_weapon_mod.lst (Localized mod list)
+		└── weapon_mod_script.int (Localized mod script)
+
+
+This system provides maximum flexibility while maintaining stability and backward compatibility with existing mods.
