@@ -145,10 +145,10 @@ struct SfallMiscSettings {
     int burst_mod_center_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
     int burst_mod_target_multiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
     int burst_mod_target_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
-    std::string dynamite_min_damage = "";
-    std::string dynamite_max_damage = "";
-    std::string plastic_explosive_min_damage = "";
-    std::string plastic_explosive_max_damage = "";
+    int dynamite_min_damage = 30;
+    int dynamite_max_damage = 50;
+    int plastic_explosive_min_damage = 40;
+    int plastic_explosive_max_damage = 80;
     bool explosion_emits_light = false;
     int movie_timer_artimer1 = 90;
     int movie_timer_artimer2 = 180;
@@ -157,7 +157,7 @@ struct SfallMiscSettings {
     std::string city_reputation_list = "";
     std::string unarmed_file = "";
     int damage_mod_formula = 0;
-    bool bonus_hth_damage_fix = false;
+    bool bonus_hth_damage_fix = true;
     bool display_bonus_damage = false;
     int use_lockpick_frm = 293;
     int use_steal_frm = 293;
@@ -167,10 +167,10 @@ struct SfallMiscSettings {
     int use_science_frm = 293;
     int use_repair_frm = 293;
     bool science_repair_target_type = false;
-    bool game_dialog_fix = false;
+    bool game_dialog_fix = true;
     std::string tweaks_file = "";
     bool game_dialog_gender_words = false;
-    bool town_map_hotkeys_fix = false;
+    bool town_map_hotkeys_fix = true;
     std::string extra_message_lists = "";
     bool numbers_is_dialog = false;
     int auto_quick_save = 0;
