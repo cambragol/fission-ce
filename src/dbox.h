@@ -13,6 +13,7 @@ typedef enum DialogBoxOptions {
 } DialogBoxOptions;
 
 int showDialogBox(const char* title, const char** body, int bodyLength, int x, int y, int titleColor, const char* a8, int bodyColor, int flags);
+int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int x, int y);
 int showLoadFileDialog(char* title, char** fileList, char* dest, int fileListLength, int x, int y, int flags);
 int showSaveFileDialog(char* title, char** fileList, char* dest, int fileListLength, int x, int y, int flags);
 
