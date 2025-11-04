@@ -122,6 +122,106 @@ MessageList gMiscMessageList;
 // CE: Sonora folks like to store objects in global variables.
 static void** gGameGlobalPointers = nullptr;
 
+static bool showLanguageSelector()
+{
+    debugPrint("showLanguageSelector: starting...\n");
+    
+    // Only show if this is the first run (times_run == 0)
+    if (settings.system.times_run > 0) {
+        debugPrint("Not first run (times_run = %d), skipping language selector...\n", settings.system.times_run);
+        return false; // Don't exit
+    }
+    
+    // Increment times_run to mark that we've run at least once
+    settings.system.times_run = 1;
+    settingsSave();
+    
+    // Save the current mouse state
+    int oldCursor = gameMouseGetCursor();
+    bool cursorWasHidden = cursorIsHidden();
+    
+    // Ensure mouse is in a good state for the dialog
+    if (cursorWasHidden) {
+        mouseShowCursor();
+    }
+    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+    
+    // Language options - could automate this?
+    const char* languages[] = {"English", "Spanish", "Russian"};
+    const char* languageCodes[] = {"english", "spanish", "russian"};
+    const int numLanguages = 3;
+    
+    // Create non-const arrays to match the function signature
+    char* languageEntries[numLanguages];
+    for (int i = 0; i < numLanguages; i++) {
+        languageEntries[i] = (char*)languages[i];
+    }
+    
+    // Use the custom language selection dialog
+    int choice = showLanguageSelectionDialog(
+        (char*)"Select Language", 
+        languageEntries, 
+        numLanguages, 
+        168, 
+        80
+    );
+    
+    bool shouldExit = false;
+    
+    if (choice >= 0 && choice < numLanguages) {
+        
+        if (choice != 0) { // Non-English
+            // Create message lines for the body
+            char line1[256];
+            char line2[256];
+            snprintf(line1, sizeof(line1), "Language set to: %s", languages[choice]);
+            snprintf(line2, sizeof(line2), "Please exit and restart the game."); // build in strings for this? Or language string, at least here, could be localized
+            
+            const char* messageLines[] = {line1, line2};
+            
+            // Use showDialogBox with message in body parameter
+            showDialogBox(
+                "Language Set",           // title
+                messageLines,             // body (array of message lines)
+                2,                        // bodyLength (number of lines)
+                169,                      // x
+                126,                      // y
+                _colorTable[32328],       // titleColor
+                nullptr,                  // (second button text, null for single button)
+                _colorTable[32328],       // bodyColor
+                0                         // flags (0 for single button)
+            );
+            std::string oldLanguage = settings.system.language;
+            settings.system.language = languageCodes[choice];
+            settingsSave();
+            shouldExit = true; // Exit the game
+        } else { // English
+            const char* messageLines[] = {"Language set to: English"};
+            
+            showDialogBox(
+                "Language Set",           // title
+                messageLines,             // body (array of message lines)
+                1,                        // bodyLength (number of lines)
+                169,                      // x
+                126,                      // y
+                _colorTable[32328],       // titleColor
+                nullptr,                  // (second button text, null for single button)
+                _colorTable[32328],       // bodyColor
+                0                         // flags (0 for single button)
+            );
+            shouldExit = false; // Continue
+        }
+    }
+    
+    // Restore the original mouse state
+    gameMouseSetCursor(oldCursor);
+    if (cursorWasHidden) {
+        mouseHideCursor();
+    }
+    
+    return shouldExit;
+}
+
 // 0x442580
 int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int flags, int argc, char** argv)
 {
@@ -175,17 +275,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     }
 
     debugPrint(">init_options_menu\n");
-
-    if (!gIsMapper && skipOpeningMovies < 2) {
-
-        if (gameIsWidescreen()) {
-            resizeContent(800, 500);
-        } else {
-            resizeContent(640, 480);
-        }
-        // resizeContent(640, 480);
-        showSplash();
-    }
 
     // CE: Handle debug mode (exactly as seen in `mapper2.exe`).
     const char* debugMode = settings.debug.mode.c_str();
@@ -384,6 +473,24 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     if (!sfall_gl_scr_init()) {
         debugPrint("Failed on sfall_gl_scr_init");
         return -1;
+    }
+
+    if (!gIsMapper && skipOpeningMovies < 2) {
+
+        if (gameIsWidescreen()) {
+            resizeContent(800, 500);
+        } else {
+            resizeContent(640, 480);
+        }
+
+        bool shouldExit = showLanguageSelector();
+        if (shouldExit) {
+            // Clean up and exit - don't continue to the game
+            gameExit();
+            return -1; // Error code to indicate we should exit
+        }
+        
+        showSplash();
     }
 
     char* customConfigBasePath;
