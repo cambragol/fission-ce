@@ -681,7 +681,7 @@ int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int 
     }
 
     fontSetCurrent(101);
-    
+
     // Use fileDialogRenderFileList function but with our fixed parameters
     fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
     windowRefresh(win);
@@ -715,7 +715,7 @@ int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int 
             int selectedLine = (mouseY - y - FILE_DIALOG_FILE_LIST_Y) / fontGetLineHeight();
             if (selectedLine >= 0 && selectedLine < itemsLength) {
                 selectedIndex = selectedLine;
-                
+
                 // Check for double-click
                 if (selectedIndex == doubleClickSelectedIndex) {
                     // Double-click detected - select immediately
@@ -726,7 +726,7 @@ int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int 
                     doubleClickSelectedIndex = selectedIndex;
                     doubleClickTimer = 18; // Reset double-click timer
                 }
-                
+
                 fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
                 windowRefresh(win);
             }

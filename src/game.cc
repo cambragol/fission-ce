@@ -125,89 +125,88 @@ static void** gGameGlobalPointers = nullptr;
 static bool showLanguageSelector()
 {
     debugPrint("showLanguageSelector: starting...\n");
-    
+
     // Only show if this is the first run (times_run == 0)
     if (settings.system.times_run > 0) {
         debugPrint("Not first run (times_run = %d), skipping language selector...\n", settings.system.times_run);
         return false; // Don't exit
     }
-    
+
     // Increment times_run to mark that we've run at least once
     settings.system.times_run = 1;
     settingsSave();
-    
+
     // Save the current mouse state
     int oldCursor = gameMouseGetCursor();
     bool cursorWasHidden = cursorIsHidden();
-    
+
     // Ensure mouse is in a good state for the dialog
     if (cursorWasHidden) {
         mouseShowCursor();
     }
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-    
+
     // Language options - could automate this?
-    const char* languages[] = {"English", "Spanish", "Russian"};
-    const char* languageCodes[] = {"english", "spanish", "russian"};
+    const char* languages[] = { "English", "Spanish", "Russian" };
+    const char* languageCodes[] = { "english", "spanish", "russian" };
     const int numLanguages = 3;
-    
+
     // Create non-const arrays to match the function signature
     char* languageEntries[numLanguages];
     for (int i = 0; i < numLanguages; i++) {
         languageEntries[i] = (char*)languages[i];
     }
-    
+
     // Use the custom language selection dialog
     int choice = showLanguageSelectionDialog(
-        (char*)"Select Language", 
-        languageEntries, 
-        numLanguages, 
-        168, 
-        80
-    );
-    
+        (char*)"Select Language",
+        languageEntries,
+        numLanguages,
+        168,
+        80);
+
     bool shouldExit = false;
-    
+
     if (choice >= 0 && choice < numLanguages) {
-        
+
         if (settings.system.language != languageCodes[choice]) { // Non-English
             // Create message lines for the body
             char line1[256];
             char line2[256];
             snprintf(line1, sizeof(line1), "%s", languages[choice]);
             snprintf(line2, sizeof(line2), "Please exit and restart the game."); // build in strings for this? Or language string, at least here, could be localized
-            
-            const char* messageLines[] = {line1, line2};
-            
+
+            const char* messageLines[] = { line1, line2 };
+
             // Use showDialogBox with message in body parameter
             showDialogBox(
-                "Language set to:",           // title
-                messageLines,             // body (array of message lines)
-                2,                        // bodyLength (number of lines)
-                169,                      // x
-                126,                      // y
-                _colorTable[32328],       // titleColor
-                nullptr,                  // (second button text, null for single button)
-                _colorTable[32328],       // bodyColor
-                0                         // flags (0 for single button)
+                "Language set to:", // title
+                messageLines, // body (array of message lines)
+                2, // bodyLength (number of lines)
+                169, // x
+                126, // y
+                _colorTable[32328], // titleColor
+                nullptr, // (second button text, null for single button)
+                _colorTable[32328], // bodyColor
+                0 // flags (0 for single button)
             );
             shouldExit = true; // Exit the game
         } else { // English
             char line1[256];
             snprintf(line1, sizeof(line1), "%s", languages[choice]);
 
-            const char* messageLines[] = {line1};
-                        
+            const char* messageLines[] = { line1 };
+
             showDialogBox(
-                "Language set to:",           // title
-                messageLines,             // body (array of message lines)
-                1,                        // bodyLength (number of lines)
-                169,                      // x
-                126,                      // y
-                _colorTable[32328],       // titleColor
-                nullptr,                  // (second button text, null for single button)
-                _colorTable[32328],       // bodyColor
-                0                         // flags (0 for single button)
+                "Language set to:", // title
+                messageLines, // body (array of message lines)
+                1, // bodyLength (number of lines)
+                169, // x
+                126, // y
+                _colorTable[32328], // titleColor
+                nullptr, // (second button text, null for single button)
+                _colorTable[32328], // bodyColor
+                0 // flags (0 for single button)
             );
             shouldExit = false; // Continue
         }
@@ -215,13 +214,13 @@ static bool showLanguageSelector()
         settings.system.language = languageCodes[choice];
         settingsSave();
     }
-    
+
     // Restore the original mouse state
     gameMouseSetCursor(oldCursor);
     if (cursorWasHidden) {
         mouseHideCursor();
     }
-    
+
     return shouldExit;
 }
 
@@ -370,7 +369,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
             gameExit();
             return -1; // Error code to indicate we should exit
         }
-        
+
         showSplash();
     }
 
