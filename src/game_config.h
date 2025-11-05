@@ -32,6 +32,7 @@ namespace fallout {
 #define GAME_CONFIG_HASHING_KEY "hashing"
 #define GAME_CONFIG_SPLASH_KEY "splash"
 #define GAME_CONFIG_FREE_SPACE_KEY "free_space"
+#define GAME_CONFIG_TIMES_RUN_KEY "times_run"
 #define GAME_CONFIG_GAME_WIDTH "game_width"
 #define GAME_CONFIG_GAME_HEIGHT "game_height"
 #define GAME_CONFIG_FULLSCREEN "fullscreen"

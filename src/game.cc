@@ -170,18 +170,18 @@ static bool showLanguageSelector()
     
     if (choice >= 0 && choice < numLanguages) {
         
-        if (choice != 0) { // Non-English
+        if (settings.system.language != languageCodes[choice]) { // Non-English
             // Create message lines for the body
             char line1[256];
             char line2[256];
-            snprintf(line1, sizeof(line1), "Language set to: %s", languages[choice]);
+            snprintf(line1, sizeof(line1), "%s", languages[choice]);
             snprintf(line2, sizeof(line2), "Please exit and restart the game."); // build in strings for this? Or language string, at least here, could be localized
             
             const char* messageLines[] = {line1, line2};
             
             // Use showDialogBox with message in body parameter
             showDialogBox(
-                "Language Set",           // title
+                "Language set to:",           // title
                 messageLines,             // body (array of message lines)
                 2,                        // bodyLength (number of lines)
                 169,                      // x
@@ -191,15 +191,15 @@ static bool showLanguageSelector()
                 _colorTable[32328],       // bodyColor
                 0                         // flags (0 for single button)
             );
-            std::string oldLanguage = settings.system.language;
-            settings.system.language = languageCodes[choice];
-            settingsSave();
             shouldExit = true; // Exit the game
         } else { // English
-            const char* messageLines[] = {"Language set to: English"};
-            
+            char line1[256];
+            snprintf(line1, sizeof(line1), "%s", languages[choice]);
+
+            const char* messageLines[] = {line1};
+                        
             showDialogBox(
-                "Language Set",           // title
+                "Language set to:",           // title
                 messageLines,             // body (array of message lines)
                 1,                        // bodyLength (number of lines)
                 169,                      // x
@@ -211,6 +211,9 @@ static bool showLanguageSelector()
             );
             shouldExit = false; // Continue
         }
+        std::string oldLanguage = settings.system.language;
+        settings.system.language = languageCodes[choice];
+        settingsSave();
     }
     
     // Restore the original mouse state
@@ -353,6 +356,29 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">gmouse_init\t");
 
+    if (!gIsMapper && skipOpeningMovies < 2) {
+
+        if (gameIsWidescreen()) {
+            resizeContent(800, 500);
+        } else {
+            resizeContent(640, 480);
+        }
+
+        bool shouldExit = showLanguageSelector();
+        if (shouldExit) {
+            // Clean up and exit - don't continue to the game
+            gameExit();
+            return -1; // Error code to indicate we should exit
+        }
+        
+        showSplash();
+    }
+
+    // moved colorcycleinit here from iso_init() otherwise splash screen has short cycle of colors
+    // not called elsewhere, should be okay
+    colorCycleInit();
+    debugPrint(">cycle_init\t\t");
+
     if (protoInit() != 0) {
         debugPrint("Failed on proto_init\n");
         return -1;
@@ -473,24 +499,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     if (!sfall_gl_scr_init()) {
         debugPrint("Failed on sfall_gl_scr_init");
         return -1;
-    }
-
-    if (!gIsMapper && skipOpeningMovies < 2) {
-
-        if (gameIsWidescreen()) {
-            resizeContent(800, 500);
-        } else {
-            resizeContent(640, 480);
-        }
-
-        bool shouldExit = showLanguageSelector();
-        if (shouldExit) {
-            // Clean up and exit - don't continue to the game
-            gameExit();
-            return -1; // Error code to indicate we should exit
-        }
-        
-        showSplash();
     }
 
     char* customConfigBasePath;
@@ -1658,7 +1666,7 @@ static void showSplash()
     // Perform clean blit
     _scr_blit(data, width, height, 0, 0, width, height, x, y);
     paletteFadeTo(palette);
-    inputPauseForTocks(1000); // Added for gravitas
+    inputPauseForTocks(750); // Added for gravitas - causes flash of wrong colors if showSplash loaded after colorCycleInit
 
     internal_free(data);
     internal_free(palette);
