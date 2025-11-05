@@ -702,7 +702,7 @@ int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int 
 
         if (keyCode == 500 || keyCode == KEY_RETURN) {
             // Done button or Enter key
-            soundPlayFile("ib1p1xx1");
+            // soundPlayFile("ib1p1xx1");
             rc = selectedIndex; // Return the selected index
         } else if (keyCode == 501 || keyCode == KEY_ESCAPE) {
             // Cancel button or Escape key
@@ -724,7 +724,7 @@ int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int 
                 } else {
                     // Single click - just update selection
                     doubleClickSelectedIndex = selectedIndex;
-                    doubleClickTimer = 8; // Reset double-click timer
+                    doubleClickTimer = 18; // Reset double-click timer
                 }
                 
                 fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
