@@ -1620,140 +1620,131 @@ static int scriptsLoadScriptsList()
         fileNameListFree(&foundModFiles, modFileCount);
     }
 
-    // Generate detailed debug scripts_list file in game root directory.
-    char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./scripts_list.txt");
+// Generate detailed debug scripts_list file in game root directory using direct file operations
+char scriptsListPath[COMPAT_MAX_PATH];
+snprintf(scriptsListPath, sizeof(scriptsListPath), "%sscripts_list.txt", _cd_path_base);
 
-    File* debugStream = fileOpen(debugPath, "wt");
-    if (debugStream != nullptr) {
-        // Write fancy dancy header
-        fileWrite("==============================================================================\n", 79, 1, debugStream);
-        fileWrite("Fallout 2 Fission - Scripts List\n", 33, 1, debugStream);
-        fileWrite("==============================================================================\n", 79, 1, debugStream);
+FILE* scriptsListFile = compat_fopen(scriptsListPath, "wt");
+if (scriptsListFile) {
+    // Write concise header
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - Scripts Asset Report\n"
+                         "==============================================================================\n"
+                         "This report shows how scripts are loaded - essential for mod debugging and\n"
+                         "finding script IDs for mod development.\n\n"
 
-        // Calculate statistics
-        int totalCount = 0;
-        int actualVanillaCount = 0;
-        int actualModCount = 0;
-        int maxIndex = 0;
-        int firstModIndex = -1;
-        int lastModIndex = -1;
+                         "Key Features:\n"
+                         "- Vanilla scripts: Protected in lower slots\n"
+                         "- Mod scripts: Your content in remaining slots via filename hashing\n\n"
 
-        // Count all scripts and find mod script range
-        for (int i = 0; i < gScriptsListEntriesLength; i++) {
-            if (gScriptsListEntries[i].name[0] != '\0') {
-                totalCount++;
-                if (i > maxIndex) maxIndex = i;
+                         "Usage Notes:\n"
+                         "- Use these script indices when referencing scripts in:\n"
+                         "  • Critter prototypes (.pro files)\n"
+                         "  • Map objects (.map files)\n"
+                         "  • Other script references\n"
+                         "- Script positions are STABLE between game sessions\n"
+                         "- Mod script positions use filename hash for consistency\n"
+                         "==============================================================================\n\n";
 
-                // Determine if this is vanilla or mod
-                if (i < vanillaCount) {
-                    actualVanillaCount++;
-                } else {
-                    actualModCount++;
-                    if (firstModIndex == -1) firstModIndex = i;
-                    lastModIndex = i;
-                }
+    fputs(header, scriptsListFile);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(scriptsListFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Calculate statistics
+    int totalCount = 0;
+    int actualVanillaCount = 0;
+    int actualModCount = 0;
+    int maxIndex = 0;
+    int firstModIndex = -1;
+    int lastModIndex = -1;
+
+    // Count all scripts and find mod script range
+    for (int i = 0; i < gScriptsListEntriesLength; i++) {
+        if (gScriptsListEntries[i].name[0] != '\0') {
+            totalCount++;
+            if (i > maxIndex) maxIndex = i;
+
+            // Determine if this is vanilla or mod
+            if (i < vanillaCount) {
+                actualVanillaCount++;
+            } else {
+                actualModCount++;
+                if (firstModIndex == -1) firstModIndex = i;
+                lastModIndex = i;
             }
         }
-
-        // Write summary information
-        char summary[512];
-        if (actualModCount > 0) {
-            snprintf(summary, sizeof(summary),
-                "SUMMARY:\n"
-                "--------\n"
-                "Total Scripts: %d\n"
-                "Vanilla Scripts: %d (positions 0-%d)\n"
-                "Mod Scripts: %d (positions %d-%d)\n"
-                "Array Size: %d entries (0-%d)\n"
-                "Max Used Index: %d\n\n"
-                "USAGE NOTES:\n"
-                "-----------\n"
-                "Use these script indices when referencing scripts in:\n"
-                "- Critter prototypes (.pro files)\n"
-                "- Map objects (.map files)\n"
-                "- Scripts\n"
-                "- Any other script reference by ID\n\n"
-                "SCRIPT LIST:\n"
-                "------------\n",
-                totalCount,
-                actualVanillaCount, vanillaCount - 1,
-                actualModCount, firstModIndex, lastModIndex,
-                gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
-                maxIndex);
-        } else {
-            snprintf(summary, sizeof(summary),
-                "SUMMARY:\n"
-                "--------\n"
-                "Total Scripts: %d\n"
-                "Vanilla Scripts: %d (positions 0-%d)\n"
-                "Mod Scripts: %d\n"
-                "Array Size: %d entries (0-%d)\n"
-                "Max Used Index: %d\n\n"
-                "USAGE NOTES:\n"
-                "-----------\n"
-                "Use these script indices when referencing scripts in:\n"
-                "- Critter prototypes (.pro files)\n"
-                "- Map objects (.map files)\n"
-                "- Scripts\n"
-                "- Any other script reference by ID\n\n"
-                "SCRIPT LIST:\n"
-                "------------\n",
-                totalCount,
-                actualVanillaCount, vanillaCount - 1,
-                actualModCount,
-                gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
-                maxIndex);
-        }
-        fileWrite(summary, strlen(summary), 1, debugStream);
-
-        // Write vanilla scripts section
-        if (actualVanillaCount > 0) {
-            fileWrite("VANILLA SCRIPTS:\n", 17, 1, debugStream);
-            fileWrite("----------------\n", 17, 1, debugStream);
-            for (int i = 0; i < vanillaCount; i++) {
-                if (gScriptsListEntries[i].name[0] != '\0') {
-                    char buffer[256];
-                    snprintf(buffer, sizeof(buffer), "%4d: %s (local_vars=%d)\n",
-                        i, gScriptsListEntries[i].name,
-                        gScriptsListEntries[i].local_vars_num);
-                    fileWrite(buffer, strlen(buffer), 1, debugStream);
-                }
-            }
-            fileWrite("\n", 1, 1, debugStream);
-        }
-
-        // Write mod scripts section
-        if (actualModCount > 0) {
-            fileWrite("MOD SCRIPTS:\n", 13, 1, debugStream);
-            fileWrite("------------\n", 13, 1, debugStream);
-            for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
-                if (gScriptsListEntries[i].name[0] != '\0') {
-                    char buffer[256];
-                    snprintf(buffer, sizeof(buffer), "%4d: %s (local_vars=%d)\n",
-                        i, gScriptsListEntries[i].name,
-                        gScriptsListEntries[i].local_vars_num);
-                    fileWrite(buffer, strlen(buffer), 1, debugStream);
-                }
-            }
-            fileWrite("\n", 1, 1, debugStream);
-        } else {
-            fileWrite("MOD SCRIPTS:\n", 13, 1, debugStream);
-            fileWrite("------------\n", 13, 1, debugStream);
-            fileWrite("No mod scripts found.\n", 22, 1, debugStream);
-            fileWrite("\n", 1, 1, debugStream);
-        }
-
-        // Write footer with important notes - update properly later
-        fileWrite("IMPORTANT FOR MODDERS:\n", 23, 1, debugStream);
-        fileWrite("---------------------\n", 22, 1, debugStream);
-        fileWrite("- Script positions are STABLE - they won't change between game sessions\n", 70, 1, debugStream);
-        fileWrite("- Mod script positions are determined by filename hash for consistency\n", 70, 1, debugStream);
-        fileWrite("- Reference these exact numbers in your .pro, .map, and other files\n", 70, 1, debugStream);
-        fileWrite("- If you add/remove mods, check this file again for updated positions\n", 70, 1, debugStream);
-
-        fileClose(debugStream);
     }
+
+    // Write summary information in horizontal style to match art_list.txt
+    fprintf(scriptsListFile,
+        "Total Scripts: %d | Vanilla: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n\n",
+        totalCount,
+        actualVanillaCount,
+        actualModCount,
+        gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
+        maxIndex);
+
+    // Slot ranges section
+    fputs("------------------------------------------------------------\n"
+        "Slot Ranges:\n", scriptsListFile);
+    
+    if (actualModCount > 0) {
+        fprintf(scriptsListFile,
+            "  Vanilla: 0-%d\n"
+            "  Mods: %d-%d\n",
+            vanillaCount - 1,
+            firstModIndex, lastModIndex);
+    } else {
+        fprintf(scriptsListFile,
+            "  Vanilla: 0-%d\n"
+            "  Mods: (none)\n",
+            vanillaCount - 1);
+    }
+    fputs("------------------------------------------------------------\n\n", scriptsListFile);
+
+    // Vanilla scripts section
+    if (actualVanillaCount > 0) {
+        fputs("VANILLA SCRIPTS:\n", scriptsListFile);
+        for (int i = 0; i < vanillaCount; i++) {
+            if (gScriptsListEntries[i].name[0] != '\0') {
+                fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
+            }
+        }
+        fputs("\n", scriptsListFile);
+    }
+
+    // Mod scripts section
+    if (actualModCount > 0) {
+        fputs("MOD SCRIPTS:\n", scriptsListFile);
+        for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
+            if (gScriptsListEntries[i].name[0] != '\0') {
+                fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
+            }
+        }
+        fputs("\n", scriptsListFile);
+    } else {
+        fputs("MOD SCRIPTS:\n", scriptsListFile);
+        fputs("  (no mod scripts found)\n\n", scriptsListFile);
+    }
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", scriptsListFile);
+    fputs("- Script positions are STABLE - they won't change between game sessions\n", scriptsListFile);
+    fputs("- Mod script positions are determined by filename hash for consistency\n", scriptsListFile);
+    fputs("- Reference these exact numbers in your .pro, .map, and other files\n", scriptsListFile);
+
+    fclose(scriptsListFile);
+}
 
     return 0;
 }
