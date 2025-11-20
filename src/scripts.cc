@@ -1683,7 +1683,7 @@ static int scriptsLoadScriptsList()
         // Write summary information in horizontal style to match art_list.txt
         fprintf(scriptsListFile,
             "Total Scripts: %d | Vanilla: %d | Mods: %d\n"
-            "Array Size: %d entries (0-%d) | Max Used Index: %d\n\n",
+            "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
             totalCount,
             actualVanillaCount,
             actualModCount,
@@ -1707,7 +1707,7 @@ static int scriptsLoadScriptsList()
                 "  Mods: (none)\n",
                 vanillaCount - 1);
         }
-        fputs("------------------------------------------------------------\n\n", scriptsListFile);
+        fputs("------------------------------------------------------------\n", scriptsListFile);
 
         // Vanilla scripts section
         if (actualVanillaCount > 0) {
