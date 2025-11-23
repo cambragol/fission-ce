@@ -3554,7 +3554,7 @@ static int wmRndEncounterOccurred()
 
             wmFadeOut();
 
-            resizeContent(640, 480);
+            resizeContent(screenGetWidth(), screenGetHeight(), true);
 
             mapLoadById(MAP_IN_GAME_MOVIE1);
             return 1;
