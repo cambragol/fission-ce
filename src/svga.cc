@@ -376,7 +376,7 @@ static bool createRenderer(int width, int height)
     gSdlRenderer = SDL_CreateRenderer(
         gSdlWindow,
         -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        SDL_RENDERER_ACCELERATED);
 
     if (!gSdlRenderer) {
         // Try without VSYNC if accelerated fails
