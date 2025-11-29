@@ -15,15 +15,15 @@ Fission extends Fallout 2's script system to support modular script loading and 
 
 
 ### File Locations
-- Mod script lists: `data/scripts/script_*.lst`
+- Mod script lists: `data/scripts/scripts_*.lst`
 - Script files: `data/scripts/*.int` (or in .dat archives)
 - All paths support both filesystem and .dat archive placement
 
 ### Key Features
-- **Sequential ID assignment** - No complex hashing, easy to debug
-- **Automatic registration** - Scripts are added to the global list
-- **Conflict-free** - Multiple mods can coexist without ID conflicts
-- **Debug output** - Check `scripts_list.txt` in game root for loaded scripts
+- **Stable Hash-based ID Assignment** - Each script gets a consistent, predictable position based on its filename hash, ensuring stable references
+- **Automatic Registration** - Scripts are automatically added to the global list using their stable hash ID
+- **Conflict-free** - Multiple mods can coexist without ID conflicts due to deterministic hashing
+- **Debug Output** - Check `scripts_list.txt` in game root for loaded scripts and their exact hash-based positions
 
 ## Localization Support
 
@@ -41,7 +41,7 @@ Fission extends Fallout 2's script system to support modular script loading and 
 3. **Partial Localization**: Only translate what you need - rest fall back to English
 
 ### Localization Files
-- **Script Lists**: `scripts.lst` and `script_*.lst` files can be localized
+- **Script Lists**: `scripts.lst` and `scripts_*.lst` files can be localized
 - **Script Files**: Individual `.int` scripts can be localized
 - **Mixed Content**: Combine localized and default content seamlessly
 
@@ -67,16 +67,26 @@ All script files can be packaged in .dat archives:
 ## Best Practices
 
 ### For Modders
-1. **Use descriptive names**: `script_weapon_mod.lst` not `script_1.lst`
-2. **Test fallback behavior**: Ensure mod works when localized files are missing
-3. **Check scripts_list.txt**: Verify your scripts loaded correctly
-4. **Document dependencies**: Note if your mod requires specific script load order
+- Use `scripts_<modname>.lst` for your mod script lists
+- Script positions are stable - the same script name will always get the same ID
+- Reference the exact script IDs from `scripts_list.txt` in your .pro, .map, and other files
+- Positions won't change between game sessions, ensuring save game compatibility
 
 ### For Translators
-1. **Start small**: Begin with key dialogue scripts
-2. **Use existing structure**: Follow the same directory patterns
-3. **Test incrementally**: Add a few scripts at a time and verify
-4. **Leverage fallback**: Don't duplicate unchanged scripts
+- **File Replacement**: Place localized `.int` script files in the language folder (e.g., `scripts/spanish/`)
+- **Automatic Fallback**: If a localized script is missing, the system automatically uses the English version
+- **Partial Translation**: Only modify the scripts that need localization - leave others in the English folder
+- **No List Files Needed**: Typically no need to create localized `scripts_*.lst` files - just replace individual script files
+
+### Localization Example
+
+    data/scripts/
+    ├── scripts.lst (Vanilla base - usually unchanged)
+    ├── dialogue_main.int (English version)
+    ├── quest_special.int (English version)
+    └── spanish/ (Spanish localization)
+        ├── dialogue_main.int (Spanish version - replaces English)
+        └── (quest_special.int missing - falls back to English version)
 
 ## Troubleshooting
 
@@ -93,11 +103,11 @@ All script files can be packaged in .dat archives:
 
 	data/scripts/
 	├── scripts.lst (Vanilla base)
-	├── script_weapon_mod.lst (Mod script list)
+	├── scripts_weapon_mod.lst (Mod script list)
 	├── weapon_mod_script.int (Mod script file)
 	└── spanish/ (Localized content)
 		├── scripts.lst (Optional localized base)
-		├── script_weapon_mod.lst (Localized mod list)
+		├── scripts_weapon_mod.lst (Localized mod list)
 		└── weapon_mod_script.int (Localized mod script)
 
 
