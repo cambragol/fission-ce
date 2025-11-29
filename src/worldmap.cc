@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 #include "worldmap.h"
 
 #include <assert.h>
@@ -8282,7 +8280,6 @@ void wmSetPartyWorldPos(int x, int y)
 
 void wmCarSetCurrentArea(int area)
 {
->>>>>>> Stashed changes
     wmGenData.currentCarAreaId = area;
 }
 
