@@ -795,24 +795,24 @@ int mapLoadByName(char* fileName)
     // If no saved map found or loading failed, try loading fresh .MAP file
     if (rc == -1) {
         const char* filePath = mapBuildPath(fileName);
-        
+
         debugPrint("\nmapLoadByName: Attempting to load fresh map %s", filePath);
-        
+
         File* stream = fileOpen(filePath, "rb");
         if (stream != nullptr) {
             debugPrint("\nmapLoadByName: Map file opened successfully, loading data");
-            
+
             rc = mapLoad(stream);
             fileClose(stream);
-            
-            debugPrint("\nmapLoadByName: Map load result: %d, header name: %s", 
-                      rc, gMapHeader.name);
+
+            debugPrint("\nmapLoadByName: Map load result: %d, header name: %s",
+                rc, gMapHeader.name);
 
             if (rc == 0) {
                 // Success - update map header and clear combat target
                 strcpy(gMapHeader.name, fileName);
                 gDude->data.critter.combat.whoHitMe = nullptr;
-                
+
                 debugPrint("\nmapLoadByName: Map loaded successfully");
             } else {
                 debugPrint("\nmapLoadByName: Map load failed with code %d", rc);

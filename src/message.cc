@@ -17,7 +17,6 @@
 #include "sfall_config.h"
 #include "window_manager.h"
 
-
 namespace fallout {
 
 #define BADWORD_LENGTH_MAX 80
@@ -79,7 +78,8 @@ static MessageListRepositoryState* _messageListRepositoryState;
 
 // Stable hash function for generating consistent message IDs for mod content
 // Uses case-insensitive DJB2 hash to ensure consistent IDs across different systems
-static uint32_t stable_hash(const char* str) {
+static uint32_t stable_hash(const char* str)
+{
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
@@ -92,7 +92,8 @@ static uint32_t stable_hash(const char* str) {
 
 // Generate stable message ID for mod content in the 0x8000-0xFFFF range
 // Uses mod_name + message_key to create unique, reproducible IDs
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key) {
+uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
+{
     char composite_key[256];
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
     uint32_t hash = stable_hash(composite_key);
@@ -101,125 +102,131 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key) 
 
 // Load mod messages from messages_*.txt files and append to existing message list
 // This allows modders to add new text content without modifying base message files
-static void loadModMessagesForType(MessageList* messageList, const char* msg_type) {
+static void loadModMessagesForType(MessageList* messageList, const char* msg_type)
+{
     char searchPattern[COMPAT_MAX_PATH];
     // need to fix this path for localization
     snprintf(searchPattern, sizeof(searchPattern), "data\\text\\english\\game%cmessages_*.txt", DIR_SEPARATOR);
-    
+
     debugPrint("\nloadModMessagesForType: Searching for mod message files with pattern: %s", searchPattern);
-    
+
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-    
+
     debugPrint("\nloadModMessagesForType: Found %d mod message files", modFileCount);
-    
+
     if (modFileCount <= 0) {
         return;
     }
-    
+
     for (int i = 0; i < modFileCount; i++) {
         char fullPath[COMPAT_MAX_PATH];
         // need to fix this path for localization
         snprintf(fullPath, sizeof(fullPath), "data\\text\\english\\game%c%s", DIR_SEPARATOR, modFiles[i]);
-        
+
         debugPrint("\nloadModMessagesForType: Processing mod file: %s", modFiles[i]);
-        
+
         File* stream = fileOpen(fullPath, "rt");
         if (!stream) {
             debugPrint("\nloadModMessagesForType: Failed to open file: %s", fullPath);
             continue;
         }
-        
+
         // Extract mod name from filename (messages_<modname>.txt -> <modname>)
         const char* filename = modFiles[i];
         const char* prefix = "messages_";
         const char* suffix = ".txt";
-        char mod_name[64] = {0};
-        
+        char mod_name[64] = { 0 };
+
         if (strncmp(filename, prefix, strlen(prefix)) == 0) {
             size_t filename_len = strlen(filename);
             size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
-            
+
             if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
                 strncpy(mod_name, filename + strlen(prefix), mod_name_len);
                 mod_name[mod_name_len] = '\0';
                 debugPrint("\nloadModMessagesForType: Extracted mod name: %s", mod_name);
             }
         }
-        
+
         char line[256];
         int messages_loaded = 0;
-        
+
         // Parse each line in the mod message file
         while (fileReadString(line, sizeof(line) - 1, stream)) {
             // Skip empty lines and comments
             if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
                 continue;
             }
-            
+
             // Remove newline characters
             char* newline = strchr(line, '\n');
             if (newline) *newline = '\0';
-            
+
             // Parse key=value pairs
             char* separator = strchr(line, '=');
             if (!separator) {
                 continue;
             }
-            
+
             *separator = '\0';
             char* key = line;
             char* value = separator + 1;
-            
+
             // Trim whitespace from key and value
-            while (*key && isspace(*key)) key++;
-            while (*value && isspace(*value)) value++;
-            
+            while (*key && isspace(*key))
+                key++;
+            while (*value && isspace(*value))
+                value++;
+
             char* end = key + strlen(key) - 1;
-            while (end > key && isspace(*end)) *end-- = '\0';
-            
+            while (end > key && isspace(*end))
+                *end-- = '\0';
+
             end = value + strlen(value) - 1;
-            while (end > value && isspace(*end)) *end-- = '\0';
-            
+            while (end > value && isspace(*end))
+                *end-- = '\0';
+
             if (*key && *value) {
                 // Generate stable message ID and add to message list
                 uint32_t message_id = generate_mod_message_id(mod_name, key);
-                
+
                 MessageListItem item;
                 item.num = message_id;
                 item.text = internal_strdup(value);
                 item.audio = internal_strdup(""); // Empty audio for mod messages
                 item.flags = 0;
-                
+
                 if (_message_add(messageList, &item)) {
                     messages_loaded++;
-                    debugPrint("\nloadModMessagesForType: Added mod message: %s:%s -> %d -> %s", 
-                              mod_name, key, message_id, value);
+                    debugPrint("\nloadModMessagesForType: Added mod message: %s:%s -> %d -> %s",
+                        mod_name, key, message_id, value);
                 } else {
                     debugPrint("\nloadModMessagesForType: WARNING - Failed to add message ID %d", message_id);
                 }
             }
         }
-        
+
         fileClose(stream);
         debugPrint("\nloadModMessagesForType: Loaded %d messages from %s", messages_loaded, filename);
     }
-    
+
     fileNameListFree(&modFiles, 0);
 }
 
 // Enhanced message list loader that loads both base messages and mod messages
 // This is the main entry point for the mod message system
-bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type) {
+bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type)
+{
     // First load the base messages (original behavior)
     if (!messageListLoad(msg, path)) {
         debugPrint("\nmessageListLoadWithMods: Failed to load base messages from %s", path);
         return false;
     }
-    
+
     // Then load and append mod messages (new functionality)
     loadModMessagesForType(msg, msg_type);
-    
+
     debugPrint("\nmessageListLoadWithMods: Successfully loaded base + mod messages for type: %s", msg_type);
     return true;
 }
