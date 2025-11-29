@@ -13,7 +13,7 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 ---
 
-## ✅ Key Features
+## Key Features
 
 - 🔲 **Authentic isometric, turn‑based experience** (SPECIAL, AP‑driven combat)
 - 💻 **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
