@@ -27,6 +27,7 @@
 #include "light.h"
 #include "loadsave.h"
 #include "memory.h"
+#include "message.h"
 #include "object.h"
 #include "palette.h"
 #include "party_member.h"
@@ -293,7 +294,8 @@ void _map_init()
         char path[COMPAT_MAX_PATH];
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
-        if (!messageListLoad(&gMapMessageList, path)) {
+        // modified for mods
+        if (!messageListLoadWithMods(&gMapMessageList, path, "MAP")) {
             debugPrint("\nError loading map_msg_file!");
         }
     } else {
@@ -756,45 +758,71 @@ void mapNewMap()
 }
 
 // 0x482A68
+// 0x482A68
 int mapLoadByName(char* fileName)
 {
     int rc;
 
+    // Convert to uppercase for consistent file handling
     compat_strupr(fileName);
+
+    debugPrint("\nmapLoadByName: Loading map %s", fileName);
 
     rc = -1;
 
+    // First check if there's a saved version of this map
     char* extension = strstr(fileName, ".MAP");
     if (extension != nullptr) {
+        // Temporarily change extension to .SAV to check for saved map
         strcpy(extension, ".SAV");
 
         const char* filePath = mapBuildPath(fileName);
-
         File* stream = fileOpen(filePath, "rb");
 
+        // Restore original extension
         strcpy(extension, ".MAP");
 
         if (stream != nullptr) {
+            debugPrint("\nmapLoadByName: Found saved map, loading %s", filePath);
             fileClose(stream);
             rc = mapLoadSaved(fileName);
             wmMapMusicStart();
+        } else {
+            debugPrint("\nmapLoadByName: No saved map found for %s", fileName);
         }
     }
 
+    // If no saved map found or loading failed, try loading fresh .MAP file
     if (rc == -1) {
         const char* filePath = mapBuildPath(fileName);
+        
+        debugPrint("\nmapLoadByName: Attempting to load fresh map %s", filePath);
+        
         File* stream = fileOpen(filePath, "rb");
         if (stream != nullptr) {
+            debugPrint("\nmapLoadByName: Map file opened successfully, loading data");
+            
             rc = mapLoad(stream);
             fileClose(stream);
-        }
+            
+            debugPrint("\nmapLoadByName: Map load result: %d, header name: %s", 
+                      rc, gMapHeader.name);
 
-        if (rc == 0) {
-            strcpy(gMapHeader.name, fileName);
-            gDude->data.critter.combat.whoHitMe = nullptr;
+            if (rc == 0) {
+                // Success - update map header and clear combat target
+                strcpy(gMapHeader.name, fileName);
+                gDude->data.critter.combat.whoHitMe = nullptr;
+                
+                debugPrint("\nmapLoadByName: Map loaded successfully");
+            } else {
+                debugPrint("\nmapLoadByName: Map load failed with code %d", rc);
+            }
+        } else {
+            debugPrint("\nmapLoadByName: ERROR - Map file not found or cannot open: %s", filePath);
         }
     }
 
+    debugPrint("\nmapLoadByName: Completed with return code %d", rc);
     return rc;
 }
 
