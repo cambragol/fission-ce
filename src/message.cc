@@ -113,11 +113,11 @@ static void loadModFile(MessageList* messageList, const char* fullPath, const ch
     const char* prefix = "messages_";
     const char* suffix = ".txt";
     char mod_name[64] = { 0 };
-    
+
     if (strncmp(filename, prefix, strlen(prefix)) == 0) {
         size_t filename_len = strlen(filename);
         size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
-        
+
         if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
             strncpy(mod_name, filename + strlen(prefix), mod_name_len);
             mod_name[mod_name_len] = '\0';
@@ -128,50 +128,54 @@ static void loadModFile(MessageList* messageList, const char* fullPath, const ch
     // Parse and load messages
     char line[256];
     int messages_loaded = 0;
-    
+
     while (fileReadString(line, sizeof(line) - 1, stream)) {
         if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
             continue;
         }
-        
+
         char* newline = strchr(line, '\n');
         if (newline) *newline = '\0';
-        
+
         char* separator = strchr(line, '=');
         if (!separator) {
             continue;
         }
-        
+
         *separator = '\0';
         char* key = line;
         char* value = separator + 1;
-        
+
         // Trim whitespace
-        while (*key && isspace(*key)) key++;
-        while (*value && isspace(*value)) value++;
-        
+        while (*key && isspace(*key))
+            key++;
+        while (*value && isspace(*value))
+            value++;
+
         char* end = key + strlen(key) - 1;
-        while (end > key && isspace(*end)) *end-- = '\0';
-        
+        while (end > key && isspace(*end))
+            *end-- = '\0';
+
         end = value + strlen(value) - 1;
-        while (end > value && isspace(*end)) *end-- = '\0';
-        
+        while (end > value && isspace(*end))
+            *end-- = '\0';
+
         if (*key && *value) {
             uint32_t message_id = generate_mod_message_id(mod_name, key);
-            
+
             MessageListItem item;
             item.num = message_id;
             item.text = internal_strdup(value);
             item.audio = internal_strdup("");
             item.flags = 0;
-            
+
             if (_message_add(messageList, &item)) {
                 messages_loaded++;
                 debugPrint("\nloadModMessagesForType: Added message: %s:%s -> %d", mod_name, key, message_id);
             }
         }
     }
-    
+
     fileClose(stream);
     debugPrint("\nloadModMessagesForType: Loaded %d messages from %s", messages_loaded, filename);
 }
@@ -182,46 +186,46 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
 {
     char searchPattern[COMPAT_MAX_PATH];
     char fullPath[COMPAT_MAX_PATH];
-    
+
     // Always load English mods first (as base/fallback)
-    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt", 
-             ENGLISH, DIR_SEPARATOR);
-    
+    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
+        ENGLISH, DIR_SEPARATOR);
+
     debugPrint("\nloadModMessagesForType: Loading English mod files with pattern: %s", searchPattern);
-    
+
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-    
+
     debugPrint("\nloadModMessagesForType: Found %d mod message files in English", modFileCount);
-    
+
     for (int i = 0; i < modFileCount; i++) {
-        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s", 
-                 ENGLISH, DIR_SEPARATOR, modFiles[i]);
+        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
+            ENGLISH, DIR_SEPARATOR, modFiles[i]);
         loadModFile(messageList, fullPath, modFiles[i]);
     }
-    
+
     if (modFileCount > 0) {
         fileNameListFree(&modFiles, 0);
     }
-    
+
     // Then load current language (overrides English for available translations)
     if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
-        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt", 
-                 settings.system.language.c_str(), DIR_SEPARATOR);
-        
+        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
+            settings.system.language.c_str(), DIR_SEPARATOR);
+
         debugPrint("\nloadModMessagesForType: Loading localized mod files with pattern: %s", searchPattern);
-        
+
         modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-        
-        debugPrint("\nloadModMessagesForType: Found %d mod message files in %s", 
-                   modFileCount, settings.system.language.c_str());
-        
+
+        debugPrint("\nloadModMessagesForType: Found %d mod message files in %s",
+            modFileCount, settings.system.language.c_str());
+
         for (int i = 0; i < modFileCount; i++) {
-            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s", 
-                     settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
+            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
+                settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
             loadModFile(messageList, fullPath, modFiles[i]);
         }
-        
+
         if (modFileCount > 0) {
             fileNameListFree(&modFiles, 0);
         }
