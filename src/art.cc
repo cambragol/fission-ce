@@ -881,8 +881,6 @@ int artInit()
 
     // Generate a report listing all vanilla, variant and mod assets
     // including overrides and conflicts
-    // Generate a report listing all vanilla, variant and mod assets
-    // including overrides and conflicts
 
     // Create art_list.txt in the game's root directory using direct file operations
     char artListPath[COMPAT_MAX_PATH];

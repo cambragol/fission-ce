@@ -12,6 +12,7 @@
 #include "memory.h"
 #include "platform_compat.h"
 #include "proto_types.h"
+#include "proto.h"
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
@@ -98,6 +99,89 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
     uint32_t hash = stable_hash(composite_key);
     return 0x8000 + (hash % 0x7FFF); // 0x8000-0xFFFF range
+}
+
+// Generate a targeted message report for specific message list types
+void generateMessageReport(MessageList* messageList, const char* msg_type)
+{
+    if (!messageList || !msg_type) return;
+    
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%smessages_%s_list.txt", _cd_path_base, msg_type);
+
+    FILE* reportFile = compat_fopen(reportPath, "wt");
+    if (!reportFile) {
+        debugPrint("\ngenerateMessageReport: Could not create %s", reportPath);
+        return;
+    }
+
+    // Write generic header that works for any message type
+    fprintf(reportFile, 
+        "==============================================================================\n"
+        "Fallout Fission - %s Messages\n"
+        "==============================================================================\n"
+        "Generated IDs for mod message references in scripts.\n\n"
+        
+        "Message ID Range: 32768-65535 (stable hash-based)\n"
+        "Usage: display_msg(ID);  // Reference in scripts\n"
+        "==============================================================================\n\n",
+        msg_type);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n", 
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, 
+            t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Count and list only mod messages (32768-65535 range)
+    int modMessageCount = 0;
+    
+    fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");
+    fprintf(reportFile, "ID      | Text Preview\n");
+    fprintf(reportFile, "--------|--------------------------------------------------\n");
+    
+    for (int i = 0; i < messageList->entries_num; i++) {
+        MessageListItem* item = &messageList->entries[i];
+        
+        // Only show mod messages in our range (32768-65535)
+        if (item->num >= 32768 && item->num <= 65535) {
+            modMessageCount++;
+            
+            // Create shortened preview
+            char preview[61];
+            strncpy(preview, item->text, 60);
+            preview[60] = '\0';
+            if (strlen(item->text) > 60) {
+                strcpy(preview + 57, "...");
+            }
+
+            fprintf(reportFile, "%-7d | %s\n", item->num, preview);
+        }
+    }
+
+    // Add summary
+    fprintf(reportFile, "\nSUMMARY:\n");
+    fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
+    fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
+    
+    // Modder guidance
+    const char* guidance = 
+        "\nMODDER GUIDANCE:\n"
+        "1. Use the decimal IDs above in your scripts with display_msg()\n"
+        "2. IDs are stable - same mod+key always generates same ID\n"
+        "3. File location: data/text/<language>/game/messages_YourMod.txt\n"
+        "4. Format: unique_key = Your message text\n\n"
+        
+        "Example Script Usage:\n"
+        "  display_msg(35391);  // Shows your custom message\n"
+        "  display_msg(35602);  // Another custom message\n";
+
+    fputs(guidance, reportFile);
+
+    fclose(reportFile);
+    debugPrint("\ngenerateMessageReport: Generated messages_%s_list.txt with %d mod messages", 
+               msg_type, modMessageCount);
 }
 
 // Simple helper to load a single mod file
@@ -234,16 +318,20 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
 
 // Enhanced message list loader that loads both base messages and mod messages
 // This is the main entry point for the mod message system
+// Always generates a report since we only use this for moddable message lists
 bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type)
 {
-    // First load the base messages (original behavior)
+    // First load the base messages
     if (!messageListLoad(msg, path)) {
         debugPrint("\nmessageListLoadWithMods: Failed to load base messages from %s", path);
         return false;
     }
 
-    // Then load and append mod messages (new functionality)
+    // Then load and append mod messages
     loadModMessagesForType(msg, msg_type);
+
+    // Always generate a report - we control which message lists use this function
+    generateMessageReport(msg, msg_type);
 
     debugPrint("\nmessageListLoadWithMods: Successfully loaded base + mod messages for type: %s", msg_type);
     return true;
