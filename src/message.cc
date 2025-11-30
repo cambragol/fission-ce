@@ -11,8 +11,8 @@
 #include "debug.h"
 #include "memory.h"
 #include "platform_compat.h"
-#include "proto_types.h"
 #include "proto.h"
+#include "proto_types.h"
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
@@ -105,7 +105,7 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
 void generateMessageReport(MessageList* messageList, const char* msg_type)
 {
     if (!messageList || !msg_type) return;
-    
+
     char reportPath[COMPAT_MAX_PATH];
     snprintf(reportPath, sizeof(reportPath), "%smessages_%s_list.txt", _cd_path_base, msg_type);
 
@@ -116,12 +116,12 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     }
 
     // Write generic header that works for any message type
-    fprintf(reportFile, 
+    fprintf(reportFile,
         "==============================================================================\n"
         "Fallout Fission - %s Messages\n"
         "==============================================================================\n"
         "Generated IDs for mod message references in scripts.\n\n"
-        
+
         "Message ID Range: 32768-65535 (stable hash-based)\n"
         "Usage: display_msg(ID);  // Reference in scripts\n"
         "==============================================================================\n\n",
@@ -130,24 +130,24 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     // Write timestamp
     time_t now = time(0);
     struct tm* t = localtime(&now);
-    fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n", 
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, 
-            t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
 
     // Count and list only mod messages (32768-65535 range)
     int modMessageCount = 0;
-    
+
     fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");
     fprintf(reportFile, "ID      | Text Preview\n");
     fprintf(reportFile, "--------|--------------------------------------------------\n");
-    
+
     for (int i = 0; i < messageList->entries_num; i++) {
         MessageListItem* item = &messageList->entries[i];
-        
+
         // Only show mod messages in our range (32768-65535)
         if (item->num >= 32768 && item->num <= 65535) {
             modMessageCount++;
-            
+
             // Create shortened preview
             char preview[61];
             strncpy(preview, item->text, 60);
@@ -164,24 +164,23 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     fprintf(reportFile, "\nSUMMARY:\n");
     fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
     fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
-    
+
     // Modder guidance
-    const char* guidance = 
-        "\nMODDER GUIDANCE:\n"
-        "1. Use the decimal IDs above in your scripts with display_msg()\n"
-        "2. IDs are stable - same mod+key always generates same ID\n"
-        "3. File location: data/text/<language>/game/messages_YourMod.txt\n"
-        "4. Format: unique_key = Your message text\n\n"
-        
-        "Example Script Usage:\n"
-        "  display_msg(35391);  // Shows your custom message\n"
-        "  display_msg(35602);  // Another custom message\n";
+    const char* guidance = "\nMODDER GUIDANCE:\n"
+                           "1. Use the decimal IDs above in your scripts with display_msg()\n"
+                           "2. IDs are stable - same mod+key always generates same ID\n"
+                           "3. File location: data/text/<language>/game/messages_YourMod.txt\n"
+                           "4. Format: unique_key = Your message text\n\n"
+
+                           "Example Script Usage:\n"
+                           "  display_msg(35391);  // Shows your custom message\n"
+                           "  display_msg(35602);  // Another custom message\n";
 
     fputs(guidance, reportFile);
 
     fclose(reportFile);
-    debugPrint("\ngenerateMessageReport: Generated messages_%s_list.txt with %d mod messages", 
-               msg_type, modMessageCount);
+    debugPrint("\ngenerateMessageReport: Generated messages_%s_list.txt with %d mod messages",
+        msg_type, modMessageCount);
 }
 
 // Simple helper to load a single mod file
