@@ -264,7 +264,7 @@ typedef struct CityInfo {
 } CityInfo;
 
 // separate array for mod names (indexed by area index)
-static char gAreaModNames[TOTAL_AREA_MAX][40] = {0};
+static char gAreaModNames[TOTAL_AREA_MAX][40] = { 0 };
 
 typedef struct MapAmbientSoundEffectInfo {
     char name[40];
@@ -961,27 +961,32 @@ void worldmapWriteDefaultOffsetsToConfig(bool isWidescreen, const WorldmapOffset
     configSetInt(&gGameConfig, section, "mapcenterY", defaults->mapcenterY);
 }
 
-int wmGetAreaVisitedState(int areaIndex) {
+int wmGetAreaVisitedState(int areaIndex)
+{
     if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
     return wmAreaInfoList[areaIndex].visitedState;
 }
 
-const char* wmGetAreaName(int areaIndex) {
+const char* wmGetAreaName(int areaIndex)
+{
     if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return "";
     return wmAreaInfoList[areaIndex].name;
 }
 
-const char* wmGetMapLookupName(int mapIndex) {
+const char* wmGetMapLookupName(int mapIndex)
+{
     if (mapIndex < 0 || mapIndex >= TOTAL_MAP_MAX) return "";
     return wmMapInfoList[mapIndex].lookupName;
 }
 
-int wmGetAreaId(int areaIndex) {
+int wmGetAreaId(int areaIndex)
+{
     if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
     return wmAreaInfoList[areaIndex].areaId;
 }
 
-int wmGetAreaContainingMap(int mapIndex) {
+int wmGetAreaContainingMap(int mapIndex)
+{
     int areaIndex;
     if (wmMatchAreaContainingMapIdx(mapIndex, &areaIndex) == 0) {
         return areaIndex;
@@ -989,16 +994,17 @@ int wmGetAreaContainingMap(int mapIndex) {
     return -1;
 }
 
-const char* wmGetAreaModName(int areaIndex) {
+const char* wmGetAreaModName(int areaIndex)
+{
     if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) {
         return "";
     }
-    
+
     if (gAreaModNames[areaIndex][0] == '\0') {
         // This is a vanilla area
         return "";
     }
-    
+
     return gAreaModNames[areaIndex];
 }
 
@@ -3064,8 +3070,8 @@ static int wmAreaLoadModFile(const char* filename)
         uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
         city->areaId = message_id;
 
-        debugPrint("\nwmAreaLoadModFile: Area '%s' -> mod '%s', areaId = %u", 
-                areaNameStr, mod_name, message_id);
+        debugPrint("\nwmAreaLoadModFile: Area '%s' -> mod '%s', areaId = %u",
+            areaNameStr, mod_name, message_id);
 
         areasLoaded++;
         areaIndexInThisMod++;
@@ -3409,15 +3415,15 @@ static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* sectio
     compat_strlwr(str);
     strncpy(map->mapFileName, str, 40);
 
-if (strlen(map->mapFileName) > 8) {
-    char warning[256];
-    snprintf(warning, sizeof(warning), 
-             "WARNING: map_name '%s' is %zu characters (max 8).\n"
-             "Save games will not work with this map name.\n"
-             "Please shorten the map_name in your config.",
-             map->mapFileName, strlen(map->mapFileName));
-    showMesageBox(warning);
-}
+    if (strlen(map->mapFileName) > 8) {
+        char warning[256];
+        snprintf(warning, sizeof(warning),
+            "WARNING: map_name '%s' is %zu characters (max 8).\n"
+            "Save games will not work with this map name.\n"
+            "Please shorten the map_name in your config.",
+            map->mapFileName, strlen(map->mapFileName));
+        showMesageBox(warning);
+    }
 
     // Optional field: music
     if (configGetString(config, section, "music", &str)) {
@@ -7561,7 +7567,7 @@ static int wmTownMapRefresh()
         _townFrmImage.getWidth(),
         _townFrmImage.getHeight(),
         _townFrmImage.getWidth(),
-        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY) 
+        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY)
             + gOffsets.viewX + gOffsets.townMapBgX,
         gOffsets.windowWidth);
 
@@ -7583,15 +7589,15 @@ static int wmTownMapRefresh()
 
         // Determine if this is a mod area (in mod slot range)
         bool isModArea = (wmTownMapCurArea >= MOD_AREA_START && wmTownMapCurArea < MOD_AREA_MAX);
-        
+
         if (isModArea) {
             // Mod area: Generate message ID from mod name and composite key
             const char* modName = wmGetAreaModName(wmTownMapCurArea);
-            
+
             char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "ENTRANCE:%s:%d", 
-                     city->name, index);
-            
+            snprintf(compositeKey, sizeof(compositeKey), "ENTRANCE:%s:%d",
+                city->name, index);
+
             uint32_t messageId = generate_mod_message_id(modName, compositeKey);
             displayText = getmsg(&wmMsgFile, &messageListItem, messageId);
         } else {
@@ -7613,9 +7619,9 @@ static int wmTownMapRefresh()
             windowDrawText(wmBkWin,
                 displayText,
                 width,
-                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x 
+                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x
                     + gOffsets.townMapLabelXOffset - width / 2,
-                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y 
+                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y
                     + gOffsets.townMapLabelYOffset,
                 _colorTable[992] | 0x2000000 | FONT_SHADOW);
         }
