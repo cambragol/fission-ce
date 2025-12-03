@@ -49,6 +49,14 @@
 
 namespace fallout {
 
+#define BASE_MAP_MAX 200
+#define MOD_MAP_START 200
+#define MOD_MAP_MAX 2000
+
+#define BASE_AREA_MAX 200  
+#define MOD_AREA_START 200
+#define MOD_AREA_MAX 1000
+
 static char* mapBuildPath(char* name);
 static int mapLoad(File* stream);
 static int _map_age_dead_critters();
@@ -509,15 +517,115 @@ void mapSetStart(int tile, int elevation, int rotation)
 char* mapGetName(int map, int elevation)
 {
     if (map < 0 || map >= wmMapMaxCount()) {
+        //showMesageBox("mapGetName: Invalid map index");
         return nullptr;
     }
 
     if (!elevationIsValid(elevation)) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "mapGetName: Invalid elevation %d for map %d", elevation, map);
+        //showMesageBox(msg);
         return nullptr;
     }
 
     MessageListItem messageListItem;
-    return getmsg(&gMapMessageList, &messageListItem, map * 3 + elevation + 200);
+    
+    char debugMsg[512];
+    snprintf(debugMsg, sizeof(debugMsg), "mapGetName: Map %d, Elevation %d", map, elevation);
+    //showMesageBox(debugMsg);
+    
+    if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
+        const char* lookupName = wmGetMapLookupName(map);
+        int areaIndex = wmGetAreaContainingMap(map);
+        
+        snprintf(debugMsg, sizeof(debugMsg), 
+                 "Mod map detected!\n"
+                 "lookupName: '%s'\n"
+                 "areaIndex: %d", 
+                 lookupName ? lookupName : "NULL", areaIndex);
+        //showMesageBox(debugMsg);
+        
+        if (areaIndex != -1) {
+            const char* areaName = wmGetAreaName(areaIndex);
+            const char* modName = wmGetAreaModName(areaIndex);  // NEW: Get mod name
+            
+            char compositeKey[256];
+            snprintf(compositeKey, sizeof(compositeKey), "MAP:%s:%d", lookupName, elevation);
+            
+            // Use modName, not areaName!
+            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            
+            debugPrint("\nmapGetName: mod='%s', area='%s', key='%s', ID=%u",
+                    modName, areaName, compositeKey, messageId);
+            
+            // Check if this message exists in our list
+            bool found = false;
+            char foundText[256] = "";
+            for (int i = 0; i < gMapMessageList.entries_num; i++) {
+                if (gMapMessageList.entries[i].num == messageId) {
+                    found = true;
+                    strncpy(foundText, gMapMessageList.entries[i].text, sizeof(foundText)-1);
+                    break;
+                }
+            }
+            
+            if (found) {
+                snprintf(debugMsg, sizeof(debugMsg), 
+                         "SUCCESS: Message ID %d FOUND!\nText: '%s'", 
+                         messageId, foundText);
+                //showMesageBox(debugMsg);
+            } else {
+                snprintf(debugMsg, sizeof(debugMsg), 
+                         "FAILED: Message ID %d NOT FOUND!\n\nAvailable mod messages:", 
+                         messageId);
+                
+                // List available mod messages
+                char availableMsgs[1024] = "";
+                for (int i = 0; i < gMapMessageList.entries_num; i++) {
+                    if (gMapMessageList.entries[i].num >= 32768) {
+                        char msgLine[128];
+                        snprintf(msgLine, sizeof(msgLine), "\n%d: '%s'", 
+                                 gMapMessageList.entries[i].num, 
+                                 gMapMessageList.entries[i].text);
+                        strncat(availableMsgs, msgLine, sizeof(availableMsgs)-strlen(availableMsgs)-1);
+                    }
+                }
+                
+                strncat(debugMsg, availableMsgs, sizeof(debugMsg)-strlen(debugMsg)-1);
+                //showMesageBox(debugMsg);
+            }
+
+            char* result = getmsg(&gMapMessageList, &messageListItem, messageId);
+            
+            if (result) {
+                snprintf(debugMsg, sizeof(debugMsg), "SUCCESS - getmsg returned: %s", result);
+                //showMesageBox(debugMsg);
+            } else {
+                snprintf(debugMsg, sizeof(debugMsg), "FAILED - getmsg returned NULL for ID %d", messageId);
+                //showMesageBox(debugMsg);
+            }
+            
+            return result;
+        } else {
+            //showMesageBox("ERROR - Could not find area for mod map");
+            return nullptr;
+        }
+    } else {
+        // Vanilla map code...
+        int messageId = map * 3 + elevation + 200;
+        snprintf(debugMsg, sizeof(debugMsg), "Vanilla map, using message ID %d", messageId);
+        //showMesageBox(debugMsg);
+        
+        char* result = getmsg(&gMapMessageList, &messageListItem, messageId);
+        if (result) {
+            snprintf(debugMsg, sizeof(debugMsg), "Found vanilla name: %s", result);
+            //showMesageBox(debugMsg);
+        } else {
+            snprintf(debugMsg, sizeof(debugMsg), "ERROR - No message found for vanilla ID %d", messageId);
+            //showMesageBox(debugMsg);
+        }
+        return result;
+    }
 }
 
 // TODO: Check, probably returns true if map1 and map2 represents the same city.
@@ -579,12 +687,91 @@ char* mapGetCityName(int map)
 {
     int city;
     if (wmMatchAreaContainingMapIdx(map, &city) == -1) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "mapGetCityName: No area found for map %d", map);
+        //showMesageBox(msg);
         return _aErrorF2;
     }
 
     MessageListItem messageListItem;
-    char* name = getmsg(&gMapMessageList, &messageListItem, 1500 + city);
-    return name;
+    
+    char debugMsg[512];
+    snprintf(debugMsg, sizeof(debugMsg), "mapGetCityName: Map %d -> Area %d", map, city);
+    //showMesageBox(debugMsg);
+    
+    if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
+        // use accessor function instead of direct array access
+        messageListItem.num = wmGetAreaId(city);
+        
+        snprintf(debugMsg, sizeof(debugMsg), 
+                 "Mod area %d, using areaId (message ID): %d", 
+                 city, messageListItem.num);
+        //showMesageBox(debugMsg);
+        
+        // Check if this message ID exists in our list
+        bool found = false;
+        char foundText[256] = "";
+        for (int i = 0; i < gMapMessageList.entries_num; i++) {
+            if (gMapMessageList.entries[i].num == messageListItem.num) {
+                found = true;
+                strncpy(foundText, gMapMessageList.entries[i].text, sizeof(foundText)-1);
+                break;
+            }
+        }
+        
+        if (found) {
+            snprintf(debugMsg, sizeof(debugMsg), 
+                     "SUCCESS: Message ID %d FOUND!\nText: '%s'", 
+                     messageListItem.num, foundText);
+            //showMesageBox(debugMsg);
+        } else {
+            snprintf(debugMsg, sizeof(debugMsg), 
+                     "FAILED: Message ID %d NOT FOUND!\n\nAvailable mod messages:", 
+                     messageListItem.num);
+            
+            // list available mod messages
+            char availableMsgs[1024] = "";
+            for (int i = 0; i < gMapMessageList.entries_num; i++) {
+                if (gMapMessageList.entries[i].num >= 32768) {
+                    char msgLine[128];
+                    snprintf(msgLine, sizeof(msgLine), "\n%d: '%s'", 
+                             gMapMessageList.entries[i].num, 
+                             gMapMessageList.entries[i].text);
+                    strncat(availableMsgs, msgLine, sizeof(availableMsgs)-strlen(availableMsgs)-1);
+                }
+            }
+            
+            strncat(debugMsg, availableMsgs, sizeof(debugMsg)-strlen(debugMsg)-1);
+            //showMesageBox(debugMsg);
+        }
+        
+        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+        if (name) {
+            snprintf(debugMsg, sizeof(debugMsg), "SUCCESS - getmsg returned: %s", name);
+            //showMesageBox(debugMsg);
+            return name;
+        } else {
+            snprintf(debugMsg, sizeof(debugMsg), "ERROR - getmsg returned NULL for ID %d", messageListItem.num);
+            //showMesageBox(debugMsg);
+            return _aErrorF2;
+        }
+    } else {
+        // Vanilla area code
+        messageListItem.num = 1500 + city;
+        snprintf(debugMsg, sizeof(debugMsg), "Vanilla area %d, using message ID %d", city, messageListItem.num);
+        //showMesageBox(debugMsg);
+        
+        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+        if (name) {
+            snprintf(debugMsg, sizeof(debugMsg), "Found vanilla name: %s", name);
+            //showMesageBox(debugMsg);
+            return name;
+        } else {
+            snprintf(debugMsg, sizeof(debugMsg), "ERROR - No message found for vanilla ID %d", messageListItem.num);
+            //showMesageBox(debugMsg);
+            return _aErrorF2;
+        }
+    }
 }
 
 // 0x48268C

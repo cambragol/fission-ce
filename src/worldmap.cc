@@ -263,6 +263,9 @@ typedef struct CityInfo {
     EntranceInfo entrances[ENTRANCE_LIST_CAPACITY];
 } CityInfo;
 
+// separate array for mod names (indexed by area index)
+static char gAreaModNames[TOTAL_AREA_MAX][40] = {0};
+
 typedef struct MapAmbientSoundEffectInfo {
     char name[40];
     int chance;
@@ -956,6 +959,47 @@ void worldmapWriteDefaultOffsetsToConfig(bool isWidescreen, const WorldmapOffset
 
     configSetInt(&gGameConfig, section, "mapcenterX", defaults->mapcenterX);
     configSetInt(&gGameConfig, section, "mapcenterY", defaults->mapcenterY);
+}
+
+int wmGetAreaVisitedState(int areaIndex) {
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
+    return wmAreaInfoList[areaIndex].visitedState;
+}
+
+const char* wmGetAreaName(int areaIndex) {
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return "";
+    return wmAreaInfoList[areaIndex].name;
+}
+
+const char* wmGetMapLookupName(int mapIndex) {
+    if (mapIndex < 0 || mapIndex >= TOTAL_MAP_MAX) return "";
+    return wmMapInfoList[mapIndex].lookupName;
+}
+
+int wmGetAreaId(int areaIndex) {
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
+    return wmAreaInfoList[areaIndex].areaId;
+}
+
+int wmGetAreaContainingMap(int mapIndex) {
+    int areaIndex;
+    if (wmMatchAreaContainingMapIdx(mapIndex, &areaIndex) == 0) {
+        return areaIndex;
+    }
+    return -1;
+}
+
+const char* wmGetAreaModName(int areaIndex) {
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) {
+        return "";
+    }
+    
+    if (gAreaModNames[areaIndex][0] == '\0') {
+        // This is a vanilla area
+        return "";
+    }
+    
+    return gAreaModNames[areaIndex];
 }
 
 // Hash function for consistent mapping
@@ -3010,14 +3054,18 @@ static int wmAreaLoadModFile(const char* filename)
             wmAreaUpdateFromConfig(city, &config, section);
         }
 
-        // Generate and store message ID for mod areas
-        if (mod_name[0] != '\0') {
-            uint32_t message_id = generate_mod_message_id(mod_name, areaNameStr);
+        // Store mod name in the parallel array
+        strncpy(gAreaModNames[targetSlot], mod_name, sizeof(gAreaModNames[targetSlot]) - 1);
+        gAreaModNames[targetSlot][sizeof(gAreaModNames[targetSlot]) - 1] = '\0';
 
-            // Store message ID in visitedState for mod areas
-            // This preserves the original area configuration but adds our message ID
-            city->areaId = message_id; // Use areaId for mod message IDs
-        }
+        // Generate area message ID using mod name
+        char areaKey[256];
+        snprintf(areaKey, sizeof(areaKey), "AREA:%s", areaNameStr);
+        uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
+        city->areaId = message_id;
+
+        debugPrint("\nwmAreaLoadModFile: Area '%s' -> mod '%s', areaId = %u", 
+                areaNameStr, mod_name, message_id);
 
         areasLoaded++;
         areaIndexInThisMod++;
@@ -3272,6 +3320,9 @@ static int wmAreaInit()
     // Initialize base area override tracking
     memset(gBaseAreaOverrides, 0, sizeof(gBaseAreaOverrides));
 
+    // Initialize the mod names array
+    memset(gAreaModNames, 0, sizeof(gAreaModNames));
+
     if (wmMapInit() == -1) {
         return -1;
     }
@@ -3357,6 +3408,16 @@ static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* sectio
     }
     compat_strlwr(str);
     strncpy(map->mapFileName, str, 40);
+
+if (strlen(map->mapFileName) > 8) {
+    char warning[256];
+    snprintf(warning, sizeof(warning), 
+             "WARNING: map_name '%s' is %zu characters (max 8).\n"
+             "Save games will not work with this map name.\n"
+             "Please shorten the map_name in your config.",
+             map->mapFileName, strlen(map->mapFileName));
+    showMesageBox(warning);
+}
 
     // Optional field: music
     if (configGetString(config, section, "music", &str)) {
@@ -7481,11 +7542,11 @@ static int wmTownMapInit()
     return 0;
 }
 
-// Refresh the town map display, supporting both vanilla and mod area entrance names
-// Mod areas use dynamic message IDs while vanilla areas use the original numbering system
+// Refresh the town map display with support for both vanilla and mod areas
+// Mod areas use dynamic message IDs, vanilla areas use original 200 + 10*area + entrance formula
 static int wmTownMapRefresh()
 {
-    // Render town grid background image (handles widescreen adjustments)
+    // Render town grid background (handles widescreen adjustments)
     if (gameIsWidescreen()) {
         blitBufferToBuffer(_townBackgroundFrmImage.getData(),
             gOffsets.townBackgroundWidth,
@@ -7500,7 +7561,8 @@ static int wmTownMapRefresh()
         _townFrmImage.getWidth(),
         _townFrmImage.getHeight(),
         _townFrmImage.getWidth(),
-        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY) + gOffsets.viewX + gOffsets.townMapBgX,
+        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY) 
+            + gOffsets.viewX + gOffsets.townMapBgX,
         gOffsets.windowWidth);
 
     wmRefreshInterfaceOverlay(false);
@@ -7511,56 +7573,50 @@ static int wmTownMapRefresh()
     for (int index = 0; index < city->entrancesLength; index++) {
         EntranceInfo* entrance = &(city->entrances[index]);
 
-        // Skip disabled entrances or those without valid coordinates
-        if (entrance->state == 0) {
-            continue;
-        }
-
-        if (entrance->x == -1 || entrance->y == -1) {
+        // Skip disabled or invalid entrances
+        if (entrance->state == 0 || entrance->x == -1 || entrance->y == -1) {
             continue;
         }
 
         MessageListItem messageListItem;
         const char* displayText = nullptr;
 
-        // Check if this is a mod area (using mod area range)
-        if (wmTownMapCurArea >= MOD_AREA_START && wmTownMapCurArea < MOD_AREA_MAX) {
-            // Mod area: use hash-based message IDs for entrance names
-            char entranceKey[256];
-            snprintf(entranceKey, sizeof(entranceKey), "%s_entrance_%d", city->name, index);
-
-            // Generate composite key and message ID using area name as mod identifier
+        // Determine if this is a mod area (in mod slot range)
+        bool isModArea = (wmTownMapCurArea >= MOD_AREA_START && wmTownMapCurArea < MOD_AREA_MAX);
+        
+        if (isModArea) {
+            // Mod area: Generate message ID from mod name and composite key
+            const char* modName = wmGetAreaModName(wmTownMapCurArea);
+            
             char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "MAP_ENTRANCE:%s", entranceKey);
-            uint32_t message_id = generate_mod_message_id(city->name, compositeKey);
-
-            debugPrint("\nwmTownMapRefresh: Looking up mod entrance '%s' with ID %d",
-                compositeKey, message_id);
-
-            if (getmsg(&gMapMessageList, &messageListItem, message_id)) {
-                displayText = messageListItem.text;
-                debugPrint("\nwmTownMapRefresh: Found mod entrance text: %s", displayText);
-            } else {
-                displayText = "Location"; // Fallback for missing mod messages
-                debugPrint("\nwmTownMapRefresh: WARNING - Mod entrance message not found for ID %d, using fallback", message_id);
-            }
+            snprintf(compositeKey, sizeof(compositeKey), "ENTRANCE:%s:%d", 
+                     city->name, index);
+            
+            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            displayText = getmsg(&wmMsgFile, &messageListItem, messageId);
         } else {
-            // Vanilla area: use original formula (200 + 10 * area + entrance index)
+            // Vanilla area: Use original formula (200 + 10*area + entrance index)
             messageListItem.num = 200 + 10 * wmTownMapCurArea + index;
             if (messageListGetItem(&wmMsgFile, &messageListItem)) {
                 displayText = messageListItem.text;
             }
         }
 
-        // Draw the entrance label if we have text to display
+        // Fallback for missing mod messages
+        if (!displayText) {
+            displayText = "Location";
+        }
+
+        // Draw entrance label if we have text
         if (displayText != nullptr) {
             int width = fontGetStringWidth(displayText);
-            // CE: Slightly increase whitespace between marker and entrance name.
             windowDrawText(wmBkWin,
                 displayText,
                 width,
-                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x + gOffsets.townMapLabelXOffset - width / 2,
-                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y + gOffsets.townMapLabelYOffset,
+                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x 
+                    + gOffsets.townMapLabelXOffset - width / 2,
+                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y 
+                    + gOffsets.townMapLabelYOffset,
                 _colorTable[992] | 0x2000000 | FONT_SHADOW);
         }
     }

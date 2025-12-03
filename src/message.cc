@@ -263,52 +263,195 @@ static void loadModFile(MessageList* messageList, const char* fullPath, const ch
     debugPrint("\nloadModMessagesForType: Loaded %d messages from %s", messages_loaded, filename);
 }
 
+// load mod files with section headers
+static void loadModFileWithSections(MessageList* messageList, const char* fullPath, const char* filename, const char* target_section)
+{
+    File* stream = fileOpen(fullPath, "rt");
+    if (!stream) {
+        debugPrint("\nloadModFileWithSections: Failed to open file: %s", fullPath);
+        return;
+    }
+
+    // Extract mod name from filename
+    const char* prefix = "messages_";
+    const char* suffix = ".txt";
+    char mod_name[64] = { 0 };
+    
+    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+        
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+            debugPrint("\nloadModFileWithSections: Loading mod: %s, looking for section: %s", mod_name, target_section);
+        }
+    }
+
+    // Parse and load messages with section support
+    char line[256];
+    int messages_loaded = 0;
+    char current_section[64] = ""; // Empty means we're in no section yet
+    bool in_correct_section = false; // declare the boolean variable
+    
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // remove newline characters
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+        
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+        
+        // check if this is a sectoin header [section_name]
+        if (line[0] == '[') {
+            // First, trim the entire line
+            char* line_start = line;
+            char* line_end = line + strlen(line) - 1;
+            
+            // trim trailing whitespace
+            while (line_end > line_start && isspace(*line_end)) {
+                *line_end = '\0';
+                line_end--;
+            }
+            
+            // check if it ends with ']'
+            if (*line_end == ']') {
+                // Extract section name (remove brackets)
+                char section_name[64];
+                strncpy(section_name, line_start + 1, line_end - line_start - 1);
+                section_name[line_end - line_start - 1] = '\0';
+                
+                // Trim whitespace from section name
+                char* start = section_name;
+                while (*start && isspace(*start)) start++;
+                char* end = start + strlen(start) - 1;
+                while (end > start && isspace(*end)) *end-- = '\0';
+                
+                strncpy(current_section, start, end - start + 1);
+                current_section[end - start + 1] = '\0';
+                
+                // Convert both to lowercase for case-insensitive comparison
+                char current_section_lower[64];
+                char target_section_lower[64];
+                
+                strncpy(current_section_lower, current_section, sizeof(current_section_lower));
+                strncpy(target_section_lower, target_section, sizeof(target_section_lower));
+                
+                for (char* p = current_section_lower; *p; ++p) *p = tolower(*p);
+                for (char* p = target_section_lower; *p; ++p) *p = tolower(*p);
+                
+                in_correct_section = (strcmp(current_section_lower, target_section_lower) == 0);
+                
+                debugPrint("\nloadModFileWithSections: Found section: [%s], matches target [%s]: %s", 
+                        current_section, target_section, in_correct_section ? "YES" : "NO");
+                continue;
+            }
+        }
+        
+        // Only process key=value lines if we're in the correct section
+        if (!in_correct_section) {
+            continue;
+        }
+        
+        char* separator = strchr(line, '=');
+        if (!separator) {
+            debugPrint("\nloadModFileWithSections: Skipping line (no =): %s", line);
+            continue;
+        }
+        
+        *separator = '\0';
+        char* key = line;
+        char* value = separator + 1;
+        
+        // Trim whitespace from key and value
+        while (*key && isspace(*key)) key++;
+        while (*value && isspace(*value)) value++;
+        
+        char* end = key + strlen(key) - 1;
+        while (end > key && isspace(*end)) *end-- = '\0';
+        
+        end = value + strlen(value) - 1;
+        while (end > value && isspace(*end)) *end-- = '\0';
+        
+        if (*key && *value) {
+            uint32_t message_id = generate_mod_message_id(mod_name, key);
+            
+            MessageListItem item;
+            item.num = message_id;
+            item.text = internal_strdup(value);
+            item.audio = internal_strdup("");
+            item.flags = 0;
+            
+            if (_message_add(messageList, &item)) {
+                messages_loaded++;
+                debugPrint("\nloadModFileWithSections: Added mod message: [%s] %s:%s -> %d -> %s",
+                    current_section, mod_name, key, message_id, value);
+            } else {
+                internal_free(item.text);
+                internal_free(item.audio);
+                debugPrint("\nloadModFileWithSections: Failed to add message: %s:%s", mod_name, key);
+            }
+        } else {
+            debugPrint("\nloadModFileWithSections: Skipping empty key or value in line: %s", line);
+        }
+    }
+    
+    fileClose(stream);
+    debugPrint("\nloadModFileWithSections: Loaded %d messages from %s for section %s", 
+               messages_loaded, filename, target_section);
+}
+
 // Load mod messages from messages_*.txt files with localization support
 // This allows modders to add new text content without modifying base message files
+// Load mod messages from messages_*.txt files with section headers
 static void loadModMessagesForType(MessageList* messageList, const char* msg_type)
 {
     char searchPattern[COMPAT_MAX_PATH];
     char fullPath[COMPAT_MAX_PATH];
-
+    
     // Always load English mods first (as base/fallback)
-    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-        ENGLISH, DIR_SEPARATOR);
-
+    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt", 
+             ENGLISH, DIR_SEPARATOR);
+    
     debugPrint("\nloadModMessagesForType: Loading English mod files with pattern: %s", searchPattern);
-
+    
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-
+    
     debugPrint("\nloadModMessagesForType: Found %d mod message files in English", modFileCount);
-
+    
     for (int i = 0; i < modFileCount; i++) {
-        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-            ENGLISH, DIR_SEPARATOR, modFiles[i]);
-        loadModFile(messageList, fullPath, modFiles[i]);
+        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s", 
+                 ENGLISH, DIR_SEPARATOR, modFiles[i]);
+        loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
     }
-
+    
     if (modFileCount > 0) {
         fileNameListFree(&modFiles, 0);
     }
-
+    
     // Then load current language (overrides English for available translations)
     if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
-        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-            settings.system.language.c_str(), DIR_SEPARATOR);
-
+        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt", 
+                 settings.system.language.c_str(), DIR_SEPARATOR);
+        
         debugPrint("\nloadModMessagesForType: Loading localized mod files with pattern: %s", searchPattern);
-
+        
         modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-
-        debugPrint("\nloadModMessagesForType: Found %d mod message files in %s",
-            modFileCount, settings.system.language.c_str());
-
+        
+        debugPrint("\nloadModMessagesForType: Found %d mod message files in %s", 
+                   modFileCount, settings.system.language.c_str());
+        
         for (int i = 0; i < modFileCount; i++) {
-            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-                settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
-            loadModFile(messageList, fullPath, modFiles[i]);
+            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s", 
+                     settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
+            loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
         }
-
+        
         if (modFileCount > 0) {
             fileNameListFree(&modFiles, 0);
         }
@@ -329,7 +472,7 @@ bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg
     // Then load and append mod messages
     loadModMessagesForType(msg, msg_type);
 
-    // Always generate a report - we control which message lists use this function
+    // Always generate a report for modded lists
     generateMessageReport(msg, msg_type);
 
     debugPrint("\nmessageListLoadWithMods: Successfully loaded base + mod messages for type: %s", msg_type);
