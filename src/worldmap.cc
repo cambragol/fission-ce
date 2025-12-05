@@ -2942,7 +2942,7 @@ static int wmAreaLoadModFile(const char* filename)
         return 0;
     }
 
-    debugPrint("\nwmAreaLoadModFile: Loading mod areas from %s", filename);
+    debugPrint("\nLoading mod areas from %s", filename);
 
     // Extract mod name from filename (city_xxx.txt -> xxx)
     const char* base_filename = strrchr(filename, DIR_SEPARATOR);
@@ -2962,11 +2962,9 @@ static int wmAreaLoadModFile(const char* filename)
         if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
             strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
             mod_name[mod_name_len] = '\0';
-            debugPrint("\nwmAreaLoadModFile: Extracted mod name: %s", mod_name);
         }
     }
 
-    // Get unique namespace for this mod file
     uint32_t modNamespace = wmAreaGetModNamespace(filename);
 
     int areasLoaded = 0;
@@ -2975,13 +2973,12 @@ static int wmAreaLoadModFile(const char* filename)
 
     // Process all sections in the mod file
     for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
-        // Try different section naming patterns
         char section[40];
         bool found = false;
+        char* areaNameStr = nullptr;
 
         // Try "Area 00" format (2-digit)
         snprintf(section, sizeof(section), "Area %02d", sectionIdx);
-        char* areaNameStr = nullptr;
         if (configGetString(&config, section, "area_name", &areaNameStr)) {
             found = true;
         } else {
@@ -2993,21 +2990,20 @@ static int wmAreaLoadModFile(const char* filename)
         }
 
         if (!found) {
-            continue; // No more sections
+            continue;
         }
 
         // Check if this overrides a base area by area_name
         bool overrodeBase = false;
         for (int i = 0; i < BASE_AREA_MAX; i++) {
             if (wmAreaInfoList[i].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, areaNameStr) == 0) {
-                // Track which mod file overrode this base area
                 strncpy(gBaseAreaOverrides[i], filename, COMPAT_MAX_PATH - 1);
                 gBaseAreaOverrides[i][COMPAT_MAX_PATH - 1] = '\0';
 
                 wmAreaUpdateFromConfig(&wmAreaInfoList[i], &config, section);
                 overrodeBase = true;
                 areasOverridden++;
-                debugPrint("\nwmAreaLoadModFile: Overrode base area '%s' at slot %d", areaNameStr, i);
+                debugPrint("\n  Overrode base area '%s' at slot %d", areaNameStr, i);
                 break;
             }
         }
@@ -3020,10 +3016,11 @@ static int wmAreaLoadModFile(const char* filename)
         // Calculate consistent slot for this mod area
         uint16_t targetSlot = wmAreaCalculateModSlot(areaNameStr, modNamespace, areaIndexInThisMod);
 
-        // Check for slot collisions with DIFFERENT areas
-        if (wmAreaInfoList[targetSlot].name[0] != '\0' && strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
-
-            // COLLISION DETECTED - fail loudly with clear instructions
+        // Check for slot collisions with different areas
+        if (wmAreaInfoList[targetSlot].name[0] != '\0' && 
+            strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
+            
+            // Show error message for collision
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "AREA SLOT COLLISION DETECTED!\n\n"
@@ -3031,47 +3028,37 @@ static int wmAreaLoadModFile(const char* filename)
                 "New area: %s\n"
                 "Target slot: %d\n"
                 "Existing area: %s\n\n"
-                "To resolve this conflict:\n"
-                "1. Rename your mod file (e.g., change 'city_mymod.txt' to 'city_mymod_v2.txt')\n"
-                "2. This will generate new slot assignments\n"
-                "3. Update any scripts that reference the old slot numbers\n"
-                "4. Test with the other mod to ensure no conflicts",
+                "To resolve: Rename your mod file to change its namespace.",
                 filename, areaNameStr, targetSlot, wmAreaInfoList[targetSlot].name);
             showMesageBox(errorMsg);
 
-            debugPrint("\nwmAreaLoadModFile: COLLISION - skipping area '%s' (slot %d occupied by '%s')",
-                areaNameStr, targetSlot, wmAreaInfoList[targetSlot].name);
+            debugPrint("\n  Collision: skipping area '%s' (slot %d occupied)", 
+                      areaNameStr, targetSlot);
             areaIndexInThisMod++;
             continue;
         }
 
         // Initialize the area
-        // In the mod area loading section, replace JUST the message ID part:
         CityInfo* city = &wmAreaInfoList[targetSlot];
         wmAreaSlotInit(city);
         city->state = CITY_STATE_KNOWN;
         city->visitedState = 0;
 
-        // Only initialize if this is a new area (not updating existing)
         if (city->name[0] == '\0') {
             wmAreaInitFromConfig(city, &config, section, targetSlot);
         } else {
-            // Update existing area
             wmAreaUpdateFromConfig(city, &config, section);
         }
 
-        // Store mod name in the parallel array
+        // Store mod name
         strncpy(gAreaModNames[targetSlot], mod_name, sizeof(gAreaModNames[targetSlot]) - 1);
         gAreaModNames[targetSlot][sizeof(gAreaModNames[targetSlot]) - 1] = '\0';
 
-        // Generate area message ID using mod name
+        // Generate area message ID
         char areaKey[256];
         snprintf(areaKey, sizeof(areaKey), "AREA:%s", areaNameStr);
         uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
         city->areaId = message_id;
-
-        debugPrint("\nwmAreaLoadModFile: Area '%s' -> mod '%s', areaId = %u",
-            areaNameStr, mod_name, message_id);
 
         areasLoaded++;
         areaIndexInThisMod++;
@@ -3079,7 +3066,11 @@ static int wmAreaLoadModFile(const char* filename)
 
     configFree(&config);
 
-    debugPrint("\nwmAreaLoadModFile: %s: %d areas loaded, %d base areas overridden", filename, areasLoaded, areasOverridden);
+    if (areasLoaded > 0 || areasOverridden > 0) {
+        debugPrint("\n  %s: %d areas loaded, %d overridden", 
+                  base_filename, areasLoaded, areasOverridden);
+    }
+
     return 0;
 }
 
@@ -3110,14 +3101,14 @@ static void wmAreaLoadModFiles()
 }
 
 // Generate debug area_list.txt file
+// Generate area_list.txt debug file
 static void wmGenerateAreaListDebug()
 {
     char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./area_list.txt");
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%carea_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
 
     File* debugStream = fileOpen(debugPath, "wt");
     if (debugStream == nullptr) {
-        debugPrint("\nwmGenerateAreaListDebug: Could not create area_list.txt");
         return;
     }
 
@@ -3128,15 +3119,13 @@ static void wmGenerateAreaListDebug()
     int overriddenBaseCount = 0;
     int collisionCount = 0;
 
-    // First, list all base areas
+    // List all base areas
     for (int i = 0; i < BASE_AREA_MAX; i++) {
         if (wmAreaInfoList[i].name[0] != '\0') {
             const char* type = "BASE";
             char overrideInfo[100] = "";
 
-            // Check if this base area was overridden by a mod
             if (gBaseAreaOverrides[i][0] != '\0') {
-                // Extract just the filename from the full path
                 const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
                 const char* modName = lastSlash ? lastSlash + 1 : gBaseAreaOverrides[i];
                 snprintf(overrideInfo, sizeof(overrideInfo), "[OVERRIDDEN BY: %s]", modName);
@@ -3157,15 +3146,15 @@ static void wmGenerateAreaListDebug()
         }
     }
 
-    // Then, list all mod areas
+    // List all mod areas
     for (int i = MOD_AREA_START; i < wmMaxAreaNum; i++) {
         if (wmAreaInfoList[i].name[0] != '\0') {
             const char* type = "MOD";
             char hashInfo[50] = "[HASH_ALLOC]";
 
-            // Simple collision detection: check if any other area has the same name
             for (int j = i + 1; j < wmMaxAreaNum; j++) {
-                if (wmAreaInfoList[j].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
+                if (wmAreaInfoList[j].name[0] != '\0' && 
+                    strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
                     collisionCount++;
                     strcpy(hashInfo, "[DUPLICATE_NAME!]");
                     break;
@@ -3186,9 +3175,7 @@ static void wmGenerateAreaListDebug()
         }
     }
 
-    // Summary - broken into multiple parts to avoid buffer overflow
-
-    // Basic counts
+    // Write summary
     char summary[1024];
     snprintf(summary, sizeof(summary),
         "\nSUMMARY:\n"
@@ -3204,17 +3191,18 @@ static void wmGenerateAreaListDebug()
         collisionCount);
     fileWrite(summary, strlen(summary), 1, debugStream);
 
-    // Allocation method
-    const char* allocationMethod = "ALLOCATION METHOD:\n"
-                                   "Base areas: Sequential assignment (0-199)\n"
-                                   "Mod areas: Deterministic hash-based allocation\n"
-                                   "  - Uses: mod_filename + area_name + area_index\n"
-                                   "  - Guarantees: Same mod always gets same slots\n"
-                                   "  - Collision handling: FAIL ON COLLISION (mod must be renamed)\n"
-                                   "  - Benefits: Stable references for scripts/worldmap\n\n";
+    // Write allocation method explanation
+    const char* allocationMethod = 
+        "ALLOCATION METHOD:\n"
+        "Base areas: Sequential assignment (0-199)\n"
+        "Mod areas: Deterministic hash-based allocation\n"
+        "  - Uses: mod_filename + area_name + area_index\n"
+        "  - Guarantees: Same mod always gets same slots\n"
+        "  - Collision handling: FAIL ON COLLISION (mod must be renamed)\n"
+        "  - Benefits: Stable references for scripts/worldmap\n\n";
     fileWrite(allocationMethod, strlen(allocationMethod), 1, debugStream);
 
-    // Show which mod files overrode which base areas
+    // Write override details if any
     if (overriddenBaseCount > 0) {
         fileWrite("BASE AREA OVERRIDES:\n", 21, 1, debugStream);
         fileWrite("--------------------\n", 21, 1, debugStream);
@@ -3231,25 +3219,27 @@ static void wmGenerateAreaListDebug()
         fileWrite("\n", 1, 1, debugStream);
     }
 
-    // Modder notes
-    const char* modderNotes = "MODDER NOTES:\n"
-                              "- Slot assignments are permanent once mod is released\n"
-                              "- If collision occurs, rename mod file to get new slots\n"
-                              "- Test with other mods before final release\n"
-                              "- Update scripts if you change mod filename\n"
-                              "- Use 'city_*.txt' naming pattern for area mods\n\n";
+    // Write modder notes
+    const char* modderNotes = 
+        "MODDER NOTES:\n"
+        "- Slot assignments are permanent once mod is released\n"
+        "- If collision occurs, rename mod file to get new slots\n"
+        "- Test with other mods before final release\n"
+        "- Update scripts if you change mod filename\n"
+        "- Use 'city_*.txt' naming pattern for area mods\n\n";
     fileWrite(modderNotes, strlen(modderNotes), 1, debugStream);
 
-    // Collision resolution
-    const char* collisionResolution = "COLLISION RESOLUTION:\n"
-                                      "If two mods conflict (want same slot):\n"
-                                      "1. One modder must rename their mod file\n"
-                                      "2. Changing filename changes namespace and slot assignments\n"
-                                      "3. Update any scripts referencing the old slot numbers\n"
-                                      "4. Test with the other mod to ensure no conflicts\n";
+    // Write collision resolution instructions
+    const char* collisionResolution = 
+        "COLLISION RESOLUTION:\n"
+        "If two mods conflict (want same slot):\n"
+        "1. One modder must rename their mod file\n"
+        "2. Changing filename changes namespace and slot assignments\n"
+        "3. Update any scripts referencing the old slot numbers\n"
+        "4. Test with the other mod to ensure no conflicts\n";
     fileWrite(collisionResolution, strlen(collisionResolution), 1, debugStream);
 
-    // Area details for debugging
+    // Write detailed area information
     fileWrite("\nAREA DETAILS:\n", 14, 1, debugStream);
     fileWrite("-------------\n", 14, 1, debugStream);
 
@@ -3266,13 +3256,11 @@ static void wmGenerateAreaListDebug()
                 i, city->name,
                 city->x, city->y,
                 (city->state == 0) ? "Off" : "On",
-                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium"
-                                                                : "Large",
+                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium" : "Large",
                 city->mapFid, city->labelFid,
                 city->entrancesLength);
             fileWrite(details, strlen(details), 1, debugStream);
 
-            // List entrances
             for (int j = 0; j < city->entrancesLength; j++) {
                 EntranceInfo* entrance = &city->entrances[j];
                 char entranceInfo[256];
@@ -3289,22 +3277,6 @@ static void wmGenerateAreaListDebug()
     }
 
     fileClose(debugStream);
-    debugPrint("\nwmGenerateAreaListDebug: Generated area_list.txt with %d base, %d mod areas", baseCount, modCount);
-
-    // Also show a summary message box
-    /*char msg[256];
-    snprintf(msg, sizeof(msg),
-        "Areas list generated:\n"
-        "Base: %d areas (0-%d)\n"
-        "  - %d overridden by mods\n"
-        "Mod: %d areas (%d-%d)\n"
-        "Total: %d areas\n"
-        "See area_list.txt for details",
-        baseCount, BASE_AREA_MAX - 1,
-        overriddenBaseCount,
-        modCount, MOD_AREA_START, MOD_AREA_MAX - 1,
-        baseCount + modCount);
-    showMesageBox(msg);*/
 }
 
 // 0x4BEF68
@@ -3797,9 +3769,8 @@ static int wmMapLoadModFile(const char* filename)
         return 0;
     }
 
-    debugPrint("\nwmMapLoadModFile: Loading mod maps from %s", filename);
+    debugPrint("\nLoading mod maps from %s", filename);
 
-    // Get unique namespace for this mod file
     uint32_t modNamespace = wmGetModNamespace(filename);
 
     int mapsLoaded = 0;
@@ -3808,17 +3779,16 @@ static int wmMapLoadModFile(const char* filename)
 
     // Process all sections in the mod file
     for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
-        // Try different section naming patterns
         char section[40];
         bool found = false;
         char* lookupNameStr = nullptr;
 
-        // Try "Map 151" format (no leading zeros) - e.g., "Map 0", "Map 1", "Map 151"
+        // Try "Map 151" format (no leading zeros)
         snprintf(section, sizeof(section), "Map %d", sectionIdx);
         if (configGetString(&config, section, "lookup_name", &lookupNameStr)) {
             found = true;
         } else {
-            // Try "Map 001" format (3-digit with leading zeros) - e.g., "Map 000", "Map 001", "Map 151"
+            // Try "Map 001" format (3-digit with leading zeros)
             snprintf(section, sizeof(section), "Map %03d", sectionIdx);
             if (configGetString(&config, section, "lookup_name", &lookupNameStr)) {
                 found = true;
@@ -3826,24 +3796,20 @@ static int wmMapLoadModFile(const char* filename)
         }
 
         if (!found) {
-            continue; // No more sections
+            continue;
         }
 
         // Check if this overrides a base map
         bool overrodeBase = false;
         for (int i = 0; i < BASE_MAP_MAX; i++) {
             if (strcmp(wmMapInfoList[i].lookupName, lookupNameStr) == 0) {
-                /*snprintf(debugMsg, sizeof(debugMsg), "Overriding base map '%s' at slot %d", lookupNameStr, i);
-                showMesageBox(debugMsg);*/
-
-                // Track which mod file overrode this base map
                 strncpy(gBaseMapOverrides[i], filename, COMPAT_MAX_PATH - 1);
                 gBaseMapOverrides[i][COMPAT_MAX_PATH - 1] = '\0';
 
                 wmMapUpdateFromConfig(&wmMapInfoList[i], &config, section);
                 overrodeBase = true;
                 mapsOverridden++;
-                debugPrint("\nwmMapLoadModFile: Overrode base map '%s' at slot %d", lookupNameStr, i);
+                debugPrint("\n  Overrode base map '%s' at slot %d", lookupNameStr, i);
                 break;
             }
         }
@@ -3856,10 +3822,11 @@ static int wmMapLoadModFile(const char* filename)
         // Calculate consistent slot for this mod map
         uint16_t targetSlot = wmCalculateModMapSlot(lookupNameStr, modNamespace, mapIndexInThisMod);
 
-        // Check for slot collisions with DIFFERENT maps
-        if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
-
-            // COLLISION DETECTED - fail loudly with clear instructions
+        // Check for slot collisions with different maps
+        if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && 
+            strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
+            
+            // Show error message for collision
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "MAP SLOT COLLISION DETECTED!\n\n"
@@ -3867,28 +3834,18 @@ static int wmMapLoadModFile(const char* filename)
                 "New map: %s\n"
                 "Target slot: %d\n"
                 "Existing map: %s\n\n"
-                "To resolve this conflict:\n"
-                "1. Rename your mod file (e.g., change 'maps_mymod.txt' to 'maps_mymod_v2.txt')\n"
-                "2. This will generate new slot assignments\n"
-                "3. Update any scripts that reference the old slot numbers\n"
-                "4. Test with the other mod to ensure no conflicts",
+                "To resolve: Rename your mod file to change its namespace.",
                 filename, lookupNameStr, targetSlot, wmMapInfoList[targetSlot].lookupName);
             showMesageBox(errorMsg);
 
-            debugPrint("\nwmMapLoadModFile: COLLISION - skipping map '%s' (slot %d occupied by '%s')",
-                lookupNameStr, targetSlot, wmMapInfoList[targetSlot].lookupName);
+            debugPrint("\n  Collision: skipping map '%s' (slot %d occupied)", 
+                      lookupNameStr, targetSlot);
             mapIndexInThisMod++;
             continue;
         }
 
-        // If we get here, either:
-        // - Slot is empty (good)
-        // - Slot contains the SAME map (updating existing - should be rare but handled)
-
         // Initialize the map
         MapInfo* map = &wmMapInfoList[targetSlot];
-
-        // Only initialize if this is a new map (not updating existing)
         if (map->lookupName[0] == '\0') {
             wmMapSlotInit(map);
             strncpy(map->lookupName, lookupNameStr, 40);
@@ -3896,15 +3853,21 @@ static int wmMapLoadModFile(const char* filename)
 
         wmMapInitFromConfig(map, &config, section);
 
-        debugPrint("\nwmMapLoadModFile: Added mod map '%s' at slot %d", lookupNameStr, targetSlot);
-
         mapsLoaded++;
         mapIndexInThisMod++;
     }
 
     configFree(&config);
 
-    debugPrint("\nwmMapLoadModFile: %s: %d maps loaded, %d base maps overridden", filename, mapsLoaded, mapsOverridden);
+    if (mapsLoaded > 0 || mapsOverridden > 0) {
+        const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+        if (!base_filename) base_filename = filename;
+        else base_filename++;
+        
+        debugPrint("\n  %s: %d maps loaded, %d overridden", 
+                  base_filename, mapsLoaded, mapsOverridden);
+    }
+
     return 0;
 }
 
@@ -3912,7 +3875,7 @@ static int wmMapLoadModFile(const char* filename)
 static void wmGenerateMapListDebug()
 {
     char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./maps_list.txt");
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cmaps_list.txt",DIR_SEPARATOR, DIR_SEPARATOR );
 
     File* debugStream = fileOpen(debugPath, "wt");
     if (debugStream == nullptr) {

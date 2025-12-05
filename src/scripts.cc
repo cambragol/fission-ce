@@ -1622,7 +1622,7 @@ static int scriptsLoadScriptsList()
 
     // Generate detailed debug scripts_list file in game root directory using direct file operations
     char scriptsListPath[COMPAT_MAX_PATH];
-    snprintf(scriptsListPath, sizeof(scriptsListPath), "%sscripts_list.txt", _cd_path_base);
+    snprintf(scriptsListPath, sizeof(scriptsListPath), "%sdata%clists%cscripts_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
 
     FILE* scriptsListFile = compat_fopen(scriptsListPath, "wt");
     if (scriptsListFile) {

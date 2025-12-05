@@ -6,7 +6,7 @@
 #include "xfile.h" // for File type
 #define DIR_SEPARATOR '/'
 
-#include <ctime>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -884,7 +884,7 @@ int artInit()
 
     // Create art_list.txt in the game's root directory using direct file operations
     char artListPath[COMPAT_MAX_PATH];
-    snprintf(artListPath, sizeof(artListPath), "%sart_list.txt", _cd_path_base);
+    snprintf(artListPath, sizeof(artListPath), "%sdata%clists%cart_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
 
     FILE* artListFile = compat_fopen(artListPath, "wt");
     if (artListFile) {
