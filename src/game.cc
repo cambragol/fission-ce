@@ -1337,7 +1337,7 @@ int showQuitConfirmationDialog()
 }
 
 // create a folder to hold 'lists' reports
-void createListsFolder() 
+void createListsFolder()
 {
     // create the "lists" folder inside the "data" directory
     const char* dataDir = "data";

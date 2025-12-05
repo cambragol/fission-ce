@@ -533,10 +533,10 @@ char* mapGetName(int map, int elevation)
 
         if (areaIndex != -1 && lookupName != nullptr) {
             const char* modName = wmGetAreaModName(areaIndex);
-            
+
             char compositeKey[256];
             snprintf(compositeKey, sizeof(compositeKey), "MAP:%s:%d", lookupName, elevation);
-            
+
             uint32_t messageId = generate_mod_message_id(modName, compositeKey);
             return getmsg(&gMapMessageList, &messageListItem, messageId);
         }
@@ -611,7 +611,7 @@ char* mapGetCityName(int map)
     }
 
     MessageListItem messageListItem;
-    
+
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
         // Mod area: use the area's message ID (already set during loading)
         messageListItem.num = wmGetAreaId(city);
