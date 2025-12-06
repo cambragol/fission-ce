@@ -1432,6 +1432,158 @@ static int scriptsGetStableIndex(const char* scriptName, int vanillaCount)
 }
 
 // 0x4A4D50
+// Function to generate scripts list report
+static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, char collisionDetails[][256])
+{
+    char scriptsListPath[COMPAT_MAX_PATH];
+    snprintf(scriptsListPath, sizeof(scriptsListPath), "%sdata%clists%cscripts_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* scriptsListFile = compat_fopen(scriptsListPath, "wt");
+    if (!scriptsListFile) {
+        return;
+    }
+
+    // Write concise header
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - Scripts Asset Report\n"
+                         "==============================================================================\n"
+                         "This report shows how scripts are loaded - essential for mod debugging and\n"
+                         "finding script IDs for mod development.\n\n"
+
+                         "Key Features:\n"
+                         "- Vanilla scripts: Protected in lower slots\n"
+                         "- Mod scripts: Your content in remaining slots via filename hashing\n\n"
+
+                         "Usage Notes:\n"
+                         "- Use these script indices when referencing scripts in:\n"
+                         "  • Critter prototypes (.pro files)\n"
+                         "  • Map objects (.map files)\n"
+                         "  • Other script references\n"
+                         "- Script positions are STABLE between game sessions\n"
+                         "- Mod script positions use filename hash for consistency\n"
+                         "==============================================================================\n\n";
+
+    fputs(header, scriptsListFile);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(scriptsListFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Calculate statistics
+    int totalCount = 0;
+    int actualVanillaCount = 0;
+    int actualModCount = 0;
+    int maxIndex = 0;
+    int firstModIndex = -1;
+    int lastModIndex = -1;
+
+    // Count all scripts and find mod script range
+    for (int i = 0; i < gScriptsListEntriesLength; i++) {
+        if (gScriptsListEntries[i].name[0] != '\0') {
+            totalCount++;
+            if (i > maxIndex) maxIndex = i;
+
+            // Determine if this is vanilla or mod
+            if (i < vanillaCount) {
+                actualVanillaCount++;
+            } else {
+                actualModCount++;
+                if (firstModIndex == -1) firstModIndex = i;
+                lastModIndex = i;
+            }
+        }
+    }
+
+    // Write summary information in horizontal style to match art_list.txt
+    fprintf(scriptsListFile,
+        "Total Scripts: %d | Vanilla: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
+        totalCount,
+        actualVanillaCount,
+        actualModCount,
+        gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
+        maxIndex);
+
+    // Slot ranges section
+    fputs("------------------------------------------------------------\n"
+          "Slot Ranges:\n",
+        scriptsListFile);
+
+    if (actualModCount > 0) {
+        fprintf(scriptsListFile,
+            "  Vanilla: 0-%d\n"
+            "  Mods: %d-%d\n",
+            vanillaCount - 1,
+            firstModIndex, lastModIndex);
+    } else {
+        fprintf(scriptsListFile,
+            "  Vanilla: 0-%d\n"
+            "  Mods: (none)\n",
+            vanillaCount - 1);
+    }
+    fputs("------------------------------------------------------------\n", scriptsListFile);
+
+    // Vanilla scripts section
+    if (actualVanillaCount > 0) {
+        fputs("VANILLA SCRIPTS:\n", scriptsListFile);
+        for (int i = 0; i < vanillaCount; i++) {
+            if (gScriptsListEntries[i].name[0] != '\0') {
+                fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
+            }
+        }
+        fputs("\n", scriptsListFile);
+    }
+
+    // Mod scripts section
+    if (actualModCount > 0) {
+        fputs("MOD SCRIPTS:\n", scriptsListFile);
+        for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
+            if (gScriptsListEntries[i].name[0] != '\0') {
+                fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
+                    i, gScriptsListEntries[i].name,
+                    gScriptsListEntries[i].local_vars_num);
+            }
+        }
+        fputs("\n", scriptsListFile);
+    } else {
+        fputs("MOD SCRIPTS:\n", scriptsListFile);
+        fputs("  (no mod scripts found)\n\n", scriptsListFile);
+    }
+
+    // Add collision details section if there were collisions
+    if (collisionOccurred) {
+        fputs("  --- CONFLICT DETAILS ---\n", scriptsListFile);
+        for (int i = 0; i < 4096; i++) {
+            if (collisionDetails[i][0] != '\0') {
+                fprintf(scriptsListFile, "  # %4d: %s\n", i, collisionDetails[i]);
+            }
+        }
+        fputs("\n", scriptsListFile);
+    }
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", scriptsListFile);
+    
+    if (collisionOccurred) {
+        fputs("WARNING: Hash collisions detected!\n", scriptsListFile);
+        fputs("Some mod scripts were not loaded due to hash conflicts.\n", scriptsListFile);
+        fputs("Fix by renaming script files to resolve conflicts.\n\n", scriptsListFile);
+    }
+    
+    fputs("- Script positions are STABLE - they won't change between game sessions\n", scriptsListFile);
+    fputs("- Mod script positions are determined by filename hash for consistency\n", scriptsListFile);
+    fputs("- Reference these exact numbers in your .pro, .map, and other files\n", scriptsListFile);
+    fputs("- Hash collisions are NOT resolved - conflicting scripts are skipped\n", scriptsListFile);
+    fputs("  (unlike art assets, scripts cannot be safely overwritten)\n", scriptsListFile);
+
+    fclose(scriptsListFile);
+}
+
 static int scriptsLoadScriptsList()
 {
     char path[COMPAT_MAX_PATH];
@@ -1498,6 +1650,10 @@ static int scriptsLoadScriptsList()
 
     // Store vanilla count before loading mods
     int vanillaCount = gScriptsListEntriesLength;
+
+    // Initialize collision tracking
+    bool collisionOccurred = false;
+    char collisionDetails[4096][256] = {{0}}; // For tracking collisions
 
     // same pattern used in art.cc for .dat compatibility - very finicky
     char searchPattern[COMPAT_MAX_PATH];
@@ -1576,21 +1732,33 @@ static int scriptsLoadScriptsList()
                 // Use stable hashed indices for mod scripts
                 int hashedId = scriptsGetStableIndex(entry.name, vanillaCount);
 
-                // Handle collisions by finding next available slot
+                // Check for index collision with existing assets
                 if (hashedId < 4096 && gScriptsListEntries[hashedId].name[0] != '\0') {
-                    // Collision detected - find next available slot sequentially?
-                    // Should probably report this in scripts_list.txt, like in art_lists
-                    int originalId = hashedId;
-                    hashedId = vanillaCount;
-                    while (hashedId < 4096 && gScriptsListEntries[hashedId].name[0] != '\0') {
-                        hashedId++;
+                    // Collision detected - show popup and skip
+                    collisionOccurred = true;
+                    
+                    // Store collision details for reporting
+                    if (hashedId < 4096) {
+                        snprintf(collisionDetails[hashedId], sizeof(collisionDetails[hashedId]),
+                            "COLLISION: %s (existing) vs %s (new)", 
+                            gScriptsListEntries[hashedId].name, entry.name);
                     }
-                    if (hashedId >= 4096) {
-                        // No space left - skip this script
-                        debugPrint("Warning: No space for mod script: %s (original slot %d was occupied)\n",
-                            entry.name, originalId);
-                        continue;
-                    }
+
+                    // Show error message for collision (similar to area assets)
+                    char errorMsg[512];
+                    snprintf(errorMsg, sizeof(errorMsg),
+                        "SCRIPT SLOT COLLISION DETECTED!\n\n"
+                        "New script: %s\n"
+                        "Target slot: %d\n"
+                        "Existing script: %s\n\n"
+                        "To resolve: Rename your script file to change its namespace.\n\n"
+                        "The script '%s' will NOT be loaded.",
+                        entry.name, hashedId, gScriptsListEntries[hashedId].name, entry.name);
+                    showMesageBox(errorMsg);
+
+                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')", 
+                              entry.name, hashedId, gScriptsListEntries[hashedId].name);
+                    continue; // Skip this script entirely
                 }
 
                 // Ensure we have enough space (but don't exceed 4096)
@@ -1620,132 +1788,8 @@ static int scriptsLoadScriptsList()
         fileNameListFree(&foundModFiles, modFileCount);
     }
 
-    // Generate detailed debug scripts_list file in game root directory using direct file operations
-    char scriptsListPath[COMPAT_MAX_PATH];
-    snprintf(scriptsListPath, sizeof(scriptsListPath), "%sdata%clists%cscripts_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
-
-    FILE* scriptsListFile = compat_fopen(scriptsListPath, "wt");
-    if (scriptsListFile) {
-        // Write concise header
-        const char* header = "==============================================================================\n"
-                             "Fallout 2 Fission - Scripts Asset Report\n"
-                             "==============================================================================\n"
-                             "This report shows how scripts are loaded - essential for mod debugging and\n"
-                             "finding script IDs for mod development.\n\n"
-
-                             "Key Features:\n"
-                             "- Vanilla scripts: Protected in lower slots\n"
-                             "- Mod scripts: Your content in remaining slots via filename hashing\n\n"
-
-                             "Usage Notes:\n"
-                             "- Use these script indices when referencing scripts in:\n"
-                             "  • Critter prototypes (.pro files)\n"
-                             "  • Map objects (.map files)\n"
-                             "  • Other script references\n"
-                             "- Script positions are STABLE between game sessions\n"
-                             "- Mod script positions use filename hash for consistency\n"
-                             "==============================================================================\n\n";
-
-        fputs(header, scriptsListFile);
-
-        // Write timestamp
-        time_t now = time(0);
-        struct tm* t = localtime(&now);
-        fprintf(scriptsListFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
-
-        // Calculate statistics
-        int totalCount = 0;
-        int actualVanillaCount = 0;
-        int actualModCount = 0;
-        int maxIndex = 0;
-        int firstModIndex = -1;
-        int lastModIndex = -1;
-
-        // Count all scripts and find mod script range
-        for (int i = 0; i < gScriptsListEntriesLength; i++) {
-            if (gScriptsListEntries[i].name[0] != '\0') {
-                totalCount++;
-                if (i > maxIndex) maxIndex = i;
-
-                // Determine if this is vanilla or mod
-                if (i < vanillaCount) {
-                    actualVanillaCount++;
-                } else {
-                    actualModCount++;
-                    if (firstModIndex == -1) firstModIndex = i;
-                    lastModIndex = i;
-                }
-            }
-        }
-
-        // Write summary information in horizontal style to match art_list.txt
-        fprintf(scriptsListFile,
-            "Total Scripts: %d | Vanilla: %d | Mods: %d\n"
-            "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
-            totalCount,
-            actualVanillaCount,
-            actualModCount,
-            gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
-            maxIndex);
-
-        // Slot ranges section
-        fputs("------------------------------------------------------------\n"
-              "Slot Ranges:\n",
-            scriptsListFile);
-
-        if (actualModCount > 0) {
-            fprintf(scriptsListFile,
-                "  Vanilla: 0-%d\n"
-                "  Mods: %d-%d\n",
-                vanillaCount - 1,
-                firstModIndex, lastModIndex);
-        } else {
-            fprintf(scriptsListFile,
-                "  Vanilla: 0-%d\n"
-                "  Mods: (none)\n",
-                vanillaCount - 1);
-        }
-        fputs("------------------------------------------------------------\n", scriptsListFile);
-
-        // Vanilla scripts section
-        if (actualVanillaCount > 0) {
-            fputs("VANILLA SCRIPTS:\n", scriptsListFile);
-            for (int i = 0; i < vanillaCount; i++) {
-                if (gScriptsListEntries[i].name[0] != '\0') {
-                    fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                        i, gScriptsListEntries[i].name,
-                        gScriptsListEntries[i].local_vars_num);
-                }
-            }
-            fputs("\n", scriptsListFile);
-        }
-
-        // Mod scripts section
-        if (actualModCount > 0) {
-            fputs("MOD SCRIPTS:\n", scriptsListFile);
-            for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
-                if (gScriptsListEntries[i].name[0] != '\0') {
-                    fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                        i, gScriptsListEntries[i].name,
-                        gScriptsListEntries[i].local_vars_num);
-                }
-            }
-            fputs("\n", scriptsListFile);
-        } else {
-            fputs("MOD SCRIPTS:\n", scriptsListFile);
-            fputs("  (no mod scripts found)\n\n", scriptsListFile);
-        }
-
-        // Important notes footer
-        fputs("=== IMPORTANT NOTES ===\n", scriptsListFile);
-        fputs("- Script positions are STABLE - they won't change between game sessions\n", scriptsListFile);
-        fputs("- Mod script positions are determined by filename hash for consistency\n", scriptsListFile);
-        fputs("- Reference these exact numbers in your .pro, .map, and other files\n", scriptsListFile);
-
-        fclose(scriptsListFile);
-    }
+    // Generate the report using the separate function
+    generateScriptsListReport(vanillaCount, collisionOccurred, collisionDetails);
 
     return 0;
 }
