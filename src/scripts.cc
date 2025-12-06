@@ -1701,8 +1701,7 @@ static int scriptsLoadScriptsList()
             char supplementaryString[260];
             while (fileReadString(supplementaryString, 260, supplementaryStream)) {
                 ScriptsListEntry entry;
-                entry.local_vars_num = 0;
-                entry.name[0] = '\0';
+                memset(&entry, 0, sizeof(ScriptsListEntry));  // Clear entire struct
 
                 // Parse script name and local_vars (same as base scripst.lst file)
                 char* substr = strstr(supplementaryString, ".int");
@@ -1732,15 +1731,33 @@ static int scriptsLoadScriptsList()
                 // Use stable hashed indices for mod scripts
                 int hashedId = scriptsGetStableIndex(entry.name, vanillaCount);
 
-                // Check for index collision with existing assets
-                if (hashedId < 4096 && gScriptsListEntries[hashedId].name[0] != '\0') {
+                // Ensure we have enough space (but don't exceed 4096) - MUST BE FIRST!
+                if (hashedId >= gScriptsListEntriesLength) {
+                    int newLength = (hashedId + 1) < 4096 ? (hashedId + 1) : 4096;
+                    ScriptsListEntry* newEntries = (ScriptsListEntry*)internal_realloc(gScriptsListEntries, sizeof(*newEntries) * newLength);
+                    if (newEntries == nullptr) {
+                        fileClose(supplementaryStream);
+                        break;
+                    }
+
+                    // Initialize new entries - clear entire struct to avoid garbage
+                    for (int j = gScriptsListEntriesLength; j < newLength; j++) {
+                        memset(&newEntries[j], 0, sizeof(ScriptsListEntry));
+                    }
+
+                    gScriptsListEntries = newEntries;
+                    gScriptsListEntriesLength = newLength;
+                }
+
+                // Now check for index collision with existing assets
+                if (gScriptsListEntries[hashedId].name[0] != '\0') {
                     // Collision detected - show popup and skip
                     collisionOccurred = true;
-
+                    
                     // Store collision details for reporting
                     if (hashedId < 4096) {
                         snprintf(collisionDetails[hashedId], sizeof(collisionDetails[hashedId]),
-                            "COLLISION: %s (existing) vs %s (new)",
+                            "COLLISION: %s (existing) vs %s (new)", 
                             gScriptsListEntries[hashedId].name, entry.name);
                     }
 
@@ -1756,28 +1773,9 @@ static int scriptsLoadScriptsList()
                         entry.name, hashedId, gScriptsListEntries[hashedId].name, entry.name);
                     showMesageBox(errorMsg);
 
-                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')",
-                        entry.name, hashedId, gScriptsListEntries[hashedId].name);
+                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')", 
+                            entry.name, hashedId, gScriptsListEntries[hashedId].name);
                     continue; // Skip this script entirely
-                }
-
-                // Ensure we have enough space (but don't exceed 4096)
-                if (hashedId >= gScriptsListEntriesLength) {
-                    int newLength = (hashedId + 1) < 4096 ? (hashedId + 1) : 4096;
-                    ScriptsListEntry* newEntries = (ScriptsListEntry*)internal_realloc(gScriptsListEntries, sizeof(*newEntries) * newLength);
-                    if (newEntries == nullptr) {
-                        fileClose(supplementaryStream);
-                        break;
-                    }
-
-                    // Initialize new entries
-                    for (int j = gScriptsListEntriesLength; j < newLength; j++) {
-                        newEntries[j].name[0] = '\0';
-                        newEntries[j].local_vars_num = 0;
-                    }
-
-                    gScriptsListEntries = newEntries;
-                    gScriptsListEntriesLength = newLength;
                 }
 
                 // Add the entry at the calculated position
