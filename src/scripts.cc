@@ -1701,7 +1701,7 @@ static int scriptsLoadScriptsList()
             char supplementaryString[260];
             while (fileReadString(supplementaryString, 260, supplementaryStream)) {
                 ScriptsListEntry entry;
-                memset(&entry, 0, sizeof(ScriptsListEntry));  // Clear entire struct
+                memset(&entry, 0, sizeof(ScriptsListEntry)); // Clear entire struct
 
                 // Parse script name and local_vars (same as base scripst.lst file)
                 char* substr = strstr(supplementaryString, ".int");
@@ -1753,11 +1753,11 @@ static int scriptsLoadScriptsList()
                 if (gScriptsListEntries[hashedId].name[0] != '\0') {
                     // Collision detected - show popup and skip
                     collisionOccurred = true;
-                    
+
                     // Store collision details for reporting
                     if (hashedId < 4096) {
                         snprintf(collisionDetails[hashedId], sizeof(collisionDetails[hashedId]),
-                            "COLLISION: %s (existing) vs %s (new)", 
+                            "COLLISION: %s (existing) vs %s (new)",
                             gScriptsListEntries[hashedId].name, entry.name);
                     }
 
@@ -1773,8 +1773,8 @@ static int scriptsLoadScriptsList()
                         entry.name, hashedId, gScriptsListEntries[hashedId].name, entry.name);
                     showMesageBox(errorMsg);
 
-                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')", 
-                            entry.name, hashedId, gScriptsListEntries[hashedId].name);
+                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')",
+                        entry.name, hashedId, gScriptsListEntries[hashedId].name);
                     continue; // Skip this script entirely
                 }
 
