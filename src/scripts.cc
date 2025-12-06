@@ -1568,13 +1568,13 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
 
     // Important notes footer
     fputs("=== IMPORTANT NOTES ===\n", scriptsListFile);
-    
+
     if (collisionOccurred) {
         fputs("WARNING: Hash collisions detected!\n", scriptsListFile);
         fputs("Some mod scripts were not loaded due to hash conflicts.\n", scriptsListFile);
         fputs("Fix by renaming script files to resolve conflicts.\n\n", scriptsListFile);
     }
-    
+
     fputs("- Script positions are STABLE - they won't change between game sessions\n", scriptsListFile);
     fputs("- Mod script positions are determined by filename hash for consistency\n", scriptsListFile);
     fputs("- Reference these exact numbers in your .pro, .map, and other files\n", scriptsListFile);
@@ -1653,7 +1653,7 @@ static int scriptsLoadScriptsList()
 
     // Initialize collision tracking
     bool collisionOccurred = false;
-    char collisionDetails[4096][256] = {{0}}; // For tracking collisions
+    char collisionDetails[4096][256] = { { 0 } }; // For tracking collisions
 
     // same pattern used in art.cc for .dat compatibility - very finicky
     char searchPattern[COMPAT_MAX_PATH];
@@ -1736,11 +1736,11 @@ static int scriptsLoadScriptsList()
                 if (hashedId < 4096 && gScriptsListEntries[hashedId].name[0] != '\0') {
                     // Collision detected - show popup and skip
                     collisionOccurred = true;
-                    
+
                     // Store collision details for reporting
                     if (hashedId < 4096) {
                         snprintf(collisionDetails[hashedId], sizeof(collisionDetails[hashedId]),
-                            "COLLISION: %s (existing) vs %s (new)", 
+                            "COLLISION: %s (existing) vs %s (new)",
                             gScriptsListEntries[hashedId].name, entry.name);
                     }
 
@@ -1756,8 +1756,8 @@ static int scriptsLoadScriptsList()
                         entry.name, hashedId, gScriptsListEntries[hashedId].name, entry.name);
                     showMesageBox(errorMsg);
 
-                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')", 
-                              entry.name, hashedId, gScriptsListEntries[hashedId].name);
+                    debugPrint("\n  Collision: skipping script '%s' (slot %d occupied by '%s')",
+                        entry.name, hashedId, gScriptsListEntries[hashedId].name);
                     continue; // Skip this script entirely
                 }
 

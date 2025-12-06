@@ -640,8 +640,8 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                                 modAssetName, index, existing, modAssetName);
                             showMesageBox(errorMsg);
 
-                            debugPrint("\n  Collision: skipping art asset '%s' (slot %d occupied by '%s')", 
-                                      modAssetName, index, existing);
+                            debugPrint("\n  Collision: skipping art asset '%s' (slot %d occupied by '%s')",
+                                modAssetName, index, existing);
 
                             // Record collision but don't overwrite
                             snprintf(desc->collisionDetails[index], sizeof(desc->collisionDetails[index]),
@@ -655,9 +655,8 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     }
 
                     // If slot is not used OR slot is marked used but empty, we can use it
-                    if (!desc->usedIndices[index] || 
-                        (desc->usedIndices[index] && desc->fileNames[index * FILENAME_LENGTH] == '\0')) {
-                        
+                    if (!desc->usedIndices[index] || (desc->usedIndices[index] && desc->fileNames[index * FILENAME_LENGTH] == '\0')) {
+
                         // Expand asset array if needed
                         if (index >= desc->fileNamesLength) {
                             int newLength = index + 1;
@@ -1044,7 +1043,7 @@ static int artInitHeadData()
 int artInit()
 {
     char path[COMPAT_MAX_PATH];
-    
+
     // Initialize art cache
     int cacheSize = settings.system.art_cache_size;
     if (!cacheInit(&gArtCache, artCacheGetFileSizeImpl, artCacheReadDataImpl, artCacheFreeImpl, cacheSize << 20)) {
@@ -1072,8 +1071,8 @@ int artInit()
         }
 
         // 1. Load VANILLA assets
-        snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", 
-                gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
+        snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\",
+            gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
 
         if (artReadList(path, &(desc->fileNames), &(desc->fileNamesLength)) != 0) {
             debugPrint("art_read_lst failed in art_init\n");
@@ -1099,7 +1098,7 @@ int artInit()
             }
         }
         desc->fileNamesLength = MAX_ART_INDICES;
-        
+
         // 3. Load MOD Assets
         // Build base directory path for this art category
         char baseDir[COMPAT_MAX_PATH];
@@ -1108,7 +1107,7 @@ int artInit()
             DIR_SEPARATOR,
             desc->name,
             DIR_SEPARATOR);
-            
+
         artLoadModAssets(desc, baseDir);
     }
 

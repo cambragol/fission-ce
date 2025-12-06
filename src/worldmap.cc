@@ -3013,9 +3013,8 @@ static int wmAreaLoadModFile(const char* filename)
         uint16_t targetSlot = wmAreaCalculateModSlot(areaNameStr, modNamespace, areaIndexInThisMod);
 
         // Check for slot collisions with different areas
-        if (wmAreaInfoList[targetSlot].name[0] != '\0' && 
-            strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
-            
+        if (wmAreaInfoList[targetSlot].name[0] != '\0' && strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
+
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "AREA SLOT COLLISION DETECTED!\n\n"
@@ -3026,7 +3025,7 @@ static int wmAreaLoadModFile(const char* filename)
                 "To resolve: Rename your mod file to change its namespace.",
                 filename, areaNameStr, targetSlot, wmAreaInfoList[targetSlot].name);
             showMesageBox(errorMsg);
-            
+
             areaIndexInThisMod++;
             continue;
         }
@@ -3093,27 +3092,26 @@ static void wmGenerateAreaListDebug()
     }
 
     // Write header
-    const char* header = 
-        "==============================================================================\n"
-        "Fallout 2 Fission - World Area Report\n"
-        "==============================================================================\n"
-        "This report shows how world areas are loaded - essential for mod debugging and\n"
-        "finding area IDs for mod development.\n\n"
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - World Area Report\n"
+                         "==============================================================================\n"
+                         "This report shows how world areas are loaded - essential for mod debugging and\n"
+                         "finding area IDs for mod development.\n\n"
 
-        "Key Features:\n"
-        "- Base areas: Protected in lower slots (0-199)\n"
-        "- Mod areas: Your content in remaining slots (200-4095) via deterministic hashing\n"
-        "- Base areas can be overridden by mods (replacing the original area)\n"
-        "- Hash collisions trigger popup warnings and the area is skipped\n\n"
+                         "Key Features:\n"
+                         "- Base areas: Protected in lower slots (0-199)\n"
+                         "- Mod areas: Your content in remaining slots (200-4095) via deterministic hashing\n"
+                         "- Base areas can be overridden by mods (replacing the original area)\n"
+                         "- Hash collisions trigger popup warnings and the area is skipped\n\n"
 
-        "Usage Notes:\n"
-        "- Use these area indices when referencing areas in:\n"
-        "  • Scripts (call travel_to, etc.)\n"
-        "  • World map travel events\n"
-        "  • City state management\n"
-        "- Area positions are STABLE between game sessions\n"
-        "- Mod area positions use mod filename + area name hash for consistency\n"
-        "==============================================================================\n\n";
+                         "Usage Notes:\n"
+                         "- Use these area indices when referencing areas in:\n"
+                         "  • Scripts (call travel_to, etc.)\n"
+                         "  • World map travel events\n"
+                         "  • City state management\n"
+                         "- Area positions are STABLE between game sessions\n"
+                         "- Mod area positions use mod filename + area name hash for consistency\n"
+                         "==============================================================================\n\n";
 
     fputs(header, debugStream);
 
@@ -3121,15 +3119,15 @@ static void wmGenerateAreaListDebug()
     time_t now = time(0);
     struct tm* t = localtime(&now);
     fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
 
     // Gather statistics
     int baseCount = 0, modCount = 0;
     int overriddenBaseCount = 0;
     int duplicateNameCount = 0;
     int maxUsedIndex = 0;
-    
+
     // Track which area names are duplicates
     bool* isDuplicateName = (bool*)internal_malloc(wmMaxAreaNum * sizeof(bool));
     if (isDuplicateName) {
@@ -3140,7 +3138,7 @@ static void wmGenerateAreaListDebug()
     for (int i = 0; i < wmMaxAreaNum; i++) {
         if (wmAreaInfoList[i].name[0] != '\0') {
             if (i > maxUsedIndex) maxUsedIndex = i;
-            
+
             if (i < BASE_AREA_MAX) {
                 baseCount++;
                 if (gBaseAreaOverrides[i][0] != '\0') {
@@ -3149,12 +3147,11 @@ static void wmGenerateAreaListDebug()
             } else {
                 modCount++;
             }
-            
+
             // Check for duplicate area names (only check forward)
             if (isDuplicateName) {
                 for (int j = i + 1; j < wmMaxAreaNum; j++) {
-                    if (wmAreaInfoList[j].name[0] != '\0' &&
-                        strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
+                    if (wmAreaInfoList[j].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
                         isDuplicateName[i] = true;
                         isDuplicateName[j] = true;
                         duplicateNameCount++;
@@ -3197,11 +3194,11 @@ static void wmGenerateAreaListDebug()
                     overrideMarker = " [OVERRIDDEN]";
                 }
                 fprintf(debugStream, "  %5d: %s (%d,%d)%s\n",
-                        i,
-                        wmAreaInfoList[i].name,
-                        wmAreaInfoList[i].x,
-                        wmAreaInfoList[i].y,
-                        overrideMarker);
+                    i,
+                    wmAreaInfoList[i].name,
+                    wmAreaInfoList[i].x,
+                    wmAreaInfoList[i].y,
+                    overrideMarker);
             }
         }
         fputs("\n", debugStream);
@@ -3217,11 +3214,11 @@ static void wmGenerateAreaListDebug()
                     duplicateMarker = " #";
                 }
                 fprintf(debugStream, "  %5d: %s (%d,%d)%s\n",
-                        i,
-                        wmAreaInfoList[i].name,
-                        wmAreaInfoList[i].x,
-                        wmAreaInfoList[i].y,
-                        duplicateMarker);
+                    i,
+                    wmAreaInfoList[i].name,
+                    wmAreaInfoList[i].x,
+                    wmAreaInfoList[i].y,
+                    duplicateMarker);
             }
         }
         fputs("\n", debugStream);
@@ -3238,7 +3235,7 @@ static void wmGenerateAreaListDebug()
                 const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
                 const char* modName = lastSlash ? lastSlash + 1 : gBaseAreaOverrides[i];
                 fprintf(debugStream, "  ! %5d: %s -> overridden by %s\n",
-                        i, wmAreaInfoList[i].name, modName);
+                    i, wmAreaInfoList[i].name, modName);
             }
         }
         fputs("\n", debugStream);
@@ -3251,16 +3248,15 @@ static void wmGenerateAreaListDebug()
         bool* reported = (bool*)internal_malloc(wmMaxAreaNum * sizeof(bool));
         if (reported) {
             memset(reported, 0, wmMaxAreaNum * sizeof(bool));
-            
+
             for (int i = MOD_AREA_START; i < wmMaxAreaNum; i++) {
                 if (wmAreaInfoList[i].name[0] != '\0' && isDuplicateName[i] && !reported[i]) {
                     // Find all slots with this area name
                     fprintf(debugStream, "  # %s:\n", wmAreaInfoList[i].name);
                     for (int j = i; j < wmMaxAreaNum; j++) {
-                        if (wmAreaInfoList[j].name[0] != '\0' && 
-                            strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
-                            fprintf(debugStream, "      Slot %d at (%d,%d)\n", 
-                                    j, wmAreaInfoList[j].x, wmAreaInfoList[j].y);
+                        if (wmAreaInfoList[j].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
+                            fprintf(debugStream, "      Slot %d at (%d,%d)\n",
+                                j, wmAreaInfoList[j].x, wmAreaInfoList[j].y);
                             reported[j] = true;
                         }
                     }
@@ -3274,26 +3270,27 @@ static void wmGenerateAreaListDebug()
     // Area details section
     fputs("AREA DETAILS:\n", debugStream);
     fputs("-------------\n", debugStream);
-    
+
     for (int i = 0; i < wmMaxAreaNum; i++) {
         if (wmAreaInfoList[i].name[0] != '\0') {
             CityInfo* city = &wmAreaInfoList[i];
-            
+
             fprintf(debugStream, "Slot %d: %s\n", i, city->name);
             fprintf(debugStream, "  World Position: %d,%d\n", city->x, city->y);
             fprintf(debugStream, "  State: %s, Size: %s\n",
-                    (city->state == 0) ? "Off" : "On",
-                    (city->size == 0) ? "Small" : (city->size == 1) ? "Medium" : "Large");
+                (city->state == 0) ? "Off" : "On",
+                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium"
+                                                                : "Large");
             fprintf(debugStream, "  Map FID: %d, Label FID: %d\n", city->mapFid, city->labelFid);
             fprintf(debugStream, "  Entrances: %d\n", city->entrancesLength);
-            
+
             for (int j = 0; j < city->entrancesLength; j++) {
                 EntranceInfo* entrance = &city->entrances[j];
                 fprintf(debugStream, "    Entrance %d: %s at %d,%d -> map %d\n",
-                        j,
-                        (entrance->state == 0) ? "Off" : "On",
-                        entrance->x, entrance->y,
-                        entrance->map);
+                    j,
+                    (entrance->state == 0) ? "Off" : "On",
+                    entrance->x, entrance->y,
+                    entrance->map);
             }
             fputs("\n", debugStream);
         }
@@ -3301,19 +3298,19 @@ static void wmGenerateAreaListDebug()
 
     // Important notes footer
     fputs("=== IMPORTANT NOTES ===\n", debugStream);
-    
+
     if (duplicateNameCount > 0) {
         fputs("WARNING: Duplicate area names detected!\n", debugStream);
         fputs("This is generally safe but can cause confusion in scripts.\n", debugStream);
         fputs("Consider using unique area names for different locations.\n\n", debugStream);
     }
-    
+
     if (overriddenBaseCount > 0) {
         fputs("! Base area overrides detected\n", debugStream);
         fputs("  Vanilla areas have been replaced by mod versions\n", debugStream);
         fputs("  This is intentional behavior for area replacements\n\n", debugStream);
     }
-    
+
     fputs("- Area positions are STABLE - they won't change between game sessions\n", debugStream);
     fputs("- Mod area positions use mod filename + area name hash for consistency\n", debugStream);
     fputs("- Hash collisions show popup warnings and skip the conflicting area\n", debugStream);
@@ -3324,7 +3321,7 @@ static void wmGenerateAreaListDebug()
     if (isDuplicateName) {
         internal_free(isDuplicateName);
     }
-    
+
     fclose(debugStream);
     debugPrint("\nwmGenerateAreaListDebug: Generated area_list.txt with %d base, %d mod areas", baseCount, modCount);
 }
@@ -3862,9 +3859,8 @@ static int wmMapLoadModFile(const char* filename)
         uint16_t targetSlot = wmCalculateModMapSlot(lookupNameStr, modNamespace, mapIndexInThisMod);
 
         // Check for slot collisions with different maps
-        if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && 
-            strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
-            
+        if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
+
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "MAP SLOT COLLISION DETECTED!\n\n"
@@ -3875,7 +3871,7 @@ static int wmMapLoadModFile(const char* filename)
                 "To resolve: Rename your mod file to change its namespace.",
                 filename, lookupNameStr, targetSlot, wmMapInfoList[targetSlot].lookupName);
             showMesageBox(errorMsg);
-            
+
             mapIndexInThisMod++;
             continue;
         }
@@ -3910,27 +3906,26 @@ static void wmGenerateMapListDebug()
     }
 
     // Write header in the consistent style
-    const char* header = 
-        "==============================================================================\n"
-        "Fallout 2 Fission - World Map Report\n"
-        "==============================================================================\n"
-        "This report shows how world maps are loaded - essential for mod debugging and\n"
-        "finding map IDs for mod development.\n\n"
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - World Map Report\n"
+                         "==============================================================================\n"
+                         "This report shows how world maps are loaded - essential for mod debugging and\n"
+                         "finding map IDs for mod development.\n\n"
 
-        "Key Features:\n"
-        "- Base maps: Protected in lower slots (0-199)\n"
-        "- Mod maps: Your content in remaining slots (200-4095) via deterministic hashing\n"
-        "- Base maps can be overridden by mods (replacing the original map)\n"
-        "- Hash collisions trigger popup warnings and the map is skipped\n\n"
+                         "Key Features:\n"
+                         "- Base maps: Protected in lower slots (0-199)\n"
+                         "- Mod maps: Your content in remaining slots (200-4095) via deterministic hashing\n"
+                         "- Base maps can be overridden by mods (replacing the original map)\n"
+                         "- Hash collisions trigger popup warnings and the map is skipped\n\n"
 
-        "Usage Notes:\n"
-        "- Use these map indices when referencing maps in:\n"
-        "  • Scripts (call load_map, etc.)\n"
-        "  • Encounter tables\n"
-        "  • World travel events\n"
-        "- Map positions are STABLE between game sessions\n"
-        "- Mod map positions use mod filename + lookup name hash for consistency\n"
-        "==============================================================================\n\n";
+                         "Usage Notes:\n"
+                         "- Use these map indices when referencing maps in:\n"
+                         "  • Scripts (call load_map, etc.)\n"
+                         "  • Encounter tables\n"
+                         "  • World travel events\n"
+                         "- Map positions are STABLE between game sessions\n"
+                         "- Mod map positions use mod filename + lookup name hash for consistency\n"
+                         "==============================================================================\n\n";
 
     fputs(header, debugStream);
 
@@ -3938,15 +3933,15 @@ static void wmGenerateMapListDebug()
     time_t now = time(0);
     struct tm* t = localtime(&now);
     fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
 
     // Gather statistics
     int baseCount = 0, modCount = 0;
     int overriddenBaseCount = 0;
     int duplicateNameCount = 0;
     int maxUsedIndex = 0;
-    
+
     // Track which lookup names are duplicates
     bool* isDuplicateLookup = (bool*)internal_malloc(wmMaxMapNum * sizeof(bool));
     if (isDuplicateLookup) {
@@ -3957,7 +3952,7 @@ static void wmGenerateMapListDebug()
     for (int i = 0; i < wmMaxMapNum; i++) {
         if (wmMapInfoList[i].lookupName[0] != '\0') {
             if (i > maxUsedIndex) maxUsedIndex = i;
-            
+
             if (i < BASE_MAP_MAX) {
                 baseCount++;
                 if (gBaseMapOverrides[i][0] != '\0') {
@@ -3966,12 +3961,11 @@ static void wmGenerateMapListDebug()
             } else {
                 modCount++;
             }
-            
+
             // Check for duplicate lookup names (only check forward)
             if (isDuplicateLookup) {
                 for (int j = i + 1; j < wmMaxMapNum; j++) {
-                    if (wmMapInfoList[j].lookupName[0] != '\0' &&
-                        strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
+                    if (wmMapInfoList[j].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
                         isDuplicateLookup[i] = true;
                         isDuplicateLookup[j] = true;
                         duplicateNameCount++;
@@ -4014,10 +4008,10 @@ static void wmGenerateMapListDebug()
                     overrideMarker = " [OVERRIDDEN]";
                 }
                 fprintf(debugStream, "  %5d: %s (%s)%s\n",
-                        i,
-                        wmMapInfoList[i].lookupName,
-                        wmMapInfoList[i].mapFileName,
-                        overrideMarker);
+                    i,
+                    wmMapInfoList[i].lookupName,
+                    wmMapInfoList[i].mapFileName,
+                    overrideMarker);
             }
         }
         fputs("\n", debugStream);
@@ -4033,10 +4027,10 @@ static void wmGenerateMapListDebug()
                     duplicateMarker = " #";
                 }
                 fprintf(debugStream, "  %5d: %s (%s)%s\n",
-                        i,
-                        wmMapInfoList[i].lookupName,
-                        wmMapInfoList[i].mapFileName,
-                        duplicateMarker);
+                    i,
+                    wmMapInfoList[i].lookupName,
+                    wmMapInfoList[i].mapFileName,
+                    duplicateMarker);
             }
         }
         fputs("\n", debugStream);
@@ -4053,7 +4047,7 @@ static void wmGenerateMapListDebug()
                 const char* lastSlash = strrchr(gBaseMapOverrides[i], DIR_SEPARATOR);
                 const char* modName = lastSlash ? lastSlash + 1 : gBaseMapOverrides[i];
                 fprintf(debugStream, "  ! %5d: %s -> overridden by %s\n",
-                        i, wmMapInfoList[i].lookupName, modName);
+                    i, wmMapInfoList[i].lookupName, modName);
             }
         }
         fputs("\n", debugStream);
@@ -4066,14 +4060,13 @@ static void wmGenerateMapListDebug()
         bool* reported = (bool*)internal_malloc(wmMaxMapNum * sizeof(bool));
         if (reported) {
             memset(reported, 0, wmMaxMapNum * sizeof(bool));
-            
+
             for (int i = MOD_MAP_START; i < wmMaxMapNum; i++) {
                 if (wmMapInfoList[i].lookupName[0] != '\0' && isDuplicateLookup[i] && !reported[i]) {
                     // Find all slots with this lookup name
                     fprintf(debugStream, "  # %s:\n", wmMapInfoList[i].lookupName);
                     for (int j = i; j < wmMaxMapNum; j++) {
-                        if (wmMapInfoList[j].lookupName[0] != '\0' && 
-                            strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
+                        if (wmMapInfoList[j].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
                             fprintf(debugStream, "      Slot %d: %s\n", j, wmMapInfoList[j].mapFileName);
                             reported[j] = true;
                         }
@@ -4087,19 +4080,19 @@ static void wmGenerateMapListDebug()
 
     // Important notes footer (matching style of other reports)
     fputs("=== IMPORTANT NOTES ===\n", debugStream);
-    
+
     if (duplicateNameCount > 0) {
         fputs("WARNING: Duplicate map lookup names detected!\n", debugStream);
         fputs("This is generally safe but can cause confusion in scripts.\n", debugStream);
         fputs("Consider using unique lookup names for different maps.\n\n", debugStream);
     }
-    
+
     if (overriddenBaseCount > 0) {
         fputs("! Base map overrides detected\n", debugStream);
         fputs("  Vanilla maps have been replaced by mod versions\n", debugStream);
         fputs("  This is intentional behavior for map replacements\n\n", debugStream);
     }
-    
+
     fputs("- Map positions are STABLE - they won't change between game sessions\n", debugStream);
     fputs("- Mod map positions use mod filename + lookup name hash for consistency\n", debugStream);
     fputs("- Hash collisions show popup warnings and skip the conflicting map\n", debugStream);
@@ -4109,7 +4102,7 @@ static void wmGenerateMapListDebug()
     if (isDuplicateLookup) {
         internal_free(isDuplicateLookup);
     }
-    
+
     fclose(debugStream);
     debugPrint("\nwmGenerateMapListDebug: Generated maps_list.txt with %d base, %d mod maps", baseCount, modCount);
 }
