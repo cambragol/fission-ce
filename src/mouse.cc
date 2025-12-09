@@ -619,14 +619,13 @@ void _mouse_set_position(int x, int y)
 static void _mouse_clip()
 {
     Rect* clipRect = &_scr_size; // Default to _scr_size
-    
+
     // Check if we have a separate mouse clipping rectangle
     extern Rect gMouseClipRect;
-    if (gMouseClipRect.right > gMouseClipRect.left && 
-        gMouseClipRect.bottom > gMouseClipRect.top) {
+    if (gMouseClipRect.right > gMouseClipRect.left && gMouseClipRect.bottom > gMouseClipRect.top) {
         clipRect = &gMouseClipRect;
     }
-    
+
     if (_mouse_hotx + gMouseCursorX < clipRect->left) {
         gMouseCursorX = clipRect->left - _mouse_hotx;
     } else if (_mouse_hotx + gMouseCursorX > clipRect->right) {

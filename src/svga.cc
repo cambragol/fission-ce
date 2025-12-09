@@ -34,7 +34,7 @@ static int gPlayArea = 0;
 static int gContentWidth = 800;
 static int gContentHeight = 500;
 
-Rect gMouseClipRect = {0, 0, 0, 0}; // used for setting mouse clipping rectangel
+Rect gMouseClipRect = { 0, 0, 0, 0 }; // used for setting mouse clipping rectangel
 
 // screen rect
 Rect _scr_size;
@@ -492,7 +492,7 @@ void handleWindowSizeChanged()
 
 /**
  * Resizes the render content area and updates mouse clipping boundaries.
- * 
+ *
  * This function sets the game's logical content dimensions and calculates
  * where that content is positioned on screen, then sets a clipping rectangle
  * to keep the mouse cursor within the visible game area. This prevents the
@@ -512,57 +512,57 @@ void resizeContent(int width, int height)
     // Store the logical content dimensions (what the game thinks it's drawing)
     gContentWidth = width;
     gContentHeight = height;
-    
+
     // Get actual window dimensions (what the player sees)
     int windowW, windowH;
     SDL_GetWindowSize(gSdlWindow, &windowW, &windowH);
-    
+
     if (gFullscreen) {
         // FULLSCREEN MODE - Handle different play area settings
-        
-        if(gPlayArea == 2){ // "Large" play area (75% of screen)
+
+        if (gPlayArea == 2) { // "Large" play area (75% of screen)
             // Content is designed for 75% of screen, then stretched to fullscreen
             // Calculate where the 75% content area sits in the full window
             int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
             int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
-        
-            gMouseClipRect.left =  offsetX;
-            gMouseClipRect.top =  offsetY;
+
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
             gMouseClipRect.right = offsetX + gContentWidth - 1;
-            gMouseClipRect.bottom = offsetY + gContentHeight - 1; 
-            
-        } else if(gPlayArea == 3){ // "Huge" play area (100% of screen)
+            gMouseClipRect.bottom = offsetY + gContentHeight - 1;
+
+        } else if (gPlayArea == 3) { // "Huge" play area (100% of screen)
             // Content fills the entire screen
             // Center the content (will be stretched to fill)
             int offsetX = ((windowW - gContentWidth) / 2);
             int offsetY = ((windowH - gContentHeight) / 2);
-        
-            gMouseClipRect.left =  offsetX;
-            gMouseClipRect.top =  offsetY;
+
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
             gMouseClipRect.right = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
         }
-        // Note: Original (640x480) and Default (800x500) modes use the 
+        // Note: Original (640x480) and Default (800x500) modes use the
         // same logic as windowed mode (centered content)
-        
+
     } else {
         // WINDOWED MODE - Always center the content with black borders
         int offsetX = (windowW - gContentWidth) / 2;
         int offsetY = (windowH - gContentHeight) / 2;
-        
+
         gMouseClipRect.left = offsetX;
         gMouseClipRect.top = offsetY;
         gMouseClipRect.right = offsetX + gContentWidth - 1;
         gMouseClipRect.bottom = offsetY + gContentHeight - 1;
     }
-    
+
     // Trigger a render to update the display with new content positioning
     renderPresent();
 }
 
 /**
  * Resizes content with aspect ratio preservation option.
- * 
+ *
  * Same functionality as the basic resizeContent(), but allows specifying
  * whether to preserve the content's aspect ratio when stretching.
  * This is used when the game switches between different display modes
@@ -576,40 +576,40 @@ void resizeContent(int width, int height, bool preserveAspect)
     gContentWidth = width;
     gContentHeight = height;
     gPreserveAspect = preserveAspect;
-    
+
     // Reuse the same positioning logic from the simpler version
     int windowW, windowH;
     SDL_GetWindowSize(gSdlWindow, &windowW, &windowH);
-    
+
     if (gFullscreen) {
-        if(gPlayArea == 2){
+        if (gPlayArea == 2) {
             int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
             int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
-        
-            gMouseClipRect.left =  offsetX;
-            gMouseClipRect.top =  offsetY;
+
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
             gMouseClipRect.right = offsetX + gContentWidth - 1;
-            gMouseClipRect.bottom = offsetY + gContentHeight - 1; 
-            
-        } else if(gPlayArea == 3){
+            gMouseClipRect.bottom = offsetY + gContentHeight - 1;
+
+        } else if (gPlayArea == 3) {
             int offsetX = ((windowW - gContentWidth) / 2);
             int offsetY = ((windowH - gContentHeight) / 2);
-        
-            gMouseClipRect.left =  offsetX;
-            gMouseClipRect.top =  offsetY;
+
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
             gMouseClipRect.right = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
         }
     } else {
         int offsetX = (windowW - gContentWidth) / 2;
         int offsetY = (windowH - gContentHeight) / 2;
-        
+
         gMouseClipRect.left = offsetX;
         gMouseClipRect.top = offsetY;
         gMouseClipRect.right = offsetX + gContentWidth - 1;
         gMouseClipRect.bottom = offsetY + gContentHeight - 1;
     }
-    
+
     renderPresent();
 }
 
