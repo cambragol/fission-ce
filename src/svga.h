@@ -24,6 +24,8 @@ extern SDL_Texture* gSdlTexture;
 extern SDL_Surface* gSdlTextureSurface;
 extern FpsLimiter sharedFpsLimiter;
 
+extern Rect gMouseClipRect;
+
 int _init_mode_320_200();
 int _init_mode_320_400();
 int _init_mode_640_480_16();

@@ -615,18 +615,28 @@ void _mouse_set_position(int x, int y)
 }
 
 // 0x4CAA38
+// Modified to use gMouseClipRect set in resizeContent
 static void _mouse_clip()
 {
-    if (_mouse_hotx + gMouseCursorX < _scr_size.left) {
-        gMouseCursorX = _scr_size.left - _mouse_hotx;
-    } else if (_mouse_hotx + gMouseCursorX > _scr_size.right) {
-        gMouseCursorX = _scr_size.right - _mouse_hotx;
+    Rect* clipRect = &_scr_size; // Default to _scr_size
+    
+    // Check if we have a separate mouse clipping rectangle
+    extern Rect gMouseClipRect;
+    if (gMouseClipRect.right > gMouseClipRect.left && 
+        gMouseClipRect.bottom > gMouseClipRect.top) {
+        clipRect = &gMouseClipRect;
+    }
+    
+    if (_mouse_hotx + gMouseCursorX < clipRect->left) {
+        gMouseCursorX = clipRect->left - _mouse_hotx;
+    } else if (_mouse_hotx + gMouseCursorX > clipRect->right) {
+        gMouseCursorX = clipRect->right - _mouse_hotx;
     }
 
-    if (_mouse_hoty + gMouseCursorY < _scr_size.top) {
-        gMouseCursorY = _scr_size.top - _mouse_hoty;
-    } else if (_mouse_hoty + gMouseCursorY > _scr_size.bottom) {
-        gMouseCursorY = _scr_size.bottom - _mouse_hoty;
+    if (_mouse_hoty + gMouseCursorY < clipRect->top) {
+        gMouseCursorY = clipRect->top - _mouse_hoty;
+    } else if (_mouse_hoty + gMouseCursorY > clipRect->bottom) {
+        gMouseCursorY = clipRect->bottom - _mouse_hoty;
     }
 }
 
