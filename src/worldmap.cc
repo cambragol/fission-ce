@@ -7250,16 +7250,16 @@ static int wmGetAreaName(CityInfo* city, char* name)
 }
 
 // Copy city short name.
-//
-// 0x4C450C
+// Calls wmGetAreaName to handle mod areas
 int wmGetAreaIdxName(int areaIdx, char* name)
 {
-    MessageListItem messageListItem;
-
-    getmsg(&gMapMessageList, &messageListItem, 1500 + areaIdx);
-    strncpy(name, messageListItem.text, 40);
-
-    return 0;
+    if (areaIdx < 0 || areaIdx >= wmMaxAreaNum) {
+        name[0] = '\0';
+        return -1;
+    }
+    
+    CityInfo* city = &wmAreaInfoList[areaIdx];
+    return wmGetAreaName(city, name);
 }
 
 // Check if a world area is known/visited by the player

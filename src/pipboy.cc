@@ -311,7 +311,7 @@ MessageListItem gPipboyMessageListItem;
 MessageList gPipboyMessageList = { 0, nullptr };
 
 // 0x664350
-STRUCT_664350 _sortlist[24];
+STRUCT_664350 _sortlist[AUTOMAP_MAP_COUNT];
 
 // quests.msg
 //
@@ -2037,6 +2037,11 @@ static int _PrintAMelevList(int selectedMap)
 // 0x499150
 static int _PrintAMList(int selectedLocation)
 {
+    
+    // don't process invalid indices
+    if (_amcty_indx < -1 || _amcty_indx >= AUTOMAP_MAP_COUNT) {
+        _amcty_indx = -1;
+    }
     AutomapHeader* automapHeader;
     if (automapGetHeader(&automapHeader) == -1) {
         return -1;
@@ -2045,12 +2050,18 @@ static int _PrintAMList(int selectedLocation)
     int count = 0;
 
     int mapCount = wmMapMaxCount();
-    // IMPORTANT: Ensure we don't exceed AUTOMAP_MAP_COUNT
+    // Ensure we don't exceed AUTOMAP_MAP_COUNT
     if (mapCount > AUTOMAP_MAP_COUNT) {
         mapCount = AUTOMAP_MAP_COUNT;
     }
 
     for (int map = 0; map < mapCount; map++) {
+        
+        char* cityName = mapGetCityName(map);
+        // Skip if cityName is null OR starts with "ERROR!"
+        if (!cityName || (cityName && strncmp(cityName, "ERROR!", 6) == 0)) {
+            continue;
+        }
         // Bounds check for displayMapList
         if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
             continue;
@@ -2092,6 +2103,11 @@ static int _PrintAMList(int selectedLocation)
 
     if (count == 0) {
         return 0;
+    }
+
+    // Sort list alphabetically
+    if (count > 1) {
+        qsort(_sortlist, count, sizeof(*_sortlist), _qscmp);
     }
 
     // Pagination calculations
