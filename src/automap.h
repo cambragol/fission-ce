@@ -3,13 +3,14 @@
 
 #include "db.h"
 #include "map_defs.h"
+#include "map.h"
 
 namespace fallout {
 
 #define AUTOMAP_DB ("AUTOMAP.DB")
 #define AUTOMAP_TMP ("AUTOMAP.TMP")
 
-#define AUTOMAP_MAP_COUNT (2000) // Expanded from 160 to support mod maps
+#define AUTOMAP_MAP_COUNT (MOD_MAP_MAX) // Expanded from 160 to support mod maps
 
 // View options for rendering automap for map window. These are stored in
 // [gAutomapFlags] and is saved in save game file.

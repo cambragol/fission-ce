@@ -49,10 +49,6 @@
 
 namespace fallout {
 
-#define BASE_MAP_MAX 200
-#define MOD_MAP_START 200
-#define MOD_MAP_MAX 2000
-
 #define BASE_AREA_MAX 200
 #define MOD_AREA_START 200
 #define MOD_AREA_MAX 1000
