@@ -2037,7 +2037,7 @@ static int _PrintAMelevList(int selectedMap)
 // 0x499150
 static int _PrintAMList(int selectedLocation)
 {
-    
+
     // don't process invalid indices
     if (_amcty_indx < -1 || _amcty_indx >= AUTOMAP_MAP_COUNT) {
         _amcty_indx = -1;
@@ -2056,7 +2056,7 @@ static int _PrintAMList(int selectedLocation)
     }
 
     for (int map = 0; map < mapCount; map++) {
-        
+
         char* cityName = mapGetCityName(map);
         // Skip if cityName is null OR starts with "ERROR!"
         if (!cityName || (cityName && strncmp(cityName, "ERROR!", 6) == 0)) {

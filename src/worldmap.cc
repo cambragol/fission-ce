@@ -7257,7 +7257,7 @@ int wmGetAreaIdxName(int areaIdx, char* name)
         name[0] = '\0';
         return -1;
     }
-    
+
     CityInfo* city = &wmAreaInfoList[areaIdx];
     return wmGetAreaName(city, name);
 }
