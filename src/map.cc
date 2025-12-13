@@ -565,18 +565,18 @@ bool _is_map_idx_same(int map1, int map2)
     if (map1 >= 160 || map2 >= 160) {
         char* cityName1 = mapGetCityName(map1);
         char* cityName2 = mapGetCityName(map2);
-        
+
         // If either city name is null or the error string, they're not the same
         if (!cityName1 || !cityName2) {
             return 0;
         }
-        
+
         // Check for "ERROR! F2" error string
         const char* errorStr = "ERROR! F2";
         if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
             return 0;
         }
-        
+
         // Compare city names
         return strcmp(cityName1, cityName2) == 0;
     }
@@ -617,21 +617,21 @@ int _get_map_idx_same(int map1, int map2)
         if ((map1 < 160 && map2 >= 160) || (map1 >= 160 && map2 < 160)) {
             return -1;
         }
-        
+
         // Both are mod maps, compare city names
         char* cityName1 = mapGetCityName(map1);
         char* cityName2 = mapGetCityName(map2);
-        
+
         if (!cityName1 || !cityName2) {
             return -1;
         }
-        
+
         // Check for error string
         const char* errorStr = "ERROR! F2";
         if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
             return -1;
         }
-        
+
         if (strcmp(cityName1, cityName2) == 0) {
             // Return 0 to indicate they're the same (non-negative, not -1)
             return 0;
@@ -654,7 +654,7 @@ int _get_map_idx_same(int map1, int map2)
         return -1;
     }
 
-    return city1;  // Return the city index as original
+    return city1; // Return the city index as original
 }
 
 // 0x48261C

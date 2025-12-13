@@ -452,38 +452,38 @@ static void debugActivateTestQuests()
 {
     // Set GVARs for our test quests
     // This will make them appear in the Pip-Boy
-    
+
     char debugMsg[1024];
     int offset = 0;
-    
-    offset += snprintf(debugMsg, sizeof(debugMsg), 
+
+    offset += snprintf(debugMsg, sizeof(debugMsg),
         "Activating test quests for debugging:\n\n");
-    
+
     // Scraptown Main Quest (GVAR 900) - set to 1 (active)
     int oldVal900 = gGameGlobalVars[900];
     gGameGlobalVars[900] = 1;
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "GVAR 900: %d -> %d (Active)\n", oldVal900, gGameGlobalVars[900]);
-    
+
     // Scraptown Side Quest (GVAR 901) - set to 2 (completed)
     int oldVal901 = gGameGlobalVars[901];
     gGameGlobalVars[901] = 2;
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "GVAR 901: %d -> %d (Completed)\n", oldVal901, gGameGlobalVars[901]);
-    
+
     // Hightown Side Quest (GVAR 902) - set to 1 (active)
     int oldVal902 = gGameGlobalVars[902];
     gGameGlobalVars[902] = 1;
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "GVAR 902: %d -> %d (Active)\n\n", oldVal902, gGameGlobalVars[902]);
-    
+
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "Test quests activated!\n");
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "- Scraptown: 1 active, 1 completed\n");
     offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
         "- Hightown: 1 active\n");
-    
+
     showMesageBox(debugMsg);
 }
 
@@ -504,12 +504,12 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
     // Combine mod namespace with quest-specific information for consistent hashing
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
-    
+
     uint32_t hash = questHashString(combinedKey);
-    
+
     // Map to mod quest range (200-999)
     uint16_t slot = MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
-    
+
     return slot;
 }
 
@@ -519,25 +519,26 @@ static uint32_t questGetModNamespace(const char* filename)
     char baseName[COMPAT_MAX_PATH];
     const char* lastSlash = strrchr(filename, DIR_SEPARATOR);
     const char* nameStart = lastSlash ? lastSlash + 1 : filename;
-    
+
     // Remove extension if present
     strncpy(baseName, nameStart, sizeof(baseName) - 1);
     baseName[sizeof(baseName) - 1] = '\0';
-    
+
     char* dot = strrchr(baseName, '.');
     if (dot) *dot = '\0';
-    
+
     return questHashString(baseName);
 }
 
 // Parse a single quest line from quests.txt format
-static bool parseQuestLine(const char* line, int* location, int* description, int* gvar, 
-                           int* displayThreshold, int* completedThreshold)
+static bool parseQuestLine(const char* line, int* location, int* description, int* gvar,
+    int* displayThreshold, int* completedThreshold)
 {
     // Format: location, description, gvar, displayThreshold, completedThreshold
     // Example: 1500, 100, 79, 1, 2
-    return sscanf(line, "%d, %d, %d, %d, %d", 
-                  location, description, gvar, displayThreshold, completedThreshold) == 5;
+    return sscanf(line, "%d, %d, %d, %d, %d",
+               location, description, gvar, displayThreshold, completedThreshold)
+        == 5;
 }
 
 // Initialize quest mod system
@@ -546,7 +547,7 @@ static void questModInit()
     // Clear mod quest tracking
     memset(gModQuests, 0, sizeof(gModQuests));
     gModQuestCount = 0;
-    
+
     // Clear mod names array
     memset(gQuestModNames, 0, sizeof(gQuestModNames));
 }
@@ -1351,37 +1352,35 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
     // NEW: Find the target location ID for the selected location index
     int targetLocationId = -1;
     int locationCount = 0;
-    
+
     // We need to build the same location list as in pipboyWindowRenderQuestLocationList
     // to find which location ID corresponds to selectedLocationIndex
     for (int i = 0; i < gQuestsCount; i++) {
         QuestDescription* quest = &(gQuestDescriptions[i]);
-        
+
         // Skip empty quests
         if (quest->location == 0) {
             continue;
         }
-        
+
         // Skip if quest doesn't meet display threshold
         if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
             continue;
         }
-        
+
         // Check if this is a new location (not already counted)
         bool newLocation = true;
         for (int j = 0; j < i; j++) {
             QuestDescription* prevQuest = &(gQuestDescriptions[j]);
-            if (prevQuest->location != 0 && 
-                prevQuest->displayThreshold <= gGameGlobalVars[prevQuest->gvar] &&
-                prevQuest->location == quest->location) {
+            if (prevQuest->location != 0 && prevQuest->displayThreshold <= gGameGlobalVars[prevQuest->gvar] && prevQuest->location == quest->location) {
                 newLocation = false;
                 break;
             }
         }
-        
+
         if (newLocation) {
             locationCount++;
-            
+
             // Is this the selected location?
             if (locationCount == selectedLocationIndex) {
                 targetLocationId = quest->location;
@@ -1389,7 +1388,7 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
             }
         }
     }
-    
+
     if (targetLocationId == -1) {
         // Fallback: Show no quests if location not found
         pipboyWindowDestroyButtons();
@@ -1436,63 +1435,63 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
     // NEW: Count total quests for this location (for pagination)
     for (int i = 0; i < gQuestsCount; i++) {
         QuestDescription* quest = &(gQuestDescriptions[i]);
-        
+
         // Skip empty quests
         if (quest->location == 0 || quest->description == 0) {
             continue;
         }
-        
+
         // Skip quests not in target location
         if (quest->location != targetLocationId) {
             continue;
         }
-        
+
         // Skip if quest doesn't meet display threshold
         if (gGameGlobalVars[quest->gvar] < quest->displayThreshold) {
             continue;
         }
-        
+
         totalQuests++;
     }
 
     // NEW: Display quests for the target location
     int questsDisplayed = 0;
-    
+
     for (int i = 0; i < gQuestsCount; i++) {
         QuestDescription* questDescription = &(gQuestDescriptions[i]);
-        
+
         // Skip empty quests
         if (questDescription->location == 0 || questDescription->description == 0) {
             continue;
         }
-        
+
         // Skip quests not in target location
         if (questDescription->location != targetLocationId) {
             continue;
         }
-        
+
         // Skip if quest doesn't meet display threshold
         if (gGameGlobalVars[questDescription->gvar] < questDescription->displayThreshold) {
             continue;
         }
-        
+
         // Pagination: Skip quests before startIndex
         if (questsDisplayed < startIndex) {
             questsDisplayed++;
             continue;
         }
-        
+
         // Stop if we've reached the page limit
         if (questsDisplayed >= endIndex) {
             break;
         }
-        
+
         // Display the quest
         const char* text = getmsg(&gQuestsMessageList, &gPipboyMessageListItem, questDescription->description);
         char formattedText[1024];
         snprintf(formattedText, sizeof(formattedText), "%d. %s", number, text);
         number++;
-        
+
         short beginnings[WORD_WRAP_MAX_COUNT];
         short count;
         if (wordWrap(formattedText, 350, beginnings, &count) == 0) {
@@ -1501,7 +1500,7 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
                 char* ending = formattedText + beginnings[line + 1];
                 char c = *ending;
                 *ending = '\0';
-                
+
                 int flags;
                 int color;
                 if (gGameGlobalVars[questDescription->gvar] < questDescription->completedThreshold) {
@@ -1511,7 +1510,7 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
                     flags = PIPBOY_TEXT_STYLE_STRIKE_THROUGH;
                     color = _colorTable[8804];
                 }
-                
+
                 pipboyDrawText(beginning, flags, color);
                 *ending = c;
                 gPipboyCurrentLine++;
@@ -1519,7 +1518,7 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
         } else {
             debugPrint("\n ** Word wrap error in pipboy! **\n");
         }
-        
+
         questsDisplayed++;
     }
 
@@ -1568,17 +1567,17 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
     // Build the list of quest locations
     for (int index = 0; index < gQuestsCount; index++) {
         QuestDescription* quest = &(gQuestDescriptions[index]);
-        
+
         // Skip empty quests
         if (quest->location == 0) {
             continue;
         }
-        
+
         // Skip if quest doesn't meet display threshold
         if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
             continue;
         }
-        
+
         // Check if we've already added this location
         bool duplicate = false;
         for (int j = 0; j < addedCount; j++) {
@@ -1587,11 +1586,11 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
                 break;
             }
         }
-        
+
         if (duplicate) {
             continue;
         }
-        
+
         const char* questLocation = getmsg(&gMapMessageList, &gPipboyMessageListItem, quest->location);
         if (questLocation != NULL) {
             gPipboyQuestLocations[gPipboyQuestLocationsCount] = questLocation;
@@ -1951,14 +1950,13 @@ static int _PrintAMelevList(int selectedMap)
 
     // Second pass: Build the list for the selected page
     for (int elevation = 0; elevation < ELEVATION_COUNT && elevationsListSize < maxEntriesPerPage; elevation++) {
-        if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT &&
-            automapHeader->offsets[_amcty_indx][elevation] > 0) {
+        if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT && automapHeader->offsets[_amcty_indx][elevation] > 0) {
             if (currentIndex >= startIndex && currentIndex < endIndex) {
                 _sortlist[elevationsListSize].name = mapGetName(_amcty_indx, elevation);
                 _sortlist[elevationsListSize].field_4 = elevation;
                 _sortlist[elevationsListSize].field_6 = _amcty_indx;
                 elevationsListSize++;
-                
+
                 // Safety check
                 if (elevationsListSize >= 2000) {
                     break;
@@ -2060,9 +2058,7 @@ static int _PrintAMList(int selectedLocation)
         int elevation;
         for (elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
             // Bounds check for offsets
-            if (map < AUTOMAP_MAP_COUNT && 
-                elevation < ELEVATION_COUNT && 
-                automapHeader->offsets[map][elevation] > 0) {
+            if (map < AUTOMAP_MAP_COUNT && elevation < ELEVATION_COUNT && automapHeader->offsets[map][elevation] > 0) {
                 if (_automapDisplayMap(map) == 0) {
                     break;
                 }
@@ -2084,7 +2080,7 @@ static int _PrintAMList(int selectedLocation)
                 _sortlist[count].name = mapGetCityName(map);
                 _sortlist[count].field_4 = map;
                 count++;
-                
+
                 // Safety check - don't exceed sortlist bounds
                 if (count >= 2000) { // Adjust based on actual _sortlist size
                     break;
@@ -2898,25 +2894,24 @@ static void generateQuestListDebug()
     }
 
     // Write header
-    const char* header = 
-        "==============================================================================\n"
-        "Fallout 2 Fission - Quest System Report\n"
-        "==============================================================================\n"
-        "This report shows all loaded quests - essential for mod debugging and\n"
-        "finding quest IDs for script development.\n\n"
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - Quest System Report\n"
+                         "==============================================================================\n"
+                         "This report shows all loaded quests - essential for mod debugging and\n"
+                         "finding quest IDs for script development.\n\n"
 
-        "Key Features:\n"
-        "- Base quests: Protected in lower slots (0-199)\n"
-        "- Mod quests: Your content in remaining slots (200-999) via deterministic hashing\n"
-        "- Hash collisions trigger popup warnings and the quest is skipped\n\n"
+                         "Key Features:\n"
+                         "- Base quests: Protected in lower slots (0-199)\n"
+                         "- Mod quests: Your content in remaining slots (200-999) via deterministic hashing\n"
+                         "- Hash collisions trigger popup warnings and the quest is skipped\n\n"
 
-        "Usage Notes:\n"
-        "- Use these quest IDs when referencing quests in scripts:\n"
-        "  - op_set_quest(ID, state)  // Set quest state\n"
-        "  - op_get_quest(ID)         // Get quest state\n"
-        "- Quest IDs are STABLE between game sessions\n"
-        "- Mod quest positions use mod filename + quest index hash for consistency\n"
-        "==============================================================================\n\n";
+                         "Usage Notes:\n"
+                         "- Use these quest IDs when referencing quests in scripts:\n"
+                         "  - op_set_quest(ID, state)  // Set quest state\n"
+                         "  - op_get_quest(ID)         // Get quest state\n"
+                         "- Quest IDs are STABLE between game sessions\n"
+                         "- Mod quest positions use mod filename + quest index hash for consistency\n"
+                         "==============================================================================\n\n";
 
     fputs(header, debugStream);
 
@@ -2924,13 +2919,13 @@ static void generateQuestListDebug()
     time_t now = time(0);
     struct tm* t = localtime(&now);
     fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
 
     // Gather statistics
     int baseCount = 0, modCount = 0;
     int maxUsedIndex = 0;
-    
+
     // First pass: count quests
     for (int i = 0; i < TOTAL_QUEST_MAX; i++) {
         if (i < BASE_QUEST_MAX) {
@@ -2975,10 +2970,10 @@ static void generateQuestListDebug()
             if (gQuestDescriptions[i].location != 0) {
                 QuestDescription* quest = &gQuestDescriptions[i];
                 fprintf(debugStream, "  %5d: Location %d, GVAR %d, DescMsg %d\n",
-                        i,
-                        quest->location,
-                        quest->gvar,
-                        quest->description);
+                    i,
+                    quest->location,
+                    quest->gvar,
+                    quest->description);
             }
         }
         fputs("\n", debugStream);
@@ -2990,7 +2985,7 @@ static void generateQuestListDebug()
         for (int i = MOD_QUEST_START; i < TOTAL_QUEST_MAX; i++) {
             if (gQuestModNames[i][0] != '\0') {
                 QuestDescription* quest = &gQuestDescriptions[i];
-                
+
                 // Find mod quest info for this slot
                 ModQuestInfo* modQuest = nullptr;
                 for (int j = 0; j < gModQuestCount; j++) {
@@ -2999,14 +2994,14 @@ static void generateQuestListDebug()
                         break;
                     }
                 }
-                
-                fprintf(debugStream, "  %5d: %s (Mod: %s)\n", i, 
-                        modQuest ? modQuest->questKey : "Unknown",
-                        gQuestModNames[i]);
+
+                fprintf(debugStream, "  %5d: %s (Mod: %s)\n", i,
+                    modQuest ? modQuest->questKey : "Unknown",
+                    gQuestModNames[i]);
                 fprintf(debugStream, "        Location: %d, GVAR: %d, DescMsg: %d\n",
-                        quest->location,
-                        quest->gvar,
-                        quest->description);
+                    quest->location,
+                    quest->gvar,
+                    quest->description);
             }
         }
         fputs("\n", debugStream);
@@ -3019,24 +3014,24 @@ static void generateQuestListDebug()
     if (modCount > 0) {
         fputs("MOD QUEST DETAILS:\n", debugStream);
         fputs("-----------------\n", debugStream);
-        
+
         for (int i = 0; i < gModQuestCount; i++) {
             ModQuestInfo* modQuest = &gModQuests[i];
             QuestDescription* quest = &gQuestDescriptions[modQuest->questId];
-            
+
             fprintf(debugStream, "Quest %d: %s\n", modQuest->questId, modQuest->questKey);
             fprintf(debugStream, "  Mod: %s\n", modQuest->modName);
             fprintf(debugStream, "  Message ID: Desc=%d\n", modQuest->descMessageId);
-            fprintf(debugStream, "  Game Data: Location=%d, GVAR=%d\n", 
-                    quest->location, quest->gvar);
+            fprintf(debugStream, "  Game Data: Location=%d, GVAR=%d\n",
+                quest->location, quest->gvar);
             fprintf(debugStream, "  Thresholds: Display=%d, Complete=%d\n\n",
-                    quest->displayThreshold, quest->completedThreshold);
+                quest->displayThreshold, quest->completedThreshold);
         }
     }
 
     // Important notes footer
     fputs("=== IMPORTANT NOTES ===\n", debugStream);
-    
+
     fputs("- Quest IDs are STABLE - they won't change between game sessions\n", debugStream);
     fputs("- Mod quest positions use mod filename + quest index hash for consistency\n", debugStream);
     fputs("- Hash collisions show popup warnings and skip the conflicting quest\n", debugStream);
@@ -3127,9 +3122,8 @@ static int questLoadModFile(const char* filename)
         }
 
         // Check for collision with a different mod
-        if (gQuestModNames[targetSlot][0] != '\0' && 
-            strcmp(gQuestModNames[targetSlot], mod_name) != 0) {
-            
+        if (gQuestModNames[targetSlot][0] != '\0' && strcmp(gQuestModNames[targetSlot], mod_name) != 0) {
+
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "QUEST SLOT COLLISION DETECTED!\n\n"
@@ -3140,7 +3134,7 @@ static int questLoadModFile(const char* filename)
                 "To resolve: Rename your mod file to change its namespace.",
                 filename, questKey, targetSlot, gQuestModNames[targetSlot]);
             showMesageBox(errorMsg);
-            
+
             questIndexInThisMod++;
             continue;
         }
@@ -3158,7 +3152,7 @@ static int questLoadModFile(const char* filename)
         // with our hashed message ID. This ensures getmsg() can find the mod quest text.
         // The vanilla description number is ignored for mod quests.
         quest->location = location;
-        quest->description = descMessageId;  // Use the generated message ID for the description
+        quest->description = descMessageId; // Use the generated message ID for the description
         quest->gvar = gvar;
         quest->displayThreshold = displayThreshold;
         quest->completedThreshold = completedThreshold;
@@ -3173,12 +3167,12 @@ static int questLoadModFile(const char* filename)
             modQuest->questId = targetSlot;
             strncpy(modQuest->modName, mod_name, sizeof(modQuest->modName) - 1);
             modQuest->modName[sizeof(modQuest->modName) - 1] = '\0';
-            
+
             strncpy(modQuest->questKey, questKey, sizeof(modQuest->questKey) - 1);
             modQuest->questKey[sizeof(modQuest->questKey) - 1] = '\0';
-            
+
             modQuest->descMessageId = descMessageId;
-            
+
             gModQuestCount++;
         }
 
@@ -3303,7 +3297,7 @@ static int questInit()
     questLoadModFiles();
 
     // DEBUG: Activate test quests automatically
-    //debugActivateTestQuests();
+    // debugActivateTestQuests();
 
     // Generate debug report
     generateQuestListDebug();
