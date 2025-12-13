@@ -561,6 +561,27 @@ bool _is_map_idx_same(int map1, int map2)
         return 0;
     }
 
+    // For mod maps (?160), use city name comparison
+    if (map1 >= 160 || map2 >= 160) {
+        char* cityName1 = mapGetCityName(map1);
+        char* cityName2 = mapGetCityName(map2);
+        
+        // If either city name is null or the error string, they're not the same
+        if (!cityName1 || !cityName2) {
+            return 0;
+        }
+        
+        // Check for "ERROR! F2" error string
+        const char* errorStr = "ERROR! F2";
+        if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
+            return 0;
+        }
+        
+        // Compare city names
+        return strcmp(cityName1, cityName2) == 0;
+    }
+
+    // For vanilla maps (<160), use the original logic
     if (!wmMapIdxIsSaveable(map1)) {
         return 0;
     }
@@ -582,9 +603,43 @@ bool _is_map_idx_same(int map1, int map2)
     return city1 == city2;
 }
 
-// 0x4825CC
+// 0x4825CCMod
 int _get_map_idx_same(int map1, int map2)
 {
+    // Check bounds
+    if (map1 < 0 || map1 >= wmMapMaxCount() || map2 < 0 || map2 >= wmMapMaxCount()) {
+        return -1;
+    }
+
+    // For mod maps (?160), use city name comparison
+    if (map1 >= 160 || map2 >= 160) {
+        // If one is mod and one is vanilla, they're not the same
+        if ((map1 < 160 && map2 >= 160) || (map1 >= 160 && map2 < 160)) {
+            return -1;
+        }
+        
+        // Both are mod maps, compare city names
+        char* cityName1 = mapGetCityName(map1);
+        char* cityName2 = mapGetCityName(map2);
+        
+        if (!cityName1 || !cityName2) {
+            return -1;
+        }
+        
+        // Check for error string
+        const char* errorStr = "ERROR! F2";
+        if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
+            return -1;
+        }
+        
+        if (strcmp(cityName1, cityName2) == 0) {
+            // Return 0 to indicate they're the same (non-negative, not -1)
+            return 0;
+        }
+        return -1;
+    }
+
+    // Original logic for vanilla maps
     int city1 = -1;
     if (wmMatchAreaContainingMapIdx(map1, &city1) == -1) {
         return -1;
@@ -599,7 +654,7 @@ int _get_map_idx_same(int map1, int map2)
         return -1;
     }
 
-    return city1;
+    return city1;  // Return the city index as original
 }
 
 // 0x48261C

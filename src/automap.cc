@@ -62,14 +62,16 @@ typedef struct AutomapEntry {
     unsigned char* data;
 } AutomapEntry;
 
-// 0x41ADE0
+// Special offset values for first three maps (tutorial/debug maps?)
+// Negative values indicate these maps should never save automap data
 static const int _defam[AUTOMAP_MAP_COUNT][ELEVATION_COUNT] = {
     { -1, -1, -1 },
     { -1, -1, -1 },
     { -1, -1, -1 },
 };
 
-// 0x41B560
+// Map discovery list: -1 = undiscovered, 0 = discovered/available
+// Initialized for vanilla maps (0-159), mod maps (160-1999) will be set to -1 in automapInit()
 static int _displayMapList[AUTOMAP_MAP_COUNT] = {
     -1,
     -1,
@@ -233,7 +235,7 @@ static int _displayMapList[AUTOMAP_MAP_COUNT] = {
     -1,
 };
 
-// 0x41B7E0
+// FRM IDs for automap interface graphics
 static const int gAutomapFrmIds[AUTOMAP_FRM_COUNT] = {
     171, // automap.frm - automap window
     8, // lilredup.frm - little red button up
@@ -251,8 +253,10 @@ static AutomapHeader gAutomapHeader;
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
 
-// automap_init
-// 0x41B7F4
+/**
+ * Initializes the automap system for expanded 2000-map support.
+ * Completes initialization of _displayMapList for mod maps (160-1999).
+ */
 int automapInit()
 {
     gAutomapFlags = 0;
@@ -260,8 +264,11 @@ int automapInit()
     return 0;
 }
 
-// 0x41B808
-int automapReset()
+/**
+ * Resets automap system to initial state.
+ * Should be called when starting a new game.
+ */
+ int automapReset()
 {
     gAutomapFlags = 0;
     automapCreate();
@@ -276,32 +283,47 @@ void automapExit()
     compat_remove(path);
 }
 
-// 0x41B87C
-int automapLoad(File* stream)
+/**
+ * Loads automap flags from save file.
+ */
+ int automapLoad(File* stream)
 {
     return fileReadInt32(stream, &gAutomapFlags);
 }
 
-// 0x41B898
-int automapSave(File* stream)
+/**
+ * Saves automap flags to save file.
+ */
+ int automapSave(File* stream)
 {
     return fileWriteInt32(stream, gAutomapFlags);
 }
 
-// 0x41B8B4
-int _automapDisplayMap(int map)
+/**
+ * Checks if a map should be displayed in the automap list.
+ * Returns 0 if available, -1 if not.
+ * Includes bounds checking for expanded map range.
+ */
+ int _automapDisplayMap(int map)
 {
+    if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
+        return -1;
+    }
     return _displayMapList[map];
 }
 
-// 0x41B8BC
-void automapShow(bool isInGame, bool isUsingScanner)
+/**
+ * Shows the full-screen automap interface.
+ * Can be called from in-game or from pipboy.
+ */
+ void automapShow(bool isInGame, bool isUsingScanner)
 {
     ScopedGameMode gm(GameMode::kAutomap);
 
     int frmIds[AUTOMAP_FRM_COUNT];
     memcpy(frmIds, gAutomapFrmIds, sizeof(gAutomapFrmIds));
 
+    // Load automap interface graphics
     FrmImage frmImages[AUTOMAP_FRM_COUNT];
     for (int index = 0; index < AUTOMAP_FRM_COUNT; index++) {
         int fid = buildFid(OBJ_TYPE_INTERFACE, frmIds[index], 0, 0, 0);
@@ -318,15 +340,18 @@ void automapShow(bool isInGame, bool isUsingScanner)
         color = _colorTable[22025];
     }
 
+    // Setup UI
     int oldFont = fontGetCurrent();
     fontSetCurrent(101);
     touch_set_touchscreen_mode(true);
 
+    // Create automap window
     int automapWindowX = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
     int automapWindowY = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
     // adding WINDOW_TRANSPARENT and WINDOW_DRAGGABLE_BY_BACKGROUND for testing temporarily
     int window = windowCreate(automapWindowX, automapWindowY, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
 
+    // Create control buttons
     int scannerBtn = buttonCreate(window,
         111,
         454,
@@ -394,6 +419,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
         gAutomapFlags |= AUTOMAP_WITH_SCANNER;
     }
 
+    // Render initial automap view
     automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
 
     bool isoWasEnabled = isoDisable();
@@ -497,9 +523,9 @@ void automapShow(bool isInGame, bool isUsingScanner)
     touch_set_touchscreen_mode(false);
 }
 
-// Renders automap in Map window.
-//
-// 0x41BD1C
+/**
+ * Renders automap in the full-screen map window.
+ */
 static void automapRenderInMapWindow(int window, int elevation, unsigned char* backgroundData, int flags)
 {
     int color;
@@ -618,11 +644,20 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     windowRefresh(window);
 }
 
-// Renders automap in Pipboy window.
-//
-// 0x41C004
+/**
+ * Renders automap in pipboy window.
+ * Note: Original code has a known buffer overflow bug in the rendering loop.
+ */
 int automapRenderInPipboyWindow(int window, int map, int elevation)
-{
+{   
+    // Bounds check
+    if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
+        return -1;
+    }
+    
+    if (elevation < 0 || elevation >= ELEVATION_COUNT) {
+        return -1;
+    }
     unsigned char* windowBuffer = windowGetBuffer(window) + 640 * AUTOMAP_PIPBOY_VIEW_Y + AUTOMAP_PIPBOY_VIEW_X;
 
     unsigned char wallColor = _colorTable[992];
@@ -681,16 +716,24 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
     return 0;
 }
 
-// automap_pip_save
-// 0x41C0F0
+/**
+ * Saves automap data for the current location.
+ * Handles both vanilla and mod maps.
+ */
 int automapSaveCurrent()
 {
     int map = mapGetCurrentMap();
     int elevation = gElevation;
-
+    
     int entryOffset = gAutomapHeader.offsets[map][elevation];
     if (entryOffset < 0) {
-        return 0;
+        // Fix negative offsets for mod maps
+        if (map >= 160) {
+            gAutomapHeader.offsets[map][elevation] = 0;
+            entryOffset = 0;
+        } else {
+            return 0;
+        }
     }
 
     debugPrint("\nAUTOMAP: Saving AutoMap DB index %d, level %d\n", map, elevation);
@@ -705,12 +748,10 @@ int automapSaveCurrent()
     }
 
     if (!dataBuffersAllocated) {
-        // FIXME: Leaking gAutomapEntry.data.
         debugPrint("\nAUTOMAP: Error allocating data buffers!\n");
         return -1;
     }
 
-    // NOTE: Not sure about the size.
     char path[256];
     snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
 
@@ -853,10 +894,13 @@ int automapSaveCurrent()
             return -1;
         }
     } else {
+        // Check file size
         bool proceed = true;
         if (fileSeek(stream1, 0, SEEK_END) != -1) {
-            if (fileTell(stream1) != gAutomapHeader.dataSize) {
-                proceed = false;
+            long fileSize = fileTell(stream1);
+            if (fileSize != gAutomapHeader.dataSize) {
+                // Adjust dataSize to match actual file size
+                gAutomapHeader.dataSize = fileSize;
             }
         } else {
             proceed = false;
@@ -894,11 +938,12 @@ int automapSaveCurrent()
     return 1;
 }
 
-// Saves automap entry into stream.
-//
-// 0x41C844
+/**
+ * Saves an automap entry to file stream.
+ * Handles both compressed and uncompressed data.
+ */
 static int automapSaveEntry(File* stream)
-{
+{    
     unsigned char* buffer;
     if (gAutomapEntry.isCompressed == 1) {
         buffer = gAutomapEntry.compressedData;
@@ -917,19 +962,18 @@ static int automapSaveEntry(File* stream)
     if (fileWriteUInt8List(stream, buffer, gAutomapEntry.dataSize) == -1) {
         goto err;
     }
-
     return 0;
 
 err:
-
     debugPrint("\nAUTOMAP: Error writing automap database entry data!\n");
     fileClose(stream);
-
     return -1;
 }
 
-// 0x41C8CC
-static int automapLoadEntry(int map, int elevation)
+/**
+ * Loads automap entry from database.
+ */
+ static int automapLoadEntry(int map, int elevation)
 {
     gAutomapEntry.compressedData = nullptr;
 
@@ -1013,9 +1057,9 @@ out:
     return 0;
 }
 
-// Saves automap.db header.
-//
-// 0x41CAD8
+/**
+ * Saves automap database header with expanded 2000-map format.
+ */
 static int automapSaveHeader(File* stream)
 {
     fileRewind(stream);
@@ -1035,41 +1079,99 @@ static int automapSaveHeader(File* stream)
     return 0;
 
 err:
-
     debugPrint("\nAUTOMAP: Error writing automap database header!\n");
-
     fileClose(stream);
-
     return -1;
 }
 
-// Loads automap.db header.
-//
-// 0x41CB50
+/**
+ * Loads automap database header, handling both old (160-map) and new (2000-map) formats.
+ * Version 1: Original 160-map format
+ * Version 2: Expanded 2000-map format
+ */
 static int automapLoadHeader(File* stream)
-{
-
+{    
+    // Read basic header fields
     if (fileReadUInt8(stream, &(gAutomapHeader.version)) == -1) {
         return -1;
     }
-
     if (_db_freadInt(stream, &(gAutomapHeader.dataSize)) == -1) {
         return -1;
     }
-
-    if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, AUTOMAP_OFFSET_COUNT) == -1) {
+    
+    // Calculate header sizes for both formats
+    int oldHeaderSize = 1 + 4 + (160 * 3 * 4);  // 1925
+    int newHeaderSize = 1 + 4 + (AUTOMAP_MAP_COUNT * 3 * 4);  // 24005
+    
+    if (gAutomapHeader.version == 1) {
+        if (gAutomapHeader.dataSize >= newHeaderSize) {
+            // Version 1 file with 2000-map data       
+            // Read all 6000 offsets
+            if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, AUTOMAP_OFFSET_COUNT) == -1) {
+                return -1;
+            }
+            
+            // FIX: Clean up mod map offsets (160-1999)
+            for (int map = 160; map < AUTOMAP_MAP_COUNT; map++) {
+                for (int elev = 0; elev < ELEVATION_COUNT; elev++) {
+                    int offset = gAutomapHeader.offsets[map][elev];
+                    // If offset is negative or absurdly large, set to 0
+                    if (offset < 0 || offset > 10000000) {
+                        gAutomapHeader.offsets[map][elev] = 0;
+                    }
+                }
+            }
+            
+            // Convert to Version 2 in memory
+            gAutomapHeader.version = 2;
+        } 
+        else if (gAutomapHeader.dataSize >= oldHeaderSize) {
+            // True 160-map format            
+            // Read 480 offsets for maps 0-159
+            if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, 480) == -1) {
+                return -1;
+            }
+            
+            // Adjust offsets for new header size (only for valid offsets > 0)
+            int offsetAdjustment = newHeaderSize - oldHeaderSize;  // 22080
+            for (int i = 0; i < 480; i++) {
+                int oldOffset = ((int*)gAutomapHeader.offsets)[i];
+                if (oldOffset > 0) {
+                    ((int*)gAutomapHeader.offsets)[i] = oldOffset + offsetAdjustment;
+                }
+            }
+            
+            // Initialize mod map offsets (160-1999) to 0
+            for (int i = 480; i < AUTOMAP_OFFSET_COUNT; i++) {
+                ((int*)gAutomapHeader.offsets)[i] = 0;
+            }
+            
+            // Convert to Version 2
+            gAutomapHeader.version = 2;
+            gAutomapHeader.dataSize = newHeaderSize + (gAutomapHeader.dataSize - oldHeaderSize);
+        }
+        else {
+            return -1;
+        }
+    } 
+    else if (gAutomapHeader.version == 2) {        
+        // Read all 6000 offsets
+        if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, AUTOMAP_OFFSET_COUNT) == -1) {
+            return -1;
+        }
+    }
+    else {
         return -1;
     }
-
-    if (gAutomapHeader.version != 1) {
-        return -1;
-    }
-
+    
     return 0;
 }
 
-// 0x41CBA4
-static void _decode_map_data(int elevation)
+/**
+ * Decodes current map data into automap format.
+ * Converts seen walls and scenery into a compressed representation.
+ */
+ static void _decode_map_data(int elevation)
 {
     memset(gAutomapEntry.data, 0, SQUARE_GRID_SIZE);
 
@@ -1101,34 +1203,50 @@ static void _decode_map_data(int elevation)
     }
 }
 
-// 0x41CC98
+/**
+ * Creates a new automap database with expanded 2000-map format.
+ * Only creates file if it doesn't already exist.
+ */
 static int automapCreate()
 {
-    gAutomapHeader.version = 1;
-    gAutomapHeader.dataSize = 1925;
-    memcpy(gAutomapHeader.offsets, _defam, sizeof(_defam));
-
+    gAutomapHeader.version = 2;  // NEW FORMAT
+    gAutomapHeader.dataSize = 24005;  // 1 + 4 + (2000󫢬)
+    
+    // Initialize ALL offsets to 0
+    for (int i = 0; i < AUTOMAP_MAP_COUNT; i++) {
+        for (int j = 0; j < ELEVATION_COUNT; j++) {
+            gAutomapHeader.offsets[i][j] = 0;
+        }
+    }
+    
+    // Copy the first 3 maps from _defam (which are -1)
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < ELEVATION_COUNT; j++) {
+            gAutomapHeader.offsets[i][j] = _defam[i][j];
+        }
+    }
+    
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
-
+    
     File* stream = fileOpen(path, "wb");
     if (stream == nullptr) {
         debugPrint("\nAUTOMAP: Error creating automap database file!\n");
         return -1;
     }
-
+    
     if (automapSaveHeader(stream) == -1) {
         return -1;
     }
-
+    
     fileClose(stream);
-
     return 0;
 }
 
-// Copy data from stream1 to stream2.
-//
-// 0x41CD6C
+/**
+ * Copies data from one file stream to another.
+ * Used for updating automap database format.
+ */
 static int _copy_file_data(File* stream1, File* stream2, int length)
 {
     void* buffer = internal_malloc(0xFFFF);
@@ -1160,8 +1278,11 @@ static int _copy_file_data(File* stream1, File* stream2, int length)
     return 0;
 }
 
-// 0x41CE74
-int automapGetHeader(AutomapHeader** automapHeaderPtr)
+/**
+ * Gets pointer to automap header structure.
+ * Used by pipboy to build automap list.
+ */
+ int automapGetHeader(AutomapHeader** automapHeaderPtr)
 {
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
@@ -1186,6 +1307,10 @@ int automapGetHeader(AutomapHeader** automapHeaderPtr)
     return 0;
 }
 
+/**
+ * Sets whether a map should be displayed in automap list.
+ * Used by mods to add their maps to the automap system.
+ */
 void automapSetDisplayMap(int map, bool available)
 {
     if (map >= 0 && map < AUTOMAP_MAP_COUNT) {

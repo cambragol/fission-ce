@@ -44,6 +44,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define PIPBOY_WINDOW_WIDTH (640)
 #define PIPBOY_WINDOW_HEIGHT (480)
 
@@ -161,7 +163,7 @@ typedef enum PipboyFrm {
 
 // Provides metadata information on quests.
 //
-// Loaded from `data/quest.txt`.
+// Loaded from `data/quests.txt`.
 typedef struct QuestDescription {
     int location;
     int description;
@@ -440,6 +442,144 @@ static bool pipboy_available_at_game_start = false;
 
 static FrmImage _pipboyFrmImages[PIPBOY_FRM_COUNT];
 
+// Quest mod system globals
+ModQuestInfo gModQuests[MOD_QUEST_MAX - MOD_QUEST_START];
+int gModQuestCount = 0;
+char gQuestModNames[TOTAL_QUEST_MAX][64];
+
+// Debug function to activate test quests
+static void debugActivateTestQuests()
+{
+    // Set GVARs for our test quests
+    // This will make them appear in the Pip-Boy
+    
+    char debugMsg[1024];
+    int offset = 0;
+    
+    offset += snprintf(debugMsg, sizeof(debugMsg), 
+        "Activating test quests for debugging:\n\n");
+    
+    // Scraptown Main Quest (GVAR 900) - set to 1 (active)
+    int oldVal900 = gGameGlobalVars[900];
+    gGameGlobalVars[900] = 1;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 900: %d -> %d (Active)\n", oldVal900, gGameGlobalVars[900]);
+    
+    // Scraptown Side Quest (GVAR 901) - set to 2 (completed)
+    int oldVal901 = gGameGlobalVars[901];
+    gGameGlobalVars[901] = 2;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 901: %d -> %d (Completed)\n", oldVal901, gGameGlobalVars[901]);
+    
+    // Hightown Side Quest (GVAR 902) - set to 1 (active)
+    int oldVal902 = gGameGlobalVars[902];
+    gGameGlobalVars[902] = 1;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 902: %d -> %d (Active)\n\n", oldVal902, gGameGlobalVars[902]);
+    
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "Test quests activated!\n");
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "- Scraptown: 1 active, 1 completed\n");
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "- Hightown: 1 active\n");
+    
+    showMesageBox(debugMsg);
+}
+
+// Hash function for mod quest slot allocation (DJB2 hash)
+static uint32_t questHashString(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+// Calculate consistent slot for a mod quest
+static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespace, int questIndexInMod)
+{
+    // Combine mod namespace with quest-specific information for consistent hashing
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
+    
+    uint32_t hash = questHashString(combinedKey);
+    
+    // Map to mod quest range (200-999)
+    uint16_t slot = MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
+    
+    return slot;
+}
+
+// Get mod namespace from filename
+static uint32_t questGetModNamespace(const char* filename)
+{
+    char baseName[COMPAT_MAX_PATH];
+    const char* lastSlash = strrchr(filename, DIR_SEPARATOR);
+    const char* nameStart = lastSlash ? lastSlash + 1 : filename;
+    
+    // Remove extension if present
+    strncpy(baseName, nameStart, sizeof(baseName) - 1);
+    baseName[sizeof(baseName) - 1] = '\0';
+    
+    char* dot = strrchr(baseName, '.');
+    if (dot) *dot = '\0';
+    
+    return questHashString(baseName);
+}
+
+// Parse a single quest line from quests.txt format
+static bool parseQuestLine(const char* line, int* location, int* description, int* gvar, 
+                           int* displayThreshold, int* completedThreshold)
+{
+    // Format: location, description, gvar, displayThreshold, completedThreshold
+    // Example: 1500, 100, 79, 1, 2
+    return sscanf(line, "%d, %d, %d, %d, %d", 
+                  location, description, gvar, displayThreshold, completedThreshold) == 5;
+}
+
+// Initialize quest mod system
+static void questModInit()
+{
+    // Clear mod quest tracking
+    memset(gModQuests, 0, sizeof(gModQuests));
+    gModQuestCount = 0;
+    
+    // Clear mod names array
+    memset(gQuestModNames, 0, sizeof(gQuestModNames));
+}
+
+// Helper function to get mod quest info by quest ID
+static ModQuestInfo* getModQuestInfo(int questId)
+{
+    if (questId < MOD_QUEST_START || questId >= MOD_QUEST_MAX) {
+        return nullptr;
+    }
+
+    for (int i = 0; i < gModQuestCount; i++) {
+        if (gModQuests[i].questId == questId) {
+            return &gModQuests[i];
+        }
+    }
+
+    return nullptr;
+}
+
+// Helper function to get quest description message ID
+static int getQuestDescriptionMessageId(int questId)
+{
+    if (questId < MOD_QUEST_START) {
+        // Vanilla quest: use the description field directly
+        // (which contains a message ID relative to quests.msg)
+        return gQuestDescriptions[questId].description;
+    } else {
+        // Mod quest: the description field already contains the hashed message ID
+        return gQuestDescriptions[questId].description;
+    }
+}
+
 // master navigation function to handle main and sub navigation
 static void renderNavigationButtons(int _view_page, int totalPages, bool isSubPage)
 {
@@ -585,7 +725,7 @@ int pipboyMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
 
-    if (!(messageListLoad(&gPipboyMessageList, path))) {
+    if (!(messageListLoadWithMods(&gPipboyMessageList, path, "PIPBOY"))) {
         return -1;
     }
 
@@ -1193,15 +1333,12 @@ static void pipboyWindowHandleStatus(int userInput)
 
 static void pipboyWindowQuestList(int selectedLocationIndex)
 {
-
     // Declare and initialize local variables
     static int lastLocation = -1; // Store the last location passed, initialized to -1
     const int maxEntriesPerPage = PIPBOY_STATUS_QUESTLIST_LINES;
 
-    int index = 0;
-    int validQuestLocationCount = 0;
-    int totalQuests = 0;
     int displayedQuests = 0;
+    int totalQuests = 0;
     int number = 1 + (_view_page_questlist * maxEntriesPerPage);
 
     // If -1 is passed, use the last location
@@ -1211,26 +1348,53 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
         lastLocation = selectedLocationIndex; // Update the last location with the new one
     }
 
-    // Locate the correct quest list for the selected location
-    for (; index < gQuestsCount; index++) {
-        QuestDescription* questDescription = &(gQuestDescriptions[index]);
-
-        // Check if the quest is valid based on the displayThreshold and global variables
-        if (questDescription->displayThreshold <= gGameGlobalVars[questDescription->gvar]) {
-            // Check if we have reached the selected quest
-            if (validQuestLocationCount == selectedLocationIndex - 1) {
+    // NEW: Find the target location ID for the selected location index
+    int targetLocationId = -1;
+    int locationCount = 0;
+    
+    // We need to build the same location list as in pipboyWindowRenderQuestLocationList
+    // to find which location ID corresponds to selectedLocationIndex
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* quest = &(gQuestDescriptions[i]);
+        
+        // Skip empty quests
+        if (quest->location == 0) {
+            continue;
+        }
+        
+        // Skip if quest doesn't meet display threshold
+        if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
+            continue;
+        }
+        
+        // Check if this is a new location (not already counted)
+        bool newLocation = true;
+        for (int j = 0; j < i; j++) {
+            QuestDescription* prevQuest = &(gQuestDescriptions[j]);
+            if (prevQuest->location != 0 && 
+                prevQuest->displayThreshold <= gGameGlobalVars[prevQuest->gvar] &&
+                prevQuest->location == quest->location) {
+                newLocation = false;
                 break;
             }
-
-            validQuestLocationCount += 1;
-
-            // Skip quests in the same location
-            for (; index < gQuestsCount; index++) {
-                if (gQuestDescriptions[index].location != gQuestDescriptions[index + 1].location) {
-                    break;
-                }
+        }
+        
+        if (newLocation) {
+            locationCount++;
+            
+            // Is this the selected location?
+            if (locationCount == selectedLocationIndex) {
+                targetLocationId = quest->location;
+                break;
             }
         }
+    }
+    
+    if (targetLocationId == -1) {
+        // Fallback: Show no quests if location not found
+        pipboyWindowDestroyButtons();
+        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+        return;
     }
 
     // Clear previous buttons
@@ -1254,11 +1418,9 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
         gPipboyCurrentLine = 1;
     }
 
-    // Get the quest description for the selected quest
-    QuestDescription* questDescription = &(gQuestDescriptions[index]);
-
+    // Display the location header
     const char* text1 = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 210);
-    const char* text2 = getmsg(&gMapMessageList, &gPipboyMessageListItem, questDescription->location);
+    const char* text2 = getmsg(&gMapMessageList, &gPipboyMessageListItem, targetLocationId);
     char formattedText[1024];
     snprintf(formattedText, sizeof(formattedText), "%s %s", text2, text1);
     pipboyDrawText(formattedText, PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[992]);
@@ -1271,70 +1433,94 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
     int startIndex = _view_page_questlist * maxEntriesPerPage;
     int endIndex = startIndex + maxEntriesPerPage;
 
-    // Loop through the quests and display them
-    for (; index < gQuestsCount; index++) {
-        QuestDescription* questDescription = &(gQuestDescriptions[index]);
+    // NEW: Count total quests for this location (for pagination)
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* quest = &(gQuestDescriptions[i]);
+        
+        // Skip empty quests
+        if (quest->location == 0 || quest->description == 0) {
+            continue;
+        }
+        
+        // Skip quests not in target location
+        if (quest->location != targetLocationId) {
+            continue;
+        }
+        
+        // Skip if quest doesn't meet display threshold
+        if (gGameGlobalVars[quest->gvar] < quest->displayThreshold) {
+            continue;
+        }
+        
+        totalQuests++;
+    }
 
-        // If quest is valid and meets the display threshold
-        if (gGameGlobalVars[questDescription->gvar] >= questDescription->displayThreshold) {
-            // Count total valid quests for pagination
-            totalQuests++;
-
-            // Skip quests that should be on a previous page
-            if (displayedQuests < startIndex) {
-                displayedQuests++;
-                continue;
-            }
-
-            // Stop processing if we've reached the page limit
-            if (displayedQuests >= endIndex) {
-                break;
-            }
-
-            // Display the quest with numbering
-            const char* text = getmsg(&gQuestsMessageList, &gPipboyMessageListItem, questDescription->description);
-            char formattedText[1024];
-            snprintf(formattedText, sizeof(formattedText), "%d. %s", number, text);
-            number++;
-
-            short beginnings[WORD_WRAP_MAX_COUNT];
-            short count;
-            if (wordWrap(formattedText, 350, beginnings, &count) == 0) {
-                for (int line = 0; line < count - 1; line++) {
-                    char* beginning = formattedText + beginnings[line];
-                    char* ending = formattedText + beginnings[line + 1];
-                    char c = *ending;
-                    *ending = '\0';
-
-                    int flags;
-                    int color;
-                    if (gGameGlobalVars[questDescription->gvar] < questDescription->completedThreshold) {
-                        flags = 0;
-                        color = _colorTable[992];
-                    } else {
-                        flags = PIPBOY_TEXT_STYLE_STRIKE_THROUGH;
-                        color = _colorTable[8804];
-                    }
-
-                    pipboyDrawText(beginning, flags, color);
-                    *ending = c;
-                    gPipboyCurrentLine++;
+    // NEW: Display quests for the target location
+    int questsDisplayed = 0;
+    
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* questDescription = &(gQuestDescriptions[i]);
+        
+        // Skip empty quests
+        if (questDescription->location == 0 || questDescription->description == 0) {
+            continue;
+        }
+        
+        // Skip quests not in target location
+        if (questDescription->location != targetLocationId) {
+            continue;
+        }
+        
+        // Skip if quest doesn't meet display threshold
+        if (gGameGlobalVars[questDescription->gvar] < questDescription->displayThreshold) {
+            continue;
+        }
+        
+        // Pagination: Skip quests before startIndex
+        if (questsDisplayed < startIndex) {
+            questsDisplayed++;
+            continue;
+        }
+        
+        // Stop if we've reached the page limit
+        if (questsDisplayed >= endIndex) {
+            break;
+        }
+        
+        // Display the quest
+        const char* text = getmsg(&gQuestsMessageList, &gPipboyMessageListItem, questDescription->description);
+        char formattedText[1024];
+        snprintf(formattedText, sizeof(formattedText), "%d. %s", number, text);
+        number++;
+        
+        short beginnings[WORD_WRAP_MAX_COUNT];
+        short count;
+        if (wordWrap(formattedText, 350, beginnings, &count) == 0) {
+            for (int line = 0; line < count - 1; line++) {
+                char* beginning = formattedText + beginnings[line];
+                char* ending = formattedText + beginnings[line + 1];
+                char c = *ending;
+                *ending = '\0';
+                
+                int flags;
+                int color;
+                if (gGameGlobalVars[questDescription->gvar] < questDescription->completedThreshold) {
+                    flags = 0;
+                    color = _colorTable[992];
+                } else {
+                    flags = PIPBOY_TEXT_STYLE_STRIKE_THROUGH;
+                    color = _colorTable[8804];
                 }
-            } else {
-                debugPrint("\n ** Word wrap error in pipboy! **\n");
+                
+                pipboyDrawText(beginning, flags, color);
+                *ending = c;
+                gPipboyCurrentLine++;
             }
-
-            // Only increment displayedQuests when a quest is printed
-            displayedQuests++;
+        } else {
+            debugPrint("\n ** Word wrap error in pipboy! **\n");
         }
-
-        // Ensure we stop at the end of the current location's quests
-        if (index != gQuestsCount - 1) {
-            QuestDescription* nextQuestDescription = &(gQuestDescriptions[index + 1]);
-            if (questDescription->location != nextQuestDescription->location) {
-                break;
-            }
-        }
+        
+        questsDisplayed++;
     }
 
     // Calculate total pages for pagination
@@ -1374,22 +1560,44 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
     gPipboyQuestLocationsCount = 0;
     const char* gPipboyQuestLocations[100]; // Fix: Use const char* to match getmsg() return type
 
+    gQuestsCount = MOD_QUEST_MAX;
+    // Build the list of quest locations
+    int addedLocationIds[100]; // Can hold up to 100 unique locations
+    int addedCount = 0;
+
     // Build the list of quest locations
     for (int index = 0; index < gQuestsCount; index++) {
         QuestDescription* quest = &(gQuestDescriptions[index]);
+        
+        // Skip empty quests
+        if (quest->location == 0) {
+            continue;
+        }
+        
+        // Skip if quest doesn't meet display threshold
         if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
             continue;
         }
-
+        
+        // Check if we've already added this location
+        bool duplicate = false;
+        for (int j = 0; j < addedCount; j++) {
+            if (addedLocationIds[j] == quest->location) {
+                duplicate = true;
+                break;
+            }
+        }
+        
+        if (duplicate) {
+            continue;
+        }
+        
         const char* questLocation = getmsg(&gMapMessageList, &gPipboyMessageListItem, quest->location);
         if (questLocation != NULL) {
-            gPipboyQuestLocations[gPipboyQuestLocationsCount] = questLocation; // No more type mismatch
+            gPipboyQuestLocations[gPipboyQuestLocationsCount] = questLocation;
+            addedLocationIds[addedCount] = quest->location;
             gPipboyQuestLocationsCount += 1;
-        }
-
-        // Skip quests in the same location
-        while (index < gQuestsCount - 1 && gQuestDescriptions[index].location == gQuestDescriptions[index + 1].location) {
-            index++; // Skip to the next quest in the same location
+            addedCount += 1;
         }
     }
 
@@ -1698,16 +1906,28 @@ static int _PrintAMelevList(int selectedMap)
     int elevationsListSize = 0;
     const int maxEntriesPerPage = PIPBOY_AUTOMAP_SUB_LINES;
 
-    // First pass: Count total valid entries
-    for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-        if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
-            totalEntries++;
+    // First pass: Count total valid entries with bounds checking
+    if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT) {
+        for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
+            if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
+                totalEntries++;
+            }
         }
     }
 
     int mapCount = wmMapMaxCount();
+    // Cap mapCount to AUTOMAP_MAP_COUNT
+    if (mapCount > AUTOMAP_MAP_COUNT) {
+        mapCount = AUTOMAP_MAP_COUNT;
+    }
+
     for (int map = 0; map < mapCount; map++) {
         if (map == _amcty_indx || _get_map_idx_same(_amcty_indx, map) == -1) {
+            continue;
+        }
+
+        // Bounds check
+        if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
             continue;
         }
 
@@ -1731,12 +1951,18 @@ static int _PrintAMelevList(int selectedMap)
 
     // Second pass: Build the list for the selected page
     for (int elevation = 0; elevation < ELEVATION_COUNT && elevationsListSize < maxEntriesPerPage; elevation++) {
-        if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
+        if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT &&
+            automapHeader->offsets[_amcty_indx][elevation] > 0) {
             if (currentIndex >= startIndex && currentIndex < endIndex) {
                 _sortlist[elevationsListSize].name = mapGetName(_amcty_indx, elevation);
                 _sortlist[elevationsListSize].field_4 = elevation;
                 _sortlist[elevationsListSize].field_6 = _amcty_indx;
                 elevationsListSize++;
+                
+                // Safety check
+                if (elevationsListSize >= 2000) {
+                    break;
+                }
             }
             currentIndex++;
         }
@@ -1820,10 +2046,23 @@ static int _PrintAMList(int selectedLocation)
     int count = 0;
 
     int mapCount = wmMapMaxCount();
+    // IMPORTANT: Ensure we don't exceed AUTOMAP_MAP_COUNT
+    if (mapCount > AUTOMAP_MAP_COUNT) {
+        mapCount = AUTOMAP_MAP_COUNT;
+    }
+
     for (int map = 0; map < mapCount; map++) {
+        // Bounds check for displayMapList
+        if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
+            continue;
+        }
+
         int elevation;
         for (elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-            if (automapHeader->offsets[map][elevation] > 0) {
+            // Bounds check for offsets
+            if (map < AUTOMAP_MAP_COUNT && 
+                elevation < ELEVATION_COUNT && 
+                automapHeader->offsets[map][elevation] > 0) {
                 if (_automapDisplayMap(map) == 0) {
                     break;
                 }
@@ -1845,17 +2084,17 @@ static int _PrintAMList(int selectedLocation)
                 _sortlist[count].name = mapGetCityName(map);
                 _sortlist[count].field_4 = map;
                 count++;
+                
+                // Safety check - don't exceed sortlist bounds
+                if (count >= 2000) { // Adjust based on actual _sortlist size
+                    break;
+                }
             }
         }
     }
 
     if (count == 0) {
         return 0;
-    }
-
-    // Sort list alphabetically
-    if (count > 1) {
-        qsort(_sortlist, count, sizeof(*_sortlist), _qscmp);
     }
 
     // Pagination calculations
@@ -2646,9 +2885,339 @@ static int pipboyRenderScreensaver()
     return 0;
 }
 
+// Generate debug quest_list.txt file
+static void generateQuestListDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cquests_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\ngenerateQuestListDebug: Could not create quests_list.txt");
+        return;
+    }
+
+    // Write header
+    const char* header = 
+        "==============================================================================\n"
+        "Fallout 2 Fission - Quest System Report\n"
+        "==============================================================================\n"
+        "This report shows all loaded quests - essential for mod debugging and\n"
+        "finding quest IDs for script development.\n\n"
+
+        "Key Features:\n"
+        "- Base quests: Protected in lower slots (0-199)\n"
+        "- Mod quests: Your content in remaining slots (200-999) via deterministic hashing\n"
+        "- Hash collisions trigger popup warnings and the quest is skipped\n\n"
+
+        "Usage Notes:\n"
+        "- Use these quest IDs when referencing quests in scripts:\n"
+        "  - op_set_quest(ID, state)  // Set quest state\n"
+        "  - op_get_quest(ID)         // Get quest state\n"
+        "- Quest IDs are STABLE between game sessions\n"
+        "- Mod quest positions use mod filename + quest index hash for consistency\n"
+        "==============================================================================\n\n";
+
+    fputs(header, debugStream);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Gather statistics
+    int baseCount = 0, modCount = 0;
+    int maxUsedIndex = 0;
+    
+    // First pass: count quests
+    for (int i = 0; i < TOTAL_QUEST_MAX; i++) {
+        if (i < BASE_QUEST_MAX) {
+            // Check if this is a valid base quest (non-zero location indicates initialized)
+            if (gQuestDescriptions[i].location != 0) {
+                baseCount++;
+                if (i > maxUsedIndex) maxUsedIndex = i;
+            }
+        } else {
+            // Check if this is a valid mod quest
+            if (gQuestModNames[i][0] != '\0') {
+                modCount++;
+                if (i > maxUsedIndex) maxUsedIndex = i;
+            }
+        }
+    }
+
+    // Summary section
+    fprintf(debugStream,
+        "Total Quests: %d | Base: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
+        baseCount + modCount,
+        baseCount,
+        modCount,
+        TOTAL_QUEST_MAX, TOTAL_QUEST_MAX - 1,
+        maxUsedIndex);
+
+    // Slot ranges
+    fputs("------------------------------------------------------------\n", debugStream);
+    fputs("Slot Ranges:\n", debugStream);
+    fprintf(debugStream,
+        "  Base: 0-%d\n"
+        "  Mods: %d-%d\n",
+        BASE_QUEST_MAX - 1,
+        MOD_QUEST_START, MOD_QUEST_MAX - 1);
+    fputs("------------------------------------------------------------\n", debugStream);
+
+    // Base quests section
+    if (baseCount > 0) {
+        fputs("BASE QUESTS:\n", debugStream);
+        for (int i = 0; i < BASE_QUEST_MAX; i++) {
+            if (gQuestDescriptions[i].location != 0) {
+                QuestDescription* quest = &gQuestDescriptions[i];
+                fprintf(debugStream, "  %5d: Location %d, GVAR %d, DescMsg %d\n",
+                        i,
+                        quest->location,
+                        quest->gvar,
+                        quest->description);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Mod quests section
+    if (modCount > 0) {
+        fputs("MOD QUESTS:\n", debugStream);
+        for (int i = MOD_QUEST_START; i < TOTAL_QUEST_MAX; i++) {
+            if (gQuestModNames[i][0] != '\0') {
+                QuestDescription* quest = &gQuestDescriptions[i];
+                
+                // Find mod quest info for this slot
+                ModQuestInfo* modQuest = nullptr;
+                for (int j = 0; j < gModQuestCount; j++) {
+                    if (gModQuests[j].questId == i) {
+                        modQuest = &gModQuests[j];
+                        break;
+                    }
+                }
+                
+                fprintf(debugStream, "  %5d: %s (Mod: %s)\n", i, 
+                        modQuest ? modQuest->questKey : "Unknown",
+                        gQuestModNames[i]);
+                fprintf(debugStream, "        Location: %d, GVAR: %d, DescMsg: %d\n",
+                        quest->location,
+                        quest->gvar,
+                        quest->description);
+            }
+        }
+        fputs("\n", debugStream);
+    } else {
+        fputs("MOD QUESTS:\n", debugStream);
+        fputs("  (no mod quests found)\n\n", debugStream);
+    }
+
+    // Quest details section (only if we have mod quests)
+    if (modCount > 0) {
+        fputs("MOD QUEST DETAILS:\n", debugStream);
+        fputs("-----------------\n", debugStream);
+        
+        for (int i = 0; i < gModQuestCount; i++) {
+            ModQuestInfo* modQuest = &gModQuests[i];
+            QuestDescription* quest = &gQuestDescriptions[modQuest->questId];
+            
+            fprintf(debugStream, "Quest %d: %s\n", modQuest->questId, modQuest->questKey);
+            fprintf(debugStream, "  Mod: %s\n", modQuest->modName);
+            fprintf(debugStream, "  Message ID: Desc=%d\n", modQuest->descMessageId);
+            fprintf(debugStream, "  Game Data: Location=%d, GVAR=%d\n", 
+                    quest->location, quest->gvar);
+            fprintf(debugStream, "  Thresholds: Display=%d, Complete=%d\n\n",
+                    quest->displayThreshold, quest->completedThreshold);
+        }
+    }
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", debugStream);
+    
+    fputs("- Quest IDs are STABLE - they won't change between game sessions\n", debugStream);
+    fputs("- Mod quest positions use mod filename + quest index hash for consistency\n", debugStream);
+    fputs("- Hash collisions show popup warnings and skip the conflicting quest\n", debugStream);
+    fputs("- Reference these exact numbers in your scripts with op_set_quest/op_get_quest\n", debugStream);
+    fputs("- Use 'quests_*.txt' naming pattern for quest mods\n", debugStream);
+    fputs("\nMESSAGE FILE FORMAT:\n", debugStream);
+    fputs("data/text/english/game/messages_YourMod.txt:\n", debugStream);
+    fputs("  [quests]\n", debugStream);
+    fputs("  QUEST:YourMod:0:NAME = Quest Name\n", debugStream);
+    fputs("  QUEST:YourMod:0:DESC = Quest description text\n", debugStream);
+
+    fclose(debugStream);
+    debugPrint("\ngenerateQuestListDebug: Generated quests_list.txt with %d base, %d mod quests", baseCount, modCount);
+}
+
+// Load a single mod quest file
+static int questLoadModFile(const char* filename)
+{
+    File* stream = fileOpen(filename, "rt");
+    if (!stream) {
+        return -1;
+    }
+
+    // Extract mod name from filename (quests_xxx.txt -> xxx)
+    const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+    if (!base_filename)
+        base_filename = filename;
+    else
+        base_filename++;
+
+    char mod_name[64] = { 0 };
+    const char* prefix = "quests_";
+    const char* suffix = ".txt";
+
+    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(base_filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        }
+    }
+
+    uint32_t modNamespace = questGetModNamespace(filename);
+
+    int questsLoaded = 0;
+    int questIndexInThisMod = 0;
+    char line[256];
+
+    // Read file line by line (following quests.txt format)
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' || line[0] == ';') {
+            continue;
+        }
+
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines after trimming
+        if (line[0] == '\0') {
+            continue;
+        }
+
+        // Try to parse quest line
+        int location, description, gvar, displayThreshold, completedThreshold;
+        if (!parseQuestLine(line, &location, &description, &gvar, &displayThreshold, &completedThreshold)) {
+            // Not a quest line, might be a section header or comment
+            continue;
+        }
+
+        // Generate quest key from mod name and index
+        char questKey[64];
+        snprintf(questKey, sizeof(questKey), "%s:%d", mod_name, questIndexInThisMod);
+
+        // Calculate consistent slot for this mod quest
+        uint16_t targetSlot = questCalculateModSlot(questKey, modNamespace, questIndexInThisMod);
+
+        // Check if the target slot is in the mod range and not already occupied by a different mod
+        if (targetSlot < MOD_QUEST_START || targetSlot >= MOD_QUEST_MAX) {
+            // This should not happen, but skip if it does
+            questIndexInThisMod++;
+            continue;
+        }
+
+        // Check for collision with a different mod
+        if (gQuestModNames[targetSlot][0] != '\0' && 
+            strcmp(gQuestModNames[targetSlot], mod_name) != 0) {
+            
+            char errorMsg[512];
+            snprintf(errorMsg, sizeof(errorMsg),
+                "QUEST SLOT COLLISION DETECTED!\n\n"
+                "Mod file: %s\n"
+                "New quest key: %s\n"
+                "Target slot: %d\n"
+                "Existing mod: %s\n\n"
+                "To resolve: Rename your mod file to change its namespace.",
+                filename, questKey, targetSlot, gQuestModNames[targetSlot]);
+            showMesageBox(errorMsg);
+            
+            questIndexInThisMod++;
+            continue;
+        }
+
+        // Now, we are going to fill in the quest description for the target slot.
+        QuestDescription* quest = &gQuestDescriptions[targetSlot];
+
+        // Generate message ID for the quest description (we only need description)
+        char descKey[256];
+        snprintf(descKey, sizeof(descKey), "QUEST:%s:DESC", questKey); // Keep same format!
+
+        int descMessageId = generate_mod_message_id(mod_name, descKey);
+
+        // IMPORTANT: For mod quests, we need to override the description field
+        // with our hashed message ID. This ensures getmsg() can find the mod quest text.
+        // The vanilla description number is ignored for mod quests.
+        quest->location = location;
+        quest->description = descMessageId;  // Use the generated message ID for the description
+        quest->gvar = gvar;
+        quest->displayThreshold = displayThreshold;
+        quest->completedThreshold = completedThreshold;
+
+        // Store mod name
+        strncpy(gQuestModNames[targetSlot], mod_name, sizeof(gQuestModNames[targetSlot]) - 1);
+        gQuestModNames[targetSlot][sizeof(gQuestModNames[targetSlot]) - 1] = '\0';
+
+        // Store in mod quest tracking array
+        if (gModQuestCount < (MOD_QUEST_MAX - MOD_QUEST_START)) {
+            ModQuestInfo* modQuest = &gModQuests[gModQuestCount];
+            modQuest->questId = targetSlot;
+            strncpy(modQuest->modName, mod_name, sizeof(modQuest->modName) - 1);
+            modQuest->modName[sizeof(modQuest->modName) - 1] = '\0';
+            
+            strncpy(modQuest->questKey, questKey, sizeof(modQuest->questKey) - 1);
+            modQuest->questKey[sizeof(modQuest->questKey) - 1] = '\0';
+            
+            modQuest->descMessageId = descMessageId;
+            
+            gModQuestCount++;
+        }
+
+        questsLoaded++;
+        gQuestsCount++;
+        questIndexInThisMod++;
+    }
+
+    fileClose(stream);
+    return questsLoaded;
+}
+
+// Load all mod quest files (quests_*.txt)
+static void questLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cquests_*.txt", DIR_SEPARATOR);
+
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            questLoadModFile(fullPath);
+        }
+        fileNameListFree(&foundModFiles, 0);
+    }
+}
+
 // 0x49A5D4
 static int questInit()
 {
+    // Initialize mod quest system
+    memset(gModQuests, 0, sizeof(gModQuests));
+    gModQuestCount = 0;
+    memset(gQuestModNames, 0, sizeof(gQuestModNames));
+
     if (gQuestDescriptions != nullptr) {
         internal_free(gQuestDescriptions);
         gQuestDescriptions = nullptr;
@@ -2662,87 +3231,84 @@ static int questInit()
         return -1;
     }
 
-    if (!messageListLoad(&gQuestsMessageList, "game\\quests.msg")) {
+    // Load base and mod quest messages
+    // Changed from messageListLoad to messageListLoadWithMods
+    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", "QUESTS")) {
         return -1;
     }
+
+    // Allocate quest descriptions for all possible quests (vanilla + mod)
+    gQuestDescriptions = (QuestDescription*)internal_malloc(sizeof(QuestDescription) * TOTAL_QUEST_MAX);
+    if (gQuestDescriptions == nullptr) {
+        return -1;
+    }
+
+    // Initialize all quest descriptions to zero
+    memset(gQuestDescriptions, 0, sizeof(QuestDescription) * TOTAL_QUEST_MAX);
 
     File* stream = fileOpen("data\\quests.txt", "rt");
     if (stream == nullptr) {
         return -1;
     }
 
-    char string[256];
-    while (fileReadString(string, 256, stream)) {
-        const char* delim = " \t,";
-        char* tok;
-        QuestDescription entry;
+    // Load vanilla quests (slots 0-199)
+    char line[256];
+    int currentQuestIndex = 0;
 
-        char* pch = string;
-        while (isspace(*pch)) {
-            pch++;
-        }
-
-        if (*pch == '#') {
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' || line[0] == ';') {
             continue;
         }
 
-        tok = strtok(pch, delim);
-        if (tok == nullptr) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines after trimming
+        if (line[0] == '\0') {
             continue;
         }
 
-        entry.location = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
+        // Parse the quest line
+        int location, description, gvar, displayThreshold, completedThreshold;
+        if (!parseQuestLine(line, &location, &description, &gvar, &displayThreshold, &completedThreshold)) {
+            // Not a valid quest line, skip
             continue;
         }
 
-        entry.description = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
+        // Check that we don't exceed the base quest limit
+        if (currentQuestIndex >= BASE_QUEST_MAX) {
+            debugPrint("\nWarning: Too many quests in base quests.txt, ignoring extra.");
+            break;
         }
 
-        entry.gvar = atoi(tok);
+        // Fill in the quest description
+        QuestDescription* quest = &gQuestDescriptions[currentQuestIndex];
+        quest->location = location;
+        quest->description = description;
+        quest->gvar = gvar;
+        quest->displayThreshold = displayThreshold;
+        quest->completedThreshold = completedThreshold;
 
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.displayThreshold = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.completedThreshold = atoi(tok);
-
-        QuestDescription* entries = (QuestDescription*)internal_realloc(gQuestDescriptions, sizeof(*gQuestDescriptions) * (gQuestsCount + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gQuestsCount]), &entry, sizeof(entry));
-
-        gQuestDescriptions = entries;
+        currentQuestIndex++;
         gQuestsCount++;
     }
 
-    qsort(gQuestDescriptions, gQuestsCount, sizeof(*gQuestDescriptions), questDescriptionCompare);
-
     fileClose(stream);
+
+    // Load mod quests from quests_*.txt files
+    questLoadModFiles();
+
+    // DEBUG: Activate test quests automatically
+    //debugActivateTestQuests();
+
+    // Generate debug report
+    generateQuestListDebug();
 
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // 0x49A7E4

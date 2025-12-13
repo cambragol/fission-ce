@@ -9,10 +9,7 @@ namespace fallout {
 #define AUTOMAP_DB ("AUTOMAP.DB")
 #define AUTOMAP_TMP ("AUTOMAP.TMP")
 
-// The number of map entries that is stored in automap.db.
-//
-// NOTE: I don't know why this value is not equal to the number of maps.
-#define AUTOMAP_MAP_COUNT (160)
+#define AUTOMAP_MAP_COUNT (2000)  // Expanded from 160 to support mod maps
 
 // View options for rendering automap for map window. These are stored in
 // [gAutomapFlags] and is saved in save game file.
