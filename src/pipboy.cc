@@ -1704,9 +1704,7 @@ if (userInput == 1033) {
                 
                 pipboyRedrawStatusPageWithSelection();
             } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
-                soundPlayFile("ib1p1xx1");
-                // In holodisk column - go to next page for both lists
-                
+
                 // Calculate total pages for quests
                 int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
                 
@@ -1723,30 +1721,37 @@ if (userInput == 1033) {
                 // Store current column before rebuilding
                 PipboyColumn savedColumn = gPipboyCurrentColumn;
                 
-                // Go to next page for quests if available
-                if (_view_page_quest < totalQuestPages - 1) {
-                    _view_page_quest++;
+                if (_view_page_quest < totalQuestPages - 1 || _view_page_holodisk < totalHolodiskPages - 1){
+
+                    // Go to next page for quests if available
+                    if (_view_page_quest < totalQuestPages - 1) {
+                        _view_page_quest++;
+                    }
+                    
+                    // Go to next page for holodisks if available
+                    if (_view_page_holodisk < totalHolodiskPages - 1) {
+                        _view_page_holodisk++;
+                    }
+
+                    soundPlayFile("ib1p1xx1");
+                    
+                    // Update selection to first item in holodisk column
+                    gPipboySelectedHolodiskIndex = 0;
+                    gPipboySelectedIndex = 0;
+                    
+                    // Rebuild the page - this resets column to quests
+                    pipboyWindowHandleStatus(1024);
+                    
+                    // Restore the column to holodisk after rebuild
+                    gPipboyCurrentColumn = savedColumn;
+                    gPipboyKeyboardMode = true;  // Ensure keyboard mode is on
+                    gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
+                    
+                    // Now redraw with holodisk column selected
+                    pipboyRedrawStatusPageWithSelection();
+                } else {
+                    // do nothing, last page
                 }
-                
-                // Go to next page for holodisks if available
-                if (_view_page_holodisk < totalHolodiskPages - 1) {
-                    _view_page_holodisk++;
-                }
-                
-                // Update selection to first item in holodisk column
-                gPipboySelectedHolodiskIndex = 0;
-                gPipboySelectedIndex = 0;
-                
-                // Rebuild the page - this resets column to quests
-                pipboyWindowHandleStatus(1024);
-                
-                // Restore the column to holodisk after rebuild
-                gPipboyCurrentColumn = savedColumn;
-                gPipboyKeyboardMode = true;  // Ensure keyboard mode is on
-                gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
-                
-                // Now redraw with holodisk column selected
-                pipboyRedrawStatusPageWithSelection();
             }
         }
     }
@@ -1819,36 +1824,40 @@ if (userInput == 1034) {
                 
                 pipboyRedrawStatusPageWithSelection();
             } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
-                soundPlayFile("ib1p1xx1");
-                // In quest column - go to previous page for both lists
-                
-                // Go to previous page for quests if available
-                if (_view_page_quest > 0) {
-                    _view_page_quest--;
+            
+                if (_view_page_quest > 0 || _view_page_holodisk > 0) {
+
+                    // Go to previous page for quests if available
+                    if (_view_page_quest > 0) {
+                        _view_page_quest--;
+                    }
+                    
+                    // Go to previous page for holodisks if available
+                    if (_view_page_holodisk > 0) {
+                        _view_page_holodisk--;
+                    }
+                    soundPlayFile("ib1p1xx1");
+                    
+                    // Calculate how many quests are on the new page
+                    int maxEntriesPerPage = PIPBOY_STATUS_QUEST_LINES;
+                    int startIndex = _view_page_quest * maxEntriesPerPage;
+                    int endIndex = startIndex + maxEntriesPerPage;
+                    if (endIndex > gPipboyQuestLocationsCount) {
+                        endIndex = gPipboyQuestLocationsCount;
+                    }
+                    
+                    int questsOnNewPage = endIndex - startIndex;
+                    
+                    // Set quest selection to last item on the new page (for left arrow)
+                    gPipboySelectedQuestIndex = questsOnNewPage - 1;
+                    if (gPipboySelectedQuestIndex < 0) gPipboySelectedQuestIndex = 0;
+                    gPipboySelectedIndex = gPipboySelectedQuestIndex;
+                    
+                    // rebuild entire page
+                    pipboyWindowHandleStatus(1024);
+                } else {
+                    // first page, do nothing
                 }
-                
-                // Go to previous page for holodisks if available
-                if (_view_page_holodisk > 0) {
-                    _view_page_holodisk--;
-                }
-                
-                // Calculate how many quests are on the new page
-                int maxEntriesPerPage = PIPBOY_STATUS_QUEST_LINES;
-                int startIndex = _view_page_quest * maxEntriesPerPage;
-                int endIndex = startIndex + maxEntriesPerPage;
-                if (endIndex > gPipboyQuestLocationsCount) {
-                    endIndex = gPipboyQuestLocationsCount;
-                }
-                
-                int questsOnNewPage = endIndex - startIndex;
-                
-                // Set quest selection to last item on the new page (for left arrow)
-                gPipboySelectedQuestIndex = questsOnNewPage - 1;
-                if (gPipboySelectedQuestIndex < 0) gPipboySelectedQuestIndex = 0;
-                gPipboySelectedIndex = gPipboySelectedQuestIndex;
-                
-                // rebuild entire page
-                pipboyWindowHandleStatus(1024);
             }
         }
     }
