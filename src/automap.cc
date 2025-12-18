@@ -70,8 +70,11 @@ static const int _defam[AUTOMAP_MAP_COUNT][ELEVATION_COUNT] = {
     { -1, -1, -1 },
 };
 
-// Map discovery list: -1 = undiscovered, 0 = discovered/available
-// Initialized for vanilla maps (0-159), mod maps (160-1999) will be set to -1 in automapInit()
+/**
+ * Map discovery list: -1 = undiscovered, 0 = discovered/available
+ * Initialized for vanilla maps (0-159), mod maps (160-1999) are set to -1
+ * Mods can use automapSetDisplayMap() to make their maps available.
+ */
 static int _displayMapList[AUTOMAP_MAP_COUNT] = {
     -1,
     -1,
