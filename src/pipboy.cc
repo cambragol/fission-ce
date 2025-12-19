@@ -3161,7 +3161,7 @@ static int questLoadModFile(const char* filename)
 
         // Generate message ID for the quest description (we only need description)
         char descKey[256];
-        snprintf(descKey, sizeof(descKey), "QUEST:%s:DESC", questKey); // Keep same format!
+        snprintf(descKey, sizeof(descKey), "QUEST:%d:DESC", questIndexInThisMod); // Keep same format!
 
         int descMessageId = generate_mod_message_id(mod_name, descKey);
 
@@ -3314,7 +3314,7 @@ static int questInit()
     questLoadModFiles();
 
     // DEBUG: Activate test quests automatically
-    // debugActivateTestQuests();
+     debugActivateTestQuests();
 
     // Generate debug report
     generateQuestListDebug();
