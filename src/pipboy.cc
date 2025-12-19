@@ -3314,7 +3314,7 @@ static int questInit()
     questLoadModFiles();
 
     // DEBUG: Activate test quests automatically
-     debugActivateTestQuests();
+    debugActivateTestQuests();
 
     // Generate debug report
     generateQuestListDebug();
