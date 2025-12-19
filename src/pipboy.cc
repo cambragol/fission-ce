@@ -74,9 +74,15 @@ namespace fallout {
 
 #define PIPBOY_BOMB_COUNT (16)
 
+#define PIPBOY_KEY_UP 1030
+#define PIPBOY_KEY_DOWN 1031
+#define PIPBOY_KEY_RIGHT 1033
+#define PIPBOY_KEY_LEFT 1034
+#define PIPBOY_KEY_SELECT 1032
+
 // constants for setting lines per page in pagination functions
-const int PIPBOY_STATUS_QUEST_LINES = 8;
-const int PIPBOY_STATUS_HOLODISK_LINES = 8;
+const int PIPBOY_STATUS_QUEST_LINES = 19;
+const int PIPBOY_STATUS_HOLODISK_LINES = 19;
 const int PIPBOY_AUTOMAP_LINES = 19;
 const int PIPBOY_AUTOMAP_SUB_LINES = 5;
 const int PIPBOY_STATUS_QUESTLIST_LINES = 12;
@@ -756,7 +762,7 @@ int pipboyOpen(int intent)
         if (keyCode == KEY_RETURN) {
             if (gPipboyKeyboardMode) {
                 // In keyboard mode, use Return for selection
-                _PipFnctn[gPipboyTab](1032);  // Send select event
+                _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT);  // Send select event
             } else {
                 // Not in keyboard mode, exit Pipboy
                 break;
@@ -767,23 +773,23 @@ int pipboyOpen(int intent)
         // Arrow key support for pagination
         if (keyCode == KEY_ARROW_LEFT) {
             // Left arrow - go to previous page OR switch to quest column
-            _PipFnctn[gPipboyTab](1034);  // New event for column switching
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_LEFT);  // New event for column switching
             continue;
         } else if (keyCode == KEY_ARROW_RIGHT) {
             // Right arrow - go to next page OR switch to holodisk column  
-            _PipFnctn[gPipboyTab](1033);  // New event for column switching
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_RIGHT);  // New event for column switching
             continue;
         } else if (keyCode == KEY_ARROW_UP) {
             // Up arrow - navigate up in lists
-            _PipFnctn[gPipboyTab](1030);  // New event for up arrow
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_UP);  // New event for up arrow
             continue;
         } else if (keyCode == KEY_ARROW_DOWN) {
             // Down arrow - navigate down in lists
-            _PipFnctn[gPipboyTab](1031);  // New event for down arrow
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_DOWN);  // New event for down arrow
             continue;
         } else if (keyCode == KEY_RETURN || keyCode == KEY_UPPERCASE_E || keyCode == KEY_LOWERCASE_E) {
             // Enter/E key - select highlighted item
-            _PipFnctn[gPipboyTab](1032);  // New event for Enter/select
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT);  // New event for Enter/select
             continue;
         }
 
@@ -1407,8 +1413,8 @@ static void pipboyWindowHandleStatus(int userInput)
         return;
     }
 
-// Handle up arrow (1030) - navigate within current column
-if (userInput == 1030) {
+// Handle up arrow (PIPBOY_KEY_UP) - navigate within current column
+if (userInput == PIPBOY_KEY_UP) {
     
     if (_stat_flag == 0 && _holo_flag == 0) {
         // Main status page
@@ -1487,7 +1493,6 @@ if (userInput == 1030) {
                     pipboyRedrawStatusPageWithSelection();
                 } else {
                     // At top of holodisk column, go to previous page for both lists
-                    soundPlayFile("ib1p1xx1");
                     int totalHolodisks = 0;
                     for (int index = 0; index < gHolodisksCount; index++) {
                         if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
@@ -1502,6 +1507,8 @@ if (userInput == 1030) {
                     if (_view_page_holodisk > 0) {
                         _view_page_holodisk--;
                         
+                        soundPlayFile("ib1p1xx1");
+
                         // Calculate holodisks on new page
                         holodisksOnCurrentPage = 0;
                         currentHolodiskCount = 0;
@@ -1536,8 +1543,8 @@ if (userInput == 1030) {
     return;
 }
 
-// Handle down arrow (1031) - navigate within current column
-if (userInput == 1031) {
+// Handle down arrow (PIPBOY_KEY_DOWN) - navigate within current column
+if (userInput == PIPBOY_KEY_DOWN) {
     
     if (_stat_flag == 0 && _holo_flag == 0) {
         // Main status page
@@ -1607,7 +1614,6 @@ if (userInput == 1031) {
         pipboyRedrawStatusPageWithSelection();
     } else {
         // At bottom of holodisk column, go to next page for both lists
-        soundPlayFile("ib1p1xx1");
         int totalHolodisks = 0;
         for (int index = 0; index < gHolodisksCount; index++) {
             if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
@@ -1621,6 +1627,9 @@ if (userInput == 1031) {
         // Go to next page for holodisks if available
         if (_view_page_holodisk < totalHolodiskPages - 1) {
             _view_page_holodisk++;
+
+            soundPlayFile("ib1p1xx1");
+            
             gPipboySelectedHolodiskIndex = 0;
             
             // Also go to next page for quests if available
@@ -1638,8 +1647,8 @@ if (userInput == 1031) {
     return;
 }
 
-// Handle right arrow (1033) - switch from quests to holodisks OR next page when in holodisk column
-if (userInput == 1033) {    
+// Handle right arrow (PIPBOY_KEY_RIGHT) - switch from quests to holodisks OR next page when in holodisk column
+if (userInput == PIPBOY_KEY_RIGHT) {    
     if (_holo_flag == 1) {
         // In holodisk subpage
         if (gPipboyHolodiskLastPage == 0) {
@@ -1758,8 +1767,8 @@ if (userInput == 1033) {
     return;
 }
 
-// Handle left arrow (1034) - switch from holodisks to quests OR previous page when in quest column
-if (userInput == 1034) {    
+// Handle left arrow (PIPBOY_KEY_LEFT) - switch from holodisks to quests OR previous page when in quest column
+if (userInput == PIPBOY_KEY_LEFT) {    
     if (_holo_flag == 1) {
         // In holodisk subpage
         if (gPipboyHolodiskLastPage == 0) {
@@ -1864,8 +1873,8 @@ if (userInput == 1034) {
     return;
 }
 
-// Handle Enter/select (1032)
-if (userInput == 1032) {
+// Handle Enter/select (PIPBOY_KEY_SELECT)
+if (userInput == PIPBOY_KEY_SELECT) {
     if (_stat_flag == 0 && _holo_flag == 0) {
         // Main status page
         if (gPipboyKeyboardMode) {
@@ -2622,9 +2631,9 @@ static void pipboyWindowHandleAutomaps(int userInput)
         return;
     }
 
-    if (userInput == 1034) { // Left arrow
+    if (userInput == PIPBOY_KEY_LEFT) { // Left arrow
         userInput = 1027; // Map to Page Up (previous page)
-    } else if (userInput == 1033) { // Right arrow
+    } else if (userInput == PIPBOY_KEY_RIGHT) { // Right arrow
         userInput = 1026; // Map to Page Down (next page)
     }
 
@@ -2701,8 +2710,8 @@ static void pipboyWindowHandleAutomaps(int userInput)
         return;
     }
 
-    // Handle up arrow (1030)
-    if (userInput == 1030) {
+    // Handle up arrow (PIPBOY_KEY_UP)
+    if (userInput == PIPBOY_KEY_UP) {
         if (main_sub_mode == 0) {
             // Main page up arrow
             if (gPipboySelectedIndex > 0) {
@@ -2749,8 +2758,8 @@ static void pipboyWindowHandleAutomaps(int userInput)
         return;
     }
 
-    // Handle down arrow (1031)
-    if (userInput == 1031) {
+    // Handle down arrow (PIPBOY_KEY_DOWN)
+    if (userInput == PIPBOY_KEY_DOWN) {
         if (main_sub_mode == 0) {
             // Main page down arrow
             int maxItems = _location_count;
@@ -2799,8 +2808,8 @@ static void pipboyWindowHandleAutomaps(int userInput)
         return;
     }
     
-    // Handle Enter (1032) - select highlighted item
-    if (userInput == 1032) {
+    // Handle Enter (PIPBOY_KEY_SELECT) - select highlighted item
+    if (userInput == PIPBOY_KEY_SELECT) {
         if (gPipboyKeyboardMode && gPipboySelectedIndex >= 0) {
             // Convert selected index to button index (1-based)
             int buttonIndex = gPipboySelectedIndex + 1;
@@ -4389,7 +4398,7 @@ static int questInit()
     questLoadModFiles();
 
     // DEBUG: Activate test quests automatically
-    debugActivateTestQuests();
+    //debugActivateTestQuests();
 
     // Generate debug report
     generateQuestListDebug();
