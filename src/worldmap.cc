@@ -1016,6 +1016,7 @@ static uint32_t wmHashString(const char* str)
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
+        c = tolower(c); 
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
@@ -2685,6 +2686,7 @@ static uint32_t wmAreaHashString(const char* str)
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
+        c = tolower(c); 
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
@@ -3049,7 +3051,7 @@ static int wmAreaLoadModFile(const char* filename)
 
         // Generate area message ID
         char areaKey[256];
-        snprintf(areaKey, sizeof(areaKey), "AREA:%s", areaNameStr);
+        snprintf(areaKey, sizeof(areaKey), "area_name:%s", areaNameStr);
         uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
         city->areaId = message_id;
 
@@ -7656,8 +7658,7 @@ static int wmTownMapRefresh()
             const char* modName = wmGetAreaModName(wmTownMapCurArea);
 
             char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "ENTRANCE:%s:%d",
-                city->name, index);
+            snprintf(compositeKey, sizeof(compositeKey), "entrance_%d:%s", index, city->name);
 
             uint32_t messageId = generate_mod_message_id(modName, compositeKey);
             displayText = getmsg(&wmMsgFile, &messageListItem, messageId);

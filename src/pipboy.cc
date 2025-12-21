@@ -494,6 +494,7 @@ static uint32_t questHashString(const char* str)
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
+        c = tolower(c); 
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
@@ -3057,8 +3058,7 @@ static void generateQuestListDebug()
     fputs("\nMESSAGE FILE FORMAT:\n", debugStream);
     fputs("data/text/english/game/messages_YourMod.txt:\n", debugStream);
     fputs("  [quests]\n", debugStream);
-    fputs("  QUEST:YourMod:0:NAME = Quest Name\n", debugStream);
-    fputs("  QUEST:YourMod:0:DESC = Quest description text\n", debugStream);
+    fputs("  quest:0 = Quest description text\n", debugStream);
 
     fclose(debugStream);
     debugPrint("\ngenerateQuestListDebug: Generated quests_list.txt with %d base, %d mod quests", baseCount, modCount);
@@ -3161,7 +3161,7 @@ static int questLoadModFile(const char* filename)
 
         // Generate message ID for the quest description (we only need description)
         char descKey[256];
-        snprintf(descKey, sizeof(descKey), "QUEST:%d:DESC", questIndexInThisMod); // Keep same format!
+        snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod); // Keep same format!
 
         int descMessageId = generate_mod_message_id(mod_name, descKey);
 
