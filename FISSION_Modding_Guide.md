@@ -80,18 +80,18 @@ text
 ### Complete Mod Directory Structure:
 
 Fallout 2 Game Directory/\
-??? data/ # Core game data\
-?   ??? city_{modname}.txt # Area definitions\
-?   ??? maps_{modname}.txt # Map definitions\
-?   ??? quests_{modname}.txt # Quest definitions\
-??? text/ # Localization files\
-?   ??? english/\
-?       ??? game/\
-?           ??? messages_{modname}.txt # All text content\
-??? art/ # Art assets (existing system - separate ID generation)\
-??? scripts/ # Script files (existing system - separate ID generation)\
-??? lists/ # Generated reports for assets indexes (art, maps, areas, messages, quests, scripts)\
-??? ... (other game folders)
+â”œâ”€â”€ data/ # Core game data\
+â”‚   â”œâ”€â”€ city_{modname}.txt # Area definitions\
+â”‚   â”œâ”€â”€ maps_{modname}.txt # Map definitions\
+â”‚   â””â”€â”€ quests_{modname}.txt # Quest definitions\
+â”œâ”€â”€ text/ # Localization files\
+â”‚   â””â”€â”€ english/\
+â”‚       â””â”€â”€ game/\
+â”‚           â””â”€â”€ messages_{modname}.txt # All text content\
+â”œâ”€â”€ art/ # Art assets (existing system - separate ID generation)\
+â”œâ”€â”€ scripts/ # Script files (existing system - separate ID generation)\
+â”œâ”€â”€ lists/ # Generated reports for assets indexes (art, maps, areas, messages, quests, scripts)\
+â””â”€â”€ ... (other game folders)
 
 text
 
@@ -156,7 +156,7 @@ entrance_1 = On,235,250,SCRAPTOWN2,-1,-1,0
 
 #### Rules:
 
--   `area_name` must be unique across all mods
+-   `area_name`Â must be unique across all mods
 
 -   Use uppercase for consistency
 
@@ -171,7 +171,7 @@ Defines individual game maps.
 
 [Map 0]                         # Section number (sequential)
 lookup_name = SCRAPTOWN1        # Unique identifier, referenced by entrances
-map_name = scrapt1              # MUST be ?8 characters (DOS 8.3 limitation)
+map_name = scrapt1              # MUST be â‰¤8 characters (DOS 8.3 limitation)
 city_name = SCRAPTOWN           # References area_name from city file
 music = fs_grand                # Music track
 saved = Yes                     # Yes/No - whether game saves here
@@ -187,15 +187,15 @@ random_start_point_0 = elev:0,tile_num:12345:elev:0,tile_num:23456
 
 #### Critical Rules:
 
-1.  `map_name` ? 8 characters - DOS 8.3 limitation for save games
+1.  `map_name`Â â‰¤ 8 characters - DOS 8.3 limitation for save games
 
-2.  `city_name` must match an `area_name` in the corresponding city file
+2.  `city_name`Â must match anÂ `area_name`Â in the corresponding city file
 
-3.  `lookup_name` must be unique across all mods
+3.  `lookup_name`Â must be unique across all mods
 
 ### 4.3 Quest Configuration (`quests_{modname}.txt`)
 
-Defines quests using the vanilla `quests.txt` format with enhanced mod support.
+Defines quests using the vanillaÂ `quests.txt`Â format with enhanced mod support.
 
 #### Format:
 
@@ -207,17 +207,17 @@ Defines quests using the vanilla `quests.txt` format with enhanced mod support.
 
 #### Rules:
 
-1.  One quest per line in CSV format
+1.  One quest per lineÂ in CSV format
 
-2.  Comments start with `#` and are ignored
+2.  CommentsÂ start withÂ `#`Â and are ignored
 
-3.  Location - Area index (must be valid area, vanilla or mod)
+3.  LocationÂ - Area index (must be valid area, vanilla or mod)
 
-4.  Description field - Ignored for mod quests (replaced by generated message ID)
+4.  Description fieldÂ - Ignored for mod quests (replaced by generated message ID)
 
-5.  GVAR - Global variable tracking quest state
+5.  GVARÂ - Global variable tracking quest state
 
-6.  Thresholds - Display and completion values
+6.  ThresholdsÂ - Display and completion values
 
 * * * * *
 
@@ -226,7 +226,7 @@ Defines quests using the vanilla `quests.txt` format with enhanced mod support.
 
 ### File Structure (`messages_{modname}.txt`)
 
-Contains all text for your mod, organized by section. Keys must match exactly as shown!
+Contains all text for your mod, organized by section.Â Keys must match exactly as shown!
 
 #### Format:
 
@@ -251,33 +251,33 @@ quest:2 = Hightown needs a new drawbridge...
 
 #### Critical Format Rules:
 
-1.  Section headers must match exactly: `[map]`, `[worldmap]`, `[quests]`
+1.  Section headersÂ must match exactly:Â `[map]`,Â `[worldmap]`,Â `[quests]`
 
-2.  Case-sensitive keys: Use exact formats shown (lowercase for area_name/lookup_name/entrance_X)
+2.  Case-sensitive keys:Â Use exact formats shown (lowercase for area_name/lookup_name/entrance_X)
 
-3.  No trailing spaces in section headers or keys
+3.  No trailing spacesÂ in section headers or keys
 
 4.  Key formats:
 
-    -   Areas: `area_name:{AREA_NAME}` (lowercase `area_name:`)
+    -   Areas:Â `area_name:{AREA_NAME}`Â (lowercaseÂ `area_name:`)
 
-    -   Maps: `lookup_name:{LOOKUP_NAME}:{ELEVATION}` (lowercase `lookup_name:`)
+    -   Maps:Â `lookup_name:{LOOKUP_NAME}:{ELEVATION}`Â (lowercaseÂ `lookup_name:`)
 
-    -   Entrances: `entrance_{INDEX}:{AREA_NAME}` (lowercase `entrance_`)
+    -   Entrances:Â `entrance_{INDEX}:{AREA_NAME}`Â (lowercaseÂ `entrance_`)
 
-    -   Quests: `quest:{INDEX}` (lowercase `quest:`)
+    -   Quests:Â `quest:{INDEX}`Â (lowercaseÂ `quest:`)
 
 #### Why These Formats?
 
 These formats match the vanilla message file structure for consistency:
 
--   Vanilla uses `area_name:` for area names
+-   Vanilla usesÂ `area_name:`Â for area names
 
--   Vanilla uses `lookup_name:` for map names
+-   Vanilla usesÂ `lookup_name:`Â for map names
 
--   Vanilla uses `entrance_X:` for town map labels
+-   Vanilla usesÂ `entrance_X:`Â for town map labels
 
--   We extended with `[quests]` section for mod quests
+-   We extended withÂ `[quests]`Â section for mod quests
 
 #### ID Generation:
 
@@ -297,7 +297,7 @@ generate_mod_message_id("myquest", "quest:0")
 
 #### Real-World Example from Vanilla Files:
 
-Check vanilla `messages.txt` in `data/text/english/game/`:
+Check vanillaÂ `messages.txt`Â inÂ `data/text/english/game/`:
 
 text
 
@@ -324,29 +324,29 @@ snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 
 #### Common Mistakes to Avoid:
 
-1.  WRONG: `AREA:SCRAPTOWN` (uppercase, wrong prefix)
+1.  WRONG:Â `AREA:SCRAPTOWN`Â (uppercase, wrong prefix)
 
-2.  WRONG: `MAP:SCRAPTOWN1:0` (wrong prefix)
+2.  WRONG:Â `MAP:SCRAPTOWN1:0`Â (wrong prefix)
 
-3.  WRONG: `ENTRANCE:SCRAPTOWN:0` (wrong format)
+3.  WRONG:Â `ENTRANCE:SCRAPTOWN:0`Â (wrong format)
 
-4.  CORRECT: `area_name:SCRAPTOWN`
+4.  CORRECT:Â `area_name:SCRAPTOWN`
 
-5.  CORRECT: `lookup_name:SCRAPTOWN1:0`
+5.  CORRECT:Â `lookup_name:SCRAPTOWN1:0`
 
-6.  CORRECT: `entrance_0:SCRAPTOWN`
+6.  CORRECT:Â `entrance_0:SCRAPTOWN`
 
 #### Validation Tips:
 
-1.  Check vanilla messages.txt for reference formats
+1.  Check vanilla messages.txtÂ for reference formats
 
-2.  Use exact lowercase prefixes shown above
+2.  Use exact lowercase prefixesÂ shown above
 
-3.  Test with minimal mod - create simple test to verify format
+3.  Test with minimal modÂ - create simple test to verify format
 
-4.  Check generated reports - wrong formats won't appear in reports
+4.  Check generated reportsÂ - wrong formats won't appear in reports
 
-Important: The system looks for these exact key formats. If your keys don't match, your messages won't load, and you'll get "Error" text in-game.
+Important:Â The system looks for these exact key formats. If your keys don't match, your messages won't load, and you'll get "Error" text in-game.
 
 * * * * *
 
@@ -428,11 +428,11 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
 ### 7.1 Area Loading (`worldmap.cc`)
 
--   File: `wmAreaLoadModFile()`
+-   File:Â `wmAreaLoadModFile()`
 
 -   Process:
 
-    1.  Extract mod name from filename (`city_myquest.txt` ? `"myquest"`)
+    1.  Extract mod name from filename (`city_myquest.txt`Â â†’Â `"myquest"`)
 
     2.  Calculate mod namespace hash
 
@@ -442,13 +442,13 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
         -   Store mod name in parallel array (not in CityInfo struct)
 
-        -   Generate area message ID: `generate_mod_message_id("myquest", "area_name:AREA_NAME")`
+        -   Generate area message ID:Â `generate_mod_message_id("myquest", "area_name:AREA_NAME")`
 
-        -   Set `city->areaId` to generated message ID
+        -   SetÂ `city->areaId`Â to generated message ID
 
 ### 7.2 Map Loading (`worldmap.cc`)
 
--   File: `wmMapLoadModFile()`
+-   File:Â `wmMapLoadModFile()`
 
 -   Process:
 
@@ -458,43 +458,43 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
         -   Calculate stable slot based on lookup name + mod namespace
 
-        -   Use `city_name` field to link to area (not integer `city` field)
+        -   UseÂ `city_name`Â field to link to area (not integerÂ `city`Â field)
 
         -   Look up area by name and assign map to correct area index
 
 ### 7.3 Quest Loading (`pipboy.cc`)
 
--   File: `questLoadModFile()`
+-   File:Â `questLoadModFile()`
 
 -   Process:
 
-    1.  Extract mod name from filename (`quests_myquest.txt` ? `"myquest"`)
+    1.  Extract mod name from filename (`quests_myquest.txt`Â â†’Â `"myquest"`)
 
     2.  For each quest line (indexed from 0 in mod file):
 
-        -   Generate quest key: `"{modname}:{index}"`
+        -   Generate quest key:Â `"{modname}:{index}"`
 
-        -   Calculate stable quest slot using `questCalculateModSlot()`
+        -   Calculate stable quest slot usingÂ `questCalculateModSlot()`
 
-        -   Generate description message ID: `generate_mod_message_id("myquest", "quest:{index}")`
+        -   Generate description message ID:Â `generate_mod_message_id("myquest", "quest:{index}")`
 
-        -   Override description field with generated message ID
+        -   Override description fieldÂ with generated message ID
 
-        -   Store mod name in `gQuestModNames[]` for tracking
+        -   Store mod name inÂ `gQuestModNames[]`Â for tracking
 
 ### 7.4 Message Loading (`message.cc`)
 
--   File: `loadModFileWithSections()`
+-   File:Â `loadModFileWithSections()`
 
 -   Process for quests:
 
     1.  Extract mod name from filename
 
-    2.  Read `[quests]` section
+    2.  ReadÂ `[quests]`Â section
 
-    3.  For each `quest:{index} = text` pair:
+    3.  For eachÂ `quest:{index} = text`Â pair:
 
-        -   Generate same message ID using `generate_mod_message_id()`
+        -   Generate same message ID usingÂ `generate_mod_message_id()`
 
         -   Add to quest message list (`gQuestsMessageList`)
 
@@ -542,19 +542,19 @@ char* mapGetName(int map, int elevation) {
 
 ### Generated Reports:
 
-The system automatically creates these files in `data/lists/`:
+The system automatically creates these files inÂ `data/lists/`:
 
-1.  `quests_list.txt` - All quests with slots, mod assignments, and generated message IDs
+1.  `quests_list.txt`Â - All quests with slots, mod assignments, and generated message IDs
 
-2.  `messages_quests_list.txt` - All mod quest descriptions with IDs
+2.  `messages_quests_list.txt`Â - All mod quest descriptions with IDs
 
-3.  `maps_list.txt` - All maps with slots, types, and override info
+3.  `maps_list.txt`Â - All maps with slots, types, and override info
 
-4.  `area_list.txt` - All areas with slots and mod assignments
+4.  `area_list.txt`Â - All areas with slots and mod assignments
 
-5.  `messages_map_list.txt` - All mod messages in map.msg with IDs
+5.  `messages_map_list.txt`Â - All mod messages in map.msg with IDs
 
-6.  `messages_worldmap_list.txt` - All mod messages in worldmap.msg with IDs
+6.  `messages_worldmap_list.txt`Â - All mod messages in worldmap.msg with IDs
 
 ### Quest Report Format (`quests_list.txt`):
 
@@ -612,17 +612,17 @@ Base Messages: 502
 
 ### Error Detection:
 
--   Slot collisions: Clear popup error with resolution steps
+-   Slot collisions:Â Clear popup error with resolution steps
 
--   Missing quest messages: Quest shows "Error" in PipBoy
+-   Missing quest messages:Â Quest shows "Error" in PipBoy
 
--   Format errors: Reports malformed quest lines
+-   Format errors:Â Reports malformed quest lines
 
--   Hash inconsistencies: System ensures same hash algorithm used throughout
+-   Hash inconsistencies:Â System ensures same hash algorithm used throughout
 
--   DOS 8.3 violations: Warning popup for map names >8 characters
+-   DOS 8.3 violations:Â Warning popup for map names >8 characters
 
--   Missing area references: Warns when `city_name` doesn't match any area
+-   Missing area references:Â Warns whenÂ `city_name`Â doesn't match any area
 
 * * * * *
 
@@ -631,9 +631,9 @@ Base Messages: 502
 
 ### Step-by-Step Complete Mod Creation:
 
-1.  Choose a mod name (e.g., `myquest`)
+1.  Choose a mod nameÂ (e.g.,Â `myquest`)
 
-2.  Create area file (`city_myquest.txt`):
+2.  Create area fileÂ (`city_myquest.txt`):
 
     [Area 0]
     area_name = MYTOWN
@@ -642,22 +642,22 @@ Base Messages: 502
     size = Medium
     entrance_0 = On,100,200,MYTOWN1,-1,-1,0
 
-3.  Create map file (`maps_myquest.txt`):
+3.  Create map fileÂ (`maps_myquest.txt`):
 
     [Map 0]
     lookup_name = MYTOWN1
-    map_name = mytown1      # ?8 characters!
+    map_name = mytown1      # â‰¤8 characters!
     city_name = MYTOWN      # Must match area_name
     saved = Yes
     automap = yes
 
-4.  Create quest file (`quests_myquest.txt`):
+4.  Create quest fileÂ (`quests_myquest.txt`):
 
     # location, description, gvar, displayThreshold, completedThreshold
     1500, 0, 79, 1, 2
     1500, 0, 80, 1, 3
 
-5.  Create message file (`messages_myquest.txt`):
+5.  Create message fileÂ (`messages_myquest.txt`):
 
     [map]
     area_name:MYTOWN = My New Town
@@ -670,9 +670,9 @@ Base Messages: 502
     quest:0 = Find the hidden artifact
     quest:1 = Return to the elder
 
-6.  Place all files in correct directories
+6.  Place all filesÂ in correct directories
 
-7.  Run the game - check generated reports for IDs
+7.  Run the gameÂ - check generated reports for IDs
 
 8.  Use IDs in scripts:
 
@@ -728,77 +728,77 @@ Base Messages: 502
 
 1.  Description Field Override:
 
-    -   Problem: Vanilla quests use description field as message ID offset
+    -   Problem:Â Vanilla quests use description field as message ID offset
 
-    -   Solution: Mod quests override with generated message IDs
+    -   Solution:Â Mod quests override with generated message IDs
 
-    -   Workaround: Always use `[quests]` section in message files
+    -   Workaround:Â Always useÂ `[quests]`Â section in message files
 
 2.  Quest Location Validation:
 
-    -   Problem: Quest location must reference valid area index
+    -   Problem:Â Quest location must reference valid area index
 
-    -   Solution: System doesn't validate location references
+    -   Solution:Â System doesn't validate location references
 
-    -   Workaround: Test thoroughly, check `area_list.txt` for valid indices
+    -   Workaround:Â Test thoroughly, checkÂ `area_list.txt`Â for valid indices
 
 3.  GVAR Conflicts:
 
-    -   Problem: Multiple mods could use same GVAR
+    -   Problem:Â Multiple mods could use same GVAR
 
-    -   Solution: No automatic GVAR allocation
+    -   Solution:Â No automatic GVAR allocation
 
-    -   Workaround: Document GVAR usage in mod readme
+    -   Workaround:Â Document GVAR usage in mod readme
 
 ### General Limitations:
 
 1.  DOS 8.3 Filename Limitation:
 
-    -   Problem: `map_name` >8 characters breaks save games
+    -   Problem:Â `map_name`Â >8 characters breaks save games
 
-    -   Workaround: Always use ?8 character map names
+    -   Workaround:Â Always use â‰¤8 character map names
 
-    -   System: Warning popup alerts modders
+    -   System:Â Warning popup alerts modders
 
 2.  Save Game Compatibility:
 
-    -   Problem: Adding fields to structs breaks old saves
+    -   Problem:Â Adding fields to structs breaks old saves
 
-    -   Solution: Use parallel arrays instead of modifying structs
+    -   Solution:Â Use parallel arrays instead of modifying structs
 
-    -   Implementation: `gAreaModNames` array separate from `CityInfo`
+    -   Implementation:Â `gAreaModNames`Â array separate fromÂ `CityInfo`
 
 3.  Case Sensitivity:
 
-    -   Issue: Different file systems handle case differently
+    -   Issue:Â Different file systems handle case differently
 
-    -   Solution: System normalizes everything to lowercase
+    -   Solution:Â System normalizes everything to lowercase
 
-    -   Recommendation: Use uppercase in configs for readability
+    -   Recommendation:Â Use uppercase in configs for readability
 
 4.  Hash Collisions:
 
-    -   Issue: Different mods/areas could hash to same slot
+    -   Issue:Â Different mods/areas could hash to same slot
 
-    -   Handling: Fail with clear error message and resolution steps
+    -   Handling:Â Fail with clear error message and resolution steps
 
-    -   Resolution: Rename mod file to change namespace
+    -   Resolution:Â Rename mod file to change namespace
 
 5.  Loading Order Dependencies:
 
-    -   Issue: Areas must load before maps that reference them
+    -   Issue:Â Areas must load before maps that reference them
 
-    -   Solution: Fixed loading order in `wmConfigInit()`
+    -   Solution:Â Fixed loading order inÂ `wmConfigInit()`
 
-    -   Implementation: Areas load, then maps, then validate links
+    -   Implementation:Â Areas load, then maps, then validate links
 
 6.  Quest-Message Link Validation:
 
-    -   Issue: No automatic check that quest messages exist
+    -   Issue:Â No automatic check that quest messages exist
 
-    -   Handling: Quest shows "Error" if message missing
+    -   Handling:Â Quest shows "Error" if message missing
 
-    -   Resolution: Ensure `[quests]` section exists with correct keys
+    -   Resolution:Â EnsureÂ `[quests]`Â section exists with correct keys
 
 * * * * *
 
@@ -809,19 +809,19 @@ Base Messages: 502
 
 1.  Dual ID System:
 
-    -   Quest ID (200-999): For `op_set_quest/op_get_quest` operations
+    -   Quest IDÂ (200-999): ForÂ `op_set_quest/op_get_quest`Â operations
 
-    -   Message ID (32768-65535): For quest descriptions via `display_msg()`
+    -   Message IDÂ (32768-65535): For quest descriptions viaÂ `display_msg()`
 
 2.  Automatic Linking:
 
     text
 
-    Quest loading ? generates message ID ? stores in quest struct
-         ?
-    Message loading ? same hash ? same ID ? stores text
-         ?
-    PipBoy display ? retrieves text via stored message ID
+    Quest loading â†’ generates message ID â†’ stores in quest struct
+         â†“
+    Message loading â†’ same hash â†’ same ID â†’ stores text
+         â†“
+    PipBoy display â†’ retrieves text via stored message ID
 
 3.  Backward Compatibility:
 
@@ -842,27 +842,27 @@ quests_MyMod.txt  --hash-->         Quest ID: 200              op_set_quest(200,
                                     |
 messages_MyMod.txt --same-hash->    Message ID: 34120
   [quests]                          |
-  quest:0 = "Find item"             ??? Auto-linked!
+  quest:0 = "Find item"             â””â”€â”€ Auto-linked!
 
 ### Critical Notes for Modders:
 
-1.  Key format is critical: `quest:0` not `QUEST:0` (lowercase!)
+1.  Key format is critical:Â `quest:0`Â notÂ `QUEST:0`Â (lowercase!)
 
-2.  Index is per-mod: First quest in file = `quest:0`, second = `quest:1`, etc.
+2.  Index is per-mod:Â First quest in file =Â `quest:0`, second =Â `quest:1`, etc.
 
-3.  Message IDs are stable: Same mod+key = same ID every time
+3.  Message IDs are stable:Â Same mod+key = same ID every time
 
-4.  Check reports: Always verify generated IDs match between quests and messages
+4.  Check reports:Â Always verify generated IDs match between quests and messages
 
 ### Integration Points:
 
-1.  Script Engine: Uses quest IDs (200-999) for state management
+1.  Script Engine:Â Uses quest IDs (200-999) for state management
 
-2.  PipBoy UI: Uses message IDs (32768-65535) for description display
+2.  PipBoy UI:Â Uses message IDs (32768-65535) for description display
 
-3.  Save System: Quest states saved via engine's existing mechanism
+3.  Save System:Â Quest states saved via engine's existing mechanism
 
-4.  Report System: Cross-references quests with their message IDs
+4.  Report System:Â Cross-references quests with their message IDs
 
 * * * * *
 
@@ -873,19 +873,19 @@ messages_MyMod.txt --same-hash->    Message ID: 34120
 
 | Problem | Likely Cause | Solution |
 | --- | --- | --- |
-| Quest shows "Error" | Missing `[quests]` section or wrong key | Ensure `messages_*.txt` has `[quests]` section with `quest:0` (lowercase) |
+| Quest shows "Error" | MissingÂ `[quests]`Â section or wrong key | EnsureÂ `messages_*.txt`Â hasÂ `[quests]`Â section withÂ `quest:0`Â (lowercase) |
 | Quest not in PipBoy | Invalid location or thresholds | Check location is valid area, thresholds are correct |
-| Wrong description | Key mismatch (case or index) | Use exact format: lowercase `quest:{index}` |
+| Wrong description | Key mismatch (case or index) | Use exact format: lowercaseÂ `quest:{index}` |
 | Quest ID collisions | Hash collision with another mod | Rename mod file to change namespace |
-| Area not on world map | `area_name` doesn't match `city_name` | Ensure exact match (case-insensitive but be consistent) |
-| Map name shows "Error" | Message key doesn't match generated ID | Check `messages_*.txt` format matches key generation |
-| Save games fail | `map_name` >8 characters | Shorten map_name to ?8 chars |
-| Town map labels missing | Wrong section or key format | Use `[worldmap]` section with `entrance_X:{AREA_NAME}` |
+| Area not on world map | `area_name`Â doesn't matchÂ `city_name` | Ensure exact match (case-insensitive but be consistent) |
+| Map name shows "Error" | Message key doesn't match generated ID | CheckÂ `messages_*.txt`Â format matches key generation |
+| Save games fail | `map_name`Â >8 characters | Shorten map_name to â‰¤8 chars |
+| Town map labels missing | Wrong section or key format | UseÂ `[worldmap]`Â section withÂ `entrance_X:{AREA_NAME}` |
 | Mod not loading | File naming mismatch | All files must share same mod name prefix |
 
 ### Debug Commands:
 
-Add these to `config.ini` under `[debug]`:
+Add these toÂ `config.ini`Â underÂ `[debug]`:
 
 
 [debug]
@@ -896,15 +896,15 @@ quest_debug=1            # Log quest loading details
 
 ### Debugging Steps:
 
-1.  Check generated reports in `data/lists/`
+1.  Check generated reportsÂ inÂ `data/lists/`
 
-2.  Verify hash consistency - same input should produce same output
+2.  Verify hash consistencyÂ - same input should produce same output
 
-3.  Test minimal mod - create simplest possible mod to isolate issues
+3.  Test minimal modÂ - create simplest possible mod to isolate issues
 
-4.  Check file permissions - ensure game can write to `data/lists/`
+4.  Check file permissionsÂ - ensure game can write toÂ `data/lists/`
 
-5.  Validate file formats - use text editor with visible whitespace
+5.  Validate file formatsÂ - use text editor with visible whitespace
 
 * * * * *
 
@@ -913,45 +913,45 @@ quest_debug=1            # Log quest loading details
 
 ### Planned Enhancements:
 
-1.  Mod load order control - `mod_load_order.txt` file
+1.  Mod load order controlÂ -Â `mod_load_order.txt`Â file
 
-2.  Dependency system - Mods requiring other mods
+2.  Dependency systemÂ - Mods requiring other mods
 
-3.  Enhanced validation - Pre-flight check of mod files
+3.  Enhanced validationÂ - Pre-flight check of mod files
 
-4.  Batch conversion tools - Update old-format mods
+4.  Batch conversion toolsÂ - Update old-format mods
 
-5.  Extended ranges - More slots if community needs them
+5.  Extended rangesÂ - More slots if community needs them
 
 ### Quest System Enhancements:
 
 1.  Quest Dependency Tracking
 
-2.  Quest Objective System (multiple steps per quest)
+2.  Quest Objective SystemÂ (multiple steps per quest)
 
-3.  Quest Reward Integration (auto-item granting)
+3.  Quest Reward IntegrationÂ (auto-item granting)
 
-4.  Quest Journal Enhancements (more detailed tracking)
+4.  Quest Journal EnhancementsÂ (more detailed tracking)
 
 ### Integration Opportunities:
 
--   Scripts: Could auto-generate quest script templates
+-   Scripts:Â Could auto-generate quest script templates
 
--   Dialogs: Link dialog options to quest states
+-   Dialogs:Â Link dialog options to quest states
 
--   Items: Quest item tracking and validation
+-   Items:Â Quest item tracking and validation
 
--   Proto System: Extend to items, critters, scenery
+-   Proto System:Â Extend to items, critters, scenery
 
 ### Development Tools Wishlist:
 
-1.  ID Calculator Tool - Pre-calculate IDs before mod creation
+1.  ID Calculator ToolÂ - Pre-calculate IDs before mod creation
 
-2.  Mod Validator - Standalone tool to check mod files
+2.  Mod ValidatorÂ - Standalone tool to check mod files
 
-3.  Template Generator - Create starter mod structure
+3.  Template GeneratorÂ - Create starter mod structure
 
-4.  Conflict Detector - Check for conflicts between multiple mods
+4.  Conflict DetectorÂ - Check for conflicts between multiple mods
 
 * * * * *
 
@@ -960,23 +960,23 @@ Appendix A: Quick Reference
 
 ### File Naming:
 
--   Areas: `city_{modname}.txt`
+-   Areas:Â `city_{modname}.txt`
 
--   Maps: `maps_{modname}.txt`
+-   Maps:Â `maps_{modname}.txt`
 
--   Quests: `quests_{modname}.txt`
+-   Quests:Â `quests_{modname}.txt`
 
--   Messages: `messages_{modname}.txt`
+-   Messages:Â `messages_{modname}.txt`
 
 ### Key Formats:
 
--   Area names: `area_name:{AREA_NAME}`
+-   Area names:Â `area_name:{AREA_NAME}`
 
--   Map names: `lookup_name:{LOOKUP_NAME}:{ELEVATION}`
+-   Map names:Â `lookup_name:{LOOKUP_NAME}:{ELEVATION}`
 
--   Entrance labels: `entrance_{INDEX}:{AREA_NAME}`
+-   Entrance labels:Â `entrance_{INDEX}:{AREA_NAME}`
 
--   Quest descriptions: `quest:{INDEX}`
+-   Quest descriptions:Â `quest:{INDEX}`
 
 ### ID Ranges:
 
@@ -990,15 +990,15 @@ Appendix A: Quick Reference
 
 ### Critical Rules:
 
-1.  Map names ?8 characters
+1.  Map names â‰¤8 characters
 
-2.  Quest keys lowercase: `quest:0`
+2.  Quest keys lowercase:Â `quest:0`
 
 3.  Area names uppercase in configs
 
 4.  Consistent mod name across all files
 
-5.  Message keys use exact lowercase prefixes: `area_name:`, `lookup_name:`, `entrance_`
+5.  Message keys use exact lowercase prefixes:Â `area_name:`,Â `lookup_name:`,Â `entrance_`
 
 * * * * *
 
@@ -1008,22 +1008,22 @@ Appendix B: Example Mod Structure
 text
 
 MyFirstMod/
-??? data/
-?   ??? city_myfirst.txt
-?   ??? maps_myfirst.txt
-?   ??? quests_myfirst.txt
-??? text/
-?   ??? english/
-?       ??? game/
-?           ??? messages_myfirst.txt
-??? art/
-?   ??? intrface/
-?       ??? mod_myfirst.lst
-?       ??? myasset.frm
-??? scripts/
-?   ??? scripts_myfirst.lst
-?   ??? myscript.int
-??? README.txt
+â”œâ”€â”€ data/
+â”‚   â”œâ”€â”€ city_myfirst.txt
+â”‚   â”œâ”€â”€ maps_myfirst.txt
+â”‚   â”œâ”€â”€ quests_myfirst.txt
+â”œâ”€â”€ text/
+â”‚   â””â”€â”€ english/
+â”‚       â””â”€â”€ game/
+â”‚           â””â”€â”€ messages_myfirst.txt
+â”œâ”€â”€ art/
+â”‚   â””â”€â”€ intrface/
+â”‚       â”œâ”€â”€ mod_myfirst.lst
+â”‚       â””â”€â”€ myasset.frm
+â”œâ”€â”€ scripts/
+â”‚   â”œâ”€â”€ scripts_myfirst.lst
+â”‚   â””â”€â”€ myscript.int
+â””â”€â”€ README.txt
 
 ### Minimal Working Example:
 
