@@ -531,7 +531,7 @@ char* mapGetName(int map, int elevation)
             const char* modName = wmGetAreaModName(areaIndex);
 
             char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "MAP:%s:%d", lookupName, elevation);
+            snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
 
             uint32_t messageId = generate_mod_message_id(modName, compositeKey);
             return getmsg(&gMapMessageList, &messageListItem, messageId);

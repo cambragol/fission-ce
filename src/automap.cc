@@ -70,8 +70,11 @@ static const int _defam[AUTOMAP_MAP_COUNT][ELEVATION_COUNT] = {
     { -1, -1, -1 },
 };
 
-// Map discovery list: -1 = undiscovered, 0 = discovered/available
-// Initialized for vanilla maps (0-159), mod maps (160-1999) will be set to -1 in automapInit()
+/**
+ * Map discovery list: -1 = undiscovered, 0 = discovered/available
+ * Initialized for vanilla maps (0-159), mod maps (160-1999) are set to -1
+ * Mods can use automapSetDisplayMap() to make their maps available.
+ */
 static int _displayMapList[AUTOMAP_MAP_COUNT] = {
     -1,
     -1,
@@ -253,9 +256,245 @@ static AutomapHeader gAutomapHeader;
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
 
+static int automapUpdateEntry(int map, int elevation, const char* tempPath)
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+
+    File* oldStream = fileOpen(path, "rb");
+    if (oldStream == nullptr) {
+        return -1;
+    }
+
+    File* newStream = fileOpen(tempPath, "wb");
+    if (newStream == nullptr) {
+        fileClose(oldStream);
+        return -1;
+    }
+
+    // Load header from old file
+    if (automapLoadHeader(oldStream) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    int entryOffset = gAutomapHeader.offsets[map][elevation];
+
+    // Write version 2 header to new file
+    gAutomapHeader.version = 2;
+    if (automapSaveHeader(newStream) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    // Copy all entries, replacing the one we're updating
+    for (int m = 0; m < AUTOMAP_MAP_COUNT; m++) {
+        for (int e = 0; e < ELEVATION_COUNT; e++) {
+            int offset = gAutomapHeader.offsets[m][e];
+            if (offset <= 0) {
+                continue; // Skip negative or zero offsets
+            }
+
+            if (m == map && e == elevation) {
+                // This is the entry we're updating - write the new one
+                long currentPos = fileTell(newStream);
+                gAutomapHeader.offsets[m][e] = currentPos;
+                if (automapSaveEntry(newStream) == -1) {
+                    fileClose(oldStream);
+                    fileClose(newStream);
+                    return -1;
+                }
+            } else {
+                // Copy the old entry
+                if (fileSeek(oldStream, offset, SEEK_SET) == -1) {
+                    fileClose(oldStream);
+                    fileClose(newStream);
+                    return -1;
+                }
+
+                int dataSize;
+                if (fileReadInt32(oldStream, &dataSize) == -1) {
+                    fileClose(oldStream);
+                    fileClose(newStream);
+                    return -1;
+                }
+
+                // Go back to read the whole entry
+                fileSeek(oldStream, offset, SEEK_SET);
+
+                long currentPos = fileTell(newStream);
+                gAutomapHeader.offsets[m][e] = currentPos;
+
+                if (_copy_file_data(oldStream, newStream, dataSize + 5) == -1) {
+                    fileClose(oldStream);
+                    fileClose(newStream);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    // Update header with new offsets
+    fileSeek(newStream, 0, SEEK_SET);
+    if (automapSaveHeader(newStream) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    fileClose(oldStream);
+    fileClose(newStream);
+
+    return 0;
+}
+
+/**
+ * Converts entire automap database from version 1 to version 2 format.
+ * This is a one-time operation performed when saving an old save for the first time.
+ *
+ * Adjusts all offsets by 22080 bytes to account for the larger header.
+ * Preserves all existing automap data while adding support for mod maps.
+ *
+ * @return 0 on success, -1 on error
+ */
+static int automapConvertV1toV2()
+{
+    char oldPath[COMPAT_MAX_PATH];
+    char newPath[COMPAT_MAX_PATH];
+    snprintf(oldPath, sizeof(oldPath), "%s\\%s", "MAPS", AUTOMAP_DB);
+    snprintf(newPath, sizeof(newPath), "%s\\%s", "MAPS", AUTOMAP_TMP);
+
+    File* oldStream = fileOpen(oldPath, "rb");
+    if (oldStream == nullptr) {
+        return -1;
+    }
+
+    // Read old header
+    unsigned char version;
+    int dataSize;
+    if (fileReadUInt8(oldStream, &version) == -1) {
+        fileClose(oldStream);
+        return -1;
+    }
+
+    if (version != 1) {
+        fileClose(oldStream);
+        return 0; // Already version 2
+    }
+
+    if (_db_freadInt(oldStream, &dataSize) == -1) {
+        fileClose(oldStream);
+        return -1;
+    }
+
+    int oldOffsets[480];
+    if (_db_freadIntCount(oldStream, oldOffsets, 480) == -1) {
+        fileClose(oldStream);
+        return -1;
+    }
+
+    // Create new file
+    File* newStream = fileOpen(newPath, "wb");
+    if (newStream == nullptr) {
+        fileClose(oldStream);
+        return -1;
+    }
+
+    // Write version 2 header
+    if (fileWriteUInt8(newStream, 2) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    // Write dataSize (will update later)
+    long dataSizePos = fileTell(newStream);
+    if (_db_fwriteLong(newStream, 0) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    // Write adjusted offsets for first 480 entries
+    for (int i = 0; i < 480; i++) {
+        int offset = oldOffsets[i];
+        if (offset > 0) {
+            // Adjust for new header size
+            offset += (24005 - 1925); // 22080 bytes
+        }
+        if (_db_fwriteLong(newStream, offset) == -1) {
+            fileClose(oldStream);
+            fileClose(newStream);
+            return -1;
+        }
+    }
+
+    // Write zeros for mod maps
+    for (int i = 480; i < AUTOMAP_OFFSET_COUNT; i++) {
+        if (_db_fwriteLong(newStream, 0) == -1) {
+            fileClose(oldStream);
+            fileClose(newStream);
+            return -1;
+        }
+    }
+
+    // Copy all data from old file (starts at position 1925 in old file)
+    if (fileSeek(oldStream, 1925, SEEK_SET) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    unsigned char buffer[4096];
+    size_t bytesRead;
+    while ((bytesRead = fileRead(buffer, 1, sizeof(buffer), oldStream)) > 0) {
+        if (fileWrite(buffer, 1, bytesRead, newStream) != bytesRead) {
+            fileClose(oldStream);
+            fileClose(newStream);
+            return -1;
+        }
+    }
+
+    // Update dataSize in header
+    long finalSize = fileTell(newStream);
+    fileSeek(newStream, dataSizePos, SEEK_SET);
+    if (_db_fwriteLong(newStream, finalSize) == -1) {
+        fileClose(oldStream);
+        fileClose(newStream);
+        return -1;
+    }
+
+    fileClose(oldStream);
+    fileClose(newStream);
+
+    // Replace old file
+    char automapDbPath[512];
+    snprintf(automapDbPath, sizeof(automapDbPath), "%s\\%s\\%s",
+        settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_DB);
+
+    compat_remove(automapDbPath);
+
+    char automapTmpPath[512];
+    snprintf(automapTmpPath, sizeof(automapTmpPath), "%s\\%s\\%s",
+        settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_TMP);
+
+    if (compat_rename(automapTmpPath, automapDbPath) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 /**
  * Initializes the automap system for expanded 2000-map support.
  * Completes initialization of _displayMapList for mod maps (160-1999).
+ *
+ * Called once at game startup to set up automap data structures
+ * and ensure backward compatibility with existing saves.
+ *
+ * @return 0 on success
  */
 int automapInit()
 {
@@ -267,6 +506,11 @@ int automapInit()
 /**
  * Resets automap system to initial state.
  * Should be called when starting a new game.
+ *
+ * Clears automap flags and creates a fresh database
+ * with expanded 2000-map format.
+ *
+ * @return 0 on success
  */
 int automapReset()
 {
@@ -301,8 +545,10 @@ int automapSave(File* stream)
 
 /**
  * Checks if a map should be displayed in the automap list.
- * Returns 0 if available, -1 if not.
- * Includes bounds checking for expanded map range.
+ * Includes bounds checking for expanded map range (0-1999).
+ *
+ * @param map Map index to check
+ * @return 0 if map is available, -1 if not available or invalid map index
  */
 int _automapDisplayMap(int map)
 {
@@ -645,8 +891,13 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 }
 
 /**
- * Renders automap in pipboy window.
- * Note: Original code has a known buffer overflow bug in the rendering loop.
+ * Renders automap in pipboy window with bounds checking for expanded map range.
+ * Contains a known buffer overflow bug in the original rendering loop.
+ *
+ * @param window Window handle for rendering
+ * @param map Map index (0-1999)
+ * @param elevation Elevation level (0-2)
+ * @return 0 on success, -1 on error or invalid map/elevation
  */
 int automapRenderInPipboyWindow(int window, int map, int elevation)
 {
@@ -717,63 +968,58 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
 }
 
 /**
- * Saves automap data for the current location.
- * Handles both vanilla and mod maps.
+ * Saves automap data for the current location to the database.
+ * Handles both new entries and updates to existing entries.
+ *
+ * For version 1 files, triggers automatic conversion to version 2 format.
+ * For mod maps (160-1999), initializes offsets to 0 on first save.
+ *
+ * @return 1 on success, 0 if saving should be skipped, -1 on error
  */
 int automapSaveCurrent()
 {
     int map = mapGetCurrentMap();
     int elevation = gElevation;
 
-    int entryOffset = gAutomapHeader.offsets[map][elevation];
-    if (entryOffset < 0) {
-        // Fix negative offsets for mod maps
-        if (map >= 160) {
-            gAutomapHeader.offsets[map][elevation] = 0;
-            entryOffset = 0;
-        } else {
+    // Don't save for the first 3 special maps if they have -1 offsets
+    if (map < 3) {
+        bool shouldSave = false;
+        for (int elev = 0; elev < ELEVATION_COUNT; elev++) {
+            if (gAutomapHeader.offsets[map][elev] != -1) {
+                shouldSave = true;
+                break;
+            }
+        }
+        if (!shouldSave) {
             return 0;
         }
     }
 
+    int entryOffset = gAutomapHeader.offsets[map][elevation];
+    if (entryOffset < 0) {
+        return 0; // Negative offsets mean "don't save"
+    }
+
     debugPrint("\nAUTOMAP: Saving AutoMap DB index %d, level %d\n", map, elevation);
 
-    bool dataBuffersAllocated = false;
+    // Allocate buffers
     gAutomapEntry.data = (unsigned char*)internal_malloc(11024);
-    if (gAutomapEntry.data != nullptr) {
-        gAutomapEntry.compressedData = (unsigned char*)internal_malloc(11024);
-        if (gAutomapEntry.compressedData != nullptr) {
-            dataBuffersAllocated = true;
-        }
-    }
-
-    if (!dataBuffersAllocated) {
-        debugPrint("\nAUTOMAP: Error allocating data buffers!\n");
+    if (gAutomapEntry.data == nullptr) {
+        debugPrint("\nAUTOMAP: Error allocating data buffer!\n");
         return -1;
     }
 
-    char path[256];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
-
-    File* stream1 = fileOpen(path, "r+b");
-    if (stream1 == nullptr) {
-        debugPrint("\nAUTOMAP: Error opening automap database file!\n");
-        debugPrint("Error continued: automap_pip_save: path: %s", path);
+    gAutomapEntry.compressedData = (unsigned char*)internal_malloc(11024);
+    if (gAutomapEntry.compressedData == nullptr) {
+        debugPrint("\nAUTOMAP: Error allocating compression buffer!\n");
         internal_free(gAutomapEntry.data);
-        internal_free(gAutomapEntry.compressedData);
         return -1;
     }
 
-    if (automapLoadHeader(stream1) == -1) {
-        debugPrint("\nAUTOMAP: Error reading automap database file header!\n");
-        internal_free(gAutomapEntry.data);
-        internal_free(gAutomapEntry.compressedData);
-        fileClose(stream1);
-        return -1;
-    }
-
+    // Decode current map data
     _decode_map_data(elevation);
 
+    // Compress the data
     int compressedDataSize = graphCompress(gAutomapEntry.data, gAutomapEntry.compressedData, 10000);
     if (compressedDataSize == -1) {
         gAutomapEntry.dataSize = 10000;
@@ -783,164 +1029,144 @@ int automapSaveCurrent()
         gAutomapEntry.isCompressed = 1;
     }
 
-    if (entryOffset != 0) {
-        snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_TMP);
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
 
-        File* stream2 = fileOpen(path, "wb");
-        if (stream2 == nullptr) {
-            debugPrint("\nAUTOMAP: Error creating temp file!\n");
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            fileClose(stream1);
-            return -1;
-        }
-
-        fileRewind(stream1);
-
-        if (_copy_file_data(stream1, stream2, entryOffset) == -1) {
-            debugPrint("\nAUTOMAP: Error copying file data!\n");
-            fileClose(stream1);
-            fileClose(stream2);
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        if (automapSaveEntry(stream2) == -1) {
-            fileClose(stream1);
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        int nextEntryDataSize;
-        if (fileReadInt32(stream1, &nextEntryDataSize) == -1) {
-            debugPrint("\nAUTOMAP: Error reading database #1!\n");
-            fileClose(stream1);
-            fileClose(stream2);
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        int automapDataSize = fileGetSize(stream1);
-        if (automapDataSize == -1) {
-            debugPrint("\nAUTOMAP: Error reading database #2!\n");
-            fileClose(stream1);
-            fileClose(stream2);
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        int nextEntryOffset = entryOffset + nextEntryDataSize + 5;
-        if (automapDataSize != nextEntryOffset) {
-            if (fileSeek(stream1, nextEntryOffset, SEEK_SET) == -1) {
-                debugPrint("\nAUTOMAP: Error writing temp data!\n");
-                fileClose(stream1);
-                fileClose(stream2);
-                internal_free(gAutomapEntry.data);
-                internal_free(gAutomapEntry.compressedData);
-                return -1;
-            }
-
-            if (_copy_file_data(stream1, stream2, automapDataSize - nextEntryOffset) == -1) {
-                debugPrint("\nAUTOMAP: Error copying file data!\n");
-                fileClose(stream1);
-                fileClose(stream2);
-                internal_free(gAutomapEntry.data);
-                internal_free(gAutomapEntry.compressedData);
-                return -1;
-            }
-        }
-
-        int diff = gAutomapEntry.dataSize - nextEntryDataSize;
-        for (int map = 0; map < AUTOMAP_MAP_COUNT; map++) {
-            for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-                if (gAutomapHeader.offsets[map][elevation] > entryOffset) {
-                    gAutomapHeader.offsets[map][elevation] += diff;
-                }
-            }
-        }
-
-        gAutomapHeader.dataSize += diff;
-
-        if (automapSaveHeader(stream2) == -1) {
-            fileClose(stream1);
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        fileSeek(stream2, 0, SEEK_END);
-        fileClose(stream2);
-        fileClose(stream1);
+    File* stream = fileOpen(path, "r+b");
+    if (stream == nullptr) {
+        debugPrint("\nAUTOMAP: Error opening automap database file!\n");
         internal_free(gAutomapEntry.data);
         internal_free(gAutomapEntry.compressedData);
-
-        // NOTE: Not sure about the size.
-        char automapDbPath[512];
-        snprintf(automapDbPath, sizeof(automapDbPath), "%s\\%s\\%s", settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_DB);
-        if (compat_remove(automapDbPath) != 0) {
-            debugPrint("\nAUTOMAP: Error removing database!\n");
-            return -1;
-        }
-
-        // NOTE: Not sure about the size.
-        char automapTmpPath[512];
-        snprintf(automapTmpPath, sizeof(automapTmpPath), "%s\\%s\\%s", settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_TMP);
-        if (compat_rename(automapTmpPath, automapDbPath) != 0) {
-            debugPrint("\nAUTOMAP: Error renaming database!\n");
-            return -1;
-        }
-    } else {
-        // Check file size
-        bool proceed = true;
-        if (fileSeek(stream1, 0, SEEK_END) != -1) {
-            long fileSize = fileTell(stream1);
-            if (fileSize != gAutomapHeader.dataSize) {
-                // Adjust dataSize to match actual file size
-                gAutomapHeader.dataSize = fileSize;
-            }
-        } else {
-            proceed = false;
-        }
-
-        if (!proceed) {
-            debugPrint("\nAUTOMAP: Error reading automap database file header!\n");
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            fileClose(stream1);
-            return -1;
-        }
-
-        if (automapSaveEntry(stream1) == -1) {
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        gAutomapHeader.offsets[map][elevation] = gAutomapHeader.dataSize;
-        gAutomapHeader.dataSize += gAutomapEntry.dataSize + 5;
-
-        if (automapSaveHeader(stream1) == -1) {
-            internal_free(gAutomapEntry.data);
-            internal_free(gAutomapEntry.compressedData);
-            return -1;
-        }
-
-        fileSeek(stream1, 0, SEEK_END);
-        fileClose(stream1);
-        internal_free(gAutomapEntry.data);
-        internal_free(gAutomapEntry.compressedData);
+        return -1;
     }
+
+    // Load current header
+    if (automapLoadHeader(stream) == -1) {
+        debugPrint("\nAUTOMAP: Error reading automap database header!\n");
+        fileClose(stream);
+        internal_free(gAutomapEntry.data);
+        internal_free(gAutomapEntry.compressedData);
+        return -1;
+    }
+
+    // Check if we need to convert from version 1 to version 2
+    if (gAutomapHeader.version == 1) {
+        // We have a version 1 file but we're saving - need to convert to version 2
+        fileClose(stream);
+
+        // Convert the entire database
+        if (automapConvertV1toV2() == -1) {
+            debugPrint("\nAUTOMAP: Error converting database to version 2!\n");
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        // Reopen the now-converted file
+        stream = fileOpen(path, "r+b");
+        if (stream == nullptr) {
+            debugPrint("\nAUTOMAP: Error reopening converted database!\n");
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        // Reload header (now version 2)
+        if (automapLoadHeader(stream) == -1) {
+            debugPrint("\nAUTOMAP: Error reading converted database header!\n");
+            fileClose(stream);
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        // Get the offset again (may have changed due to conversion)
+        entryOffset = gAutomapHeader.offsets[map][elevation];
+    }
+
+    // Now we have a version 2 database
+    if (entryOffset == 0) {
+        // New entry - append to end
+        if (fileSeek(stream, 0, SEEK_END) == -1) {
+            debugPrint("\nAUTOMAP: Error seeking to end of file!\n");
+            fileClose(stream);
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        long newOffset = fileTell(stream);
+        if (automapSaveEntry(stream) == -1) {
+            fileClose(stream);
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        // Update header
+        gAutomapHeader.offsets[map][elevation] = newOffset;
+        gAutomapHeader.dataSize = fileTell(stream);
+
+        // Write updated header
+        fileRewind(stream);
+        if (automapSaveHeader(stream) == -1) {
+            fileClose(stream);
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        fileClose(stream);
+
+    } else {
+        // Existing entry - we need to handle size changes
+        // Use a temporary file approach
+
+        fileClose(stream);
+
+        char tempPath[COMPAT_MAX_PATH];
+        snprintf(tempPath, sizeof(tempPath), "%s\\%s", "MAPS", AUTOMAP_TMP);
+
+        // Convert and save with the new entry
+        if (automapUpdateEntry(map, elevation, tempPath) == -1) {
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+
+        // Replace old file with new file
+        char automapDbPath[512];
+        snprintf(automapDbPath, sizeof(automapDbPath), "%s\\%s\\%s",
+            settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_DB);
+
+        compat_remove(automapDbPath);
+
+        char automapTmpPath[512];
+        snprintf(automapTmpPath, sizeof(automapTmpPath), "%s\\%s\\%s",
+            settings.system.master_patches_path.c_str(), "MAPS", AUTOMAP_TMP);
+
+        if (compat_rename(automapTmpPath, automapDbPath) != 0) {
+            debugPrint("\nAUTOMAP: Error replacing database file!\n");
+            internal_free(gAutomapEntry.data);
+            internal_free(gAutomapEntry.compressedData);
+            return -1;
+        }
+    }
+
+    internal_free(gAutomapEntry.data);
+    internal_free(gAutomapEntry.compressedData);
 
     return 1;
 }
 
 /**
  * Saves an automap entry to file stream.
- * Handles both compressed and uncompressed data.
+ * Handles both compressed and uncompressed data formats.
+ *
+ * Entry format: [4-byte dataSize][1-byte isCompressed][data]
+ *
+ * @param stream File stream to write entry to
+ * @return 0 on success, -1 on error
  */
 static int automapSaveEntry(File* stream)
 {
@@ -972,6 +1198,11 @@ err:
 
 /**
  * Loads automap entry from database.
+ * Handles decompression if entry was saved with compression.
+ *
+ * @param map Map index (0-1999)
+ * @param elevation Elevation level (0-2)
+ * @return 0 on success, -1 on error
  */
 static int automapLoadEntry(int map, int elevation)
 {
@@ -1059,6 +1290,10 @@ out:
 
 /**
  * Saves automap database header with expanded 2000-map format.
+ * Writes version 2 header with 6000 offset entries.
+ *
+ * @param stream File stream to write header to
+ * @return 0 on success, -1 on error
  */
 static int automapSaveHeader(File* stream)
 {
@@ -1086,86 +1321,66 @@ err:
 
 /**
  * Loads automap database header, handling both old (160-map) and new (2000-map) formats.
- * Version 1: Original 160-map format
- * Version 2: Expanded 2000-map format
+ * Version 1: Original 160-map format (480 offsets)
+ * Version 2: Expanded 2000-map format (6000 offsets)
+ *
+ * When loading version 1 files, offsets are kept as-is in memory to maintain compatibility.
+ * Conversion to version 2 happens during the first save operation.
+ *
+ * @param stream File stream of automap database
+ * @return 0 on success, -1 on failure
  */
 static int automapLoadHeader(File* stream)
 {
-    // Read basic header fields
+    // Read version
     if (fileReadUInt8(stream, &(gAutomapHeader.version)) == -1) {
         return -1;
     }
+
+    // Read dataSize
     if (_db_freadInt(stream, &(gAutomapHeader.dataSize)) == -1) {
         return -1;
     }
 
-    // Calculate header sizes for both formats
-    int oldHeaderSize = 1 + 4 + (160 * 3 * 4); // 1925
-    int newHeaderSize = 1 + 4 + (AUTOMAP_MAP_COUNT * 3 * 4); // 24005
-
     if (gAutomapHeader.version == 1) {
-        if (gAutomapHeader.dataSize >= newHeaderSize) {
-            // Version 1 file with 2000-map data
-            // Read all 6000 offsets
-            if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, AUTOMAP_OFFSET_COUNT) == -1) {
-                return -1;
-            }
-
-            // FIX: Clean up mod map offsets (160-1999)
-            for (int map = 160; map < AUTOMAP_MAP_COUNT; map++) {
-                for (int elev = 0; elev < ELEVATION_COUNT; elev++) {
-                    int offset = gAutomapHeader.offsets[map][elev];
-                    // If offset is negative or absurdly large, set to 0
-                    if (offset < 0 || offset > 10000000) {
-                        gAutomapHeader.offsets[map][elev] = 0;
-                    }
-                }
-            }
-
-            // Convert to Version 2 in memory
-            gAutomapHeader.version = 2;
-        } else if (gAutomapHeader.dataSize >= oldHeaderSize) {
-            // True 160-map format
-            // Read 480 offsets for maps 0-159
-            if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, 480) == -1) {
-                return -1;
-            }
-
-            // Adjust offsets for new header size (only for valid offsets > 0)
-            int offsetAdjustment = newHeaderSize - oldHeaderSize; // 22080
-            for (int i = 0; i < 480; i++) {
-                int oldOffset = ((int*)gAutomapHeader.offsets)[i];
-                if (oldOffset > 0) {
-                    ((int*)gAutomapHeader.offsets)[i] = oldOffset + offsetAdjustment;
-                }
-            }
-
-            // Initialize mod map offsets (160-1999) to 0
-            for (int i = 480; i < AUTOMAP_OFFSET_COUNT; i++) {
-                ((int*)gAutomapHeader.offsets)[i] = 0;
-            }
-
-            // Convert to Version 2
-            gAutomapHeader.version = 2;
-            gAutomapHeader.dataSize = newHeaderSize + (gAutomapHeader.dataSize - oldHeaderSize);
-        } else {
+        // Version 1: Read 480 offsets (160 maps × 3 elevations)
+        int oldOffsets[480];
+        if (_db_freadIntCount(stream, oldOffsets, 480) == -1) {
             return -1;
         }
+
+        // Copy to our header structure (first 480 entries)
+        for (int i = 0; i < 480; i++) {
+            ((int*)gAutomapHeader.offsets)[i] = oldOffsets[i];
+        }
+
+        // Initialize the rest (mod maps) to 0
+        for (int i = 480; i < AUTOMAP_OFFSET_COUNT; i++) {
+            ((int*)gAutomapHeader.offsets)[i] = 0;
+        }
+
+        // Keep as version 1 - we'll convert when we save
+        return 0;
+
     } else if (gAutomapHeader.version == 2) {
-        // Read all 6000 offsets
+        // Version 2: Read all 6000 offsets
         if (_db_freadIntCount(stream, (int*)gAutomapHeader.offsets, AUTOMAP_OFFSET_COUNT) == -1) {
             return -1;
         }
-    } else {
-        return -1;
+        return 0;
     }
 
-    return 0;
+    return -1;
 }
 
 /**
- * Decodes current map data into automap format.
- * Converts seen walls and scenery into a compressed representation.
+ * Decodes current map data into compressed automap format.
+ * Converts seen walls and scenery into 2-bit packed representation.
+ *
+ * Each tile uses 2 bits: 0=empty, 1=wall, 2=scenery
+ * Four tiles are packed into each byte (MSB first).
+ *
+ * @param elevation Current elevation level (0-2)
  */
 static void _decode_map_data(int elevation)
 {
@@ -1200,8 +1415,13 @@ static void _decode_map_data(int elevation)
 }
 
 /**
- * Creates a new automap database with expanded 2000-map format.
+ * Creates a new automap database in version 2 format (2000 maps, 3 elevations each).
  * Only creates file if it doesn't already exist.
+ *
+ * Initializes all offsets to 0, except for the first 3 tutorial/debug maps
+ * which are set to -1 (never save automap data).
+ *
+ * @return 0 on success, -1 on error
  */
 static int automapCreate()
 {
@@ -1277,6 +1497,9 @@ static int _copy_file_data(File* stream1, File* stream2, int length)
 /**
  * Gets pointer to automap header structure.
  * Used by pipboy to build automap list.
+ *
+ * @param automapHeaderPtr Pointer to receive header pointer
+ * @return 0 on success, -1 on error
  */
 int automapGetHeader(AutomapHeader** automapHeaderPtr)
 {
@@ -1304,8 +1527,11 @@ int automapGetHeader(AutomapHeader** automapHeaderPtr)
 }
 
 /**
- * Sets whether a map should be displayed in automap list.
- * Used by mods to add their maps to the automap system.
+ * Sets whether a map should be displayed in the automap list.
+ * Used by mods to integrate their maps into the automap system.
+ *
+ * @param map Map index (0-1999)
+ * @param available True to display in automap list, false to hide
  */
 void automapSetDisplayMap(int map, bool available)
 {
