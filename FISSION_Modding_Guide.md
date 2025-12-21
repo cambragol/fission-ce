@@ -201,11 +201,12 @@ Defines quests using the vanilla `quests.txt` format with enhanced mod support
 
 #### Format:
 
-
+```
 # Format: location, description, gvar, displayThreshold, completedThreshold
 # Note: 'description' field is IGNORED for mod quests - replaced by generated message ID
 1500, 0, 79, 1, 2
 1500, 0, 80, 1, 3
+```
 
 #### Rules:
 
