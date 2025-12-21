@@ -1016,7 +1016,7 @@ static uint32_t wmHashString(const char* str)
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
-        c = tolower(c); 
+        c = tolower(c);
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
@@ -2686,7 +2686,7 @@ static uint32_t wmAreaHashString(const char* str)
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
-        c = tolower(c); 
+        c = tolower(c);
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
