@@ -683,8 +683,7 @@ Base Messages: 502
 
 8.  Use IDs in scripts:
 
-    javascript
-
+    ```
     // Display area name
     display_msg(34120);
 
@@ -693,6 +692,7 @@ Base Messages: 502
 
     // Display quest description
     display_msg(34125);
+    ```
 
 ### Testing Checklist:
 
