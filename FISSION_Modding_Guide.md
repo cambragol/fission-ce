@@ -565,8 +565,7 @@ The system automatically creates these files in `data/lists/`:
 
 ### Quest Report Format (`quests_list.txt`):
 
-text
-
+```
 ==============================================================================
 Fallout Fission - Quest System Report
 ==============================================================================
@@ -593,6 +592,7 @@ Quest 200: myquest:0
 SUMMARY:
 Total Mod Quests: 2
 Base Quests: 150
+```
 
 ### Message Report Format (`messages_quests_list.txt`):
 
