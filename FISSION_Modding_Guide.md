@@ -79,6 +79,7 @@ text
 
 ### Complete Mod Directory Structure:
 
+```
 Fallout 2 Game Directory/\
 ├── data/ # Core game data\
 │   ├── city_{modname}.txt # Area definitions\
@@ -92,8 +93,7 @@ Fallout 2 Game Directory/\
 ├── scripts/ # Script files (existing system - separate ID generation)\
 ├── lists/ # Generated reports for assets indexes (art, maps, areas, messages, quests, scripts)\
 └── ... (other game folders)
-
-text
+```
 
 ### Required Files for a FISSION Mod:
 
@@ -385,8 +385,8 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* key) {
 
 ### Quest-Specific ID Generation:
 
-// In questLoadModFile():
 ```
+// In questLoadModFile():
 char descKey[256];
 snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 int descMessageId = generate_mod_message_id(mod_name, descKey);
@@ -505,8 +505,8 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
 ### 7.5 Runtime Retrieval
 
-// Quest description retrieval
 ```
+// Quest description retrieval
 static int getQuestDescriptionMessageId(int questId) {
     if (questId < MOD_QUEST_START) {
         // Vanilla quest: use description field directly
@@ -518,8 +518,8 @@ static int getQuestDescriptionMessageId(int questId) {
 }
 ```
 
-// Map name retrieval
 ```
+// Map name retrieval
 char* mapGetName(int map, int elevation) {
     if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
         // Mod map: generate message ID using mod name and lookup name
