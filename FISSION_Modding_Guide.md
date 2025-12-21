@@ -169,7 +169,7 @@ Defines individual game maps.
 
 #### Format:
 
-
+```
 [Map 0]                         # Section number (sequential)
 lookup_name = SCRAPTOWN1        # Unique identifier, referenced by entrances
 map_name = scrapt1              # MUST be ≤8 characters (DOS 8.3 limitation)
@@ -185,6 +185,7 @@ ambient_sfx = gntlwin1:50, gntlwind:50
 
 # Random start points (optional)
 random_start_point_0 = elev:0,tile_num:12345:elev:0,tile_num:23456
+```
 
 #### Critical Rules:
 
@@ -231,6 +232,7 @@ Contains all text for your mod, organized by section. Keys must match exactly a
 
 #### Format:
 
+```
 [map]                                   # World map and automap text
 area_name:SCRAPTOWN = Scraptown         # Area display name
 area_name:HIGHTOWN = Hightown           # Another area display name
@@ -249,6 +251,7 @@ entrance_1:HIGHTOWN = Market
 quest:0 = The people of Scraptown are having trouble with raiders...
 quest:1 = Mayor Johnson's family heirloom was lost...
 quest:2 = Hightown needs a new drawbridge...
+```
 
 #### Critical Format Rules:
 
@@ -300,13 +303,13 @@ generate_mod_message_id("myquest", "quest:0")
 
 Check vanilla `messages.txt` in `data/text/english/game/`:
 
-text
-
+```
 area_name:ARROYO = Arroyo
 lookup_name:ARROYO:0 = Temple
 lookup_name:ARROYO:1 = Temple
 entrance_0:ARROYO = Village
 entrance_1:ARROYO = Temple
+```
 
 #### Matching in Code:
 
@@ -370,57 +373,57 @@ uint32_t stable_hash(const char* str) {
 
 ### Mod Message ID Generator:
 
-cpp
-
+```
 uint32_t generate_mod_message_id(const char* mod_name, const char* key) {
     char composite_key[256];
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, key);
     uint32_t hash = stable_hash(composite_key);
     return 0x8000 + (hash % 0x7FFF);  // 32768-65535 range
 }
+```
 
 ### Quest-Specific ID Generation:
 
-cpp
-
 // In questLoadModFile():
+```
 char descKey[256];
 snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 int descMessageId = generate_mod_message_id(mod_name, descKey);
 quest->description = descMessageId;  // Override file description
+```
 
 ### Area Slot Allocation:
 
-cpp
-
+```
 static uint16_t wmAreaCalculateModSlot(const char* areaName, uint32_t modNamespace) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u", areaName, modNamespace);
     uint32_t hash = stable_hash(combinedKey);
     return MOD_AREA_START + (hash % (MOD_AREA_MAX - MOD_AREA_START));
 }
+```
 
 ### Map Slot Allocation:
 
-cpp
-
+```
 static uint16_t wmCalculateModMapSlot(const char* lookupName, uint32_t modNamespace) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u", lookupName, modNamespace);
     uint32_t hash = stable_hash(combinedKey);
     return MOD_MAP_START + (hash % (MOD_MAP_MAX - MOD_MAP_START));
 }
+```
 
 ### Quest Slot Allocation:
 
-cpp
-
+```
 static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespace, int questIndexInMod) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
     uint32_t hash = stable_hash(combinedKey);  // Uses same unified hash
     return MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
 }
+```
 
 * * * * *
 
@@ -501,9 +504,8 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
 ### 7.5 Runtime Retrieval
 
-cpp
-
 // Quest description retrieval
+```
 static int getQuestDescriptionMessageId(int questId) {
     if (questId < MOD_QUEST_START) {
         // Vanilla quest: use description field directly
@@ -513,8 +515,10 @@ static int getQuestDescriptionMessageId(int questId) {
         return gQuestDescriptions[questId].description;
     }
 }
+```
 
 // Map name retrieval
+```
 char* mapGetName(int map, int elevation) {
     if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
         // Mod map: generate message ID using mod name and lookup name
@@ -535,6 +539,7 @@ char* mapGetName(int map, int elevation) {
     }
     // ... vanilla handling
 }
+```
 
 * * * * *
 
@@ -590,8 +595,7 @@ Base Quests: 150
 
 ### Message Report Format (`messages_quests_list.txt`):
 
-text
-
+```
 ==============================================================================
 Fallout Fission - QUESTS Messages
 ==============================================================================
@@ -610,6 +614,7 @@ ID      | Text Preview
 SUMMARY:
 Total Mod Messages: 2
 Base Messages: 502
+```
 
 ### Error Detection:
 
@@ -834,8 +839,7 @@ Base Messages: 502
 
 ### Modder Workflow:
 
-text
-
+```
 Modder creates:                     System generates:          Modder uses in scripts:
 ----------------                    ------------------         -----------------------
 quests_MyMod.txt  --hash-->         Quest ID: 200              op_set_quest(200, 1)
@@ -844,6 +848,7 @@ quests_MyMod.txt  --hash-->         Quest ID: 200              op_set_quest(200,
 messages_MyMod.txt --same-hash->    Message ID: 34120
   [quests]                          |
   quest:0 = "Find item"             └── Auto-linked!
+```
 
 ### Critical Notes for Modders:
 
@@ -1006,8 +1011,7 @@ Appendix A: Quick Reference
 Appendix B: Example Mod Structure
 ---------------------------------
 
-text
-
+```
 MyFirstMod/
 ├── data/
 │   ├── city_myfirst.txt
@@ -1025,40 +1029,45 @@ MyFirstMod/
 │   ├── scripts_myfirst.lst
 │   └── myscript.int
 └── README.txt
+```
 
 ### Minimal Working Example:
 
 city_myfirst.txt:
 
-
+```
 [Area 0]
 area_name = TESTZONE
 world_pos = 100,100
 start_state = On
 size = Small
 entrance_0 = On,50,50,TESTMAP1,-1,-1,0
+```
 
 maps_myfirst.txt:
 
-
+```
 [Map 0]
 lookup_name = TESTMAP1
 map_name = testmap1
 city_name = TESTZONE
 saved = Yes
+```
 
 quests_myfirst.txt:
 
-
+```
 # Find the test item
 200, 0, 99, 1, 2
+```
 
 messages_myfirst.txt:
 
-
+```
 [map]
 area_name:TESTZONE = Test Zone
 lookup_name:TESTMAP1:0 = Test Location
 
 [quests]
 quest:0 = Find the test item and return it
+```
