@@ -140,7 +140,7 @@ Defines world map areas. Each area can contain multiple maps.
 
 #### Format:
 
-```ini
+```
 [Area 0]                        # Section number (sequential)
 area_name = SCRAPTOWN           # MUST be uppercase, unique identifier
 world_pos = 360,290             # World map coordinates
@@ -153,6 +153,7 @@ townmap_label_art_idx = 368     # Art index for town map label
 # Format: State,X,Y,MapLookupName,MapIndex,Unknown,Elevation
 entrance_0 = On,110,220,SCRAPTOWN1,-1,-1,0
 entrance_1 = On,235,250,SCRAPTOWN2,-1,-1,0
+```
 
 #### Rules:
 
