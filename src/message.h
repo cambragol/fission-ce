@@ -95,6 +95,7 @@ char* messageListRepositoryGetMsg(int messageListId, int messageId);
 
 uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
 bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
+bool messageListAddEntry(MessageList* msg, int num, const char* text);
 
 } // namespace fallout
 

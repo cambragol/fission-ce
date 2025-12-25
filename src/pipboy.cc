@@ -74,11 +74,17 @@ namespace fallout {
 
 #define PIPBOY_BOMB_COUNT (16)
 
+// Pipboy pagination defines
 #define PIPBOY_KEY_UP 1030
 #define PIPBOY_KEY_DOWN 1031
 #define PIPBOY_KEY_RIGHT 1033
 #define PIPBOY_KEY_LEFT 1034
 #define PIPBOY_KEY_SELECT 1032
+
+// Mod Holodisk defines
+#define MOD_HOLODISK_ID_START 50000
+#define MOD_HOLODISK_ID_BLOCK 500  // Same as vanilla
+#define MAX_HOLODISKS_PER_MOD 100
 
 // constants for setting lines per page in pagination functions
 const int PIPBOY_STATUS_QUEST_LINES = 19;
@@ -92,6 +98,8 @@ int gPipboySelectedItem = 0;
 int gPipboySelectedIndex = 0; // Currently selected item index (0-based)
 int gPipboyMaxSelectableItems = 0; // Maximum selectable items on current page
 bool gPipboyKeyboardMode = false; // Are we in keyboard navigation mode?
+
+static int gNextModHolodiskId = MOD_HOLODISK_ID_START;
 
 typedef enum PipboyColumn {
     PIPBOY_COLUMN_NONE = 0,
@@ -470,6 +478,174 @@ static FrmImage _pipboyFrmImages[PIPBOY_FRM_COUNT];
 ModQuestInfo gModQuests[MOD_QUEST_MAX - MOD_QUEST_START];
 int gModQuestCount = 0;
 char gQuestModNames[TOTAL_QUEST_MAX][64];
+
+// Convert a mod holodisk to vanilla format and load it
+static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, int gvar)
+{
+    // generate base ID for this holodisk
+    int baseId = gNextModHolodiskId;
+    gNextModHolodiskId += MOD_HOLODISK_ID_BLOCK;
+    
+    // Get the string keys
+    char baseKey[64];
+    snprintf(baseKey, sizeof(baseKey), "holodisk:%d", holodiskIndex);
+    
+    // Get holodisk name using string key
+    char nameKey[128];
+    snprintf(nameKey, sizeof(nameKey), "%s:name", baseKey);
+    int nameHashId = generate_mod_message_id(modName, nameKey);
+    
+    // try to get the name from message list
+    MessageListItem nameMsgItem;
+    nameMsgItem.num = nameHashId;
+    const char* nameText = getmsg(&gPipboyMessageList, &nameMsgItem, nameHashId);
+    
+    // Error check
+    if (!nameText || strstr(nameText, "Error") != nullptr || strstr(nameText, "String not found") != nullptr) {
+        return false;
+    }
+    
+    // Add name to message list with numeric ID
+    if (!messageListAddEntry(&gPipboyMessageList, baseId, nameText)) {
+        return false;
+    }
+    
+    // Read lines and add with consecutive IDs
+    int currentId = baseId + 1;
+    bool foundEndDisk = false;
+    int lineNum = 0;
+    
+    while (lineNum < MOD_HOLODISK_ID_BLOCK - 1 && !foundEndDisk) {
+        char lineKey[128];
+        snprintf(lineKey, sizeof(lineKey), "%s:line:%d", baseKey, lineNum);
+        int lineHashId = generate_mod_message_id(modName, lineKey);
+        
+        MessageListItem lineMsgItem;
+        lineMsgItem.num = lineHashId;
+        const char* lineText = getmsg(&gPipboyMessageList, &lineMsgItem, lineHashId);
+        
+        // Check for errors
+        if (!lineText || strstr(lineText, "Error") != nullptr || strstr(lineText, "String not found") != nullptr) {
+            break;
+        }
+        
+        // Check if this is the end marker
+        if (strcmp(lineText, "**END-DISK**") == 0) {
+            if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
+                return false;
+            }
+            foundEndDisk = true;
+            currentId++;
+            break;
+        }
+        
+        // Add the line
+        if (!messageListAddEntry(&gPipboyMessageList, currentId, lineText)) {
+            return false;
+        }
+        
+        currentId++;
+        lineNum++;
+    }
+    
+    // Add final END-DISK if we didn't find one
+    if (!foundEndDisk) {
+        if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
+            return false;
+        }
+    }
+    
+    // 6. Add to holodisk array (vanilla format!)
+    HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(
+        gHolodiskDescriptions, 
+        sizeof(HolodiskDescription) * (gHolodisksCount + 1)
+    );
+    
+    if (!entries) {
+        return false;
+    }
+    
+    gHolodiskDescriptions = entries;
+    HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
+    
+    holodisk->gvar = gvar;
+    holodisk->name = baseId;        // Numeric ID for name
+    holodisk->description = baseId + 1; // First line ID (consecutive!)
+    
+    gHolodisksCount++;
+    
+    return true;
+}
+
+// Load a mod holodisk file (format: GVAR on each line)
+static void holodiskLoadModFile(const char* filename)
+{
+    File* stream = fileOpen(filename, "rt");
+    if (!stream) {
+        return;
+    }
+    
+    // Extract mod name from filename (holodisk_xxx.txt -> xxx)
+    const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+    if (!base_filename) {
+        base_filename = filename;
+    } else {
+        base_filename++;
+    }
+    
+    char mod_name[64] = {0};
+    const char* prefix = "holodisk_";
+    const char* suffix = ".txt";
+    
+    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(base_filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+        
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        } else {
+            strncpy(mod_name, "unknown", sizeof(mod_name) - 1);
+        }
+    } else {
+        fileClose(stream);
+        return;
+    }
+    
+    char line[256];
+    int holodiskIndex = 0;
+    
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+        
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+        
+        // Parse GVAR
+        int gvar;
+        if (sscanf(line, "%d", &gvar) != 1) {
+            continue;
+        }
+        
+        // Convert and load as vanilla
+        convertAndLoadModHolodisk(mod_name, holodiskIndex, gvar);
+        
+        holodiskIndex++;
+        
+        // Safety check
+        if (holodiskIndex >= MAX_HOLODISKS_PER_MOD) {
+            break;
+        }
+    }
+    
+    fileClose(stream);
+}
 
 static void pipboyRedrawStatusPageWithSelection()
 {
@@ -878,11 +1054,12 @@ static int pipboyWindowInit(int intent)
     gPipboyWindowButtonStart = 0;
     _hot_back_line = 0;
 
-    if (holodiskInit() == -1) {
+    // Must load messages before holodisk
+    if (pipboyMessageListInit() == -1) {
         return -1;
     }
 
-    if (pipboyMessageListInit() == -1) {
+    if (holodiskInit() == -1) {
         return -1;
     }
 
@@ -4412,6 +4589,111 @@ static int questDescriptionCompare(const void* a1, const void* a2)
     return v1->location - v2->location;
 }
 
+// Generate a report of all loaded holodisks (vanilla + mod)
+static void generateHolodiskListReport()
+{
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "./data%clists%cholodisks_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* reportFile = compat_fopen(reportPath, "wt");
+    if (!reportFile) {
+        return;
+    }
+
+    // Write header
+    fprintf(reportFile,
+        "==============================================================================\n"
+        "Fallout 2 Fission - Holodisk System Report\n"
+        "==============================================================================\n"
+        "All holodisks (vanilla and mod) converted to vanilla format.\n"
+        "Mod holodisks use IDs starting at %d in blocks of %d.\n\n"
+        "Format: Index | GVAR | Name ID | Desc ID | Type | Name\n"
+        "------------------------------------------------------------------------------\n",
+        MOD_HOLODISK_ID_START, MOD_HOLODISK_ID_BLOCK);
+
+    // Count statistics
+    int vanillaCount = 0;
+    int modCount = 0;
+    
+    // First pass: count vanilla vs mod
+    for (int i = 0; i < gHolodisksCount; i++) {
+        if (gHolodiskDescriptions[i].name >= MOD_HOLODISK_ID_START) {
+            modCount++;
+        } else {
+            vanillaCount++;
+        }
+    }
+    
+    fprintf(reportFile, "Summary: %d total holodisks (%d vanilla, %d mod)\n\n", 
+            gHolodisksCount, vanillaCount, modCount);
+    
+    // List all holodisks
+    for (int i = 0; i < gHolodisksCount; i++) {
+        HolodiskDescription* holo = &gHolodiskDescriptions[i];
+        
+        // Get the name text
+        MessageListItem nameItem;
+        nameItem.num = holo->name;
+        const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
+        
+        const char* type = (holo->name >= MOD_HOLODISK_ID_START) ? "MOD" : "Vanilla";
+        
+        fprintf(reportFile, "%5d | %4d | %7d | %7d | %-7s | %s\n", 
+                i, holo->gvar, holo->name, holo->description, type,
+                nameText ? nameText : "(not found)");
+    }
+    
+    // Add mod-specific info section
+    if (modCount > 0) {
+        fprintf(reportFile, 
+            "\n\nMOD HOLODISK DETAILS:\n"
+            "====================\n"
+            "Mod holodisks use the following ID blocks:\n\n");
+        
+        for (int i = 0; i < gHolodisksCount; i++) {
+            HolodiskDescription* holo = &gHolodiskDescriptions[i];
+            
+            if (holo->name >= MOD_HOLODISK_ID_START) {
+                // Calculate which mod block this is
+                int blockNumber = (holo->name - MOD_HOLODISK_ID_START) / MOD_HOLODISK_ID_BLOCK;
+                
+                MessageListItem nameItem;
+                nameItem.num = holo->name;
+                const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
+                
+                fprintf(reportFile, "Block %d: IDs %d-%d (GVAR %d) - %s\n",
+                        blockNumber, holo->name, holo->name + MOD_HOLODISK_ID_BLOCK - 1,
+                        holo->gvar, nameText ? nameText : "(no name)");
+            }
+        }
+    }
+    
+    // Usage notes
+    fprintf(reportFile,
+        "\n\nUSAGE NOTES:\n"
+        "============\n"
+        "1. Mod holodisks are identical to vanilla after conversion\n"
+        "2. In scripts, use: set_global_var(GVAR, 1) to give holodisk to player\n"
+        "3. IDs are stable - same mod files always generate same IDs\n"
+        "4. Empty lines in message files are skipped (use a space for blank lines)\n"
+        "5. **END-DISK** marker is required (auto-added if missing)\n"
+        "6. **END-PAR** creates paragraph breaks\n"
+        "\nFILE STRUCTURE:\n"
+        "--------------\n"
+        "data/holodisk_ModName.txt:\n"
+        "    900  # First holodisk GVAR\n"
+        "    901  # Second holodisk GVAR\n"
+        "\n"
+        "data/text/english/game/messages_ModName.txt:\n"
+        "    [PIPBOY]\n"
+        "    holodisk:0:name = Holodisk Name\n"
+        "    holodisk:0:line:0 = First line of text\n"
+        "    holodisk:0:line:1 = Second line\n"
+        "    holodisk:0:line:2 = **END-DISK**\n");
+    
+    fclose(reportFile);
+}
+
 // 0x49A824
 static int holodiskInit()
 {
@@ -4421,68 +4703,90 @@ static int holodiskInit()
     }
 
     gHolodisksCount = 0;
+    
+    // Reset mod holodisk ID counter
+    gNextModHolodiskId = MOD_HOLODISK_ID_START;
 
+    // Load vanilla holodisks first
     File* stream = fileOpen("data\\holodisk.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    if (stream != nullptr) {
+        char str[256];
+        while (fileReadString(str, sizeof(str), stream)) {
+            const char* delim = " \t,";
+            char* tok;
+
+            char* ch = str;
+            while (isspace(*ch)) {
+                ch++;
+            }
+
+            if (*ch == '#') {
+                continue;
+            }
+
+            tok = strtok(ch, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int gvar = atoi(tok);
+
+            tok = strtok(nullptr, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int name = atoi(tok);
+
+            tok = strtok(nullptr, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int description = atoi(tok);
+
+            HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(
+                gHolodiskDescriptions, 
+                sizeof(HolodiskDescription) * (gHolodisksCount + 1)
+            );
+            if (entries == nullptr) {
+                fileClose(stream);
+                return -1;
+            }
+
+            gHolodiskDescriptions = entries;
+            HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
+            
+            holodisk->gvar = gvar;
+            holodisk->name = name;
+            holodisk->description = description;
+
+            gHolodisksCount++;
+        }
+
+        fileClose(stream);
     }
 
-    char str[256];
-    while (fileReadString(str, sizeof(str), stream)) {
-        const char* delim = " \t,";
-        char* tok;
-        HolodiskDescription entry;
+    // Load mod holodisk files
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cholodisk_*.txt", DIR_SEPARATOR);
 
-        char* ch = str;
-        while (isspace(*ch)) {
-            ch++;
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            holodiskLoadModFile(fullPath);
         }
-
-        if (*ch == '#') {
-            continue;
-        }
-
-        tok = strtok(ch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.name = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.description = atoi(tok);
-
-        HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(gHolodiskDescriptions, sizeof(*gHolodiskDescriptions) * (gHolodisksCount + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gHolodisksCount]), &entry, sizeof(*gHolodiskDescriptions));
-
-        gHolodiskDescriptions = entries;
-        gHolodisksCount++;
+        fileNameListFree(&foundModFiles, 0);
     }
 
-    fileClose(stream);
-
+    // Generate report after loading all holodisks - later make toggle
+    generateHolodiskListReport();
+    
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // 0x49A968

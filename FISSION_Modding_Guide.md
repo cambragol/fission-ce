@@ -1,6 +1,8 @@
-# Fallout FISSION Modding System: Complete Implementation Guide
+Fallout FISSION Modding System: Complete Implementation Guide
+=============================================================
 
-## Table of Contents
+Table of Contents
+-----------------
 
 1. [System Overview](#1-system-overview)
 2. [Core Architecture](#2-core-architecture)
@@ -9,45 +11,63 @@
    - [4.1 Area Configuration](#41-area-configuration-city_modnametxt)
    - [4.2 Map Configuration](#42-map-configuration-maps_modnametxt)
    - [4.3 Quest Configuration](#43-quest-configuration-quests_modnametxt)
+   - [4.4 Holodisk Configuration](#44-holodisk-configuration-holodisk_modnametxt)
 5. [Message System](#5-message-system)
 6. [Stable ID Generation](#6-stable-id-generation)
 7. [Implementation Details](#7-implementation-details)
    - [7.1 Area Loading](#71-area-loading-worldmapcc)
    - [7.2 Map Loading](#72-map-loading-worldmapcc)
    - [7.3 Quest Loading](#73-quest-loading-pipboycc)
-   - [7.4 Message Loading](#74-message-loading-messagecc)
-   - [7.5 Runtime Retrieval](#75-runtime-retrieval)
+   - [7.4 Holodisk Loading](#74-holodisk-loading-pipboycc)
+   - [7.4 Message Loading](#75-message-loading-messagecc)
+   - [7.5 Runtime Retrieval](#76-runtime-retrieval)
 8. [Debugging & Reports](#8-debugging--reports)
 9. [Modder Guidelines](#9-modder-guidelines)
 10. [Known Limitations & Workarounds](#10-known-limitations--workarounds)
 11. [Quest System Specifics](#11-quest-system-specifics)
-12. [Troubleshooting](#12-troubleshooting)
-13. [Future Expansion](#13-future-expansion)
+12. [Holodisk](#12-holodisk-system-specifics)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Future Expansion](#14-future-expansion)
 
----
+* * * * *
 
-## 1\. System Overview
+1\. System Overview
+-------------------
 
-The Fallout 2 FISSION modding system provides a framework for adding new maps, areas, quests, and text content without modifying base game files. Key features:
+The Fallout 2 FISSION modding system provides a framework for adding new maps, areas, quests, holodisks, and text content without modifying base game files. Key features:
 
-- **Stable, hash-based indexing** ensures consistent IDs across installations
-- **Modular file organization** keeps mods self-contained
-- **Automatic report generation** helps modders reference generated IDs
-- **Backward compatibility** with vanilla saves and content
-- **Localization support** with English fallback
+-   Stable, hash-based indexing ensures consistent IDs across installations
+
+-   Modular file organization keeps mods self-contained
+
+-   Automatic report generation helps modders reference generated IDs
+
+-   Backward compatibility with vanilla saves and content
+
+-   Localization support with English fallback
+
+-   Vanilla format conversion - mod content converted to vanilla format at load time
 
 ### Supported Content Types:
 
-1. **Maps** - Game locations with multiple elevations
-2. **Areas** - World map regions containing multiple maps
-3. **Messages** - Text for area names, map names, entrance labels, and quest descriptions
-4. **Quests** - Quest definitions with automatically linked descriptions
-5. **Scripts** - Already has stable ID generation (separate system)
-6. **Art** - Already has stable ID generation (separate system)
+1.  Maps - Game locations with multiple elevations
 
----
+2.  Areas - World map regions containing multiple maps
 
-## 2\. Core Architecture
+3.  Messages - Text for area names, map names, entrance labels, quest descriptions, and holodisk text
+
+4.  Quests - Quest definitions with automatically linked descriptions
+
+5.  Holodisks - Holodisk definitions with multi-page text content
+
+6.  Scripts - Already has stable ID generation (separate system)
+
+7.  Art - Already has stable ID generation (separate system)
+
+* * * * *
+
+2\. Core Architecture
+---------------------
 
 ### ID Ranges:
 
@@ -60,79 +80,110 @@ Maps: 0-199 (Vanilla)\
 Areas: 0-199 (Vanilla)\
 200-999 (Mods - hash-based allocation)
 
+Holodisks: 0-? (Vanilla, by GVAR)\
+Mod holodisks use message IDs: 50000+ (in blocks of 500)
+
 Messages: 0-32767 (Vanilla)\
 32768-65535 (Mods - hash-based allocation)
 
-text
-
 ### Key Principles:
 
-1. **Deterministic hashing** - Same inputs always produce same outputs
-2. **Case-insensitive** - System normalizes to lowercase via `tolower()`
-3. **Fail on collision** - Prevents silent overwrites (popup warnings)
-4. **Separate concerns** - Config, art, scripts, messages in different files
-5. **Automatic linking** - Quests auto-generate linked message IDs
+1.  Deterministic hashing - Same inputs always produce same outputs
 
----
+2.  Case-insensitive - System normalizes to lowercase via `tolower()`
 
-## 3\. File Structure & Naming Conventions
+3.  Fail on collision - Prevents silent overwrites (popup warnings)
+
+4.  Separate concerns - Config, art, scripts, messages in different files
+
+5.  Automatic linking - Quests auto-generate linked message IDs
+
+6.  Vanilla conversion - Mod content converted to vanilla format at load time
+
+* * * * *
+
+3\. File Structure & Naming Conventions
+---------------------------------------
 
 ### Complete Mod Directory Structure:
 
 ```
-Fallout 2 Game Directory/\
-├── data/ # Core game data\
-│   ├── city_{modname}.txt # Area definitions\
-│   ├── maps_{modname}.txt # Map definitions\
-│   └── quests_{modname}.txt # Quest definitions\
-├── text/ # Localization files\
-│   └── english/\
-│       └── game/\
-│           └── messages_{modname}.txt # All text content\
-├── art/ # Art assets (existing system - separate ID generation)\
-├── scripts/ # Script files (existing system - separate ID generation)\
-├── lists/ # Generated reports for assets indexes (art, maps, areas, messages, quests, scripts)\
+Fallout 2 Game Directory/
+├── data/                    # Core game data
+│   ├── city_{modname}.txt   # Area definitions
+│   ├── maps_{modname}.txt   # Map definitions
+│   ├── quests_{modname}.txt # Quest definitions
+│   └── holodisk_{modname}.txt # Holodisk definitions
+├── text/                    # Localization files
+│   └── english/
+│       └── game/
+│           └── messages_{modname}.txt # All text content
+├── art/                     # Art assets (existing system - separate ID generation)
+├── scripts/                 # Script files (existing system - separate ID generation)
+├── lists/                   # Generated reports for assets indexes
 └── ... (other game folders)
 ```
 
 ### Required Files for a FISSION Mod:
 
-For the FISSION modding system specifically, you need these files **inside the `data/` directory**:
+For the FISSION modding system specifically, you need these files inside the `data/` directory:
 
-1. **`city_{modname}.txt`** - Area definitions (in `data/`)
-2. **`maps_{modname}.txt`** - Map definitions (in `data/`)
-3. **`quests_{modname}.txt`** - Quest definitions (in `data/`)
-4. **`messages_{modname}.txt`** - Message/text content (in `data/text/english/game/`)
+1.  `city_{modname}.txt` - Area definitions (in `data/`)
+
+2.  `maps_{modname}.txt` - Map definitions (in `data/`)
+
+3.  `quests_{modname}.txt` - Quest definitions (in `data/`)
+
+4.  `holodisk_{modname}.txt` - Holodisk definitions (in `data/`)
+
+5.  `messages_{modname}.txt` - Message/text content (in `data/text/english/game/`)
 
 ### Important Notes:
 
-1. **Scripts and Art** use their own stable ID generation systems and are placed in separate top-level directories:
-   - Scripts go in the `scripts/` folder
-   - Art goes in the `art/` folder
-   - These are **not** part of the FISSION file structure
+1.  Scripts and Art use their own stable ID generation systems and are placed in separate top-level directories:
 
-2. **Message files** must be in the language-specific subdirectory:
-   - English: `data/text/english/game/messages_{modname}.txt`
-   - German: `data/text/german/game/messages_{modname}.txt`
-   - Russian: `data/text/russian/game/messages_{modname}.txt`
-   - etc.
+    -   Scripts go in the `scripts/` folder
 
-3. **Vanilla files remain unchanged** - your mod files are added alongside them, not replacing them
+    -   Art goes in the `art/` folder
+
+    -   These are not part of the FISSION file structure
+
+2.  Message files must be in the language-specific subdirectory:
+
+    -   English: `data/text/english/game/messages_{modname}.txt`
+
+    -   German: `data/text/german/game/messages_{modname}.txt`
+
+    -   Russian: `data/text/russian/game/messages_{modname}.txt`
+
+    -   etc.
+
+3.  Vanilla files remain unchanged - your mod files are added alongside them, not replacing them
 
 ### File Naming Rules:
 
-- **All lowercase** recommended (system is case-insensitive but consistent)
-- **No spaces or special characters** except underscore
-- **Mod name must be consistent** across all files
-- **Example:** For a mod named "wasteland":
-  - `data/city_wasteland.txt`
-  - `data/maps_wasteland.txt`
-  - `data/quests_wasteland.txt`
-  - `data/text/english/game/messages_wasteland.txt`
+-   All lowercase recommended (system is case-insensitive but consistent)
 
----
+-   No spaces or special characters except underscore
 
-## 4. Configuration Files
+-   Mod name must be consistent across all files
+
+-   Example: For a mod named "wasteland":
+
+    -   `data/city_wasteland.txt`
+
+    -   `data/maps_wasteland.txt`
+
+    -   `data/quests_wasteland.txt`
+
+    -   `data/holodisk_wasteland.txt`
+
+    -   `data/text/english/game/messages_wasteland.txt`
+
+* * * * *
+
+4\. Configuration Files
+-----------------------
 
 ### 4.1 Area Configuration (`city_{modname}.txt`)
 
@@ -210,17 +261,38 @@ Defines quests using the vanilla `quests.txt` format with enhanced mod support
 
 #### Rules:
 
-1.  One quest per line in CSV format
+1.  One quest per line in CSV format
 
-2.  Comments start with `#` and are ignored
+2.  Comments start with `#` and are ignored
 
-3.  Location - Area index (must be valid area, vanilla or mod)
+3.  Location - Area index (must be valid area, vanilla or mod)
 
-4.  Description field - Ignored for mod quests (replaced by generated message ID)
+4.  Description field - Ignored for mod quests (replaced by generated message ID)
 
-5.  GVAR - Global variable tracking quest state
+5.  GVAR - Global variable tracking quest state
 
-6.  Thresholds - Display and completion values
+6.  Thresholds - Display and completion values
+
+### 4.4 Holodisk Configuration (`holodisk_{modname}.txt`)
+
+Defines holodisks by their GVAR (global variable) numbers. Each line contains one GVAR.
+
+#### Format:
+
+```
+900  # First holodisk - appears when GVAR 900 = 1
+901  # Second holodisk - appears when GVAR 901 = 1
+```
+
+#### Rules:
+
+-   One GVAR per line
+
+-   Comments start with `#`
+
+-   GVARs should be unique (900+ recommended for mods)
+
+-   GVAR must be set to 1 to make holodisk appear in Pip-Boy
 
 * * * * *
 
@@ -229,7 +301,7 @@ Defines quests using the vanilla `quests.txt` format with enhanced mod support
 
 ### File Structure (`messages_{modname}.txt`)
 
-Contains all text for your mod, organized by section. Keys must match exactly as shown!
+Contains all text for your mod, organized by section. Keys must match exactly as shown!
 
 #### Format:
 
@@ -252,13 +324,27 @@ entrance_1:HIGHTOWN = Market
 quest:0 = The people of Scraptown are having trouble with raiders...
 quest:1 = Mayor Johnson's family heirloom was lost...
 quest:2 = Hightown needs a new drawbridge...
+
+[pipboy]                                # Holodisk text (also supports [HOLODISKS] for backward compatibility)
+holodisk:0:name = Important Data Disk
+holodisk:0:line:0 = This holodisk contains critical information
+holodisk:0:line:1 = about the secret facility.
+holodisk:0:line:2 = **END-PAR**  # Paragraph break (optional)
+holodisk:0:line:3 = The entrance is hidden behind the waterfall.
+holodisk:0:line:4 = Coordinates: 38.8977° N, 77.0365° W
+holodisk:0:line:5 = **END-DISK**  # Required (auto-added if missing)
+
+holodisk:1:name = Research Notes
+holodisk:1:line:0 = Day 1: The experiment shows promise.
+holodisk:1:line:1 = The subjects are responding well to treatment.
+holodisk:1:line:2 = **END-DISK**
 ```
 
 #### Critical Format Rules:
 
-1.  Section headers must match exactly: `[map]`, `[worldmap]`, `[quests]`
+1.  Section headers must match exactly: `[map]`, `[worldmap]`, `[quests]`, `[PIPBOY]`
 
-2.  Case-sensitive keys: Use exact formats shown (lowercase for area_name/lookup_name/entrance_X)
+2.  Case-sensitive keys: Use exact formats shown (lowercase for area_name/lookup_name/entrance_X/holodisk)
 
 3.  No trailing spaces in section headers or keys
 
@@ -272,6 +358,10 @@ quest:2 = Hightown needs a new drawbridge...
 
     -   Quests: `quest:{INDEX}` (lowercase `quest:`)
 
+    -   Holodisk names: `holodisk:{INDEX}:name`
+
+    -   Holodisk lines: `holodisk:{INDEX}:line:{LINE_NUMBER}`
+
 #### Why These Formats?
 
 These formats match the vanilla message file structure for consistency:
@@ -284,10 +374,11 @@ These formats match the vanilla message file structure for consistency:
 
 -   We extended with `[quests]` section for mod quests
 
+-   We extended with `[PIPBOY]` section for mod holodisks
+
 #### ID Generation:
 
-cpp
-
+```
 // Area name message ID generation
 generate_mod_message_id("myquest", "area_name:SCRAPTOWN")
 // Returns consistent ID between 32768-65535
@@ -299,6 +390,11 @@ generate_mod_message_id("myquest", "lookup_name:Scraptown1:0")
 // Quest description message ID generation
 generate_mod_message_id("myquest", "quest:0")
 // Returns consistent ID between 32768-65535
+
+// Holodisk name message ID generation
+generate_mod_message_id("myquest", "holodisk:0:name")
+// Returns consistent ID between 32768-65535
+```
 
 #### Real-World Example from Vanilla Files:
 
@@ -316,8 +412,7 @@ entrance_1:ARROYO = Temple
 
 When retrieving names, the code uses these exact formats:
 
-cpp
-
+```
 // In mapGetName():
 snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
 
@@ -327,6 +422,11 @@ snprintf(messageKey, sizeof(messageKey), "entrance_%d:%s", index, areaName);
 // In quest system:
 snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 
+// In holodisk system:
+snprintf(nameKey, sizeof(nameKey), "holodisk:%d:name", holodiskIndex);
+snprintf(lineKey, sizeof(lineKey), "holodisk:%d:line:%d", holodiskIndex, lineNum);
+```
+
 #### Common Mistakes to Avoid:
 
 1.  WRONG: `AREA:SCRAPTOWN` (uppercase, wrong prefix)
@@ -335,11 +435,15 @@ snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 
 3.  WRONG: `ENTRANCE:SCRAPTOWN:0` (wrong format)
 
-4.  CORRECT: `area_name:SCRAPTOWN`
+4.  WRONG: `Holodisk:0:Name` (uppercase)
 
-5.  CORRECT: `lookup_name:SCRAPTOWN1:0`
+5.  CORRECT: `area_name:SCRAPTOWN`
 
-6.  CORRECT: `entrance_0:SCRAPTOWN`
+6.  CORRECT: `lookup_name:SCRAPTOWN1:0`
+
+7.  CORRECT: `entrance_0:SCRAPTOWN`
+
+8.  CORRECT: `holodisk:0:name`
 
 #### Validation Tips:
 
@@ -360,8 +464,7 @@ Important: The system looks for these exact key formats. If your keys don't mat
 
 ### Unified Hash Function (DJB2, Case-Insensitive):
 
-cpp
-
+```
 uint32_t stable_hash(const char* str) {
     uint32_t hash = 5381;
     int c;
@@ -371,6 +474,7 @@ uint32_t stable_hash(const char* str) {
     }
     return hash;
 }
+```
 
 ### Mod Message ID Generator:
 
@@ -391,6 +495,19 @@ char descKey[256];
 snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 int descMessageId = generate_mod_message_id(mod_name, descKey);
 quest->description = descMessageId;  // Override file description
+```
+
+### Holodisk ID Generation:
+
+```
+// In convertAndLoadModHolodisk():
+char nameKey[128];
+snprintf(nameKey, sizeof(nameKey), "holodisk:%d:name", holodiskIndex);
+int nameHashId = generate_mod_message_id(modName, nameKey);
+
+char lineKey[128];
+snprintf(lineKey, sizeof(lineKey), "holodisk:%d:line:%d", holodiskIndex, lineNum);
+int lineHashId = generate_mod_message_id(modName, lineKey);
 ```
 
 ### Area Slot Allocation:
@@ -483,11 +600,52 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
         -   Generate description message ID: `generate_mod_message_id("myquest", "quest:{index}")`
 
-        -   Override description field with generated message ID
+        -   Override description field with generated message ID
 
         -   Store mod name in `gQuestModNames[]` for tracking
 
-### 7.4 Message Loading (`message.cc`)
+### 7.4 Holodisk Loading (`pipboy.cc`)
+
+#### Process:
+
+1.  Vanilla holodisks load from `data/holodisk.txt` (GVAR, name ID, description ID)
+
+2.  Mod holodisks load from `data/holodisk_*.txt` files
+
+3.  For each mod holodisk:
+
+    -   Extract mod name from filename
+
+    -   Generate a block of 500 consecutive IDs starting at 50000
+
+    -   Look up name and lines from message file (in `[PIPBOY]` section)
+
+    -   Add to message list with consecutive numeric IDs
+
+    -   Add to holodisk array in vanilla format
+
+#### Conversion Example:
+
+```
+holodisk_test2.txt (GVAR 900) + messages_test2.txt
+↓
+Converted to vanilla format:
+- Name: ID 50000
+- Line 0: ID 50001
+- Line 1: ID 50002
+- END-DISK: ID 50003
+- Added to holodisk array: GVAR=900, name=50000, description=50001
+```
+
+#### Key Functions:
+
+-   `holodiskInit()`: Main initialization, loads vanilla and mod holodisks
+
+-   `holodiskLoadModFile()`: Loads a mod holodisk file
+
+-   `convertAndLoadModHolodisk()`: Converts a mod holodisk to vanilla format
+
+### 7.5 Message Loading (`message.cc`)
 
 -   File: `loadModFileWithSections()`
 
@@ -503,7 +661,19 @@ static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespac
 
         -   Add to quest message list (`gQuestsMessageList`)
 
-### 7.5 Runtime Retrieval
+-   Process for holodisks:
+
+    1.  Extract mod name from filename
+
+    2.  Read `[PIPBOY]` section (or `[HOLODISKS]` for backward compatibility)
+
+    3.  For each `holodisk:{index}:name = text` and `holodisk:{index}:line:{num} = text` pair:
+
+        -   Generate message ID using `generate_mod_message_id()`
+
+        -   Add to pipboy message list (`gPipboyMessageList`)
+
+### 7.6 Runtime Retrieval
 
 ```
 // Quest description retrieval
@@ -542,6 +712,21 @@ char* mapGetName(int map, int elevation) {
 }
 ```
 
+```
+// Holodisk text retrieval (uses vanilla code after conversion)
+static void pipboyRenderHolodiskText() {
+    // NO MOD CHECKS NEEDED!
+    // All holodisks (vanilla and mod) are in the same format
+
+    // ... existing vanilla rendering code works for ALL holodisks ...
+
+    // The bug is fixed because:
+    // 1. Mod holodisks have consecutive IDs like vanilla
+    // 2. gPipboyHolodiskLastPage is calculated correctly for all
+    // 3. Pagination works identically
+}
+```
+
 * * * * *
 
 8\. Debugging & Reports
@@ -555,13 +740,17 @@ The system automatically creates these files in `data/lists/`:
 
 2.  `messages_quests_list.txt` - All mod quest descriptions with IDs
 
-3.  `maps_list.txt` - All maps with slots, types, and override info
+3.  `messages_pipboy_list.txt` - All mod messages in pipboy.msg with IDs (including holodisk messages)
 
-4.  `area_list.txt` - All areas with slots and mod assignments
+4.  `holodisks_list.txt` - All holodisks with GVARs, name IDs, and mod assignments
 
-5.  `messages_map_list.txt` - All mod messages in map.msg with IDs
+5.  `maps_list.txt` - All maps with slots, types, and override info
 
-6.  `messages_worldmap_list.txt` - All mod messages in worldmap.msg with IDs
+6.  `area_list.txt` - All areas with slots and mod assignments
+
+7.  `messages_map_list.txt` - All mod messages in map.msg with IDs
+
+8.  `messages_worldmap_list.txt` - All mod messages in worldmap.msg with IDs
 
 ### Quest Report Format (`quests_list.txt`):
 
@@ -594,11 +783,37 @@ Total Mod Quests: 2
 Base Quests: 150
 ```
 
-### Message Report Format (`messages_quests_list.txt`):
+### Holodisk Report Format (`holodisks_list.txt`):
 
 ```
 ==============================================================================
-Fallout Fission - QUESTS Messages
+Fallout 2 Fission - Holodisk System Report
+==============================================================================
+All holodisks (vanilla and mod) converted to vanilla format.
+
+Format: Index | GVAR | Name ID | Desc ID | Type | Name
+------------------------------------------------------------------------------
+
+Summary: 11 total holodisks (9 vanilla, 2 mod)
+
+    0 |   45 |     610 |     611 | Vanilla | Vault 13 Holodisk
+    ...
+   10 |  900 |   50000 |   50001 | MOD     | Test Holodisk 1
+   11 |  901 |   50500 |   50501 | MOD     | Test Holodisk 2
+
+MOD HOLODISK DETAILS:
+====================
+Mod holodisks use the following ID blocks:
+
+Block 0: IDs 50000-50499 (GVAR 900) - Test Holodisk 1
+Block 1: IDs 50500-50999 (GVAR 901) - Test Holodisk 2
+```
+
+### Message Report Format (`messages_pipboy_list.txt`):
+
+```
+==============================================================================
+Fallout Fission - PIPBOY Messages
 ==============================================================================
 Generated IDs for mod message references in scripts.
 
@@ -609,27 +824,38 @@ Usage: display_msg(ID);  // Reference in scripts
 MOD MESSAGES (Custom Content):
 ID      | Text Preview
 --------|--------------------------------------------------
-34120   | The people of Scraptown are having trouble with raiders...
-34121   | Mayor Johnson's family heirloom was lost...
+33685   | Another test holodisk with more content.
+33686   | This demonstrates multiple holodisks per mod.
+33687   | **END-PAR**
+33688   | Paragraph breaks work too!
+33689   | **END-DISK**
+38279   | Test Holodisk 2
+54832   | This is a test holodisk for the mod system.
+54833   | It should appear in the Pip-Boy under Data.
+54835   | This text was loaded from a mod file.
+54836   | **END-DISK**
+59451   | Test Holodisk 1
 
 SUMMARY:
-Total Mod Messages: 2
-Base Messages: 502
+Total Mod Messages: 10
+Base Messages: 626
 ```
 
 ### Error Detection:
 
--   Slot collisions: Clear popup error with resolution steps
+-   Slot collisions: Clear popup error with resolution steps
 
--   Missing quest messages: Quest shows "Error" in PipBoy
+-   Missing quest messages: Quest shows "Error" in PipBoy
 
--   Format errors: Reports malformed quest lines
+-   Missing holodisk messages: Holodisk shows "Error" when clicked
 
--   Hash inconsistencies: System ensures same hash algorithm used throughout
+-   Format errors: Reports malformed quest/holodisk lines
 
--   DOS 8.3 violations: Warning popup for map names >8 characters
+-   Hash inconsistencies: System ensures same hash algorithm used throughout
 
--   Missing area references: Warns when `city_name` doesn't match any area
+-   DOS 8.3 violations: Warning popup for map names >8 characters
+
+-   Missing area references: Warns when `city_name` doesn't match any area
 
 * * * * *
 
@@ -642,30 +868,44 @@ Base Messages: 502
 
 2.  Create area file (`city_myquest.txt`):
 
+    ```
     [Area 0]
     area_name = MYTOWN
     world_pos = 400,300
     start_state = On
     size = Medium
     entrance_0 = On,100,200,MYTOWN1,-1,-1,0
+    ```
 
 3.  Create map file (`maps_myquest.txt`):
 
+    ```
     [Map 0]
     lookup_name = MYTOWN1
     map_name = mytown1      # ≤8 characters!
     city_name = MYTOWN      # Must match area_name
     saved = Yes
     automap = yes
+    ```
 
 4.  Create quest file (`quests_myquest.txt`):
 
+    ```
     # location, description, gvar, displayThreshold, completedThreshold
     1500, 0, 79, 1, 2
     1500, 0, 80, 1, 3
+    ```
 
-5.  Create message file (`messages_myquest.txt`):
+5.  Create holodisk file (`holodisk_myquest.txt`):
 
+    ```
+    900
+    901
+    ```
+
+6.  Create message file (`messages_myquest.txt`):
+
+    ```
     [map]
     area_name:MYTOWN = My New Town
     lookup_name:MYTOWN1:0 = Town Square
@@ -677,11 +917,26 @@ Base Messages: 502
     quest:0 = Find the hidden artifact
     quest:1 = Return to the elder
 
-6.  Place all files in correct directories
+    [PIPBOY]
+    holodisk:0:name = Research Data
+    holodisk:0:line:0 = Project: Nightfall
+    holodisk:0:line:1 = Status: Active
+    holodisk:0:line:2 = **END-PAR**
+    holodisk:0:line:3 = Notes: Subjects show increased aggression.
+    holodisk:0:line:4 = Recommend immediate termination.
+    holodisk:0:line:5 = **END-DISK**
 
-7.  Run the game - check generated reports for IDs
+    holodisk:1:name = Security Log
+    holodisk:1:line:0 = Unauthorized access detected.
+    holodisk:1:line:1 = All systems on high alert.
+    holodisk:1:line:2 = **END-DISK**
+    ```
 
-8.  Use IDs in scripts:
+7.  Place all files in correct directories
+
+8.  Run the game - check generated reports for IDs
+
+9.  Use IDs in scripts:
 
     ```
     // Display area name
@@ -692,6 +947,10 @@ Base Messages: 502
 
     // Display quest description
     display_msg(34125);
+
+    // Give holodisk to player
+    set_global_var(900, 1);
+    display_msg("You found a holodisk!");
     ```
 
 ### Testing Checklist:
@@ -718,6 +977,20 @@ Base Messages: 502
 
 -   No "Error" text in quest descriptions
 
+#### Holodisks:
+
+-   Holodisk appears in Pip-Boy Data section when GVAR=1
+
+-   Holodisk text displays correctly when clicked
+
+-   Pagination works (Back/More buttons if needed)
+
+-   END-PAR markers create paragraph breaks
+
+-   END-DISK marker is present (auto-added if missing)
+
+-   No "Error" text in holodisk content
+
 #### General:
 
 -   Generated reports contain all expected IDs
@@ -735,27 +1008,53 @@ Base Messages: 502
 
 1.  Description Field Override:
 
-    -   Problem: Vanilla quests use description field as message ID offset
+    -   Problem: Vanilla quests use description field as message ID offset
 
-    -   Solution: Mod quests override with generated message IDs
+    -   Solution: Mod quests override with generated message IDs
 
-    -   Workaround: Always use `[quests]` section in message files
+    -   Workaround: Always use `[quests]` section in message files
 
 2.  Quest Location Validation:
 
-    -   Problem: Quest location must reference valid area index
+    -   Problem: Quest location must reference valid area index
 
-    -   Solution: System doesn't validate location references
+    -   Solution: System doesn't validate location references
 
-    -   Workaround: Test thoroughly, check `area_list.txt` for valid indices
+    -   Workaround: Test thoroughly, check `area_list.txt` for valid indices
 
 3.  GVAR Conflicts:
 
-    -   Problem: Multiple mods could use same GVAR
+    -   Problem: Multiple mods could use same GVAR
 
-    -   Solution: No automatic GVAR allocation
+    -   Solution: No automatic GVAR allocation
 
-    -   Workaround: Document GVAR usage in mod readme
+    -   Workaround: Document GVAR usage in mod readme
+
+### Holodisk-Specific Limitations:
+
+1.  Empty Lines Skipped:
+
+    -   Problem: Message system skips empty values
+
+    -   Solution: Use `**END-PAR**` for paragraph breaks
+
+    -   Workaround: Add single space for truly blank lines (not recommended)
+
+2.  GVAR Range:
+
+    -   Problem: No reserved GVAR range for mods
+
+    -   Solution: Use 900+ to avoid vanilla conflicts
+
+    -   Workaround: Check vanilla GVAR list before choosing numbers
+
+3.  Text Length:
+
+    -   Problem: No hard limit, but very long holodisks may cause issues
+
+    -   Solution: Use multiple holodisks for very long content
+
+    -   Workaround: Split content across multiple holodisks
 
 ### General Limitations:
 
@@ -763,49 +1062,49 @@ Base Messages: 502
 
     -   Problem: `map_name` >8 characters breaks save games
 
-    -   Workaround: Always use ≤8 character map names
+    -   Workaround: Always use ≤8 character map names
 
-    -   System: Warning popup alerts modders
+    -   System: Warning popup alerts modders
 
 2.  Save Game Compatibility:
 
-    -   Problem: Adding fields to structs breaks old saves
+    -   Problem: Adding fields to structs breaks old saves
 
-    -   Solution: Use parallel arrays instead of modifying structs
+    -   Solution: Use parallel arrays instead of modifying structs
 
     -   Implementation: `gAreaModNames` array separate from `CityInfo`
 
 3.  Case Sensitivity:
 
-    -   Issue: Different file systems handle case differently
+    -   Issue: Different file systems handle case differently
 
-    -   Solution: System normalizes everything to lowercase
+    -   Solution: System normalizes everything to lowercase
 
-    -   Recommendation: Use uppercase in configs for readability
+    -   Recommendation: Use uppercase in configs for readability
 
 4.  Hash Collisions:
 
-    -   Issue: Different mods/areas could hash to same slot
+    -   Issue: Different mods/areas could hash to same slot
 
-    -   Handling: Fail with clear error message and resolution steps
+    -   Handling: Fail with clear error message and resolution steps
 
-    -   Resolution: Rename mod file to change namespace
+    -   Resolution: Rename mod file to change namespace
 
 5.  Loading Order Dependencies:
 
-    -   Issue: Areas must load before maps that reference them
+    -   Issue: Areas must load before maps that reference them
 
-    -   Solution: Fixed loading order in `wmConfigInit()`
+    -   Solution: Fixed loading order in `wmConfigInit()`
 
-    -   Implementation: Areas load, then maps, then validate links
+    -   Implementation: Areas load, then maps, then validate links
 
 6.  Quest-Message Link Validation:
 
-    -   Issue: No automatic check that quest messages exist
+    -   Issue: No automatic check that quest messages exist
 
-    -   Handling: Quest shows "Error" if message missing
+    -   Handling: Quest shows "Error" if message missing
 
-    -   Resolution: Ensure `[quests]` section exists with correct keys
+    -   Resolution: Ensure `[quests]` section exists with correct keys
 
 * * * * *
 
@@ -816,9 +1115,9 @@ Base Messages: 502
 
 1.  Dual ID System:
 
-    -   Quest ID (200-999): For `op_set_quest/op_get_quest` operations
+    -   Quest ID (200-999): For `op_set_quest/op_get_quest` operations
 
-    -   Message ID (32768-65535): For quest descriptions via `display_msg()`
+    -   Message ID (32768-65535): For quest descriptions via `display_msg()`
 
 2.  Automatic Linking:
 
@@ -855,25 +1154,276 @@ messages_MyMod.txt --same-hash->    Message ID: 34120
 
 1.  Key format is critical: `quest:0` not `QUEST:0` (lowercase!)
 
-2.  Index is per-mod: First quest in file = `quest:0`, second = `quest:1`, etc.
+2.  Index is per-mod: First quest in file = `quest:0`, second = `quest:1`, etc.
 
-3.  Message IDs are stable: Same mod+key = same ID every time
+3.  Message IDs are stable: Same mod+key = same ID every time
 
-4.  Check reports: Always verify generated IDs match between quests and messages
+4.  Check reports: Always verify generated IDs match between quests and messages
 
 ### Integration Points:
 
-1.  Script Engine: Uses quest IDs (200-999) for state management
+1.  Script Engine: Uses quest IDs (200-999) for state management
 
-2.  PipBoy UI: Uses message IDs (32768-65535) for description display
+2.  PipBoy UI: Uses message IDs (32768-65535) for description display
 
-3.  Save System: Quest states saved via engine's existing mechanism
+3.  Save System: Quest states saved via engine's existing mechanism
 
-4.  Report System: Cross-references quests with their message IDs
+4.  Report System: Cross-references quests with their message IDs
 
 * * * * *
 
-12\. Troubleshooting
+12\. Holodisk System Specifics
+------------------------------
+
+### Overview
+
+The holodisk system allows modders to add new holodisks that are automatically converted to vanilla format at load time. Like other systems, it uses stable hashing and integrates seamlessly with the Pip-Boy interface.
+
+### File Structure
+
+#### 1\. Holodisk Definition File (`data/holodisk_{modname}.txt`)
+
+Contains the GVAR (global variable) numbers for each holodisk. Each line should contain one GVAR number.
+
+Format:
+
+```
+900  # First holodisk - appears when GVAR 900 = 1
+901  # Second holodisk - appears when GVAR 901 = 1
+```
+
+Rules:
+
+-   One GVAR per line
+
+-   Comments start with `#`
+
+-   GVARs should be unique (900+ recommended for mods)
+
+-   GVAR must be set to 1 to make holodisk appear in Pip-Boy
+
+#### 2\. Message File (`data/text/english/game/messages_{modname}.txt`)
+
+Contains the holodisk text in the `[PIPBOY]` section. The `[HOLODISKS]` section is also supported for backward compatibility.
+
+Format:
+
+```
+[PIPBOY]
+holodisk:0:name = Important Data Disk
+holodisk:0:line:0 = This holodisk contains critical information
+holodisk:0:line:1 = about the secret facility.
+holodisk:0:line:2 = **END-PAR**  # Paragraph break (optional)
+holodisk:0:line:3 = The entrance is hidden behind the waterfall.
+holodisk:0:line:4 = Coordinates: 38.8977° N, 77.0365° W
+holodisk:0:line:5 = **END-DISK**  # Required (auto-added if missing)
+
+holodisk:1:name = Research Notes
+holodisk:1:line:0 = Day 1: The experiment shows promise.
+holodisk:1:line:1 = The subjects are responding well to treatment.
+holodisk:1:line:2 = **END-DISK**
+```
+
+Key Formats:
+
+-   Name: `holodisk:{index}:name`
+
+-   Text lines: `holodisk:{index}:line:{line_number}`
+
+-   END-DISK: Marks end of holodisk (required, auto-added if missing)
+
+-   END-PAR: Creates paragraph break (optional)
+
+-   Index starts at 0 for first holodisk in file
+
+Important: Empty values are skipped. Use `**END-PAR**` for blank lines instead of empty strings.
+
+### How It Works
+
+#### Loading Process:
+
+1.  Vanilla holodisks load from `data/holodisk.txt` (GVAR, name ID, description ID)
+
+2.  Mod holodisks load from `data/holodisk_*.txt` files
+
+3.  For each mod holodisk:
+
+    -   Extract mod name from filename
+
+    -   Generate a block of 500 consecutive IDs starting at 50000
+
+    -   Look up name and lines from message file
+
+    -   Add to message list with consecutive numeric IDs
+
+    -   Add to holodisk array in vanilla format
+
+#### Conversion Example:
+
+```
+holodisk_test2.txt (GVAR 900) + messages_test2.txt
+↓
+Converted to vanilla format:
+- Name: ID 50000
+- Line 0: ID 50001
+- Line 1: ID 50002
+- END-DISK: ID 50003
+- Added to holodisk array: GVAR=900, name=50000, description=50001
+```
+
+### Script Usage
+
+```
+# Give holodisk to player
+set_global_var(900, 1)
+display_msg("You found a holodisk!")
+
+# Check if player has holodisk
+if global_var(900):
+    display_msg("You already have this holodisk.")
+```
+
+### Report Generation
+
+The system generates `data/lists/holodisks_list.txt` with:
+
+```
+==============================================================================
+Fallout 2 Fission - Holodisk System Report
+==============================================================================
+All holodisks (vanilla and mod) converted to vanilla format.
+
+Format: Index | GVAR | Name ID | Desc ID | Type | Name
+------------------------------------------------------------------------------
+
+Summary: 11 total holodisks (9 vanilla, 2 mod)
+
+    0 |   45 |     610 |     611 | Vanilla | Vault 13 Holodisk
+    ...
+   10 |  900 |   50000 |   50001 | MOD     | Test Holodisk 1
+   11 |  901 |   50500 |   50501 | MOD     | Test Holodisk 2
+
+MOD HOLODISK DETAILS:
+====================
+Mod holodisks use the following ID blocks:
+
+Block 0: IDs 50000-50499 (GVAR 900) - Test Holodisk 1
+Block 1: IDs 50500-50999 (GVAR 901) - Test Holodisk 2
+```
+
+### Special Notes
+
+#### 1\. Empty Lines
+
+The message loading system skips empty values. To create blank lines:
+
+-   Use `**END-PAR**` for paragraph breaks
+
+-   Or use a single space: `holodisk:0:line:2 =` (not recommended)
+
+#### 2\. Pagination
+
+Holodisks use vanilla pagination (35 lines per page). The system automatically:
+
+-   Calculates total pages
+
+-   Adds Back/More buttons as needed
+
+-   Works identically for all holodisks (vanilla and mod)
+
+#### 3\. Localization
+
+Create message files in language folders:
+
+-   English: `data/text/english/game/messages_{modname}.txt`
+
+-   German: `data/text/german/game/messages_{modname}.txt`
+
+-   etc.
+
+#### 4\. GVAR Management
+
+-   GVARs must be unique across all mods
+
+-   Recommended range: 900-999 for small mods, higher for larger mods
+
+-   Set GVAR to 1 to give holodisk, 0 to remove (though typically not removed)
+
+### Complete Example Mod
+
+File: `data/holodisk_myquest.txt`
+
+```
+900
+901
+```
+
+File: `data/text/english/game/messages_myquest.txt`
+
+```
+[pipboy]
+holodisk:0:name = Research Data
+holodisk:0:line:0 = Project: Nightfall
+holodisk:0:line:1 = Status: Active
+holodisk:0:line:2 = **END-PAR**
+holodisk:0:line:3 = Notes: Subjects show increased aggression.
+holodisk:0:line:4 = Recommend immediate termination.
+holodisk:0:line:5 = **END-DISK**
+
+holodisk:1:name = Security Log
+holodisk:1:line:0 = Unauthorized access detected.
+holodisk:1:line:1 = All systems on high alert.
+holodisk:1:line:2 = **END-DISK**
+```
+
+Script to give holodisks:
+
+```
+# In a map script
+procedure map_enter_p_proc begin
+    if not(global_var(900)) then
+        set_global_var(900, 1)
+        display_msg("Found research data holodisk.")
+    end
+end
+```
+
+### Troubleshooting Holodisks
+
+| Problem | Solution |
+| --- | --- |
+| Holodisk not appearing | Check GVAR is set to 1 before opening Pip-Boy |
+| "Error" text when clicking | Verify message file has correct `[PIPBOY]` section |
+| Missing lines | Ensure no empty values; use `**END-PAR**` for blanks |
+| Wrong mod name | All files must share same mod name prefix |
+| No END-DISK marker | System adds automatically, but include for clarity |
+| GVAR conflict | Use unique GVARs (check vanilla GVAR list) |
+
+### Integration Points
+
+1.  Message System: Uses same `generate_mod_message_id()` function
+
+2.  Pip-Boy Interface: Identical rendering for all holodisks
+
+3.  Save System: GVAR states saved normally
+
+4.  Automap: Not applicable (holodisks are inventory items)
+
+### Best Practices
+
+1.  Test thoroughly: Set GVARs and verify holodisks appear
+
+2.  Use meaningful GVARs: 900, 901, etc. for easy reference
+
+3.  Include END-DISK: Even though auto-added, it's good practice
+
+4.  Check reports: Verify holodisks appear in generated list
+
+5.  Localize: Create message files for all supported languages
+
+* * * * *
+
+13\. Troubleshooting
 --------------------
 
 ### Common Issues:
@@ -881,25 +1431,30 @@ messages_MyMod.txt --same-hash->    Message ID: 34120
 | Problem | Likely Cause | Solution |
 | --- | --- | --- |
 | Quest shows "Error" | Missing `[quests]` section or wrong key | Ensure `messages_*.txt` has `[quests]` section with `quest:0` (lowercase) |
+| Holodisk not in Pip-Boy | GVAR not set to 1 | Ensure `set_global_var(GVAR, 1)` is called before opening Pip-Boy |
+| Holodisk shows "Error" when clicked | Missing `[PIPBOY]` section or wrong key | Check message file has `[PIPBOY]` section with correct keys |
 | Quest not in PipBoy | Invalid location or thresholds | Check location is valid area, thresholds are correct |
-| Wrong description | Key mismatch (case or index) | Use exact format: lowercase `quest:{index}` |
+| Wrong description | Key mismatch (case or index) | Use exact format: lowercase `quest:{index}` or `holodisk:{index}:name` |
 | Quest ID collisions | Hash collision with another mod | Rename mod file to change namespace |
 | Area not on world map | `area_name` doesn't match `city_name` | Ensure exact match (case-insensitive but be consistent) |
 | Map name shows "Error" | Message key doesn't match generated ID | Check `messages_*.txt` format matches key generation |
 | Save games fail | `map_name` >8 characters | Shorten map_name to ≤8 chars |
 | Town map labels missing | Wrong section or key format | Use `[worldmap]` section with `entrance_X:{AREA_NAME}` |
 | Mod not loading | File naming mismatch | All files must share same mod name prefix |
+| Missing lines in holodisk | Empty values skipped | Use `**END-PAR**` for blank lines |
 
 ### Debug Commands:
 
 Add these to `config.ini` under `[debug]`:
 
-
+```
 [debug]
 write_offsets=1          # Write default town map offsets
 generate_reports=1       # Force report generation
 show_mod_loading=1       # Show mod loading popups
 quest_debug=1            # Log quest loading details
+holodisk_debug=1         # Log holodisk loading details
+```
 
 ### Debugging Steps:
 
@@ -913,9 +1468,13 @@ quest_debug=1            # Log quest loading details
 
 5.  Validate file formats - use text editor with visible whitespace
 
+6.  Verify GVAR values - ensure GVARs are set to 1 before opening Pip-Boy
+
+7.  Check loading order - messages must load before holodisks
+
 * * * * *
 
-13\. Future Expansion
+14\. Future Expansion
 ---------------------
 
 ### Planned Enhancements:
@@ -940,15 +1499,25 @@ quest_debug=1            # Log quest loading details
 
 4.  Quest Journal Enhancements (more detailed tracking)
 
+### Holodisk System Enhancements:
+
+1.  Holodisk Categories - Organize by type (quest, lore, etc.)
+
+2.  Holodisk Images - Support for custom holodisk art
+
+3.  Holodisk Playback - Audio logs (if audio system extended)
+
+4.  Holodisk Collection Tracking - Auto-tracking of found holodisks
+
 ### Integration Opportunities:
 
--   Scripts: Could auto-generate quest script templates
+-   Scripts: Could auto-generate quest script templates
 
--   Dialogs: Link dialog options to quest states
+-   Dialogs: Link dialog options to quest states
 
--   Items: Quest item tracking and validation
+-   Items: Quest item tracking and validation
 
--   Proto System: Extend to items, critters, scenery
+-   Proto System: Extend to items, critters, scenery
 
 ### Development Tools Wishlist:
 
@@ -973,6 +1542,8 @@ Appendix A: Quick Reference
 
 -   Quests: `quests_{modname}.txt`
 
+-   Holodisks: `holodisk_{modname}.txt`
+
 -   Messages: `messages_{modname}.txt`
 
 ### Key Formats:
@@ -985,6 +1556,10 @@ Appendix A: Quick Reference
 
 -   Quest descriptions: `quest:{INDEX}`
 
+-   Holodisk names: `holodisk:{INDEX}:name`
+
+-   Holodisk lines: `holodisk:{INDEX}:line:{LINE_NUMBER}`
+
 ### ID Ranges:
 
 -   Quests: 200-999
@@ -992,6 +1567,8 @@ Appendix A: Quick Reference
 -   Maps: 200-1999
 
 -   Areas: 200-999
+
+-   Holodisks: 50000+ (message IDs, blocks of 500)
 
 -   Messages: 32768-65535
 
@@ -1001,11 +1578,13 @@ Appendix A: Quick Reference
 
 2.  Quest keys lowercase: `quest:0`
 
-3.  Area names uppercase in configs
+3.  Holodisk keys lowercase: `holodisk:0:name`
 
-4.  Consistent mod name across all files
+4.  Area names uppercase in configs
 
-5.  Message keys use exact lowercase prefixes: `area_name:`, `lookup_name:`, `entrance_`
+5.  Consistent mod name across all files
+
+6.  Message keys use exact lowercase prefixes: `area_name:`, `lookup_name:`, `entrance_`, `holodisk:`
 
 * * * * *
 
@@ -1018,6 +1597,7 @@ MyFirstMod/
 │   ├── city_myfirst.txt
 │   ├── maps_myfirst.txt
 │   ├── quests_myfirst.txt
+│   └── holodisk_myfirst.txt
 ├── text/
 │   └── english/
 │       └── game/
@@ -1062,6 +1642,12 @@ quests_myfirst.txt:
 200, 0, 99, 1, 2
 ```
 
+holodisk_myfirst.txt:
+
+```
+900
+```
+
 messages_myfirst.txt:
 
 ```
@@ -1071,4 +1657,15 @@ lookup_name:TESTMAP1:0 = Test Location
 
 [quests]
 quest:0 = Find the test item and return it
+
+[pipboy]
+holodisk:0:name = Test Holodisk
+holodisk:0:line:0 = This is a test holodisk.
+holodisk:0:line:1 = **END-DISK**
+```
+
+Script to give holodisk:
+
+```
+set_global_var(900, 1)
 ```

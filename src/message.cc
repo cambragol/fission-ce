@@ -78,6 +78,25 @@ static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
 static MessageListRepositoryState* _messageListRepositoryState;
 
+// Helper function for mod Holodisk conversion
+bool messageListAddEntry(MessageList* msg, int num, const char* text)
+{
+    MessageListItem entry;
+    entry.num = num;
+    entry.text = internal_strdup(text);
+    entry.audio = internal_strdup("");
+    entry.flags = 0;
+    
+    bool result = _message_add(msg, &entry);
+    
+    if (!result) {
+        internal_free(entry.text);
+        internal_free(entry.audio);
+    }
+    
+    return result;
+}
+
 // Stable hash function for generating consistent message IDs for mod content
 // Uses case-insensitive DJB2 hash to ensure consistent IDs across different systems
 static uint32_t stable_hash(const char* str)
