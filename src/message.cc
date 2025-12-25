@@ -86,14 +86,14 @@ bool messageListAddEntry(MessageList* msg, int num, const char* text)
     entry.text = internal_strdup(text);
     entry.audio = internal_strdup("");
     entry.flags = 0;
-    
+
     bool result = _message_add(msg, &entry);
-    
+
     if (!result) {
         internal_free(entry.text);
         internal_free(entry.audio);
     }
-    
+
     return result;
 }
 
