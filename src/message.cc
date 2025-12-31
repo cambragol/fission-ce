@@ -52,8 +52,8 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
 void generateMessageReport(MessageList* messageList, const char* msg_type);
 
 // Mod file loading
-static void loadModFileWithSections(MessageList* messageList, const char* fullPath, 
-                                   const char* filename, const char* target_section);
+static void loadModFileWithSections(MessageList* messageList, const char* fullPath,
+    const char* filename, const char* target_section);
 static void loadModMessagesForType(MessageList* messageList, const char* msg_type);
 bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 

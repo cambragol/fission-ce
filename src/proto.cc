@@ -44,7 +44,6 @@ static void _proto_remove_some_list(int type);
 static void _proto_remove_list(int type);
 static int _proto_new_id(int type);
 
-
 // These functions extend the vanilla proto system to support mods.
 // Mod PIDs use range 0x0000C8-0xFFFFFF (lower 24 bits).
 
@@ -64,8 +63,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
     int proto_type, const char* proto_type_name);
 static void load_mod_proto_list(int proto_type, const char* proto_type_name);
 static void load_mod_proto_messages_from_file(const char* full_path, const char* filename);
-void load_mod_proto_messages();  // Public API
-int protoGetModPid(const char* mod_name, const char* proto_name, int proto_type);  // Public API
+void load_mod_proto_messages(); // Public API
+int protoGetModPid(const char* mod_name, const char* proto_name, int proto_type); // Public API
 
 // Debug/Reporting
 static void protoGenerateModProtoListDebug();
@@ -2460,7 +2459,6 @@ static uint32_t proto_hash_string(const char* str)
     }
     return hash;
 }
-
 
 /**
  * @brief Generates a stable PID for a mod proto.
