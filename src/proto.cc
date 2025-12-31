@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define DIR_SEPARATOR '/'
+
 #include "art.h"
 #include "character_editor.h"
 #include "combat.h"
@@ -21,6 +23,7 @@
 #include "skill.h"
 #include "stat.h"
 #include "trait.h"
+#include "window_manager.h"
 
 namespace fallout {
 
@@ -39,6 +42,20 @@ static int _proto_find_free_subnode(int type, Proto** out_ptr);
 static void _proto_remove_some_list(int type);
 static void _proto_remove_list(int type);
 static int _proto_new_id(int type);
+
+// New mod declarations for adding 'mod' protos
+static void load_mod_proto_list(int proto_type, const char* proto_type_name);
+static void load_single_mod_proto_list(const char* list_path, const char* mod_name, 
+                                       int proto_type, const char* proto_type_name);
+static bool pid_is_modded(int pid);
+static uint32_t proto_hash_string(const char* str);
+static int generate_mod_proto_pid(const char* mod_name, const char* proto_name, int proto_type);
+static void mod_proto_registry_add(const ModProtoEntry* entry);
+static ModProtoEntry* mod_proto_registry_find_by_pid(int pid);
+static ModProtoEntry* mod_proto_registry_find_by_key(const char* key);
+static void name_to_pid_registry_add(const char* key, int pid);
+static int name_to_pid_registry_find(const char* key);
+static void protoGenerateModProtoListDebug();
 
 // 0x50CF3C
 static char _aProto_0[] = "proto\\";
@@ -184,6 +201,596 @@ static char** _perk_code_strs;
 //
 // 0x6648BC
 static char** _critter_stats_list;
+
+// 0x51C540 (example new address - pick an unused one)
+static ModProtoEntry* _mod_proto_entries = nullptr;
+static int _mod_proto_entries_size = 0;
+static int _mod_proto_entries_capacity = 0;
+
+static NameToPidEntry* _name_to_pid_entries = nullptr;
+static int _name_to_pid_entries_size = 0;
+static int _name_to_pid_entries_capacity = 0;
+
+// Collision tracking variables
+static int _mod_proto_collision_count = 0;
+static char _mod_proto_collision_log[4096] = "";  // Buffer for collision log
+
+/**
+ * @brief Checks if a PID is in the modded range.
+ * 
+ * Mod PIDs use the range 0x800000-0xFFFFFF in the lower 24 bits.
+ * This function determines if a given PID falls within that range.
+ * 
+ * @param pid The PID to check.
+ * @return true if the PID is a mod PID, false otherwise.
+ */
+static bool pid_is_modded(int pid)
+{
+    return (pid & 0xFFFFFF) >= MOD_PROTO_START;
+}
+
+/**
+ * @brief String hash function for stable PID generation.
+ * 
+ * Uses the DJB2 hash algorithm (multiply by 33) to generate stable
+ * hashes from mod/proto names. Case-insensitive.
+ * 
+ * @param str The string to hash.
+ * @return 32-bit hash value.
+ */
+static uint32_t proto_hash_string(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        c = tolower(c);
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+/**
+ * @brief Adds a mod proto entry to the global registry.
+ * 
+ * This function stores information about a loaded mod proto for later lookup.
+ * Entries are stored in a dynamically growing array.
+ * 
+ * @param entry Pointer to the ModProtoEntry to add (will be copied).
+ */
+static void mod_proto_registry_add(const ModProtoEntry* entry)
+{
+    // Grow array if needed
+    if (_mod_proto_entries_size >= _mod_proto_entries_capacity) {
+        int new_capacity = _mod_proto_entries_capacity == 0 ? 16 : _mod_proto_entries_capacity * 2;
+        ModProtoEntry* new_entries = (ModProtoEntry*)internal_realloc(_mod_proto_entries, new_capacity * sizeof(ModProtoEntry));
+        if (!new_entries) {
+            return;
+        }
+        _mod_proto_entries = new_entries;
+        _mod_proto_entries_capacity = new_capacity;
+    }
+    
+    // Copy the entry
+    _mod_proto_entries[_mod_proto_entries_size] = *entry;
+    _mod_proto_entries_size++;
+}
+
+/**
+ * @brief Finds a mod proto entry by its PID.
+ * 
+ * Searches the mod proto registry for an entry with the given PID.
+ * Used when a mod proto is accessed by its PID.
+ * 
+ * @param pid The PID to search for (must be a mod PID).
+ * @return Pointer to the ModProtoEntry if found, nullptr otherwise.
+ */
+static ModProtoEntry* mod_proto_registry_find_by_pid(int pid)
+{
+    for (int i = 0; i < _mod_proto_entries_size; i++) {
+        if (_mod_proto_entries[i].pid == pid) {
+            return &_mod_proto_entries[i];
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Finds a mod proto entry by composite key (mod:proto).
+ * 
+ * Searches the mod proto registry for an entry with the given mod:proto key.
+ * Used when looking up a proto by its human-readable name.
+ * 
+ * @param key Composite key in format "modname:protoname".
+ * @return Pointer to the ModProtoEntry if found, nullptr otherwise.
+ */
+static ModProtoEntry* mod_proto_registry_find_by_key(const char* key)
+{
+    for (int i = 0; i < _mod_proto_entries_size; i++) {
+        char composite_key[256];
+        snprintf(composite_key, sizeof(composite_key), "%s:%s", 
+                _mod_proto_entries[i].mod_name, 
+                _mod_proto_entries[i].proto_name);
+        if (compat_stricmp(composite_key, key) == 0) {
+            return &_mod_proto_entries[i];
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Adds a name-to-PID mapping to the registry.
+ * 
+ * Creates a mapping from composite key (mod:proto) to PID for reverse lookup.
+ * Used when parsing message files to find PIDs for mod protos.
+ * 
+ * @param key Composite key in format "modname:protoname".
+ * @param pid The PID associated with this key.
+ */
+static void name_to_pid_registry_add(const char* key, int pid)
+{
+    // Grow array if needed
+    if (_name_to_pid_entries_size >= _name_to_pid_entries_capacity) {
+        int new_capacity = _name_to_pid_entries_capacity == 0 ? 16 : _name_to_pid_entries_capacity * 2;
+        NameToPidEntry* new_entries = (NameToPidEntry*)internal_realloc(_name_to_pid_entries, 
+                                                                       new_capacity * sizeof(NameToPidEntry));
+        if (!new_entries) {
+            debugPrint("ERROR: Failed to grow name-to-PID registry array!\n");
+            return;
+        }
+        _name_to_pid_entries = new_entries;
+        _name_to_pid_entries_capacity = new_capacity;
+    }
+    
+    // Add the entry
+    _name_to_pid_entries[_name_to_pid_entries_size].key = internal_strdup(key);
+    _name_to_pid_entries[_name_to_pid_entries_size].pid = pid;
+    _name_to_pid_entries_size++;
+}
+
+/**
+ * @brief Finds a PID by composite key.
+ * 
+ * Looks up a PID using the composite key (mod:proto).
+ * Primarily used when parsing message files to resolve mod proto names to PIDs.
+ * 
+ * @param key Composite key in format "modname:protoname".
+ * @return The PID if found, -1 otherwise.
+ */
+static int name_to_pid_registry_find(const char* key)
+{
+    for (int i = 0; i < _name_to_pid_entries_size; i++) {
+        if (_name_to_pid_entries[i].key && compat_stricmp(_name_to_pid_entries[i].key, key) == 0) {
+            return _name_to_pid_entries[i].pid;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Generates a stable PID for a mod proto.
+ * 
+ * Creates a PID in the mod range (0x800000-0xFFFFFF) based on a hash of
+ * the mod and proto names. Ensures stable IDs across game runs.
+ * 
+ * @param mod_name Name of the mod (e.g., "testmod").
+ * @param proto_name Name of the proto (e.g., "testitem").
+ * @param proto_type Object type (OBJ_TYPE_ITEM, etc.).
+ * @return Generated PID with type in high byte and hash-based index.
+ */
+static int generate_mod_proto_pid(const char* mod_name, const char* proto_name, int proto_type)
+{
+    char composite_key[256];
+    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, proto_name);
+    
+    uint32_t hash = proto_hash_string(composite_key);
+    
+    // Generate PID in mod range: type<<24 | (MOD_PROTO_START + hash_within_range)
+    uint32_t index = MOD_PROTO_START + (hash % (MOD_PROTO_MAX - MOD_PROTO_START + 1));
+    return (proto_type << 24) | index;
+}
+
+/**
+ * @brief Loads a single mod proto list file.
+ * 
+ * Parses a mod-specific .lst file (e.g., items_testmod.lst) to discover
+ * mod protos. Each line contains a proto filename (without .pro extension).
+ * 
+ * @param list_path Full path to the .lst file.
+ * @param mod_name Name of the mod (extracted from filename).
+ * @param proto_type Object type (OBJ_TYPE_ITEM, etc.).
+ * @param proto_type_name String name of the type (for debugging).
+ */
+static void load_single_mod_proto_list(const char* list_path, const char* mod_name, 
+                                       int proto_type, const char* proto_type_name)
+{
+    File* stream = fileOpen(list_path, "rt");
+    if (!stream) {
+        debugPrint("Failed to open mod proto list: %s\n", list_path);
+        return;
+    }
+    
+    char line[256];
+    int line_num = 0;
+    
+    while (fileReadString(line, sizeof(line), stream)) {
+        line_num++;
+        
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+        
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+        
+        // Parse proto name - JUST the filename, no display name
+        char proto_name[128] = {0};
+        strncpy(proto_name, line, sizeof(proto_name) - 1);
+        
+        // Remove .pro extension if present
+        char* dot = strrchr(proto_name, '.');
+        if (dot && (strcmp(dot, ".pro") == 0 || strcmp(dot, ".PRO") == 0)) {
+            *dot = '\0';
+        }
+        
+        // Also remove any trailing spaces
+        char* end = proto_name + strlen(proto_name) - 1;
+        while (end > proto_name && isspace(*end)) {
+            *end = '\0';
+            end--;
+        }
+        
+        // Generate PID for this mod proto
+        int pid = generate_mod_proto_pid(mod_name, proto_name, proto_type);
+        
+        // Check for hash collisions with existing mod protos
+        ModProtoEntry* existing_entry = mod_proto_registry_find_by_pid(pid);
+        if (existing_entry != nullptr) {
+            // HASH COLLISION DETECTED - CRITICAL WARNING
+            char collision_msg[512];
+            snprintf(collision_msg, sizeof(collision_msg),
+                    "HASH COLLISION WARNING!\n\n"
+                    "Your mod '%s' proto '%s'\n"
+                    "generated PID 0x%08X which is already used by:\n"
+                    "Mod '%s' proto '%s'\n\n"
+                    "This proto will be skipped.\n"
+                    "Rename your mod or proto to fix.",
+                    mod_name, proto_name, pid,
+                    existing_entry->mod_name, existing_entry->proto_name);
+            
+            showMesageBox(collision_msg);
+            
+            // Log for the report
+            _mod_proto_collision_count++;
+            char log_entry[256];
+            snprintf(log_entry, sizeof(log_entry), 
+                    "COLLISION: Mod '%s' proto '%s' (PID: 0x%08X) conflicts with Mod '%s' proto '%s'\n",
+                    mod_name, proto_name, pid,
+                    existing_entry->mod_name, existing_entry->proto_name);
+            strncat(_mod_proto_collision_log, log_entry, 
+                    sizeof(_mod_proto_collision_log) - strlen(_mod_proto_collision_log) - 1);
+            
+            debugPrint("Hash collision! Skipping %s:%s (PID: 0x%08X)\n", 
+                      mod_name, proto_name, pid);
+            continue;  // Skip this proto due to collision
+        }
+        
+        // Build path to .pro file
+        char pro_path[COMPAT_MAX_PATH];
+        char list_dir[COMPAT_MAX_PATH];
+        strcpy(list_dir, list_path);
+        char* last_slash = strrchr(list_dir, DIR_SEPARATOR);
+        if (last_slash) {
+            *(last_slash + 1) = '\0';
+        }
+        
+        snprintf(pro_path, sizeof(pro_path), "%s%s.pro", list_dir, proto_name);
+        
+        // Check if .pro file exists
+        File* pro_test = fileOpen(pro_path, "rb");
+        if (!pro_test) {
+            debugPrint("Warning: Mod proto file not found: %s\n", pro_path);
+            continue;
+        }
+        fileClose(pro_test);
+        
+        // Create and store entry
+        ModProtoEntry entry;
+        entry.pid = pid;
+        entry.mod_name = internal_strdup(mod_name);
+        entry.proto_name = internal_strdup(proto_name);
+        entry.proto_path = internal_strdup(pro_path);
+        entry.type = proto_type;
+        
+        // Add to registry
+        mod_proto_registry_add(&entry);
+        
+        // Create composite key for reverse lookup
+        char composite_key[256];
+        snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, proto_name);
+        name_to_pid_registry_add(composite_key, pid);
+    }
+    
+    fileClose(stream);
+}
+
+/**
+ * @brief Loads all mod proto lists for a given object type.
+ * 
+ * Searches for mod-specific .lst files in the proto directory for a type
+ * (e.g., proto/items/items_*.lst). Each found file represents a mod
+ * adding protos of that type.
+ * 
+ * @param proto_type Object type (OBJ_TYPE_ITEM, etc.).
+ * @param proto_type_name String name of the type (e.g., "items").
+ */
+static void load_mod_proto_list(int proto_type, const char* proto_type_name)
+{
+    char search_pattern[COMPAT_MAX_PATH];
+    char path[COMPAT_MAX_PATH];
+    
+    // Build path to proto directory for this type
+    proto_make_path(path, proto_type << 24);  // Gets us: {base}/proto/{type}/
+    
+    // {type}_{modname}.lst (e.g., items_testmod.lst)
+    snprintf(search_pattern, sizeof(search_pattern), "%s%c%s_*.lst", 
+             path, DIR_SEPARATOR, proto_type_name);
+    
+    char** mod_files = nullptr;
+    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    
+    for (int i = 0; i < file_count; i++) {
+        // Extract mod name from filename: {type}_{modname}.lst -> {modname}
+        const char* filename = mod_files[i];
+        char mod_name[64] = {0};
+        
+        // Skip type name and underscore
+        // Filename is like "items_testmod.lst", proto_type_name is "items"
+        const char* mod_name_start = filename + strlen(proto_type_name) + 1; // Skip "items_"
+        
+        // Copy mod name without .lst extension
+        const char* dot = strrchr(mod_name_start, '.');
+        if (dot) {
+            size_t mod_name_len = dot - mod_name_start;
+            if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+                strncpy(mod_name, mod_name_start, mod_name_len);
+                mod_name[mod_name_len] = '\0';
+            }
+        } else {
+            // No extension? Use the whole thing
+            strncpy(mod_name, mod_name_start, sizeof(mod_name) - 1);
+        }
+        
+        if (strlen(mod_name) == 0) {
+            continue; // Skip invalid names
+        }
+        
+        // Build full path to the list file
+        char list_path[COMPAT_MAX_PATH];
+        snprintf(list_path, sizeof(list_path), "%s%c%s", 
+                 path, DIR_SEPARATOR, mod_files[i]);
+        
+        load_single_mod_proto_list(list_path, mod_name, proto_type, proto_type_name);
+    }
+    
+    if (file_count > 0) {
+        fileNameListFree(&mod_files, 0);
+    }
+}
+
+/**
+ * @brief Parses a mod message file for proto messages.
+ * 
+ * Reads a mod-specific message file (messages_*.txt) and extracts
+ * name/description messages for mod protos. Messages are added to
+ * the message repository for later lookup.
+ * 
+ * @param full_path Full path to the message file.
+ * @param filename Just the filename (for mod name extraction).
+ */
+static void load_mod_proto_messages_from_file(const char* full_path, const char* filename)
+{
+    File* stream = fileOpen(full_path, "rt");
+    if (!stream) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Could not open mod proto messages file: %s", full_path);
+        showMesageBox(msg);
+        return;
+    }
+    
+    // Extract mod name from filename (messages_xxx.txt -> xxx)
+    char mod_name[64] = {0};
+    const char* prefix = "messages_";
+    const char* suffix = ".txt";
+    
+    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+        
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        }
+    }
+    
+    char line[256];
+    char current_section[64] = "";
+    bool in_proto_section = false;
+    
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+        
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+        
+        // Check for section header
+        if (line[0] == '[') {
+            char* line_end = line + strlen(line) - 1;
+            while (line_end > line && isspace(*line_end)) {
+                *line_end = '\0';
+                line_end--;
+            }
+            
+            if (*line_end == ']') {
+                // Extract section name
+                char section_name[64];
+                strncpy(section_name, line + 1, line_end - line - 1);
+                section_name[line_end - line - 1] = '\0';
+                
+                // Trim whitespace
+                char* start = section_name;
+                while (*start && isspace(*start)) start++;
+                char* end = start + strlen(start) - 1;
+                while (end > start && isspace(*end)) *end-- = '\0';
+                
+                strncpy(current_section, start, sizeof(current_section) - 1);
+                
+                // Check if this is a proto section
+                in_proto_section = (strstr(current_section, "proto") != nullptr) ||
+                                   (strstr(current_section, "pro_") != nullptr);
+
+                continue;
+            }
+        }
+        
+        // Only process if we're in a proto section
+        if (!in_proto_section) {
+            continue;
+        }
+        
+        // Parse key=value line for proto messages
+        char* separator = strchr(line, '=');
+        if (!separator) {
+            continue;
+        }
+        
+        *separator = '\0';
+        char* key = line;
+        char* value = separator + 1;
+        
+        // Trim whitespace
+        while (*key && isspace(*key)) key++;
+        while (*value && isspace(*value)) value++;
+        
+        char* end = key + strlen(key) - 1;
+        while (end > key && isspace(*end)) *end-- = '\0';
+        
+        end = value + strlen(value) - 1;
+        while (end > value && isspace(*end)) *end-- = '\0';
+        
+        if (*key && *value) {
+            // Parse key format: could be "testitem:name" or "testmod:testitem:name"
+            char* colon1 = strchr(key, ':');
+            if (!colon1) {
+                continue;
+            }
+            
+            *colon1 = '\0';
+            char* colon2 = strchr(colon1 + 1, ':');
+            
+            char key_mod_name[64] = {0};
+            char proto_name[128] = {0};
+            char message_type_str[16] = {0};
+            
+            if (colon2) {
+                // Format: mod:proto:type
+                *colon2 = '\0';
+                strncpy(key_mod_name, key, sizeof(key_mod_name) - 1);
+                strncpy(proto_name, colon1 + 1, sizeof(proto_name) - 1);
+                strncpy(message_type_str, colon2 + 1, sizeof(message_type_str) - 1);
+            } else {
+                // Format: proto:type (use file's mod name)
+                strncpy(key_mod_name, mod_name, sizeof(key_mod_name) - 1);
+                strncpy(proto_name, key, sizeof(proto_name) - 1);
+                strncpy(message_type_str, colon1 + 1, sizeof(message_type_str) - 1);
+            }
+            
+            // Determine message type
+            int message_type = -1;
+            if (strcmp(message_type_str, "name") == 0 || strcmp(message_type_str, "0") == 0) {
+                message_type = PROTOTYPE_MESSAGE_NAME;
+            } else if (strcmp(message_type_str, "desc") == 0 || strcmp(message_type_str, "1") == 0) {
+                message_type = PROTOTYPE_MESSAGE_DESCRIPTION;
+            } else {
+                continue;
+            }
+            
+            if (message_type >= 0 && key_mod_name[0] && proto_name[0]) {
+                // Look up PID for this mod proto
+                char composite_key[256];
+                snprintf(composite_key, sizeof(composite_key), "%s:%s", key_mod_name, proto_name);
+                
+                int pid = name_to_pid_registry_find(composite_key);
+                if (pid != -1) {                    
+                    // Add message to repository
+                    messageListAddModProtoMessage(pid, message_type, value);
+                }
+            }
+        }
+    }
+    
+    fileClose(stream);
+}
+
+/**
+ * @brief Loads all mod proto message files.
+ * 
+ * Searches for mod-specific message files (messages_*.txt) in the
+ * game's text directories and loads proto messages from them.
+ * Supports language-specific directories.
+ */
+void load_mod_proto_messages()
+{
+    char search_pattern[COMPAT_MAX_PATH];
+    
+    // Use the same pattern as messageListLoad but with wildcard
+    snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
+             DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
+    
+    char** mod_files = nullptr;
+    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    
+    for (int i = 0; i < file_count; i++) {
+        // Build full path (same pattern as messageListLoad)
+        char full_path[COMPAT_MAX_PATH];
+        snprintf(full_path, sizeof(full_path), "text%c%s%cgame%c%s",
+                 DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, mod_files[i]);
+        load_mod_proto_messages_from_file(full_path, mod_files[i]);
+    }
+    
+    if (file_count > 0) {
+        fileNameListFree(&mod_files, 0);
+    }
+    
+    // Current language override
+    if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+        snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
+                 DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+        
+        file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+        
+        for (int i = 0; i < file_count; i++) {
+            char full_path[COMPAT_MAX_PATH];
+            snprintf(full_path, sizeof(full_path), "text%c%s%cgame%c%s",
+                     DIR_SEPARATOR, settings.system.language.c_str(), 
+                     DIR_SEPARATOR, DIR_SEPARATOR, mod_files[i]);
+            load_mod_proto_messages_from_file(full_path, mod_files[i]);
+        }
+        
+        if (file_count > 0) {
+            fileNameListFree(&mod_files, 0);
+        }
+    }
+}
 
 // 0x49E270
 void proto_make_path(char* path, int pid)
@@ -331,9 +938,28 @@ int _proto_action_can_pickup(int pid)
     return true;
 }
 
-// 0x49EAA4
+/**
+ * @brief Retrieves a message for a proto with mod support.
+ * 
+ * Extended version that first checks mod proto messages before falling back
+ * to vanilla message lookup. This allows mods to override or add messages
+ * for their protos.
+ * 
+ * @param pid The PID to get a message for.
+ * @param message The message type (PROTOTYPE_MESSAGE_NAME or DESCRIPTION).
+ * @return Pointer to the message string, or _proto_none_str if not found.
+ */
 char* protoGetMessage(int pid, int message)
 {
+   
+    // First, try to get from mod proto message system
+    if (pid_is_modded(pid)) {
+        char* mod_msg = messageListGetModProtoMessage(pid, message);
+        
+        if (mod_msg) {
+            return mod_msg;
+        }
+    }
     char* v1 = _proto_none_str;
 
     Proto* proto;
@@ -1437,6 +2063,14 @@ int protoInit()
 
     _proto_header_load();
 
+    // Load mod protos for each type (AFTER vanilla proto initialization)
+    load_mod_proto_list(OBJ_TYPE_ITEM, "items");
+    load_mod_proto_list(OBJ_TYPE_CRITTER, "critters");
+    load_mod_proto_list(OBJ_TYPE_SCENERY, "scenery");
+    load_mod_proto_list(OBJ_TYPE_WALL, "walls");
+    load_mod_proto_list(OBJ_TYPE_TILE, "tiles");
+    load_mod_proto_list(OBJ_TYPE_MISC, "misc");
+
     _protos_been_initialized = 1;
 
     _proto_dude_init("premade\\player.gcd");
@@ -1456,6 +2090,11 @@ int protoInit()
             return -1;
         }
     }
+
+    load_mod_proto_messages();
+
+    // Generate debug report
+    protoGenerateModProtoListDebug();
 
     for (i = 0; i < 6; i++) {
         messageListRepositorySetProtoMessageList(i, &(_proto_msg_files[i]));
@@ -1576,6 +2215,32 @@ void protoExit()
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_PROTO, nullptr);
     messageListFree(&gProtoMessageList);
+
+    // Clean up mod proto registry arrays
+    if (_mod_proto_entries) {
+        internal_free(_mod_proto_entries);
+        _mod_proto_entries = nullptr;
+        _mod_proto_entries_size = 0;
+        _mod_proto_entries_capacity = 0;
+    }
+    
+    if (_name_to_pid_entries) {
+        for (int i = 0; i < _name_to_pid_entries_size; i++) {
+            if (_name_to_pid_entries[i].key) {
+                internal_free(_name_to_pid_entries[i].key);
+            }
+        }
+        internal_free(_name_to_pid_entries);
+        _name_to_pid_entries = nullptr;
+        _name_to_pid_entries_size = 0;
+        _name_to_pid_entries_capacity = 0;
+    }
+
+    // Print summary on exit 
+    if (_mod_proto_entries_size > 0) {
+        debugPrint("Proto system exiting with %d mod protos loaded\n", 
+                  _mod_proto_entries_size);
+    }
 }
 
 // Count .pro lines in .lst files.
@@ -2398,8 +3063,17 @@ void _proto_remove_all()
     }
 }
 
-// proto_ptr
-// 0x4A2108
+/**
+ * @brief Retrieves a proto by PID with mod support.
+ * 
+ * Extended version of the original protoGetProto that supports mod PIDs.
+ * If the PID is a mod PID, it loads the proto from the mod file system
+ * instead of the vanilla directories. Mod protos are cached like vanilla ones.
+ * 
+ * @param pid The PID to look up.
+ * @param protoPtr Output parameter for the proto pointer.
+ * @return 0 on success, -1 on failure.
+ */
 int protoGetProto(int pid, Proto** protoPtr)
 {
     *protoPtr = nullptr;
@@ -2410,6 +3084,51 @@ int protoGetProto(int pid, Proto** protoPtr)
 
     if (pid == 0x1000000) {
         *protoPtr = (Proto*)&gDudeProto;
+        return 0;
+    }
+
+    // Check if it's a mod PID
+    if (pid_is_modded(pid)) {
+        // Look up in mod registry
+        ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
+        if (!entry) {
+            return -1; // Mod proto not found
+        }
+        
+        // Try to find in existing cache first
+        ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
+        ProtoListExtent* protoListExtent = protoList->head;
+        while (protoListExtent != nullptr) {
+            for (int index = 0; index < protoListExtent->length; index++) {
+                Proto* proto = (Proto*)protoListExtent->proto[index];
+                if (pid == proto->pid) {
+                    *protoPtr = proto;
+                    return 0;
+                }
+            }
+            protoListExtent = protoListExtent->next;
+        }
+        
+        // Not in cache, load from mod file
+        File* stream = fileOpen(entry->proto_path, "rb");
+        if (stream == nullptr) {
+            debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
+            return -1;
+        }
+        
+        // Find or allocate cache slot
+        if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
+            fileClose(stream);
+            return -1;
+        }
+        
+        // Read proto data
+        if (protoRead(*protoPtr, stream) != 0) {
+            fileClose(stream);
+            return -1;
+        }
+        
+        fileClose(stream);
         return 0;
     }
 
@@ -2470,6 +3189,266 @@ int _ResetPlayer()
     traitsReset();
     critterUpdateDerivedStats(gDude);
     return 0;
+}
+
+/**
+ * @brief Gets a PID for a mod proto by name.
+ * 
+ * Public API function that mods/scripts can use to get the PID for a
+ * mod proto by its mod and proto names. Useful for scripting integration.
+ * 
+ * @param mod_name Name of the mod (e.g., "testmod").
+ * @param proto_name Name of the proto within the mod (e.g., "testitem").
+ * @param proto_type Object type (OBJ_TYPE_ITEM, etc.).
+ * @return The PID if found, or a generated PID if not found (for dynamic mods).
+ */
+int protoGetModPid(const char* mod_name, const char* proto_name, int proto_type)
+{
+    char composite_key[256];
+    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, proto_name);
+    
+    int pid = name_to_pid_registry_find(composite_key);
+    if (pid != -1) {
+        return pid;
+    }
+    
+    // Not found, could generate it (for dynamic mod support)
+    return generate_mod_proto_pid(mod_name, proto_name, proto_type);
+}
+
+/**
+ * @brief Generates a comprehensive debug report of all loaded mod protos.
+ * 
+ * Creates a detailed report file (data/lists/proto_list.txt) showing:
+ * - All loaded mod protos organized by type
+ * - Generated PIDs with hex and decimal representations
+ * - Mod name and proto name for each entry
+ * - File paths and message IDs
+ * - Statistics and collision warnings
+ * 
+ * This report is essential for mod debugging and script integration.
+ */
+static void protoGenerateModProtoListDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cproto_list.txt", 
+             DIR_SEPARATOR, DIR_SEPARATOR);
+
+    // Ensure directory exists
+    char dirPath[COMPAT_MAX_PATH];
+    snprintf(dirPath, sizeof(dirPath), "./data%clists", DIR_SEPARATOR);
+    compat_mkdir(dirPath);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\nprotoGenerateModProtoListDebug: Could not create proto_list.txt");
+        return;
+    }
+
+    // Write header
+    const char* header = 
+        "==============================================================================\n"
+        "Fallout 2 FISSION - Mod Proto Report\n"
+        "==============================================================================\n"
+        "This report shows all mod protos loaded by the engine - essential for mod debugging\n"
+        "and finding PIDs for mod development.\n\n"
+
+        "KEY CONCEPTS:\n"
+        "- Vanilla protos: Use indices 0-199 (0x000000-0x0000C7) in lower 24 bits\n"
+        "- Mod protos: Use indices 200-16777215 (0x0000C8-0xFFFFFF) via deterministic hashing\n"
+        "- PID format: (type << 24) | index (e.g., 0x00DB240E = item type with index 0xDB240E)\n"
+        "- Index >= 0x0000C8 (200) indicates a mod proto\n"
+        "- Hash collisions trigger warnings and the colliding proto is skipped\n\n"
+
+        "CRITICAL - HOW MOD PIDS ARE GENERATED:\n"
+        "- PIDs are generated from mod name + proto name hash (e.g., 'testmod:testitem')\n"
+        "- The PID stored in the .pro file (first 4 bytes) is IGNORED for mod protos\n"
+        "- Always use the PIDs shown in this report, NOT what's in the .pro file\n"
+        "- Same mod+proto names = same PID across all installations (STABLE)\n\n"
+
+        "USAGE NOTES:\n"
+        "- Use these PIDs when referencing mod protos in:\n"
+        "  * Scripts (create_object, add_obj_to_inven, etc.)\n"
+        "  * Map files (PROTO item entries)\n"
+        "  * Message files (for name/description)\n"
+        "- Mod PIDs are STABLE between game sessions\n"
+        "- Proto messages are loaded from text/{lang}/game/messages_{modname}.txt\n"
+        "- Message file format: [proto_{modname}] section with keys:\n"
+        "    {modname}:{protoname}:name = Display Name\n"
+        "    {modname}:{protoname}:desc = Description Text\n"
+        "  Alternative (short) format:\n"
+        "    {protoname}:name = Display Name\n"
+        "    {protoname}:desc = Description Text\n"
+        "==============================================================================\n\n";
+
+    fputs(header, debugStream);
+
+    // Write timestamp
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Add collision section if any collisions occurred
+    if (_mod_proto_collision_count > 0) {
+        fprintf(debugStream, "\n=== HASH COLLISIONS DETECTED ===\n");
+        fprintf(debugStream, "Total hash collisions: %d (protos skipped)\n\n", _mod_proto_collision_count);
+        
+        if (strlen(_mod_proto_collision_log) > 0) {
+            fprintf(debugStream, "Collision details:\n");
+            fprintf(debugStream, "%s", _mod_proto_collision_log);
+        }
+        
+        fprintf(debugStream, "\nTo fix collisions, rename your mod or proto files.\n");
+    }
+
+    // Statistics
+    int totalModProtos = _mod_proto_entries_size;
+    int protosByType[OBJ_TYPE_COUNT] = {0};
+    
+    // Count mod protos by type
+    for (int i = 0; i < _mod_proto_entries_size; i++) {
+        int type = _mod_proto_entries[i].type;
+        if (type >= 0 && type < OBJ_TYPE_COUNT) {
+            protosByType[type]++;
+        }
+    }
+
+    // Summary section
+    fprintf(debugStream, "MOD PROTO STATISTICS:\n");
+    fprintf(debugStream, "---------------------\n");
+    fprintf(debugStream, "Total Mod Protos: %d\n", totalModProtos);
+    fprintf(debugStream, "\nBy Type:\n");
+    for (int i = 0; i < OBJ_TYPE_COUNT; i++) {
+        if (protosByType[i] > 0) {
+            fprintf(debugStream, "  %-8s: %d\n", 
+                    artGetObjectTypeName(i), protosByType[i]);
+        }
+    }
+    fprintf(debugStream, "\n");
+
+    // PID Ranges
+    fprintf(debugStream, "PID RANGES:\n");
+    fprintf(debugStream, "-----------\n");
+    fprintf(debugStream, "Vanilla: 0x00000000 - 0x00FFFFFF (lower 24 bits: 0x000000-0x0000C7)\n");
+    fprintf(debugStream, "Mod:     0x00000000 - 0xFFFFFFFF (lower 24 bits: 0x0000C8-0xFFFFFF)\n");
+    fprintf(debugStream, "\nType Bits (bits 24-31):\n");
+    fprintf(debugStream, "  0x00 = Items, 0x01 = Critters, 0x02 = Scenery,\n");
+    fprintf(debugStream, "  0x03 = Walls,  0x04 = Tiles,   0x05 = Misc\n");
+    fprintf(debugStream, "\nExample: 0x00DB240E = Item (type 0) with mod index 0xDB240E\n");
+    fprintf(debugStream, "\n");
+
+    // Detailed mod proto listing by type
+    for (int type = 0; type < OBJ_TYPE_COUNT; type++) {
+        if (protosByType[type] == 0) continue;
+
+        fprintf(debugStream, "%s MOD PROTOS:\n", artGetObjectTypeName(type));
+        for (int i = 0; i < strlen(artGetObjectTypeName(type)) + 12; i++) {
+            fputc('-', debugStream);
+        }
+        fputc('\n', debugStream);
+
+        for (int i = 0; i < _mod_proto_entries_size; i++) {
+            if (_mod_proto_entries[i].type != type) continue;
+
+            ModProtoEntry* entry = &_mod_proto_entries[i];
+            
+            // Get proto data to display additional info
+            Proto* proto = nullptr;
+            bool protoLoaded = (protoGetProto(entry->pid, &proto) == 0);
+            
+            // Extract file name from path
+            const char* fileName = strrchr(entry->proto_path, DIR_SEPARATOR);
+            if (fileName) fileName++;
+            else fileName = entry->proto_path;
+            
+            fprintf(debugStream, "  PID: 0x%08X (%d)\n", entry->pid, entry->pid);
+            fprintf(debugStream, "    Mod:      %s\n", entry->mod_name);
+            fprintf(debugStream, "    Proto:    %s\n", entry->proto_name);
+            fprintf(debugStream, "    File:     %s\n", fileName);
+            
+            if (protoLoaded) {
+                fprintf(debugStream, "    Message:  ID %d\n", proto->messageId);
+                
+                // Try to get name and description
+                char* name = protoGetName(entry->pid);
+                char* desc = protoGetDescription(entry->pid);
+                
+                if (name && name != _proto_none_str) {
+                    fprintf(debugStream, "    Name:     %s\n", name);
+                }
+                if (desc && desc != _proto_none_str) {
+                    // Truncate description for readability
+                    char shortDesc[128];
+                    strncpy(shortDesc, desc, sizeof(shortDesc) - 1);
+                    shortDesc[sizeof(shortDesc) - 1] = '\0';
+                    if (strlen(desc) > sizeof(shortDesc) - 1) {
+                        strcpy(shortDesc + sizeof(shortDesc) - 4, "...");
+                    }
+                    fprintf(debugStream, "    Desc:     %s\n", shortDesc);
+                }
+                
+                // Type-specific info
+                switch (type) {
+                    case OBJ_TYPE_ITEM:
+                        fprintf(debugStream, "    Item Type: %s\n", 
+                                proto->item.type < ITEM_TYPE_COUNT ? 
+                                gItemTypeNames[proto->item.type] : "Unknown");
+                        fprintf(debugStream, "    Weight:    %d, Cost: %d\n", 
+                                proto->item.weight, proto->item.cost);
+                        break;
+                    case OBJ_TYPE_CRITTER:
+                        fprintf(debugStream, "    FID:       0x%08X\n", proto->fid);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            fprintf(debugStream, "\n");
+        }
+        fprintf(debugStream, "\n");
+    }
+
+    // Name-to-PID Registry Section
+    fprintf(debugStream, "NAME-TO-PID REGISTRY (for message file parsing):\n");
+    for (int i = 0; i < 60; i++) fputc('-', debugStream);
+    fputc('\n', debugStream);
+    
+    for (int i = 0; i < _name_to_pid_entries_size; i++) {
+        fprintf(debugStream, "  %-40s -> 0x%08X\n", 
+                _name_to_pid_entries[i].key, 
+                _name_to_pid_entries[i].pid);
+    }
+    fprintf(debugStream, "\n");
+
+    // Message Loading Section
+    fprintf(debugStream, "MESSAGE LOADING:\n");
+    for (int i = 0; i < 16; i++) fputc('-', debugStream);
+    fputc('\n', debugStream);
+    
+    fprintf(debugStream, "Message files should be in: text/{language}/game/messages_{modname}.txt\n");
+    fprintf(debugStream, "Format in message files:\n");
+    fprintf(debugStream, "  [proto_{modname}]  (or any section containing 'proto' or 'pro_')\n");
+    fprintf(debugStream, "  {modname}:{protoname}:name = Name Text\n");
+    fprintf(debugStream, "  {modname}:{protoname}:desc = Description Text\n");
+    fprintf(debugStream, "Alternative format (using filename mod name):\n");
+    fprintf(debugStream, "  {protoname}:name = Name Text  (uses filename for mod name)\n");
+    fprintf(debugStream, "\n");
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", debugStream);
+    fputs("- Mod proto PIDs are STABLE - they won't change between game sessions\n", debugStream);
+    fputs("- Hash collisions show warnings and skip the conflicting proto\n", debugStream);
+    fputs("- Reference these exact PIDs in your scripts and map files\n", debugStream);
+    fputs("- Use 'modname:protoname' format in message files for mod proto messages\n", debugStream);
+    fputs("- Test message loading by checking the name/description in the report above\n", debugStream);
+    fputs("- Mod .lst files should be named: {type}_{modname}.lst (e.g., items_mymod.lst)\n", debugStream);
+
+    // Close file
+    fclose(debugStream);
+    debugPrint("\nprotoGenerateModProtoListDebug: Generated proto_list.txt with %d mod protos", 
+               totalModProtos);
 }
 
 } // namespace fallout

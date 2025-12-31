@@ -97,6 +97,11 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
 bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 bool messageListAddEntry(MessageList* msg, int num, const char* text);
 
+// function declaration for mod proto messages
+bool messageListAddModProtoMessage(int pid, int message_type, const char* text);
+char* messageListRepositoryGetProtoMsg(int pid, int message_type);
+char* messageListGetModProtoMessage(int pid, int message_type);
+
 } // namespace fallout
 
 #endif /* MESSAGE_H */
