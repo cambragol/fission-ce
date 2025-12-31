@@ -71,7 +71,6 @@ static char* gMessageErrorStr = _Error_1;
 // Temporary message list item text used during filtering badwords.
 static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
-
 static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
 
@@ -442,7 +441,7 @@ char* getmsg(MessageList* msg, MessageListItem* entry, int num)
 
 // Helper function for mod Holodisk conversion
 bool messageListAddEntry(MessageList* msg, int num, const char* text)
-{    
+{
     MessageListItem entry;
     entry.num = num;
     entry.text = internal_strdup(text);
@@ -916,7 +915,6 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
         }
     }
 }
-
 
 /**
  * Generates a human-readable report of mod messages loaded.
