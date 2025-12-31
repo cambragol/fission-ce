@@ -78,28 +78,28 @@ static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
 /**
  * Global map storing mod-provided proto messages for game objects.
- * 
+ *
  * This map allows mods to override or add text for specific prototype IDs without
  * modifying base game files. The system supports two message types per proto:
  * - Index 0: Short name (used in inventory, tooltips, etc.)
  * - Index 1: Long description (used in examine/description screens)
- * 
+ *
  * Key: Prototype ID (PID) of the game object (item, critter, scenery, etc.)
  * Value: Array[2] of char* strings [short_name, long_description]
- * 
+ *
  * Example: _modProtoMessages[0x00000123] = {"Modded Stimpak", "A custom healing item"}
  */
 static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 
 /**
  * Global repository state for all message lists in the game.
- * 
+ *
  * This central repository manages four categories of message lists:
  * 1. Standard (0-999): Core game text (dialogue, UI, system messages)
  * 2. Proto (0x1000-0x1FFF): Object descriptions (items, critters, etc.)
  * 3. Persistent (0x2000-0x2FFF): Extra lists loaded at startup (config files)
  * 4. Temporary (0x3000-0x3FFF): Runtime-loaded lists (scripts, mods)
- * 
+ *
  * The repository ensures message lists are properly namespaced and managed,
  * preventing ID collisions between different mods and base game content.
  */
@@ -108,13 +108,14 @@ static MessageListRepositoryState* _messageListRepositoryState;
 /**
  * Adds a custom proto message for a specific object prototype ID.
  * Used by mods to add custom text for game objects without editing base files.
- * 
+ *
  * @param pid The prototype ID of the object
  * @param message_type 0 for short name, 1 for long description
  * @param text The custom text to associate with the proto
  * @return true if successful, false otherwise
  */
-bool messageListAddModProtoMessage(int pid, int message_type, const char* text) {
+bool messageListAddModProtoMessage(int pid, int message_type, const char* text)
+{
     if (message_type < 0 || message_type > 1) return false;
     auto& messages = _modProtoMessages[pid];
     if (messages[message_type]) internal_free(messages[message_type]);
@@ -124,12 +125,13 @@ bool messageListAddModProtoMessage(int pid, int message_type, const char* text) 
 
 /**
  * Retrieves a custom proto message added by a mod.
- * 
+ *
  * @param pid The prototype ID to look up
  * @param message_type 0 for short name, 1 for long description
  * @return The custom text if found, nullptr otherwise
  */
-char* messageListGetModProtoMessage(int pid, int message_type) {
+char* messageListGetModProtoMessage(int pid, int message_type)
+{
     if (message_type < 0 || message_type > 1) return nullptr;
     auto it = _modProtoMessages.find(pid);
     if (it != _modProtoMessages.end()) {
@@ -142,7 +144,8 @@ char* messageListGetModProtoMessage(int pid, int message_type) {
  * Frees all custom proto messages loaded by mods.
  * Called during game shutdown or mod unloading.
  */
-void messageListFreeModProtoMessages() {
+void messageListFreeModProtoMessages()
+{
     for (auto& pair : _modProtoMessages) {
         for (int i = 0; i < 2; i++) {
             if (pair.second[i]) internal_free(pair.second[i]);
@@ -173,7 +176,7 @@ bool messageListAddEntry(MessageList* msg, int num, const char* text)
 /**
  * Case-insensitive DJB2 hash function for generating stable message IDs.
  * Ensures consistent IDs across different systems and runs.
- * 
+ *
  * @param str Input string to hash
  * @return 32-bit hash value
  */
@@ -192,7 +195,7 @@ static uint32_t stable_hash(const char* str)
 /**
  * Generates a stable message ID in the mod range (0x8000-0xFFFF).
  * Combines mod name and message key to create unique, reproducible IDs.
- * 
+ *
  * @param mod_name Name of the mod (from filename)
  * @param message_key Unique key within the mod's message file
  * @return Message ID in range 32768-65535
@@ -209,11 +212,11 @@ uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
  * Generates a human-readable report of mod messages loaded.
  * Creates a text file listing all mod messages (IDs 32768-65535)
  * with their text previews, for modder reference.
- * 
+ *
  * @param messageList The MessageList to report on
  * @param msg_type Message type name for the report filename
  */
- void generateMessageReport(MessageList* messageList, const char* msg_type)
+void generateMessageReport(MessageList* messageList, const char* msg_type)
 {
     if (!messageList || !msg_type) return;
 
@@ -421,7 +424,7 @@ static void loadModFileWithSections(MessageList* messageList, const char* fullPa
 /**
  * Loads mod messages from files matching messages_*.txt pattern.
  * Searches both English (fallback) and current language directories.
- * 
+ *
  * @param messageList MessageList to append mod messages to
  * @param msg_type Section name to load from mod files
  */
@@ -470,7 +473,7 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
  * Enhanced message loader that combines base messages with mod messages.
  * Loads base game messages first, then appends mod messages from
  * messages_*.txt files. Always generates a report file.
- * 
+ *
  * @param msg MessageList to populate
  * @param path Path to base message file
  * @param msg_type Message type/section to load (for mod file sections)

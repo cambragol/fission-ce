@@ -104,8 +104,8 @@ extern char* _proto_none_str;
 extern char* gItemTypeNames[ITEM_TYPE_COUNT];
 
 // Mod proto constants
-#define MOD_PROTO_START 0x800000  // Start of mod proto index range
-#define MOD_PROTO_MAX   0xFFFFFF  // Maximum mod proto index
+#define MOD_PROTO_START 0x800000 // Start of mod proto index range
+#define MOD_PROTO_MAX 0xFFFFFF // Maximum mod proto index
 #define VANILLA_PROTO_MAX 0x7FFFFF // Maximum vanilla proto index
 
 // Mod proto entry tracking
@@ -113,8 +113,8 @@ typedef struct ModProtoEntry {
     int pid;
     char* mod_name;
     char* proto_name;
-    char* proto_path;  // Full path to .pro file
-    int type;          // Proto type (OBJ_TYPE_ITEM, etc.)
+    char* proto_path; // Full path to .pro file
+    int type; // Proto type (OBJ_TYPE_ITEM, etc.)
 } ModProtoEntry;
 
 typedef struct NameToPidEntry {
