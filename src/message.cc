@@ -44,11 +44,18 @@ struct MessageListRepositoryState {
     int nextTemporaryMessageListId = kFirstTemporaryMessageListId;
 };
 
-static bool _messageListFind(MessageList* msg, int num, int* out_index);
-static bool _messageListAdd(MessageList* msg, MessageListItem* new_entry);
-static bool _messageListParseNumber(int* out_num, const char* str);
-static int _messageListLoadField(File* file, char* str);
+// Extends message loading to support mod message files (messages_*.txt)
+// Mod message IDs use range 0x8000-0xFFFF (32768-65535).
+
+static uint32_t stable_hash(const char* str);
+uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
 void generateMessageReport(MessageList* messageList, const char* msg_type);
+
+// Mod file loading
+static void loadModFileWithSections(MessageList* messageList, const char* fullPath, 
+                                   const char* filename, const char* target_section);
+static void loadModMessagesForType(MessageList* messageList, const char* msg_type);
+bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 
 // 0x50B79C
 static char _Error_1[] = "Error";
