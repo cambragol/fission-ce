@@ -1526,12 +1526,12 @@ Message Key Formats:
 
 Example PID Calculation:
 
-c
-
+```
 // For mod "testmod" with proto "testitem" of type ITEM (0x00)
 Composite key: "testmod:testitem"
 Hash: stable_hash("testmod:testitem") = 0xDB240E
 Final PID: (ITEM_TYPE << 24) | 0xDB240E = 0x00DB240E
+```
 
 #### 13.3.2 PID Ranges by Type
 
