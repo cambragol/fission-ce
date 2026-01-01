@@ -144,24 +144,17 @@ Fallout FISSION Modding System: Complete Implementation Guide
     - [14.2 Debug Commands](#142-debug-commands)
     - [14.3 Debugging Steps](#143-debugging-steps)
 
-15. [Future Expansion](#15-future-expansion)
-    - [15.1 Planned Enhancements](#151-planned-enhancements)
-    - [15.2 Quest System Enhancements](#152-quest-system-enhancements)
-    - [15.3 Holodisk System Enhancements](#153-holodisk-system-enhancements)
-    - [15.4 Integration Opportunities](#154-integration-opportunities)
-    - [15.5 Development Tools Wishlist](#155-development-tools-wishlist)
+15. [Appendix A: Quick Reference](#appendix-a-quick-reference)
+    - [15.1 File Naming](#161-file-naming)
+    - [15.2 Key Formats](#162-key-formats)
+    - [15.3 ID Ranges](#163-id-ranges)
+    - [15.4 Critical Rules](#164-critical-rules)
 
-16. [Appendix A: Quick Reference](#appendix-a-quick-reference)
-    - [16.1 File Naming](#161-file-naming)
-    - [16.2 Key Formats](#162-key-formats)
-    - [16.3 ID Ranges](#163-id-ranges)
-    - [16.4 Critical Rules](#164-critical-rules)
-
-17. [Appendix B: Example Mod Structure](#appendix-b-example-mod-structure)
-    - [17.1 Complete Example Mod](#171-complete-example-mod)
-    - [17.2 Installation and Testing](#172-installation-and-testing)
-    - [17.3 Notes for Modders](#173-notes-for-modders)
-    - [17.4 Generated IDs Reference](#174-generated-ids-reference)
+16. [Appendix B: Example Mod Structure](#appendix-b-example-mod-structure)
+    - [16.1 Complete Example Mod](#171-complete-example-mod)
+    - [16.2 Installation and Testing](#172-installation-and-testing)
+    - [16.3 Notes for Modders](#173-notes-for-modders)
+    - [16.4 Generated IDs Reference](#174-generated-ids-reference)
 
 * * * * *
 
@@ -1904,69 +1897,13 @@ holodisk_debug=1         # Log holodisk loading details
 
 7.  Check loading order - messages must load before holodisks
 
-* * * * *
-
-15\. Future Expansion
----------------------
-
-### 15.1 Planned Enhancements
-
-1.  Mod load order control - `mod_load_order.txt` file
-
-2.  Dependency system - Mods requiring other mods
-
-3.  Enhanced validation - Pre-flight check of mod files
-
-4.  Batch conversion tools - Update old-format mods
-
-5.  Extended ranges - More slots if community needs them
-
-### 15.2 Quest System Enhancements
-
-1.  Quest Dependency Tracking
-
-2.  Quest Objective System (multiple steps per quest)
-
-3.  Quest Reward Integration (auto-item granting)
-
-4.  Quest Journal Enhancements (more detailed tracking)
-
-### 15.3 Holodisk System Enhancements
-
-1.  Holodisk Categories - Organize by type (quest, lore, etc.)
-
-2.  Holodisk Images - Support for custom holodisk art
-
-3.  Holodisk Playback - Audio logs (if audio system extended)
-
-4.  Holodisk Collection Tracking - Auto-tracking of found holodisks
-
-### 15.4 Integration Opportunities
-
--   Scripts: Could auto-generate quest script templates
-
--   Dialogs: Link dialog options to quest states
-
--   Items: Quest item tracking and validation
-
--   Proto System: Extend to items, critters, scenery
-
-### 15.5 Development Tools Wishlist
-
-1.  ID Calculator Tool - Pre-calculate IDs before mod creation
-
-2.  Mod Validator - Standalone tool to check mod files
-
-3.  Template Generator - Create starter mod structure
-
-4.  Conflict Detector - Check for conflicts between multiple mods
 
 * * * * *
 
-16\. Appendix A: Quick Reference
+15\. Appendix A: Quick Reference
 --------------------------------
 
-### 16.1 File Naming
+### 15.1 File Naming
 
 -   Areas: `city_{modname}.txt`
 
@@ -1982,7 +1919,7 @@ holodisk_debug=1         # Log holodisk loading details
 
 -   Proto files: `proto/{type}/{protoname}.pro`
 
-### 16.2 Key Formats
+### 15.2 Key Formats
 
 -   Area names: `area_name:{AREA_NAME}`
 
@@ -2000,7 +1937,7 @@ holodisk_debug=1         # Log holodisk loading details
 
 -   Proto descriptions: `{modname}:{protoname}:desc` or `{protoname}:desc`
 
-### 16.3 ID Ranges
+### 15.3 ID Ranges
 
 -   Quests: 200-999
 
@@ -2016,7 +1953,7 @@ holodisk_debug=1         # Log holodisk loading details
 
 -   Proto types: Items=0x00, Critters=0x01, Scenery=0x02, Walls=0x03, Tiles=0x04, Misc=0x05
 
-### 16.4 Critical Rules
+### 15.4 Critical Rules
 
 1.  Map names ≤8 characters
 
@@ -2038,10 +1975,10 @@ holodisk_debug=1         # Log holodisk loading details
 
 * * * * *
 
-17\. Appendix B: Example Mod Structure
+16\. Appendix B: Example Mod Structure
 --------------------------------------
 
-### 17.1 Complete Example Mod
+### 16.1 Complete Example Mod
 
 ```
 MyFirstMod/
@@ -2177,7 +2114,7 @@ procedure quest_test begin
 end
 ```
 
-### 17.2 Installation and Testing
+### 16.2 Installation and Testing
 
 1.  Copy all files to the correct directories in your Fallout 2 install
 
@@ -2203,7 +2140,7 @@ end
 
     -   Check inventory for the test item
 
-### 17.3 Notes for Modders
+### 16.3 Notes for Modders
 
 1.  Replace example PIDs with actual IDs from your generated reports
 
@@ -2217,7 +2154,7 @@ end
 
 6.  Remember map_name ≤8 characters (DOS 8.3 limitation)
 
-### 17.4 Generated IDs Reference
+### 16.4 Generated IDs Reference
 
 After running with this mod, check these reports:
 
