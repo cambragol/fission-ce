@@ -730,8 +730,7 @@ Process for holodisks:
 
 #### 7.6.1 Quest Description Retrieval
 
-c
-
+```
 static int getQuestDescriptionMessageId(int questId) {
     if (questId < MOD_QUEST_START) {
         // Vanilla quest: use description field directly
@@ -741,11 +740,11 @@ static int getQuestDescriptionMessageId(int questId) {
         return gQuestDescriptions[questId].description;
     }
 }
+```
 
 #### 7.6.2 Map Name Retrieval
 
-c
-
+```
 char* mapGetName(int map, int elevation) {
     if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
         // Mod map: generate message ID using mod name and lookup name
@@ -766,11 +765,11 @@ char* mapGetName(int map, int elevation) {
     }
     // ... vanilla handling
 }
+```
 
 #### 7.6.3 Holodisk Text Retrieval
 
-c
-
+```
 static void pipboyRenderHolodiskText() {
     // NO MOD CHECKS NEEDED!
     // All holodisks (vanilla and mod) are in the same format
@@ -782,6 +781,7 @@ static void pipboyRenderHolodiskText() {
     // 2. gPipboyHolodiskLastPage is calculated correctly for all
     // 3. Pagination works identically
 }
+```
 
 * * * * *
 
