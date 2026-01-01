@@ -1879,14 +1879,14 @@ display_msg(protoGetName(plasmacaster_pid));
 
 Add these to `config.ini` under `[debug]`:
 
-ini
-
+```
 [debug]
 write_offsets=1          # Write default town map offsets
 generate_reports=1       # Force report generation
 show_mod_loading=1       # Show mod loading popups
 quest_debug=1            # Log quest loading details
 holodisk_debug=1         # Log holodisk loading details
+```
 
 ### 14.3 Debugging Steps
 
