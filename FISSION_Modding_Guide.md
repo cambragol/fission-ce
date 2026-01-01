@@ -1642,19 +1642,18 @@ Step-by-Step Guide:
 
 #### 13.6.1 Creating Objects with Mod PIDs
 
-c
-
+```
 // Create a mod item at player's feet
 int mod_pid = 0x00DB240E;  // From proto_list.txt
 obj = create_object(mod_pid, dude_tile, dude_elevation);
 
 // Add to inventory
 add_mult_objs_to_inven(dude, obj, 1);
+```
 
 #### 13.6.2 Getting Proto Information
 
-c
-
+```
 // Get proto name for display
 char* item_name = protoGetName(0x00DB240E);
 display_msg(item_name);
@@ -1662,11 +1661,11 @@ display_msg(item_name);
 // Get proto description
 char* item_desc = protoGetDescription(0x00DB240E);
 display_msg(item_desc);
+```
 
 #### 13.6.3 Checking Proto Properties
 
-c
-
+```
 // Check if item can be picked up
 if (_proto_action_can_pickup(0x00DB240E)) {
     display_msg("You can pick this up");
@@ -1676,6 +1675,7 @@ if (_proto_action_can_pickup(0x00DB240E)) {
 if (_proto_action_can_use(0x00DB240E)) {
     display_msg("You can use this item");
 }
+```
 
 ### 13.7 Generated Reports
 
