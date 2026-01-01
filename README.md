@@ -110,18 +110,6 @@ cd ~/.wine/drive_c/Program\ Files/Fallout\ 2/
 # 3. Run with: wine fallout-fission.exe
 ```
 
-### Building from Source
-
-Advanced users can build F.I.S.S.I.O.N. from source:
-
-```
-git clone https://github.com/cambragol/fission-ce
-cd fission-ce
-make
-# The built executable will be in the 'bin' folder
-# Copy it to your Fallout 2 installation directory
-```
-
 ### 📁 Expected Folder Structure
 
 After installation, your Fallout 2 folder should contain:
