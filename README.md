@@ -118,10 +118,9 @@ Advanced users can build F.I.S.S.I.O.N. from source:
 git clone https://github.com/cambragol/fission-ce
 cd fission-ce
 make
-```
-
 # The built executable will be in the 'bin' folder
 # Copy it to your Fallout 2 installation directory
+```
 
 ### 📁 Expected Folder Structure
 
