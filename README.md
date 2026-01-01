@@ -71,12 +71,12 @@ You must own **Fallout 2** (GOG, Steam, or Epic Games version) and have it fully
 - **Fallout: Sonora** - Russian total conversion mod
 
 ### Quick Installation
-1. **Ensure you have a working Fallout 2 installation** (vanilla or modded)
+1. **Ensure you have a working vanilla Fallout 2 installation**
 2. **Download** the latest [F.I.S.S.I.O.N. release](https://github.com/cambragol/fission-ce/releases)
 3. **Extract** the F.I.S.S.I.O.N. files into your Fallout 2 folder
 4. **Run** `fallout-fission.exe` (Windows) or `fallout-fission.app` (macOS) instead of the original executable
 
-That's it! F.I.S.S.I.O.N. automatically loads all existing mod content and adds its enhanced modding capabilities.
+That's it! F.I.S.S.I.O.N. automatically loads all existing content and adds its enhanced modding capabilities.
 
 ### Platform-Specific Instructions
 
@@ -138,18 +138,6 @@ Fallout 2/
 -   Mods stay where they are - F.I.S.S.I.O.N. reads from existing `data/` structure
 
 -   No configuration needed for basic use - just replace the executable
-
-```
-**Key improvements:**
-1. **Clearer "drop-in replacement" message** upfront
-2. **Specific supported installations** listed (vanilla, Nevada, Sonora)
-3. **Folder structure visual** shows exactly what goes where
-4. **Platform-specific examples** for real use cases
-5. **Emphasis on "it just works"** - no complex setup needed
-6. **Clarifies what F.I.S.S.I.O.N. provides** (executable + engine data) vs what you need (game data)
-```
-
-This addresses the confusion by making it crystal clear: **Install Fallout 2 first, then drop F.I.S.S.I.O.N. into that folder.**
 
 ---
 
