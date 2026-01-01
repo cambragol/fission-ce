@@ -46,11 +46,12 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 **Fully supported**:
 - Fallout 2
-- Fallout: Nevada (original version)
-- Fallout: Sonora (original version)
+- Fallout: Nevada
+- Fallout: Sonora
 
 **Not supported yet, maybe never**:
 - Fallout 1
+- Fallout Nevada or Sonora 'repacks'
 - Restoration Project
 - Fallout: Et Tu
 - Olympus 2207
