@@ -517,8 +517,7 @@ Important: The system looks for exact key formats. If your keys don't match, mes
 
 ### 6.1 Unified Hash Function (DJB2, Case-Insensitive)
 
-c
-
+```
 uint32_t stable_hash(const char* str) {
     uint32_t hash = 5381;
     int c;
@@ -528,32 +527,32 @@ uint32_t stable_hash(const char* str) {
     }
     return hash;
 }
+```
 
 ### 6.2 Mod Message ID Generator
 
-c
-
+```
 uint32_t generate_mod_message_id(const char* mod_name, const char* key) {
     char composite_key[256];
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, key);
     uint32_t hash = stable_hash(composite_key);
     return 0x8000 + (hash % 0x7FFF);  // 32768-65535 range
 }
+```
 
 ### 6.3 Quest-Specific ID Generation
 
-c
-
+```
 // In questLoadModFile():
 char descKey[256];
 snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod);
 int descMessageId = generate_mod_message_id(mod_name, descKey);
 quest->description = descMessageId;  // Override file description
+```
 
 ### 6.4 Holodisk ID Generation
 
-c
-
+```
 // In convertAndLoadModHolodisk():
 char nameKey[128];
 snprintf(nameKey, sizeof(nameKey), "holodisk:%d:name", holodiskIndex);
@@ -562,39 +561,40 @@ int nameHashId = generate_mod_message_id(modName, nameKey);
 char lineKey[128];
 snprintf(lineKey, sizeof(lineKey), "holodisk:%d:line:%d", holodiskIndex, lineNum);
 int lineHashId = generate_mod_message_id(modName, lineKey);
+```
 
 ### 6.5 Area Slot Allocation
 
-c
-
+```
 static uint16_t wmAreaCalculateModSlot(const char* areaName, uint32_t modNamespace) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u", areaName, modNamespace);
     uint32_t hash = stable_hash(combinedKey);
     return MOD_AREA_START + (hash % (MOD_AREA_MAX - MOD_AREA_START));
 }
+```
 
 ### 6.6 Map Slot Allocation
 
-c
-
+```
 static uint16_t wmCalculateModMapSlot(const char* lookupName, uint32_t modNamespace) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u", lookupName, modNamespace);
     uint32_t hash = stable_hash(combinedKey);
     return MOD_MAP_START + (hash % (MOD_MAP_MAX - MOD_MAP_START));
 }
+```
 
 ### 6.7 Quest Slot Allocation
 
-c
-
+```
 static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespace, int questIndexInMod) {
     char combinedKey[256];
     snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
     uint32_t hash = stable_hash(combinedKey);  // Uses same unified hash
     return MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
 }
+```
 
 * * * * *
 
