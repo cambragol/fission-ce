@@ -478,8 +478,7 @@ These formats match the vanilla message file structure for consistency:
 
 ### 5.3 ID Generation Examples
 
-c
-
+```
 // Area name message ID generation
 generate_mod_message_id("myquest", "area_name:SCRAPTOWN")
 // Returns consistent ID between 32768-65535
@@ -487,6 +486,7 @@ generate_mod_message_id("myquest", "area_name:SCRAPTOWN")
 // Map name message ID generation
 generate_mod_message_id("myquest", "lookup_name:Scraptown1:0")
 // Returns consistent ID between 32768-65535
+```
 
 ### 5.4 Common Mistakes to Avoid
 
