@@ -596,7 +596,7 @@ widescreen_variant_suffix=_800
 art/intrface/
 ├── button_ok.frm # Vanilla asset (standard resolution)
 ├── button_ok_800.frm # Variant asset (widescreen, auto-detected)
-├── mod_myquest.lst # Your mod assets
+├── intrface_myquest.lst # Your mod assets
 └── mybutton.frm # Your mod art
 ```
 
@@ -607,10 +607,10 @@ Art supports a special remapping syntax to redirect vanilla assets:
 @original_name=new_path/filename.frm
 ```
 
-Example in `mod_myquest.lst`:
+Example in `intrface_myquest.lst`:
 
 ```
-@plasma.frm=items/hd/plasma_hd.frm # Redirects vanilla plasma.frm to HD version
+@dial.frm=items/hd/dial_hd.frm # Redirects vanilla dial.frm to HD version
 mybutton.frm # Adds new art
 ```
 
@@ -624,7 +624,7 @@ mybutton.frm # Adds new art
 1. **`fission.lst`** - Always loads first (if present)
 2. **Vanilla assets** - Loaded from base lists
 3. **Variant assets** - Auto-detected and loaded
-4. **`mod_*.lst` files** - Loaded alphabetically
+4. **`{type}_*.lst` files** - Loaded alphabetically
 
 ### 6.4 Asset Index Ranges and Layout
 
@@ -759,7 +759,7 @@ Note: Underscore handling difference is critical for avoiding hash collisions!
 #### 6.6.1 General Loading Flow
 1. **Vanilla assets** load from base lists (`scripts.lst`, `art/*.lst`, etc.)
 2. **Variant detection** (art only) - scans directories for `*{suffix}.frm` files
-3. **Mod discovery** finds `*_{modname}.lst` and `mod_*.lst` files
+3. **Mod discovery** finds `*_{modname}.lst` files
 4. **Alphabetical processing** for consistent loading order
 5. **For each mod asset**:
    - Calculate stable index via hash
@@ -771,7 +771,7 @@ Note: Underscore handling difference is critical for avoiding hash collisions!
 1. **`fission.lst`** - Always loads first (if present)
 2. **Base lists** - Load vanilla assets
 3. **Variant scan** - Auto-detect HD/widescreen variants
-4. **`mod_*.lst` files** - Sorted alphabetically, processed in order
+4. **`{type}_*.lst` files** - Sorted alphabetically, processed in order
 5. **Remapping** - Process `@original=new_path` directives
 
 #### 6.6.3 Collision Handling
@@ -798,7 +798,7 @@ Hash Collision Popup Example:\
 ### 6.7 Critical Rules for Modders
 
 #### 6.7.1 File Naming and Placement
-1. **Art uses `mod_*.lst`**, NOT `{type}_*.lst` (different from scripts/protos!)
+1. **Art uses `{type}_*.lst`** in respective `art/{type}/` directories
 2. **Scripts use `scripts_*.lst`** in `scripts/` directory
 3. **Protos use `{type}_*.lst`** in respective `proto/{type}/` directories
 4. **Case normalization**: All names converted to lowercase for hashing
@@ -869,7 +869,7 @@ MOD ASSETS:\
 ### 6.9 Common Scenarios and Examples
 
 #### 6.9.1 Adding New Weapon with All Assets
-1. **Create art**: `art/items/mod_myquest.lst` + `mygun.frm`
+1. **Create art**: `art/items/items_myquest.lst` + `mygun.frm`
 2. **Create proto**: `proto/items/items_myquest.lst` + `mygun.pro` (references art index)
 3. **Create script**: `scripts/scripts_myquest.lst` + `mygun.int`
 4. **Add proto messages** to `messages_myquest.txt`:
@@ -906,7 +906,7 @@ widescreen_variant_suffix=_800
 
 #### 6.9.3 Redirecting Vanilla Art (HD Upgrade)
 
-In art/items/mod_myquest.lst
+In art/items/items_myquest.lst
 ============================
 
 ```
@@ -1355,17 +1355,17 @@ Base Messages: 626
     ```
 
 7.  **Create art list files** (one per art type):
-    - Interface art: `art/intrface/mod_myquest.lst`
+    - Interface art: `art/intrface/intrface_myquest.lst`
       ```
       mybutton.frm
       myicon.frm
       ```
-    - Item art: `art/items/mod_myquest.lst`
+    - Item art: `art/items/items_myquest.lst`
       ```
       mygun.frm
       myarmor.frm
       ```
-    - Critter art: `art/critters/mod_myquest.lst`
+    - Critter art: `art/critters/critters_myquest.lst`
       ```
       newmutant.frm
       ```
@@ -2358,9 +2358,9 @@ holodisk_debug=1         # Log holodisk loading details
 
 #### Asset List Files:
 - Scripts: `scripts/scripts_{modname}.lst`
-- Interface Art: `art/intrface/mod_{modname}.lst`
-- Item Art: `art/items/mod_{modname}.lst`
-- Critter Art: `art/critters/mod_{modname}.lst`
+- Interface Art: `art/intrface/intrface_{modname}.lst`
+- Item Art: `art/items/items_{modname}.lst`
+- Critter Art: `art/critters/critters_{modname}.lst`
 - Items Protos: `proto/items/items_{modname}.lst`
 - Critters Protos: `proto/critters/critters_{modname}.lst`
 - Scenery Protos: `proto/scenery/scenery_{modname}.lst`
@@ -2454,14 +2454,14 @@ MyFirstMod/
 │           └── messages_myfirst.txt
 ├── art/
 │   ├── intrface/
-│   │   ├── mod_myfirst.lst
+│   │   ├── intrface_myfirst.lst
 │   │   ├── mybutton.frm
 │   │   └── myicon.frm
 │   ├── items/
-│   │   ├── mod_myfirst.lst
+│   │   ├── items_myfirst.lst
 │   │   └── mygun.frm
 │   └── critters/
-│       ├── mod_myfirst.lst
+│       ├── critters_myfirst.lst
 │       └── newmutant.frm
 ├── scripts/
 │   ├── scripts_myfirst.lst
