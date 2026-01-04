@@ -466,8 +466,8 @@ static void artProcessVariants(ArtListDescription* desc)
 // Helper function to load and process mod assets with collision handling
 static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 {
-    // Search for mod list files in this art category using pattern:
-    // <game_dir>/art/<category>/mod_*.lst
+    // Search for ALL .lst files in the art category directory
+    // This ensures we find fission.lst AND category-specific mod files
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern),
         "%sart%c%s%c*.lst",
@@ -476,54 +476,88 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
         desc->name,
         DIR_SEPARATOR);
 
-    // Find all matching .lst files
-    char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    // Find all .lst files in this category directory
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
 
     // Initialize mod tracking
     desc->modCount = 0;
+    memset(desc->usedIndices, 0, sizeof(desc->usedIndices));
 
-    // Prepare index usage tracking array
-    memset(desc->usedIndices, 0, sizeof(desc->usedIndices)); // Now 8192 elements
-
-    // Mark existing vanilla and variant indices as occupied (only if they have actual content)
+    // Mark existing vanilla and variant indices as occupied
     for (int i = 0; i < desc->fileNamesLength; i++) {
         char* slot = desc->fileNames + i * FILENAME_LENGTH;
-        if (slot[0] != '\0') { // Only mark as used if slot has content
+        if (slot[0] != '\0') {
             desc->usedIndices[i] = true;
         }
     }
 
-    if (modFileCount > 0) {
-        // Sort files to ensure fission.lst is processed first
-        for (int i = 0; i < modFileCount - 1; i++) {
-            for (int j = i + 1; j < modFileCount; j++) {
+    if (fileCount > 0) {
+        // Sort to ensure fission.lst is processed first (highest priority)
+        for (int i = 0; i < fileCount; i++) {
+            if (strcmp(foundFiles[i], "fission.lst") == 0) {
                 // Move fission.lst to the front
-                if (strcmp(foundModFiles[j], "fission.lst") == 0) {
-                    char* temp = foundModFiles[i];
-                    foundModFiles[i] = foundModFiles[j];
-                    foundModFiles[j] = temp;
-                    break;
-                }
+                char* temp = foundFiles[0];
+                foundFiles[0] = foundFiles[i];
+                foundFiles[i] = temp;
+                break;
             }
         }
 
-        // Process each found mod list file
-        for (int i = 0; i < modFileCount; i++) {
-            // Skip files that don't match our expected patterns
-            if (strcmp(foundModFiles[i], "fission.lst") != 0 && strncmp(foundModFiles[i], "mod_", 4) != 0) {
+        // Process each .lst file
+        for (int i = 0; i < fileCount; i++) {
+            const char* filename = foundFiles[i];
+            
+            // Skip the vanilla list file (e.g., "items.lst", "critters.lst")
+            char vanillaListName[64];
+            snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
+            if (compat_stricmp(filename, vanillaListName) == 0) {
+                continue; // Skip the main vanilla list
+            }
+
+            // Determine file type
+            bool isFissionFile = (strcmp(filename, "fission.lst") == 0);
+            bool isCategoryModFile = (strncmp(filename, desc->name, strlen(desc->name)) == 0 && 
+                                     filename[strlen(desc->name)] == '_');
+            
+            // Only accept: fission.lst or [category]_*.lst
+            if (!isFissionFile && !isCategoryModFile) {
+                debugPrint("WARNING: Skipping unrecognized .lst file: %s\n", filename);
                 continue;
             }
 
-            // Construct full path to mod list
+            // Extract mod name for logging
+            const char* modName = "FISSION";
+            if (isCategoryModFile) {
+                modName = filename + strlen(desc->name) + 1; // Skip "[category]_"
+                
+                // Remove .lst extension
+                char cleanModName[256];
+                strncpy(cleanModName, modName, sizeof(cleanModName) - 1);
+                char* dot = strrchr(cleanModName, '.');
+                if (dot) {
+                    if (strcmp(dot, ".lst") == 0) {
+                        *dot = '\0';
+                        modName = cleanModName;
+                    } else {
+                        debugPrint("WARNING: File doesn't end with .lst: %s\n", filename);
+                        continue;
+                    }
+                }
+            }
+            
+            debugPrint("Loading art assets from %s (mod: %s)\n", filename, modName);
+
+            // Construct full path and load the file
             char fullPath[COMPAT_MAX_PATH];
-            snprintf(fullPath, sizeof(fullPath), "%s%s", baseDir, foundModFiles[i]);
+            snprintf(fullPath, sizeof(fullPath), "%s%s", baseDir, filename);
 
             char* modEntries = nullptr;
             int modEntryCount = 0;
 
-            // Load assets from mod list file
             if (artReadList(fullPath, &modEntries, &modEntryCount) == 0) {
+                debugPrint("  Found %d art assets in %s\n", modEntryCount, filename);
+                
                 // Process each asset in the mod list
                 for (int j = 0; j < modEntryCount; j++) {
                     const char* modAssetName = modEntries + j * FILENAME_LENGTH;
@@ -574,7 +608,6 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                             }
 
                             if (!remapped) {
-                                // Log warning about failed remap
                                 debugPrint("WARNING: Remap target not found: %s\n", originalName);
                             }
                         } else {
@@ -602,14 +635,14 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                             "Category: %s\n"
                             "Vanilla assets: %d\n"
                             "Variant assets: %d\n"
-                            "Total used: %d/%d\n\n" // Changed to show 8192 max
+                            "Total used: %d/%d\n\n"
                             "Cannot add mod asset: %s\n\n"
                             "No available index slots remain.",
                             desc->name,
                             desc->vanillaCount,
                             desc->variantCount,
                             desc->vanillaCount + desc->variantCount,
-                            MAX_ART_INDICES, // Show new max
+                            MAX_ART_INDICES,
                             modAssetName);
                         showFatalError(errorMsg);
                         continue;
@@ -628,7 +661,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                             char currentBase[FILENAME_LENGTH] = { 0 };
                             getBaseNameWithoutExtension(currentBase, modAssetName, sizeof(currentBase));
 
-                            // Show error popup for collision (like area assets)
+                            // Show error popup for collision
                             char errorMsg[512];
                             snprintf(errorMsg, sizeof(errorMsg),
                                 "ART SLOT COLLISION DETECTED!\n\n"
@@ -649,7 +682,6 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                             desc->collisionOccurred = true;
                         } else {
                             // Slot was marked as used but is actually empty - this should not happen
-                            // but we can still load the asset
                             debugPrint("Warning: Slot %d marked as used but empty, loading asset anyway\n", index);
                         }
                     }
@@ -680,12 +712,18 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         // Update tracking information
                         desc->usedIndices[index] = true;
                         desc->modCount++;
+                        
+                        debugPrint("  Added asset: %s -> slot %d\n", modAssetName, index);
                     }
                 }
                 internal_free(modEntries);
+            } else {
+                debugPrint("ERROR: Failed to read mod list %s\n", fullPath);
             }
         }
-        fileNameListFree(&foundModFiles, modFileCount);
+        fileNameListFree(&foundFiles, fileCount);
+    } else {
+        debugPrint("No .lst files found in art/%s/\n", desc->name);
     }
 }
 

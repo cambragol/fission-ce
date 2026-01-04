@@ -2962,11 +2962,15 @@ static void load_mod_proto_messages_from_file(const char* full_path, const char*
 }
 
 /**
- * @brief Loads all mod proto message files.
- *
- * Searches for mod-specific message files (messages_*.txt) in the
- * game's text directories and loads proto messages from them.
- * Supports language-specific directories.
+ * @brief Loads mod proto messages separately from other mod messages.
+ * 
+ * Proto messages are handled differently than other mod messages because:
+ * 1. They use a special key format: {modname}:{protoname}:name/desc
+ * 2. They're stored in a separate repository indexed by PID
+ * 3. They're looked up via protoGetMessage() not regular message lists
+ * 
+ * This function should NOT be merged into messageListLoadWithMods()
+ * because the loading mechanism is fundamentally different.
  */
 void load_mod_proto_messages()
 {
@@ -3104,6 +3108,10 @@ int protoInit()
         }
     }
 
+    // SPECIAL: Load mod proto messages separately because:
+    // 1. They use different key format (mod:proto:name vs area_name:NAME)
+    // 2. They go to a special mod proto message repository
+    // 3. They're looked up by PID, not message ID
     load_mod_proto_messages();
 
     // Generate debug report
