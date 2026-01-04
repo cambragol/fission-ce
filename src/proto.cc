@@ -2963,12 +2963,12 @@ static void load_mod_proto_messages_from_file(const char* full_path, const char*
 
 /**
  * @brief Loads mod proto messages separately from other mod messages.
- * 
+ *
  * Proto messages are handled differently than other mod messages because:
  * 1. They use a special key format: {modname}:{protoname}:name/desc
  * 2. They're stored in a separate repository indexed by PID
  * 3. They're looked up via protoGetMessage() not regular message lists
- * 
+ *
  * This function should NOT be merged into messageListLoadWithMods()
  * because the loading mechanism is fundamentally different.
  */

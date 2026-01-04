@@ -507,7 +507,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
         // Process each .lst file
         for (int i = 0; i < fileCount; i++) {
             const char* filename = foundFiles[i];
-            
+
             // Skip the vanilla list file (e.g., "items.lst", "critters.lst")
             char vanillaListName[64];
             snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
@@ -517,9 +517,8 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
             // Determine file type
             bool isFissionFile = (strcmp(filename, "fission.lst") == 0);
-            bool isCategoryModFile = (strncmp(filename, desc->name, strlen(desc->name)) == 0 && 
-                                     filename[strlen(desc->name)] == '_');
-            
+            bool isCategoryModFile = (strncmp(filename, desc->name, strlen(desc->name)) == 0 && filename[strlen(desc->name)] == '_');
+
             // Only accept: fission.lst or [category]_*.lst
             if (!isFissionFile && !isCategoryModFile) {
                 debugPrint("WARNING: Skipping unrecognized .lst file: %s\n", filename);
@@ -530,7 +529,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
             const char* modName = "FISSION";
             if (isCategoryModFile) {
                 modName = filename + strlen(desc->name) + 1; // Skip "[category]_"
-                
+
                 // Remove .lst extension
                 char cleanModName[256];
                 strncpy(cleanModName, modName, sizeof(cleanModName) - 1);
@@ -545,7 +544,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     }
                 }
             }
-            
+
             debugPrint("Loading art assets from %s (mod: %s)\n", filename, modName);
 
             // Construct full path and load the file
@@ -557,7 +556,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
             if (artReadList(fullPath, &modEntries, &modEntryCount) == 0) {
                 debugPrint("  Found %d art assets in %s\n", modEntryCount, filename);
-                
+
                 // Process each asset in the mod list
                 for (int j = 0; j < modEntryCount; j++) {
                     const char* modAssetName = modEntries + j * FILENAME_LENGTH;
@@ -712,7 +711,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         // Update tracking information
                         desc->usedIndices[index] = true;
                         desc->modCount++;
-                        
+
                         debugPrint("  Added asset: %s -> slot %d\n", modAssetName, index);
                     }
                 }
