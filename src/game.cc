@@ -1336,6 +1336,20 @@ int showQuitConfirmationDialog()
     return rc;
 }
 
+// create a folder to hold 'lists' reports
+void createListsFolder()
+{
+    // create the "lists" folder inside the "data" directory
+    const char* dataDir = "data";
+    const char* listsFolderName = "lists";
+
+    char listsFolderPath[COMPAT_MAX_PATH];
+    compat_makepath(listsFolderPath, nullptr, dataDir, listsFolderName, nullptr);
+
+    // create the lists folder
+    compat_mkdir(listsFolderPath);
+}
+
 // 0x44418C
 static int gameDbInit()
 {
@@ -1446,6 +1460,8 @@ static int gameDbInit()
             dbOpen(filename, 0, nullptr, 1);
         }
     }
+
+    createListsFolder();
 
     sfallLoadMods();
 

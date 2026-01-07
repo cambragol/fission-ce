@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <array>
 #include <unordered_map>
@@ -11,14 +12,17 @@
 #include "debug.h"
 #include "memory.h"
 #include "platform_compat.h"
+#include "proto.h"
 #include "proto_types.h"
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
+#include "window_manager.h"
 
 namespace fallout {
 
 #define BADWORD_LENGTH_MAX 80
+#define DIR_SEPARATOR '/'
 
 static constexpr int kFirstStandardMessageListId = 0;
 static constexpr int kLastStandardMessageListId = kFirstStandardMessageListId + STANDARD_MESSAGE_LIST_COUNT - 1;
@@ -40,12 +44,18 @@ struct MessageListRepositoryState {
     int nextTemporaryMessageListId = kFirstTemporaryMessageListId;
 };
 
-static bool _message_find(MessageList* msg, int num, int* out_index);
-static bool _message_add(MessageList* msg, MessageListItem* new_entry);
-static bool _message_parse_number(int* out_num, const char* str);
-static int _message_load_field(File* file, char* str);
+// Extends message loading to support mod message files (messages_*.txt)
+// Mod message IDs use range 0x8000-0xFFFF (32768-65535).
 
-static MessageList* messageListRepositoryLoad(const char* path);
+static uint32_t stable_hash(const char* str);
+uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
+void generateMessageReport(MessageList* messageList, const char* msg_type);
+
+// Mod file loading
+static void loadModFileWithSections(MessageList* messageList, const char* fullPath,
+    const char* filename, const char* target_section);
+static void loadModMessagesForType(MessageList* messageList, const char* msg_type);
+bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 
 // 0x50B79C
 static char _Error_1[] = "Error";
@@ -63,102 +73,210 @@ static int gBadwordsCount = 0;
 static int* gBadwordsLengths = nullptr;
 
 // Default text for getmsg when no entry is found.
-//
-// 0x5195A4
-static char* _message_error_str = _Error_1;
+static char* gMessageErrorStr = _Error_1;
 
 // Temporary message list item text used during filtering badwords.
-//
-// 0x63207C
 static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
+static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
 
-// 0x484770
-int badwordsInit()
+// ============================================================================
+// Core Static Helper Functions
+// ============================================================================
+
+static bool _messageListFind(MessageList* msg, int num, int* out_index)
 {
-    File* stream = fileOpen("data\\badwords.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    int r, l, mid;
+    int cmp;
+
+    if (msg->entries_num == 0) {
+        *out_index = 0;
+        return false;
     }
 
-    char word[BADWORD_LENGTH_MAX];
+    r = msg->entries_num - 1;
+    l = 0;
 
-    gBadwordsCount = 0;
-    while (fileReadString(word, BADWORD_LENGTH_MAX - 1, stream)) {
-        gBadwordsCount++;
+    do {
+        mid = (l + r) / 2;
+        cmp = num - msg->entries[mid].num;
+        if (cmp == 0) {
+            *out_index = mid;
+            return true;
+        }
+
+        if (cmp > 0) {
+            l = l + 1;
+        } else {
+            r = r - 1;
+        }
+    } while (r >= l);
+
+    if (cmp < 0) {
+        *out_index = mid;
+    } else {
+        *out_index = mid + 1;
     }
 
-    gBadwords = (char**)internal_malloc(sizeof(*gBadwords) * gBadwordsCount);
-    if (gBadwords == nullptr) {
-        fileClose(stream);
-        return -1;
+    return false;
+}
+
+// 0x484D68
+static bool _messageListAdd(MessageList* msg, MessageListItem* new_entry)
+{
+    int index;
+    MessageListItem* entries;
+    MessageListItem* existing_entry;
+
+    if (_messageListFind(msg, new_entry->num, &index)) {
+        existing_entry = &(msg->entries[index]);
+
+        if (existing_entry->audio != nullptr) {
+            internal_free(existing_entry->audio);
+        }
+
+        if (existing_entry->text != nullptr) {
+            internal_free(existing_entry->text);
+        }
+    } else {
+        if (msg->entries != nullptr) {
+            entries = (MessageListItem*)internal_realloc(msg->entries, sizeof(MessageListItem) * (msg->entries_num + 1));
+            if (entries == nullptr) {
+                return false;
+            }
+
+            msg->entries = entries;
+
+            if (index != msg->entries_num) {
+                // Move all items below insertion point
+                memmove(&(msg->entries[index + 1]), &(msg->entries[index]), sizeof(MessageListItem) * (msg->entries_num - index));
+            }
+        } else {
+            msg->entries = (MessageListItem*)internal_malloc(sizeof(MessageListItem));
+            if (msg->entries == nullptr) {
+                return false;
+            }
+            msg->entries_num = 0;
+            index = 0;
+        }
+
+        existing_entry = &(msg->entries[index]);
+        existing_entry->flags = 0;
+        existing_entry->audio = nullptr;
+        existing_entry->text = nullptr;
+        msg->entries_num++;
     }
 
-    gBadwordsLengths = (int*)internal_malloc(sizeof(*gBadwordsLengths) * gBadwordsCount);
-    if (gBadwordsLengths == nullptr) {
-        internal_free(gBadwords);
-        fileClose(stream);
-        return -1;
+    existing_entry->audio = internal_strdup(new_entry->audio);
+    if (existing_entry->audio == nullptr) {
+        return false;
     }
 
-    fileSeek(stream, 0, SEEK_SET);
+    existing_entry->text = internal_strdup(new_entry->text);
+    if (existing_entry->text == nullptr) {
+        return false;
+    }
 
-    int index = 0;
-    for (; index < gBadwordsCount; index++) {
-        if (!fileReadString(word, BADWORD_LENGTH_MAX - 1, stream)) {
+    existing_entry->num = new_entry->num;
+
+    return true;
+}
+
+// 0x484F60
+static bool _messageListParseNumber(int* out_num, const char* str)
+{
+    const char* ch;
+    bool success;
+
+    ch = str;
+    if (*ch == '\0') {
+        return false;
+    }
+
+    success = true;
+    if (*ch == '+' || *ch == '-') {
+        ch++;
+    }
+
+    while (*ch != '\0') {
+        if (!isdigit(*ch)) {
+            success = false;
             break;
         }
-
-        size_t len = strlen(word);
-        if (word[len - 1] == '\n') {
-            len--;
-            word[len] = '\0';
-        }
-
-        gBadwords[index] = internal_strdup(word);
-        if (gBadwords[index] == nullptr) {
-            break;
-        }
-
-        compat_strupr(gBadwords[index]);
-
-        gBadwordsLengths[index] = len;
+        ch++;
     }
 
-    fileClose(stream);
+    *out_num = atoi(str);
+    return success;
+}
 
-    if (index != gBadwordsCount) {
-        for (; index > 0; index--) {
-            internal_free(gBadwords[index - 1]);
+// Read next message file field, the `str` should be at least
+// `MESSAGE_LIST_ITEM_FIELD_MAX_SIZE` bytes long.
+//
+// Returns:
+// 0 - ok
+// 1 - eof
+// 2 - mismatched delimeters
+// 3 - unterminated field
+// 4 - limit exceeded (> `MESSAGE_LIST_ITEM_FIELD_MAX_SIZE`)
+//
+// 0x484FB4
+static int _messageListLoadField(File* file, char* str)
+{
+    int ch;
+    int len;
+
+    len = 0;
+
+    while (1) {
+        ch = fileReadChar(file);
+        if (ch == -1) {
+            return 1;
         }
 
-        internal_free(gBadwords);
-        internal_free(gBadwordsLengths);
+        if (ch == '}') {
+            debugPrint("\nError reading message file - mismatched delimiters.\n");
+            return 2;
+        }
 
-        return -1;
+        if (ch == '{') {
+            break;
+        }
+    }
+
+    while (1) {
+        ch = fileReadChar(file);
+
+        if (ch == -1) {
+            debugPrint("\nError reading message file - EOF reached.\n");
+            return 3;
+        }
+
+        if (ch == '}') {
+            *(str + len) = '\0';
+            return 0;
+        }
+
+        if (ch != '\n') {
+            *(str + len) = ch;
+            len++;
+
+            if (len >= MESSAGE_LIST_ITEM_FIELD_MAX_SIZE) {
+                debugPrint("\nError reading message file - text exceeds limit.\n");
+                return 4;
+            }
+        }
     }
 
     return 0;
 }
 
-// 0x4848F0
-void badwordsExit()
-{
-    for (int index = 0; index < gBadwordsCount; index++) {
-        internal_free(gBadwords[index]);
-    }
-
-    if (gBadwordsCount != 0) {
-        internal_free(gBadwords);
-        internal_free(gBadwordsLengths);
-    }
-
-    gBadwordsCount = 0;
-}
+// ============================================================================
+// Core Message List API
+// ============================================================================
 
 // message_init
-// 0x48494C
 bool messageListInit(MessageList* messageList)
 {
     if (messageList != nullptr) {
@@ -244,27 +362,27 @@ bool messageListLoad(MessageList* messageList, const char* path)
     entry.text = text;
 
     while (1) {
-        rc = _message_load_field(file_ptr, num);
+        rc = _messageListLoadField(file_ptr, num);
         if (rc != 0) {
             break;
         }
 
-        if (_message_load_field(file_ptr, audio) != 0) {
+        if (_messageListLoadField(file_ptr, audio) != 0) {
             debugPrint("\nError loading audio field.\n", localized_path);
             goto err;
         }
 
-        if (_message_load_field(file_ptr, text) != 0) {
+        if (_messageListLoadField(file_ptr, text) != 0) {
             debugPrint("\nError loading text field.\n", localized_path);
             goto err;
         }
 
-        if (!_message_parse_number(&(entry.num), num)) {
+        if (!_messageListParseNumber(&(entry.num), num)) {
             debugPrint("\nError parsing number.\n", localized_path);
             goto err;
         }
 
-        if (!_message_add(messageList, &entry)) {
+        if (!_messageListAdd(messageList, &entry)) {
             debugPrint("\nError adding message.\n", localized_path);
             goto err;
         }
@@ -303,7 +421,7 @@ bool messageListGetItem(MessageList* msg, MessageListItem* entry)
         return false;
     }
 
-    if (!_message_find(msg, entry->num, &index)) {
+    if (!_messageListFind(msg, entry->num, &index)) {
         return false;
     }
 
@@ -315,223 +433,122 @@ bool messageListGetItem(MessageList* msg, MessageListItem* entry)
     return true;
 }
 
-// Builds language-aware path in "text" subfolder.
-//
-// 0x484CB8
-bool _message_make_path(char* dest, size_t size, const char* path)
-{
-    if (dest == nullptr) {
-        return false;
-    }
-
-    if (path == nullptr) {
-        return false;
-    }
-
-    snprintf(dest, size, "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
-
-    return true;
-}
-
-// 0x484D10
-static bool _message_find(MessageList* msg, int num, int* out_index)
-{
-    int r, l, mid;
-    int cmp;
-
-    if (msg->entries_num == 0) {
-        *out_index = 0;
-        return false;
-    }
-
-    r = msg->entries_num - 1;
-    l = 0;
-
-    do {
-        mid = (l + r) / 2;
-        cmp = num - msg->entries[mid].num;
-        if (cmp == 0) {
-            *out_index = mid;
-            return true;
-        }
-
-        if (cmp > 0) {
-            l = l + 1;
-        } else {
-            r = r - 1;
-        }
-    } while (r >= l);
-
-    if (cmp < 0) {
-        *out_index = mid;
-    } else {
-        *out_index = mid + 1;
-    }
-
-    return false;
-}
-
-// 0x484D68
-static bool _message_add(MessageList* msg, MessageListItem* new_entry)
-{
-    int index;
-    MessageListItem* entries;
-    MessageListItem* existing_entry;
-
-    if (_message_find(msg, new_entry->num, &index)) {
-        existing_entry = &(msg->entries[index]);
-
-        if (existing_entry->audio != nullptr) {
-            internal_free(existing_entry->audio);
-        }
-
-        if (existing_entry->text != nullptr) {
-            internal_free(existing_entry->text);
-        }
-    } else {
-        if (msg->entries != nullptr) {
-            entries = (MessageListItem*)internal_realloc(msg->entries, sizeof(MessageListItem) * (msg->entries_num + 1));
-            if (entries == nullptr) {
-                return false;
-            }
-
-            msg->entries = entries;
-
-            if (index != msg->entries_num) {
-                // Move all items below insertion point
-                memmove(&(msg->entries[index + 1]), &(msg->entries[index]), sizeof(MessageListItem) * (msg->entries_num - index));
-            }
-        } else {
-            msg->entries = (MessageListItem*)internal_malloc(sizeof(MessageListItem));
-            if (msg->entries == nullptr) {
-                return false;
-            }
-            msg->entries_num = 0;
-            index = 0;
-        }
-
-        existing_entry = &(msg->entries[index]);
-        existing_entry->flags = 0;
-        existing_entry->audio = nullptr;
-        existing_entry->text = nullptr;
-        msg->entries_num++;
-    }
-
-    existing_entry->audio = internal_strdup(new_entry->audio);
-    if (existing_entry->audio == nullptr) {
-        return false;
-    }
-
-    existing_entry->text = internal_strdup(new_entry->text);
-    if (existing_entry->text == nullptr) {
-        return false;
-    }
-
-    existing_entry->num = new_entry->num;
-
-    return true;
-}
-
-// 0x484F60
-static bool _message_parse_number(int* out_num, const char* str)
-{
-    const char* ch;
-    bool success;
-
-    ch = str;
-    if (*ch == '\0') {
-        return false;
-    }
-
-    success = true;
-    if (*ch == '+' || *ch == '-') {
-        ch++;
-    }
-
-    while (*ch != '\0') {
-        if (!isdigit(*ch)) {
-            success = false;
-            break;
-        }
-        ch++;
-    }
-
-    *out_num = atoi(str);
-    return success;
-}
-
-// Read next message file field, the `str` should be at least
-// `MESSAGE_LIST_ITEM_FIELD_MAX_SIZE` bytes long.
-//
-// Returns:
-// 0 - ok
-// 1 - eof
-// 2 - mismatched delimeters
-// 3 - unterminated field
-// 4 - limit exceeded (> `MESSAGE_LIST_ITEM_FIELD_MAX_SIZE`)
-//
-// 0x484FB4
-static int _message_load_field(File* file, char* str)
-{
-    int ch;
-    int len;
-
-    len = 0;
-
-    while (1) {
-        ch = fileReadChar(file);
-        if (ch == -1) {
-            return 1;
-        }
-
-        if (ch == '}') {
-            debugPrint("\nError reading message file - mismatched delimiters.\n");
-            return 2;
-        }
-
-        if (ch == '{') {
-            break;
-        }
-    }
-
-    while (1) {
-        ch = fileReadChar(file);
-
-        if (ch == -1) {
-            debugPrint("\nError reading message file - EOF reached.\n");
-            return 3;
-        }
-
-        if (ch == '}') {
-            *(str + len) = '\0';
-            return 0;
-        }
-
-        if (ch != '\n') {
-            *(str + len) = ch;
-            len++;
-
-            if (len >= MESSAGE_LIST_ITEM_FIELD_MAX_SIZE) {
-                debugPrint("\nError reading message file - text exceeds limit.\n");
-                return 4;
-            }
-        }
-    }
-
-    return 0;
-}
-
 // 0x48504C
 char* getmsg(MessageList* msg, MessageListItem* entry, int num)
 {
     entry->num = num;
 
     if (!messageListGetItem(msg, entry)) {
-        entry->text = _message_error_str;
+        entry->text = gMessageErrorStr;
         debugPrint("\n ** String not found @ getmsg(), MESSAGE.C **\n");
     }
 
     return entry->text;
+}
+
+// Helper function for mod Holodisk conversion
+bool messageListAddEntry(MessageList* msg, int num, const char* text)
+{
+    MessageListItem entry;
+    entry.num = num;
+    entry.text = internal_strdup(text);
+    entry.audio = internal_strdup("");
+    entry.flags = 0;
+
+    bool result = _messageListAdd(msg, &entry);
+
+    if (!result) {
+        internal_free(entry.text);
+        internal_free(entry.audio);
+    }
+
+    return result;
+}
+
+// ============================================================================
+// Badword Filtering System
+// ============================================================================
+
+int badwordsInit()
+{
+    File* stream = fileOpen("data\\badwords.txt", "rt");
+    if (stream == nullptr) {
+        return -1;
+    }
+
+    char word[BADWORD_LENGTH_MAX];
+
+    gBadwordsCount = 0;
+    while (fileReadString(word, BADWORD_LENGTH_MAX - 1, stream)) {
+        gBadwordsCount++;
+    }
+
+    gBadwords = (char**)internal_malloc(sizeof(*gBadwords) * gBadwordsCount);
+    if (gBadwords == nullptr) {
+        fileClose(stream);
+        return -1;
+    }
+
+    gBadwordsLengths = (int*)internal_malloc(sizeof(*gBadwordsLengths) * gBadwordsCount);
+    if (gBadwordsLengths == nullptr) {
+        internal_free(gBadwords);
+        fileClose(stream);
+        return -1;
+    }
+
+    fileSeek(stream, 0, SEEK_SET);
+
+    int index = 0;
+    for (; index < gBadwordsCount; index++) {
+        if (!fileReadString(word, BADWORD_LENGTH_MAX - 1, stream)) {
+            break;
+        }
+
+        size_t len = strlen(word);
+        if (word[len - 1] == '\n') {
+            len--;
+            word[len] = '\0';
+        }
+
+        gBadwords[index] = internal_strdup(word);
+        if (gBadwords[index] == nullptr) {
+            break;
+        }
+
+        compat_strupr(gBadwords[index]);
+
+        gBadwordsLengths[index] = len;
+    }
+
+    fileClose(stream);
+
+    if (index != gBadwordsCount) {
+        for (; index > 0; index--) {
+            internal_free(gBadwords[index - 1]);
+        }
+
+        internal_free(gBadwords);
+        internal_free(gBadwordsLengths);
+
+        return -1;
+    }
+
+    return 0;
+}
+
+// 0x4848F0
+void badwordsExit()
+{
+    for (int index = 0; index < gBadwordsCount; index++) {
+        internal_free(gBadwords[index]);
+    }
+
+    if (gBadwordsCount != 0) {
+        internal_free(gBadwords);
+        internal_free(gBadwordsLengths);
+    }
+
+    gBadwordsCount = 0;
 }
 
 // 0x485078
@@ -632,6 +649,409 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
     }
 }
 
+// ============================================================================
+// Mod Proto Message System
+// ============================================================================
+
+/**
+ * Adds a custom proto message for a specific object prototype ID.
+ * Used by mods to add custom text for game objects without editing base files.
+ *
+ * @param pid The prototype ID of the object
+ * @param message_type 0 for short name, 1 for long description
+ * @param text The custom text to associate with the proto
+ * @return true if successful, false otherwise
+ */
+bool messageListAddModProtoMessage(int pid, int message_type, const char* text)
+{
+    if (message_type < 0 || message_type > 1) return false;
+    auto& messages = _modProtoMessages[pid];
+    if (messages[message_type]) internal_free(messages[message_type]);
+    messages[message_type] = internal_strdup(text);
+    return messages[message_type] != nullptr;
+}
+
+/**
+ * Retrieves a custom proto message added by a mod.
+ *
+ * @param pid The prototype ID to look up
+ * @param message_type 0 for short name, 1 for long description
+ * @return The custom text if found, nullptr otherwise
+ */
+char* messageListGetModProtoMessage(int pid, int message_type)
+{
+    if (message_type < 0 || message_type > 1) return nullptr;
+    auto it = _modProtoMessages.find(pid);
+    if (it != _modProtoMessages.end()) {
+        return it->second[message_type];
+    }
+    return nullptr;
+}
+
+/**
+ * Frees all custom proto messages loaded by mods.
+ * Called during game shutdown or mod unloading.
+ */
+void messageListFreeModProtoMessages()
+{
+    for (auto& pair : _modProtoMessages) {
+        for (int i = 0; i < 2; i++) {
+            if (pair.second[i]) internal_free(pair.second[i]);
+        }
+    }
+    _modProtoMessages.clear();
+}
+
+// ============================================================================
+// Mod File Loading System (depends on core functions)
+// ============================================================================
+
+/**
+ * Case-insensitive DJB2 hash function for generating stable message IDs.
+ * Ensures consistent IDs across different systems and runs.
+ *
+ * @param str Input string to hash
+ * @return 32-bit hash value
+ */
+static uint32_t stable_hash(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        // Convert to lowercase for case-insensitive hashing
+        c = tolower(c);
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+/**
+ * Generates a stable message ID in the mod range (0x8000-0xFFFF).
+ * Combines mod name and message key to create unique, reproducible IDs.
+ *
+ * @param mod_name Name of the mod (from filename)
+ * @param message_key Unique key within the mod's message file
+ * @return Message ID in range 32768-65535
+ */
+uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
+{
+    char composite_key[256];
+    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
+    uint32_t hash = stable_hash(composite_key);
+    return 0x8000 + (hash % 0x7FFF); // 0x8000-0xFFFF range
+}
+
+// Load mod messages from a file with section headers
+static void loadModFileWithSections(MessageList* messageList, const char* fullPath, const char* filename, const char* target_section)
+{
+    File* stream = fileOpen(fullPath, "rt");
+    if (!stream) {
+        return;
+    }
+
+    // Extract mod name from filename (messages_xxx.txt -> xxx)
+    char mod_name[64] = { 0 };
+    const char* prefix = "messages_";
+    const char* suffix = ".txt";
+
+    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        }
+    }
+
+    char line[256];
+    int messages_loaded = 0;
+    char current_section[64] = "";
+    bool in_correct_section = false;
+
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+
+        // Check for section header [section_name]
+        if (line[0] == '[') {
+            char* line_end = line + strlen(line) - 1;
+
+            // Trim trailing whitespace
+            while (line_end > line && isspace(*line_end)) {
+                *line_end = '\0';
+                line_end--;
+            }
+
+            if (*line_end == ']') {
+                // Extract section name (remove brackets)
+                char section_name[64];
+                strncpy(section_name, line + 1, line_end - line - 1);
+                section_name[line_end - line - 1] = '\0';
+
+                // Trim whitespace from section name
+                char* start = section_name;
+                while (*start && isspace(*start))
+                    start++;
+                char* end = start + strlen(start) - 1;
+                while (end > start && isspace(*end))
+                    *end-- = '\0';
+
+                strncpy(current_section, start, sizeof(current_section) - 1);
+                current_section[sizeof(current_section) - 1] = '\0';
+
+                // Convert to lowercase for case-insensitive comparison
+                char current_section_lower[64];
+                char target_section_lower[64];
+
+                strncpy(current_section_lower, current_section, sizeof(current_section_lower));
+                strncpy(target_section_lower, target_section, sizeof(target_section_lower));
+
+                for (char* p = current_section_lower; *p; ++p)
+                    *p = tolower(*p);
+                for (char* p = target_section_lower; *p; ++p)
+                    *p = tolower(*p);
+
+                in_correct_section = (strcmp(current_section_lower, target_section_lower) == 0);
+                continue;
+            }
+        }
+
+        // Only process key=value lines if we're in the correct section
+        if (!in_correct_section) {
+            continue;
+        }
+
+        char* separator = strchr(line, '=');
+        if (!separator) {
+            continue;
+        }
+
+        *separator = '\0';
+        char* key = line;
+        char* value = separator + 1;
+
+        // Trim whitespace
+        while (*key && isspace(*key))
+            key++;
+        while (*value && isspace(*value))
+            value++;
+
+        char* end = key + strlen(key) - 1;
+        while (end > key && isspace(*end))
+            *end-- = '\0';
+
+        end = value + strlen(value) - 1;
+        while (end > value && isspace(*end))
+            *end-- = '\0';
+
+        if (*key && *value) {
+            uint32_t message_id = generate_mod_message_id(mod_name, key);
+
+            MessageListItem item;
+            item.num = message_id;
+            item.text = internal_strdup(value);
+            item.audio = internal_strdup("");
+            item.flags = 0;
+
+            if (_messageListAdd(messageList, &item)) {
+                messages_loaded++;
+            } else {
+                // Clean up on failure
+                internal_free(item.text);
+                internal_free(item.audio);
+            }
+        }
+    }
+
+    fileClose(stream);
+}
+
+/**
+ * Loads mod messages from files matching messages_*.txt pattern.
+ * Searches both English (fallback) and current language directories.
+ *
+ * @param messageList MessageList to append mod messages to
+ * @param msg_type Section name to load from mod files
+ */
+static void loadModMessagesForType(MessageList* messageList, const char* msg_type)
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    char fullPath[COMPAT_MAX_PATH];
+
+    // Always load English mods first (as base/fallback)
+    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
+        ENGLISH, DIR_SEPARATOR);
+
+    char** modFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+
+    for (int i = 0; i < modFileCount; i++) {
+        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
+            ENGLISH, DIR_SEPARATOR, modFiles[i]);
+        loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
+    }
+
+    if (modFileCount > 0) {
+        fileNameListFree(&modFiles, 0);
+    }
+
+    // Then load current language (overrides English for available translations)
+    if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
+            settings.system.language.c_str(), DIR_SEPARATOR);
+
+        modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+
+        for (int i = 0; i < modFileCount; i++) {
+            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
+                settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
+            loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
+        }
+
+        if (modFileCount > 0) {
+            fileNameListFree(&modFiles, 0);
+        }
+    }
+}
+
+/**
+ * Generates a human-readable report of mod messages loaded.
+ * Creates a text file listing all mod messages (IDs 32768-65535)
+ * with their text previews, for modder reference.
+ *
+ * @param messageList The MessageList to report on
+ * @param msg_type Message type name for the report filename
+ */
+void generateMessageReport(MessageList* messageList, const char* msg_type)
+{
+    if (!messageList || !msg_type) return;
+
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cmessages_%s_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
+
+    FILE* reportFile = compat_fopen(reportPath, "wt");
+    if (!reportFile) {
+        return;
+    }
+
+    // Write header
+    fprintf(reportFile,
+        "==============================================================================\n"
+        "Fallout Fission - %s Messages\n"
+        "==============================================================================\n"
+        "Generated IDs for mod message references in scripts.\n\n"
+        "Message ID Range: 32768-65535 (stable hash-based)\n"
+        "Usage: display_msg(ID);  // Reference in scripts\n"
+        "==============================================================================\n\n",
+        msg_type);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Count and list only mod messages (32768-65535 range)
+    int modMessageCount = 0;
+
+    fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");
+    fprintf(reportFile, "ID      | Text Preview\n");
+    fprintf(reportFile, "--------|--------------------------------------------------\n");
+
+    for (int i = 0; i < messageList->entries_num; i++) {
+        MessageListItem* item = &messageList->entries[i];
+
+        // Only show mod messages in our range (32768-65535)
+        if (item->num >= 32768 && item->num <= 65535) {
+            modMessageCount++;
+
+            // Create shortened preview (first 60 chars)
+            char preview[61];
+            strncpy(preview, item->text, 60);
+            preview[60] = '\0';
+            if (strlen(item->text) > 60) {
+                strcpy(preview + 57, "...");
+            }
+
+            fprintf(reportFile, "%-7d | %s\n", item->num, preview);
+        }
+    }
+
+    // Add summary
+    fprintf(reportFile, "\nSUMMARY:\n");
+    fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
+    fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
+
+    // Modder guidance
+    fprintf(reportFile, "\nMODDER GUIDANCE:\n");
+    fprintf(reportFile, "1. Use the decimal IDs above in your scripts with display_msg()\n");
+    fprintf(reportFile, "2. IDs are stable - same mod+key always generates same ID\n");
+    fprintf(reportFile, "3. File location: data/text/<language>/game/messages_YourMod.txt\n");
+    fprintf(reportFile, "4. Format: unique_key = Your message text\n\n");
+
+    fclose(reportFile);
+}
+
+/**
+ * Enhanced message loader that combines base messages with mod messages.
+ * Loads base game messages first, then appends mod messages from
+ * messages_*.txt files. Always generates a report file.
+ *
+ * @param msg MessageList to populate
+ * @param path Path to base message file
+ * @param msg_type Message type/section to load (for mod file sections)
+ * @return true if base messages loaded successfully
+ */
+bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type)
+{
+    // First load the base messages
+    if (!messageListLoad(msg, path)) {
+        return false;
+    }
+
+    // Then load and append mod messages
+    loadModMessagesForType(msg, msg_type);
+
+    // Generate a report of loaded mod messages
+    generateMessageReport(msg, msg_type);
+
+    return true;
+}
+
+// ============================================================================
+// Message List Repository (depends on core functions)
+// ============================================================================
+
+static MessageList* messageListRepositoryLoad(const char* path)
+{
+    MessageList* messageList = new (std::nothrow) MessageList();
+    if (messageList == nullptr) {
+        return nullptr;
+    }
+
+    if (!messageListInit(messageList)) {
+        delete messageList;
+        return nullptr;
+    }
+
+    if (!messageListLoad(messageList, path)) {
+        delete messageList;
+        return nullptr;
+    }
+
+    return messageList;
+}
+
 bool messageListRepositoryInit()
 {
     _messageListRepositoryState = new (std::nothrow) MessageListRepositoryState();
@@ -707,6 +1127,8 @@ void messageListRepositoryReset()
 
 void messageListRepositoryExit()
 {
+    messageListFreeModProtoMessages();
+
     if (_messageListRepositoryState != nullptr) {
         for (auto& pair : _messageListRepositoryState->temporaryMessageLists) {
             messageListFree(pair.second);
@@ -795,24 +1217,22 @@ char* messageListRepositoryGetMsg(int messageListId, int messageId)
     return getmsg(messageList, &messageListItem, messageId);
 }
 
-static MessageList* messageListRepositoryLoad(const char* path)
+// Builds language-aware path in "text" subfolder.
+//
+// 0x484CB8
+bool _message_make_path(char* dest, size_t size, const char* path)
 {
-    MessageList* messageList = new (std::nothrow) MessageList();
-    if (messageList == nullptr) {
-        return nullptr;
+    if (dest == nullptr) {
+        return false;
     }
 
-    if (!messageListInit(messageList)) {
-        delete messageList;
-        return nullptr;
+    if (path == nullptr) {
+        return false;
     }
 
-    if (!messageListLoad(messageList, path)) {
-        delete messageList;
-        return nullptr;
-    }
+    snprintf(dest, size, "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
 
-    return messageList;
+    return true;
 }
 
 } // namespace fallout
