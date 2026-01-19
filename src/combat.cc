@@ -4601,6 +4601,7 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
     context.damageBonus = damageBonus;
     context.bonusDamageMultiplier = bonusDamageMultiplier;
     context.combatDifficultyDamageModifier = combatDifficultyDamageModifier;
+    context.ammoQuantity = ammoQuantity;
 
     if (gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ || gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ_WITH_DAMAGE_MULTIPLIER_TWEAK) {
         damageModCalculateGlovz(&context);
@@ -6841,7 +6842,7 @@ static void damageModCalculateYaam(DamageCalculationContext* context)
         damage -= damage * damageResistance / 100;
 
         if (damage > 0) {
-            context->damagePtr += damage;
+            *context->damagePtr += damage;
         }
     }
 }
