@@ -1567,7 +1567,7 @@ static void showSplash()
     // Perform clean blit
     _scr_blit(data, width, height, 0, 0, width, height, x, y);
     paletteFadeTo(palette);
-    //inputPauseForTocks(1000); // Added for gravitas
+    // inputPauseForTocks(1000); // Added for gravitas
 
     internal_free(data);
     internal_free(palette);
