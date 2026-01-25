@@ -52,8 +52,12 @@ bool mouseDeviceGetData(MouseData* mouseState)
     // TODO: Move mouse events processing into `GNW95_process_message` and
     // update mouse position manually.
     SDL_PumpEvents();
-
+    #ifdef __EMSCRIPTEN__
+    Uint32 buttons = SDL_GetMouseState(&(mouseState->x), &(mouseState->y));
+    #else
     Uint32 buttons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
+    #endif
+
     mouseState->buttons[0] = (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
     mouseState->buttons[1] = (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
     mouseState->wheelX = gMouseWheelDeltaX;
@@ -93,7 +97,11 @@ bool keyboardDeviceGetData(KeyboardData* keyboardData)
 // 0x4E070C
 bool mouseDeviceInit()
 {
-    return SDL_SetRelativeMouseMode(SDL_TRUE) == 0;
+    #ifdef __EMSCRIPTEN__
+        return true;
+    #else
+        return SDL_SetRelativeMouseMode(SDL_TRUE) == 0;
+    #endif
 }
 
 // 0x4E078C

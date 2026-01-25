@@ -24,6 +24,14 @@
 #include <chrono>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+EM_ASYNC_JS(void, em_check_external_cache, (const char* filePathPtr), {
+    const path = UTF8ToString(filePathPtr);
+    await (Module?.[`__diskCache`]?.checkCache(path) ?? Promise.resolve());
+})
+#endif
+
 #include <SDL.h>
 
 namespace fallout {
@@ -232,6 +240,9 @@ FILE* compat_fopen(const char* path, const char* mode)
     strcpy(nativePath, path);
     compat_windows_path_to_native(nativePath);
     compat_resolve_path(nativePath);
+    #ifdef __EMSCRIPTEN__
+    em_check_external_cache(nativePath);
+    #endif
     return fopen(nativePath, mode);
 }
 
