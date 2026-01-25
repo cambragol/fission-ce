@@ -500,7 +500,7 @@ void handleWindowSizeChanged()
  * or scaling modes are active.
  *
  * For fullscreen modes with specific play areas, we apply special positioning:
- * - Large play area (75% of screen): Content is centered within a 75% viewport
+ * - Large play area (70% of screen): Content is centered within a 70% viewport
  * - Huge play area (100% of screen): Content is centered in the full window
  * - Windowed mode: Always centers content regardless of settings
  *
@@ -520,11 +520,11 @@ void resizeContent(int width, int height)
     if (gFullscreen) {
         // FULLSCREEN MODE - Handle different play area settings
 
-        if (gPlayArea == 2) { // "Large" play area (75% of screen)
-            // Content is designed for 75% of screen, then stretched to fullscreen
-            // Calculate where the 75% content area sits in the full window
-            int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
+        if (gPlayArea == 2) { // "Large" play area (70% of screen)
+            // Content is designed for 70% of screen, then stretched to fullscreen
+            // Calculate where the 70% content area sits in the full window
+            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
+            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
 
             gMouseClipRect.left = offsetX;
             gMouseClipRect.top = offsetY;
@@ -583,8 +583,8 @@ void resizeContent(int width, int height, bool preserveAspect)
 
     if (gFullscreen) {
         if (gPlayArea == 2) {
-            int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
+            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
+            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
 
             gMouseClipRect.left = offsetX;
             gMouseClipRect.top = offsetY;
