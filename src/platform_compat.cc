@@ -240,9 +240,9 @@ FILE* compat_fopen(const char* path, const char* mode)
     strcpy(nativePath, path);
     compat_windows_path_to_native(nativePath);
     compat_resolve_path(nativePath);
-    #ifdef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
     em_check_external_cache(nativePath);
-    #endif
+#endif
     return fopen(nativePath, mode);
 }
 
