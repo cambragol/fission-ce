@@ -16,6 +16,8 @@ void resizeContent(int width, int height);
 void resizeContent(int width, int height, bool preserveAspect);
 void restoreUserAspectPreference(void);
 bool gameIsWidescreen();
+bool gameIsFullscreen();
+void svgaToggleFullscreen();
 
 extern SDL_Window* gSdlWindow;
 extern SDL_Surface* gSdlSurface;

@@ -125,6 +125,38 @@ bool gameIsWidescreen()
     return (gWidescreen); // changed to be set in init, to prevent mid-game widescreen asset changes
 }
 
+bool gameIsFullscreen()
+{
+    if (gSdlWindow == nullptr) {
+        return false;
+    }
+    
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+    
+    // Update gFullscreen to stay in sync
+    if (isFullscreen != gFullscreen) {
+        gFullscreen = isFullscreen;
+    }
+    
+    return isFullscreen;
+}
+
+// Mouse modes vary for windowed and fullscreen modes
+void updateMouseModeForCurrentState()
+{
+    if (!gSdlWindow) return;
+    
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+    
+    if (isFullscreen) {
+        SDL_SetRelativeMouseMode(SDL_TRUE);
+    } else {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
+    }
+}
+
 // 0x4CAE1C
 int _GNW95_init_mode_ex(int width, int height, int bpp)
 {
@@ -500,7 +532,7 @@ void handleWindowSizeChanged()
  * or scaling modes are active.
  *
  * For fullscreen modes with specific play areas, we apply special positioning:
- * - Large play area (75% of screen): Content is centered within a 75% viewport
+ * - Large play area (70% of screen): Content is centered within a 70% viewport
  * - Huge play area (100% of screen): Content is centered in the full window
  * - Windowed mode: Always centers content regardless of settings
  *
@@ -520,11 +552,11 @@ void resizeContent(int width, int height)
     if (gFullscreen) {
         // FULLSCREEN MODE - Handle different play area settings
 
-        if (gPlayArea == 2) { // "Large" play area (75% of screen)
-            // Content is designed for 75% of screen, then stretched to fullscreen
-            // Calculate where the 75% content area sits in the full window
-            int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
+        if (gPlayArea == 2) { // "Large" play area (70% of screen)
+            // Content is designed for 70% of screen, then stretched to fullscreen
+            // Calculate where the 70% content area sits in the full window
+            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
+            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
 
             gMouseClipRect.left = offsetX;
             gMouseClipRect.top = offsetY;
@@ -583,8 +615,8 @@ void resizeContent(int width, int height, bool preserveAspect)
 
     if (gFullscreen) {
         if (gPlayArea == 2) {
-            int offsetX = ((windowW * 0.75f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.75f - gContentHeight) / 2);
+            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
+            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
 
             gMouseClipRect.left = offsetX;
             gMouseClipRect.top = offsetY;
@@ -736,6 +768,40 @@ void renderPresent()
 
     SDL_RenderCopy(gSdlRenderer, gSdlTexture, &srcRect, &destRect);
     SDL_RenderPresent(gSdlRenderer);
+}
+
+void svgaToggleFullscreen()
+{
+    if (!gSdlWindow) return;
+    
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+    
+    if (isFullscreen) {
+        SDL_SetWindowFullscreen(gSdlWindow, 0);
+        gFullscreen = false;
+        
+        SDL_SetWindowSize(gSdlWindow, settings.graphics.game_width, settings.graphics.game_height);
+        SDL_SetWindowPosition(gSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    } else {
+        SDL_SetWindowFullscreen(gSdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        gFullscreen = true;
+    }
+    
+    // Must toggle to release mouse
+    updateMouseModeForCurrentState();
+    
+    // Force window redraw by sending an expose event
+    // This ensures the game redraws the screen after the mode change
+    SDL_Event exposeEvent;
+    SDL_zero(exposeEvent);
+    exposeEvent.type = SDL_WINDOWEVENT;
+    exposeEvent.window.event = SDL_WINDOWEVENT_EXPOSED;
+    exposeEvent.window.windowID = SDL_GetWindowID(gSdlWindow);
+    SDL_PushEvent(&exposeEvent);
+    
+    // Process events to ensure the redraw happens promptly
+    SDL_PumpEvents();
 }
 
 } // namespace fallout
