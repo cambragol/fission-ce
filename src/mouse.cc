@@ -389,7 +389,7 @@ void _mouse_info()
         switch (gesture.type) {
         case kTap:
             // toggle for SDL_GetMouseState() handling
-            if(gameIsFullscreen()) {
+            if (gameIsFullscreen()) {
                 if (gesture.numberOfTouches == 1) {
                     _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
                 } else if (gesture.numberOfTouches == 2) {
@@ -410,7 +410,7 @@ void _mouse_info()
                 prevy = gesture.y;
             }
             // toggle for SDL_GetMouseState() handling
-            if(!gameIsFullscreen()) {
+            if (!gameIsFullscreen()) {
                 prevx = 0;
                 prevy = 0;
             }
@@ -684,7 +684,7 @@ void _mouse_get_raw_state(int* out_x, int* out_y, int* out_buttons)
 
     _raw_buttons = 0;
     // toggle for SDL_GetMouseState() handling
-    if (gameIsFullscreen()){
+    if (gameIsFullscreen()) {
         _raw_x += mouseData.x;
         _raw_y += mouseData.y;
     } else {

@@ -936,13 +936,12 @@ void _GNW95_process_message()
             if (!keyboardIsDisabled()) {
                 // Check for Alt+Enter or F11 to toggle fullscreen
                 if (e.type == SDL_KEYDOWN) {
-                    if ((e.key.keysym.sym == SDLK_RETURN && (e.key.keysym.mod & KMOD_ALT)) ||
-                        e.key.keysym.sym == SDLK_F11) {
+                    if ((e.key.keysym.sym == SDLK_RETURN && (e.key.keysym.mod & KMOD_ALT)) || e.key.keysym.sym == SDLK_F11) {
                         svgaToggleFullscreen();
-                        break;  // Don't process as a normal key
+                        break; // Don't process as a normal key
                     }
                 }
-                
+
                 keyboardData.key = e.key.keysym.scancode;
                 keyboardData.down = (e.key.state & SDL_PRESSED) != 0;
                 _GNW95_process_key(&keyboardData);

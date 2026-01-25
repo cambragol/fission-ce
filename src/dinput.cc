@@ -56,7 +56,7 @@ bool mouseDeviceGetData(MouseData* mouseState)
 
     Uint32 buttons;
     // Toggle mousestate with fullscreen mode (SDL_GetMouseState() does not play well with screen scaling in fullscreen)
-    if(gameIsFullscreen()) {
+    if (gameIsFullscreen()) {
         buttons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
     } else {
         buttons = SDL_GetMouseState(&(mouseState->x), &(mouseState->y));
@@ -101,7 +101,7 @@ bool keyboardDeviceGetData(KeyboardData* keyboardData)
 bool mouseDeviceInit()
 {
     // toggle for SDL_GetMouseState() handling
-    if(gameIsFullscreen()) {
+    if (gameIsFullscreen()) {
         return SDL_SetRelativeMouseMode(SDL_TRUE) == 0;
     } else {
         return true;
