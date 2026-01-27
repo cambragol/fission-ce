@@ -782,7 +782,7 @@ void svgaToggleFullscreen()
         gFullscreen = false;
 
         SDL_SetWindowSize(gSdlWindow, settings.graphics.game_width, settings.graphics.game_height);
-        //SDL_SetWindowPosition(gSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        // SDL_SetWindowPosition(gSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     } else {
         SDL_SetWindowFullscreen(gSdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
         gFullscreen = true;
