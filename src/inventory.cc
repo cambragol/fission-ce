@@ -285,6 +285,10 @@ static int inventoryQuantityWindowFree(int inventoryWindowType);
 static bool _ctrl_pressed();
 static void _drag_item_loop(Object* item, bool immediate);
 
+static void inventoryPortraitOnMouseEnter(int btn, int keyCode);
+static void inventoryPortraitOnMouseExit(int btn, int keyCode);
+static void inventorySortPortrait(int keyCode, int inventoryWindowType);
+
 // 0x46E6D0
 static const int gSummaryStats[7] = {
     STAT_CURRENT_HIT_POINTS,
@@ -468,6 +472,8 @@ static InventoryPrintItemDescriptionHandler* gInventoryPrintItemDescriptionHandl
 
 // 0x59E93C
 static int _im_value; // "keyCode" corresponding to an inventory item "button", or -1 if nothing
+
+static int _portrait_im_value; // keyCode for the portrait button the mouse is over, or -1
 
 // 0x59E940
 static int gInventoryCursor;
@@ -673,7 +679,13 @@ void inventoryOpen()
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
         } else if (keyCode == 2500) {
-            _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
+            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                // Arrow mode - sort inventory
+                inventorySortPortrait(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
+            } else {
+                // Not arrow mode - original behavior (exit container)
+                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
+            }
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
@@ -1238,7 +1250,7 @@ static bool _setup_inventory(int inventoryWindowType)
             }
 
             // Invisible button representing left character.
-            buttonCreate(_barter_back_win,
+            int tradeLeftPortraitBtn = buttonCreate(_barter_back_win,
                 15,
                 25,
                 INVENTORY_BODY_VIEW_WIDTH,
@@ -1251,9 +1263,13 @@ static bool _setup_inventory(int inventoryWindowType)
                 nullptr,
                 nullptr,
                 0);
+            if (tradeLeftPortraitBtn != -1) {
+                buttonSetMouseCallbacks(tradeLeftPortraitBtn, inventoryPortraitOnMouseEnter,
+                                    inventoryPortraitOnMouseExit, nullptr, nullptr);
+            }
 
             // Invisible button representing right character.
-            buttonCreate(_barter_back_win,
+            int tradeRightPortraitBtn = buttonCreate(_barter_back_win,
                 560,
                 25,
                 INVENTORY_BODY_VIEW_WIDTH,
@@ -1266,6 +1282,10 @@ static bool _setup_inventory(int inventoryWindowType)
                 nullptr,
                 nullptr,
                 0);
+            if (tradeRightPortraitBtn != -1) {
+                buttonSetMouseCallbacks(tradeRightPortraitBtn, inventoryPortraitOnMouseEnter,
+                                    inventoryPortraitOnMouseExit, nullptr, nullptr);
+            }
         }
     } else {
         // Large arrow down (normal).
@@ -1301,7 +1321,7 @@ static bool _setup_inventory(int inventoryWindowType)
 
             if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                 // Invisible button representing left character.
-                buttonCreate(gInventoryWindow,
+                int leftPortraitBtn = buttonCreate(gInventoryWindow,
                     INVENTORY_LOOT_LEFT_BODY_VIEW_X,
                     INVENTORY_LOOT_LEFT_BODY_VIEW_Y,
                     INVENTORY_BODY_VIEW_WIDTH,
@@ -1314,6 +1334,10 @@ static bool _setup_inventory(int inventoryWindowType)
                     nullptr,
                     nullptr,
                     0);
+                if (leftPortraitBtn != -1) {
+                    buttonSetMouseCallbacks(leftPortraitBtn, inventoryPortraitOnMouseEnter,
+                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                }
 
                 // Right inventory down button.
                 gSecondaryInventoryScrollDownButton = buttonCreate(gInventoryWindow,
@@ -1336,7 +1360,7 @@ static bool _setup_inventory(int inventoryWindowType)
                 }
 
                 // Invisible button representing right character.
-                buttonCreate(gInventoryWindow,
+                int rightPortraitBtn = buttonCreate(gInventoryWindow,
                     INVENTORY_LOOT_RIGHT_BODY_VIEW_X,
                     INVENTORY_LOOT_RIGHT_BODY_VIEW_Y,
                     INVENTORY_BODY_VIEW_WIDTH,
@@ -1349,9 +1373,13 @@ static bool _setup_inventory(int inventoryWindowType)
                     nullptr,
                     nullptr,
                     0);
+                if (rightPortraitBtn != -1) {
+                    buttonSetMouseCallbacks(rightPortraitBtn, inventoryPortraitOnMouseEnter,
+                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                }
             } else {
                 // Invisible button representing character (in inventory and use on dialogs).
-                buttonCreate(gInventoryWindow,
+                int portraitBtn = buttonCreate(gInventoryWindow,
                     INVENTORY_PC_BODY_VIEW_X,
                     INVENTORY_PC_BODY_VIEW_Y,
                     INVENTORY_BODY_VIEW_WIDTH,
@@ -1364,6 +1392,10 @@ static bool _setup_inventory(int inventoryWindowType)
                     nullptr,
                     nullptr,
                     0);
+                if (portraitBtn != -1) {
+                    buttonSetMouseCallbacks(portraitBtn, inventoryPortraitOnMouseEnter, 
+                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                }
             }
         }
     }
@@ -2201,6 +2233,7 @@ static int inventoryCommonInit()
 
     _inven_is_initialized = true;
     _im_value = -1;
+    _portrait_im_value = -1;
 
     return 0;
 }
@@ -2229,11 +2262,24 @@ static void inventorySetCursor(int cursor)
 {
     gInventoryCursor = cursor;
 
-    if (cursor != INVENTORY_WINDOW_CURSOR_ARROW || _im_value == -1) {
+    if (cursor != INVENTORY_WINDOW_CURSOR_ARROW) {
         InventoryCursorData* cursorData = &(gInventoryCursorData[cursor]);
         mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height, cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
     } else {
-        inventoryItemSlotOnMouseEnter(-1, _im_value);
+        // We're switching to arrow mode
+        // First check if we're over an item button
+        if (_im_value != -1) {
+            inventoryItemSlotOnMouseEnter(-1, _im_value);
+        }
+        // Then check if we're over a portrait button
+        else if (_portrait_im_value != -1) {
+            inventoryPortraitOnMouseEnter(-1, _portrait_im_value);
+        }
+        else {
+            // Not over any button, show regular arrow
+            InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_ARROW]);
+            mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height, cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
+        }
     }
 }
 
@@ -2279,6 +2325,73 @@ static void inventoryItemSlotOnMouseExit(int btn, int keyCode)
     }
 
     _im_value = -1;
+}
+
+static void inventoryPortraitOnMouseEnter(int btn, int keyCode)
+{    
+    if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+        int x, y;
+        mouseGetPositionInWindow(gInventoryWindow, &x, &y);
+        
+        // Show 'sort' icon
+        gameMouseRenderPrimaryAction(x, y, GAME_MOUSE_ACTION_MENU_ITEM_SORT, 
+                                     gInventoryWindowMaxX, gInventoryWindowMaxY);
+        
+        int hotX, hotY;
+        _gmouse_3d_pick_frame_hot(&hotX, &hotY);
+        
+        InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_PICK]);
+        mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height, 
+                      cursorData->width, hotX, hotY, 0);
+    }
+
+     _portrait_im_value = keyCode; // Track which portrait we're over
+}
+
+static void inventoryPortraitOnMouseExit(int btn, int keyCode)
+{    
+    if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+        // Revert to arrow cursor
+        InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_ARROW]);
+        mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height,
+                      cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
+    }
+
+    _portrait_im_value = -1; // Reset when leaving portrait
+}
+
+// placeholder for sorting function
+static void inventorySortPortrait(int keyCode, int inventoryWindowType)
+{
+    MessageListItem messageListItem;
+    
+    if (keyCode == 2500) {
+        // Left portrait - sort player's inventory
+        messageListItem.num = 41; // "Inventory sorted etc..."
+        if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+                gameDialogRenderSupplementaryMessage(messageListItem.text);
+            } else {
+                displayMonitorAddMessage(messageListItem.text);
+            }
+        }
+        
+        // TODO: Call actual sort function here
+        // inventorySortCurrent(keyCode, inventoryWindowType);
+    } else if (keyCode == 2501) {
+        // Right portrait - sort NPC/container inventory  
+        messageListItem.num = 40; // "Container sorted etc..."
+        if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+                gameDialogRenderSupplementaryMessage(messageListItem.text);
+            } else {
+                displayMonitorAddMessage(messageListItem.text);
+            }
+        }
+        
+        // TODO: Call actual sort function here
+        // inventorySortCurrent(keyCode, inventoryWindowType);
+    }
 }
 
 // 0x470D5C
@@ -2712,7 +2825,12 @@ void inventoryOpenUseItemOn(Object* targetObj)
             _display_inventory(_stack_offset[_curr_stack], -1, 1);
             break;
         case 2500:
-            _container_exit(keyCode, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
+            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                // Arrow mode - sort inventory
+                inventorySortPortrait(keyCode, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
+            } else {
+                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
+            }
             break;
         default:
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
@@ -4366,7 +4484,12 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 windowRefresh(gInventoryWindow);
             }
         } else if (keyCode >= 2500 && keyCode <= 2501) {
-            _container_exit(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
+            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                // Arrow mode - sort inventory
+                inventorySortPortrait(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
+            } else {
+                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
+            }
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
@@ -5388,7 +5511,12 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 windowRefresh(gInventoryWindow);
             }
         } else if (keyCode >= 2500 && keyCode <= 2501) {
-            _container_exit(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
+            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                // Arrow mode - sort inventory
+                inventorySortPortrait(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
+            } else {
+                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
+            }
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {

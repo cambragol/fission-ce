@@ -230,6 +230,7 @@ static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_CO
     302, // Unload
     304, // Skill
     435, // Push
+    302, // Sort
 };
 
 // 0x518D34
