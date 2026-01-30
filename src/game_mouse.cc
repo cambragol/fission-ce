@@ -231,6 +231,12 @@ static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_CO
     304, // Skill
     435, // Push
     302, // Sort
+    302, // Sort
+    302, // Sort
+    302, // Sort
+    302, // Sort
+    302, // Sort
+
 };
 
 // 0x518D34
@@ -306,6 +312,9 @@ Object* gGameMouseHexCursor;
 // 0x596C74
 static Object* gGameMousePointedObject;
 
+// used for y-offset in trade/barter screen sort context meun
+static int gGameMouseActionMenuYAdjustment = 0;
+
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
@@ -325,6 +334,12 @@ static int objectIsDoor(Object* object);
 static bool gameMouseClickOnInterfaceBar();
 
 static void customMouseModeFrmsInit();
+
+// used for y-offset in trade/barter screen sort context meun
+void gameMouseSetActionMenuYAdjustment(int adjustment)
+{
+    gGameMouseActionMenuYAdjustment = adjustment;
+}
 
 // 0x44B2B0
 int gameMouseInit()
@@ -1800,7 +1815,7 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
     _gmouse_3d_menu_frame_hot_y = 0;
 
     gGameMouseActionMenuFrm->xOffsets[0] = gGameMouseActionMenuFrmWidth / 2;
-    gGameMouseActionMenuFrm->yOffsets[0] = gGameMouseActionMenuFrmHeight - 1;
+    gGameMouseActionMenuFrm->yOffsets[0] = gGameMouseActionMenuFrmHeight - 1 + gGameMouseActionMenuYAdjustment;
 
     int maxY = y + menuItemsLength * menuItemHeight - 1;
     int shiftY = maxY - height + 2;

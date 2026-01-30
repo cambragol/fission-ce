@@ -33,7 +33,13 @@ typedef enum GameMouseActionMenuItem {
     GAME_MOUSE_ACTION_MENU_ITEM_UNLOAD = 7,
     GAME_MOUSE_ACTION_MENU_ITEM_USE_SKILL = 8,
     GAME_MOUSE_ACTION_MENU_ITEM_PUSH = 9,
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT = 10,
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT = 10, // Top-level sort menu entry
+    // Specific sort actions (these will appear in our sort context menu)
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_TYPE = 11,
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_NAME = 12,
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT = 13,
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE = 14,
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT = 15,
     GAME_MOUSE_ACTION_MENU_ITEM_COUNT,
 } GameMouseActionMenuItem;
 
@@ -102,6 +108,9 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
 int gameMouseHighlightActionMenuItemAtIndex(int menuItemIndex);
 void gameMouseLoadItemHighlight();
 void _gmouse_remove_item_outline(Object* object);
+
+// used for y-offset in trade/barter screen sort context meun
+void gameMouseSetActionMenuYAdjustment(int adjustment);
 
 void gameMouseRefreshImmediately();
 Object* gmouse_get_outlined_object();
