@@ -433,12 +433,12 @@ static const int _act_weap2[3] = {
 };
 
 static const int _act_sort[6] = {
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT,  // Button 1: Clean/Group by Type (default)
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS,  // Button 2: Weapons to top
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO,     // Button 3: Ammo to top
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS,    // Button 4: Drugs to top
-    GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER,    // Button 5: Other to top (was Armor)
-    GAME_MOUSE_ACTION_MENU_ITEM_CANCEL         // Button 6: Cancel
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, // Button 1: Clean/Group by Type (default)
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS, // Button 2: Weapons to top
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO, // Button 3: Ammo to top
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS, // Button 4: Drugs to top
+    GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER, // Button 5: Other to top (was Armor)
+    GAME_MOUSE_ACTION_MENU_ITEM_CANCEL // Button 6: Cancel
 };
 
 // Scroll offsets to target inventory for every container nesting level (stack).
@@ -579,7 +579,6 @@ static int inventoryMessageListInit()
     if (!messageListLoad(&gInventoryMessageList, path))
         return -1;
 
-    
     if (!messageListInit(&gFissionMessageList)) {
         return -1;
     }
@@ -1298,7 +1297,7 @@ static bool _setup_inventory(int inventoryWindowType)
                 0);
             if (tradeLeftPortraitBtn != -1) {
                 buttonSetMouseCallbacks(tradeLeftPortraitBtn, inventoryPortraitOnMouseEnter,
-                                    inventoryPortraitOnMouseExit, nullptr, nullptr);
+                    inventoryPortraitOnMouseExit, nullptr, nullptr);
             }
 
             // Invisible button representing right character.
@@ -1317,7 +1316,7 @@ static bool _setup_inventory(int inventoryWindowType)
                 0);
             if (tradeRightPortraitBtn != -1) {
                 buttonSetMouseCallbacks(tradeRightPortraitBtn, inventoryPortraitOnMouseEnter,
-                                    inventoryPortraitOnMouseExit, nullptr, nullptr);
+                    inventoryPortraitOnMouseExit, nullptr, nullptr);
             }
         }
     } else {
@@ -1369,7 +1368,7 @@ static bool _setup_inventory(int inventoryWindowType)
                     0);
                 if (leftPortraitBtn != -1) {
                     buttonSetMouseCallbacks(leftPortraitBtn, inventoryPortraitOnMouseEnter,
-                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                        inventoryPortraitOnMouseExit, nullptr, nullptr);
                 }
 
                 // Right inventory down button.
@@ -1408,7 +1407,7 @@ static bool _setup_inventory(int inventoryWindowType)
                     0);
                 if (rightPortraitBtn != -1) {
                     buttonSetMouseCallbacks(rightPortraitBtn, inventoryPortraitOnMouseEnter,
-                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                        inventoryPortraitOnMouseExit, nullptr, nullptr);
                 }
             } else {
                 // Invisible button representing character (in inventory and use on dialogs).
@@ -1426,8 +1425,8 @@ static bool _setup_inventory(int inventoryWindowType)
                     nullptr,
                     0);
                 if (portraitBtn != -1) {
-                    buttonSetMouseCallbacks(portraitBtn, inventoryPortraitOnMouseEnter, 
-                                        inventoryPortraitOnMouseExit, nullptr, nullptr);
+                    buttonSetMouseCallbacks(portraitBtn, inventoryPortraitOnMouseEnter,
+                        inventoryPortraitOnMouseExit, nullptr, nullptr);
                 }
             }
         }
@@ -2072,14 +2071,14 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
 static void _display_body(int fid, int inventoryWindowType)
 {
     bool shouldRotate = !_inven_redrawing_after_sort_menu;
-    
+
     if (fid == -1 && shouldRotate) {
         if (getTicksSince(gInventoryWindowDudeRotationTimestamp) < INVENTORY_NORMAL_WINDOW_PC_ROTATION_DELAY) {
             return;
         }
-        
+
         gInventoryWindowDudeRotation += 1;
-        
+
         if (gInventoryWindowDudeRotation == ROTATION_COUNT) {
             gInventoryWindowDudeRotation = 0;
         }
@@ -2325,8 +2324,7 @@ static void inventorySetCursor(int cursor)
         // Then check if we're over a portrait button
         else if (_portrait_im_value != -1) {
             inventoryPortraitOnMouseEnter(-1, _portrait_im_value);
-        }
-        else {
+        } else {
             // Not over any button, show regular arrow
             InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_ARROW]);
             mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height, cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
@@ -2379,33 +2377,33 @@ static void inventoryItemSlotOnMouseExit(int btn, int keyCode)
 }
 
 static void inventoryPortraitOnMouseEnter(int btn, int keyCode)
-{    
+{
     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
         int x, y;
         mouseGetPositionInWindow(gInventoryWindow, &x, &y);
-        
+
         // Show 'sort' icon
-        gameMouseRenderPrimaryAction(x, y, GAME_MOUSE_ACTION_MENU_ITEM_SORT, 
-                                     gInventoryWindowMaxX, gInventoryWindowMaxY);
-        
+        gameMouseRenderPrimaryAction(x, y, GAME_MOUSE_ACTION_MENU_ITEM_SORT,
+            gInventoryWindowMaxX, gInventoryWindowMaxY);
+
         int hotX, hotY;
         _gmouse_3d_pick_frame_hot(&hotX, &hotY);
-        
+
         InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_PICK]);
-        mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height, 
-                      cursorData->width, hotX, hotY, 0);
+        mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height,
+            cursorData->width, hotX, hotY, 0);
     }
 
-     _portrait_im_value = keyCode; // Track which portrait we're over
+    _portrait_im_value = keyCode; // Track which portrait we're over
 }
 
 static void inventoryPortraitOnMouseExit(int btn, int keyCode)
-{    
+{
     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
         // Revert to arrow cursor
         InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_ARROW]);
         mouseSetFrame(cursorData->frmData, cursorData->width, cursorData->height,
-                      cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
+            cursorData->width, cursorData->offsetX, cursorData->offsetY, 0);
     }
 
     _portrait_im_value = -1; // Reset when leaving portrait
@@ -3871,62 +3869,94 @@ static int _compare_items_by_type(const void* a, const void* b)
     if (a == nullptr || b == nullptr) {
         return 0;
     }
-    
+
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     if (itemA == nullptr || itemB == nullptr) {
         return 0;
     }
-    
+
     if (itemA->item == nullptr || itemB->item == nullptr) {
         return 0;
     }
-    
+
     int typeA = itemGetType(itemA->item);
     int typeB = itemGetType(itemB->item);
-    
+
     // Define order: Weapons (3), Armor (0), Ammo (4), Drugs (2), Misc (5), Containers (1), Keys (6)
     // Map types to sort order - REVERSED for display
     int orderA = 99, orderB = 99;
-    
+
     switch (typeA) {
-        case ITEM_TYPE_WEAPON: orderA = 1; break;
-        case ITEM_TYPE_ARMOR: orderA = 2; break;
-        case ITEM_TYPE_AMMO: orderA = 3; break;
-        case ITEM_TYPE_DRUG: orderA = 4; break;
-        case ITEM_TYPE_MISC: orderA = 5; break;
-        case ITEM_TYPE_CONTAINER: orderA = 6; break;
-        case ITEM_TYPE_KEY: orderA = 7; break;
-        default: orderA = 8; break;
+    case ITEM_TYPE_WEAPON:
+        orderA = 1;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderA = 2;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderA = 3;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderA = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderA = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderA = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderA = 7;
+        break;
+    default:
+        orderA = 8;
+        break;
     }
-    
+
     switch (typeB) {
-        case ITEM_TYPE_WEAPON: orderB = 1; break;
-        case ITEM_TYPE_ARMOR: orderB = 2; break;
-        case ITEM_TYPE_AMMO: orderB = 3; break;
-        case ITEM_TYPE_DRUG: orderB = 4; break;
-        case ITEM_TYPE_MISC: orderB = 5; break;
-        case ITEM_TYPE_CONTAINER: orderB = 6; break;
-        case ITEM_TYPE_KEY: orderB = 7; break;
-        default: orderB = 8; break;
+    case ITEM_TYPE_WEAPON:
+        orderB = 1;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderB = 2;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderB = 3;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderB = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderB = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderB = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderB = 7;
+        break;
+    default:
+        orderB = 8;
+        break;
     }
-    
+
     if (orderA != orderB) {
         // REVERSED: Put higher priority items at END of array (top of display)
         return orderB - orderA;
     }
-    
+
     // Same type, sort by name
     const char* nameA = objectGetName(itemA->item);
     const char* nameB = objectGetName(itemB->item);
-    
+
     if (nameA == nullptr || nameB == nullptr) {
         if (nameA == nullptr && nameB == nullptr) return 0;
         if (nameA == nullptr) return -1;
         return 1;
     }
-    
+
     return strcmp(nameA, nameB);
 }
 
@@ -3936,43 +3966,43 @@ static int _compare_items_by_specific_type(const void* a, const void* b, int tar
     if (a == nullptr || b == nullptr) {
         return 0; // Treat as equal
     }
-    
+
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     // Check if InventoryItem pointers are valid
     if (itemA == nullptr || itemB == nullptr) {
         return 0;
     }
-    
+
     // Check if the actual item objects are valid
     if (itemA->item == nullptr || itemB->item == nullptr) {
         return 0;
     }
-    
+
     int typeA = itemGetType(itemA->item);
     int typeB = itemGetType(itemB->item);
-    
+
     // REVERSED: Put target type at END of array (top of display)
     if (typeA == targetType && typeB != targetType) {
-        return 1;  // A comes AFTER B (target type goes to end)
+        return 1; // A comes AFTER B (target type goes to end)
     }
-    
+
     if (typeB == targetType && typeA != targetType) {
         return -1; // B comes AFTER A (target type goes to end)
     }
-    
+
     // If both are the same type (either both target or both not), sort by name
     const char* nameA = objectGetName(itemA->item);
     const char* nameB = objectGetName(itemB->item);
-    
+
     // Safety check for name strings
     if (nameA == nullptr || nameB == nullptr) {
         if (nameA == nullptr && nameB == nullptr) return 0;
-        if (nameA == nullptr) return -1;  // NULL names come first
-        return 1;  // nameA is not NULL, nameB is NULL, so nameB comes first
+        if (nameA == nullptr) return -1; // NULL names come first
+        return 1; // nameA is not NULL, nameB is NULL, so nameB comes first
     }
-    
+
     return strcmp(nameA, nameB);
 }
 
@@ -4003,57 +4033,77 @@ static int _compare_items_all_others(const void* a, const void* b)
     if (a == nullptr || b == nullptr) {
         return 0;
     }
-    
+
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     if (itemA == nullptr || itemB == nullptr) {
         return 0;
     }
-    
+
     if (itemA->item == nullptr || itemB->item == nullptr) {
         return 0;
     }
-    
+
     // For "Other", we bring Misc, Containers, Keys, and Armor to the top
     // in a specific order
     int typeA = itemGetType(itemA->item);
     int typeB = itemGetType(itemB->item);
-    
+
     // Define order for "Other" items (reverse of display order)
     int orderA = 99, orderB = 99;
-    
+
     switch (typeA) {
-        case ITEM_TYPE_MISC:      orderA = 1; break;      // Misc first
-        case ITEM_TYPE_CONTAINER: orderA = 2; break;      // Containers second
-        case ITEM_TYPE_KEY:       orderA = 3; break;      // Keys third
-        case ITEM_TYPE_ARMOR:     orderA = 4; break;      // Armor last (if any)
-        default:                  orderA = 5; break;      // Everything else
+    case ITEM_TYPE_MISC:
+        orderA = 1;
+        break; // Misc first
+    case ITEM_TYPE_CONTAINER:
+        orderA = 2;
+        break; // Containers second
+    case ITEM_TYPE_KEY:
+        orderA = 3;
+        break; // Keys third
+    case ITEM_TYPE_ARMOR:
+        orderA = 4;
+        break; // Armor last (if any)
+    default:
+        orderA = 5;
+        break; // Everything else
     }
-    
+
     switch (typeB) {
-        case ITEM_TYPE_MISC:      orderB = 1; break;
-        case ITEM_TYPE_CONTAINER: orderB = 2; break;
-        case ITEM_TYPE_KEY:       orderB = 3; break;
-        case ITEM_TYPE_ARMOR:     orderB = 4; break;
-        default:                  orderB = 5; break;
+    case ITEM_TYPE_MISC:
+        orderB = 1;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderB = 2;
+        break;
+    case ITEM_TYPE_KEY:
+        orderB = 3;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderB = 4;
+        break;
+    default:
+        orderB = 5;
+        break;
     }
-    
+
     if (orderA != orderB) {
         // REVERSED: Higher priority at END (top of display)
         return orderB - orderA;
     }
-    
+
     // Same "other" category, sort by name
     const char* nameA = objectGetName(itemA->item);
     const char* nameB = objectGetName(itemB->item);
-    
+
     if (nameA == nullptr || nameB == nullptr) {
         if (nameA == nullptr && nameB == nullptr) return 0;
         if (nameA == nullptr) return -1;
         return 1;
     }
-    
+
     return strcmp(nameA, nameB);
 }
 
@@ -4061,10 +4111,10 @@ static int _compare_items_by_name(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     const char* nameA = objectGetName(itemA->item);
     const char* nameB = objectGetName(itemB->item);
-    
+
     return strcmp(nameA, nameB);
 }
 
@@ -4072,10 +4122,10 @@ static int _compare_items_by_weight(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     int weightA = itemGetWeight(itemA->item);
     int weightB = itemGetWeight(itemB->item);
-    
+
     // Sort by weight descending (heaviest first at END = top of display)
     return weightB - weightA;
 }
@@ -4084,10 +4134,10 @@ static int _compare_items_by_value(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     int valueA = itemGetCost(itemA->item);
     int valueB = itemGetCost(itemB->item);
-    
+
     // Sort by value descending (most valuable first at END = top of display)
     return valueB - valueA;
 }
@@ -4123,15 +4173,15 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
                 moneyCount++;
             }
         }
-        
+
         if (moneyCount > 0) {
             // Create temporary arrays
             InventoryItem* moneyItems = (InventoryItem*)malloc(sizeof(InventoryItem) * moneyCount);
             InventoryItem* nonMoneyItems = (InventoryItem*)malloc(sizeof(InventoryItem) * (itemCount - moneyCount));
-            
+
             int moneyIndex = 0;
             int nonMoneyIndex = 0;
-            
+
             // Separate money and non-money, preserving original order
             for (int i = 0; i < itemCount; i++) {
                 if (inventory->items[i].item->pid == PROTO_ID_MONEY) {
@@ -4140,21 +4190,21 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
                     nonMoneyItems[nonMoneyIndex++] = inventory->items[i];
                 }
             }
-            
+
             // Put money at the END of the array (top of display)
             // First copy non-money items (preserving their order)
             for (int i = 0; i < nonMoneyIndex; i++) {
                 inventory->items[i] = nonMoneyItems[i];
             }
-            
+
             // Then copy money items (preserving their order)
             for (int i = 0; i < moneyIndex; i++) {
                 inventory->items[nonMoneyIndex + i] = moneyItems[i];
             }
-            
+
             free(moneyItems);
             free(nonMoneyItems);
-            
+
             // Now money is at the top (end of array), non-money items are in original order
         }
     }
@@ -4175,7 +4225,7 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
                 }
             }
         }
-        
+
         // Only sort if we have items to sort
         if (itemsToSort > 1) {
             qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_by_type);
@@ -4188,24 +4238,24 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
     // ===================================================
     bool hasItemsOfType = false;
     int targetType = -1;
-    
+
     // Determine which type we're looking for
     switch (sortType) {
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:      // Weapons
-            targetType = ITEM_TYPE_WEAPON;
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:      // Ammo
-            targetType = ITEM_TYPE_AMMO;
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:    // Drugs
-            targetType = ITEM_TYPE_DRUG;
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:   // Other
-            // Always sort "Other" category
-            hasItemsOfType = true;
-            break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS: // Weapons
+        targetType = ITEM_TYPE_WEAPON;
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO: // Ammo
+        targetType = ITEM_TYPE_AMMO;
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS: // Drugs
+        targetType = ITEM_TYPE_DRUG;
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER: // Other
+        // Always sort "Other" category
+        hasItemsOfType = true;
+        break;
     }
-    
+
     // For specific categories, check if they exist
     if (targetType != -1) {
         for (int i = 0; i < itemCount; i++) {
@@ -4215,7 +4265,7 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
             }
         }
     }
-    
+
     // If no items of the target type, inform user
     if (!hasItemsOfType) {
         gFissionMessageListItem.num = 101;
@@ -4228,7 +4278,7 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
         }
         return;
     }
-    
+
     // In trade windows, we only want to sort the non-money portion
     int itemsToSort = itemCount;
     if (isTradeWindow) {
@@ -4241,22 +4291,22 @@ static void _inven_sort_inventory(Object* obj, int sortType, int inventoryWindow
             }
         }
     }
-    
+
     // Only sort if we have items to sort
     if (itemsToSort > 1) {
         switch (sortType) {
-            case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:      // Weapons
-                qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_weapons_first);
-                break;
-            case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:      // Ammo
-                qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_ammo_first);
-                break;
-            case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:    // Drugs
-                qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_drugs_first);
-                break;
-            case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:   // Other
-                qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_all_others);
-                break;
+        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS: // Weapons
+            qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_weapons_first);
+            break;
+        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO: // Ammo
+            qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_ammo_first);
+            break;
+        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS: // Drugs
+            qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_drugs_first);
+            break;
+        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER: // Other
+            qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_all_others);
+            break;
         }
     }
 }
@@ -4265,15 +4315,14 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
 {
     // First, determine which inventory we're sorting
     Object* inventoryToSort = nullptr;
-    
+
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         if (keyCode == 2500) {
             inventoryToSort = _stack[_curr_stack]; // Left inventory (player)
         } else if (keyCode == 2501) {
             inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
         }
-    } 
-    else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+    } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
         if (keyCode == 2500) {
             inventoryToSort = _stack[_curr_stack]; // Player inventory
         } else if (keyCode == 2501) {
@@ -4281,12 +4330,11 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 inventoryToSort = _target_stack[_target_curr_stack]; // Container/NPC inventory
             }
         }
-    }
-    else {
+    } else {
         // Normal or Use Item On window - only player inventory
         inventoryToSort = _stack[_curr_stack]; // Player inventory
     }
-    
+
     // If we couldn't determine which inventory to sort, return
     if (inventoryToSort == nullptr) {
         return;
@@ -4296,7 +4344,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
     // PHASE 1: Click vs Hold Detection (Fallout Pattern)
     // ===================================================
     int mouseState;
-    
+
     // Wait for mouse release or hold - EXACTLY like inventoryWindowOpenContextMenu
     do {
         sharedFpsLimiter.mark();
@@ -4313,7 +4361,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             // QUICK CLICK: Perform default sort
             // ===========================================
             _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-            
+
             // Show appropriate message
             gFissionMessageListItem.num = 100; // "Sorting inventory..."
             if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
@@ -4323,7 +4371,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                     displayMonitorAddMessage(gFissionMessageListItem.text);
                 }
             }
-            
+
             // Refresh display based on window type
             if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
@@ -4339,8 +4387,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 _inven_redrawing_after_sort_menu = false;
                 windowRefresh(_barter_back_win);
                 windowRefresh(gInventoryWindow);
-            } 
-            else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                 _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
                 if (_target_stack[_target_curr_stack] != nullptr) {
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, inventoryWindowType);
@@ -4351,8 +4398,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                     _display_body(_target_stack[_target_curr_stack]->fid, inventoryWindowType);
                 }
                 _inven_redrawing_after_sort_menu = false;
-            }
-            else {
+            } else {
                 // Normal or Use Item On window
                 _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
                 _inven_redrawing_after_sort_menu = true;
@@ -4363,7 +4409,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 }
                 windowRefresh(gInventoryWindow);
             }
-            
+
             return; // Quick click handled, exit function
         }
 
@@ -4374,82 +4420,83 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
     // ===================================================
     // PHASE 2: Mouse was HELD - Open Context Menu
     // ===================================================
-    
+
     // Hide cursor for menu mode
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_BLANK);
-    
+
     // Get mouse position where user clicked
     int screenX, screenY;
     mouseGetPosition(&screenX, &screenY);
-    
+
     const InventoryWindowDescription* windowDesc = &(gInventoryWindowDescriptions[inventoryWindowType]);
     InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_MENU]);
-    
+
     // Declare variables that will be used in both branches
     int menuWindow = -1;
     int btn = -1;
     Rect buttonRect;
     int menuButtonHeight = 0;
     int menuButtonWidth = 0;
-    
+
     // TRADE WINDOW: Special handling because temp window
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         Rect bgRect;
         windowGetRect(_barter_back_win, &bgRect);
-        
+
         // Calculate dynamic Y adjustment: 530 - (screenHeight / 2)
         int screenHeight = _scr_size.bottom - _scr_size.top + 1;
         int yAdjustment = 530 - (screenHeight / 2);
-        
+
         // Create temporary transparent window over trade window
-        menuWindow = windowCreate(bgRect.left, bgRect.top, 
-                                  INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH,
-                                  INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT,
-                                  258,
-                                  WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
-        
+        menuWindow = windowCreate(bgRect.left, bgRect.top,
+            INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH,
+            INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT,
+            258,
+            WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+
         if (menuWindow == -1) {
             inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
             return;
         }
-        
-        memset(windowGetBuffer(menuWindow), 0, 
-               INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH * INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT);
-        
+
+        memset(windowGetBuffer(menuWindow), 0,
+            INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH * INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT);
+
         // Apply Y adjustment for trade window only
         gameMouseSetActionMenuYAdjustment(yAdjustment);
         int absoluteRight = bgRect.left + INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH;
         int absoluteBottom = bgRect.top + 180;
-        
+
         if (gameMouseRenderActionMenuItems(screenX, screenY, _act_sort, 6,
-            absoluteRight, absoluteBottom) != 0) {
+                absoluteRight, absoluteBottom)
+            != 0) {
             gameMouseSetActionMenuYAdjustment(0);
             windowDestroy(menuWindow);
             inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
             return;
         }
-        
+
         // restore Y adjustment for other context menus etc.
         gameMouseSetActionMenuYAdjustment(0);
-        
+
         // Set up menu for trade window
         int offsetX, offsetY;
         artGetRotationOffsets(cursorData->frm, 0, &offsetX, &offsetY);
         int windowRelativeX = screenX - bgRect.left;
         int windowRelativeY = screenY - bgRect.top;
-        
+
         buttonRect.left = windowRelativeX - cursorData->width / 2 + offsetX;
         buttonRect.top = windowRelativeY - cursorData->height + 1 + offsetY;
         buttonRect.right = buttonRect.left + cursorData->width - 1;
         buttonRect.bottom = buttonRect.top + cursorData->height - 1;
-        
+
         // Adjust button to fit trade window
         menuButtonHeight = cursorData->height;
         if (buttonRect.top + menuButtonHeight > INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT) {
             menuButtonHeight = INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT - buttonRect.top;
             if (menuButtonHeight < 0) menuButtonHeight = 0;
         }
-        
+
         menuButtonWidth = cursorData->width;
         if (buttonRect.left < 0) {
             menuButtonWidth += buttonRect.left;
@@ -4459,132 +4506,135 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             menuButtonWidth -= (buttonRect.right - INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH + 1);
         }
         if (menuButtonWidth <= 0) menuButtonWidth = 1;
-        
+
         btn = buttonCreate(menuWindow,
             buttonRect.left, buttonRect.top,
             menuButtonWidth, menuButtonHeight,
             -1, -1, -1, -1,
             cursorData->frmData, cursorData->frmData,
             nullptr, BUTTON_FLAG_TRANSPARENT);
-        
+
         if (btn == -1) {
             windowDestroy(menuWindow);
             inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
             return;
         }
-        
+
         windowRefresh(menuWindow);
-    } 
+    }
     // Normal and loot windows
     else {
         Rect windowRect;
         windowGetRect(gInventoryWindow, &windowRect);
-        
+
         if (gameMouseRenderActionMenuItems(screenX, screenY, _act_sort, 6,
-            windowDesc->width + windowRect.left,
-            windowDesc->height + windowRect.top) != 0) {
+                windowDesc->width + windowRect.left,
+                windowDesc->height + windowRect.top)
+            != 0) {
             inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
             return;
         }
-        
+
         // Set up menu for non-trade windows
         int offsetX, offsetY;
         artGetRotationOffsets(cursorData->frm, 0, &offsetX, &offsetY);
-        
+
         buttonRect.left = screenX - windowRect.left - cursorData->width / 2 + offsetX;
         buttonRect.top = screenY - windowRect.top - cursorData->height + 1 + offsetY;
         buttonRect.right = buttonRect.left + cursorData->width - 1;
         buttonRect.bottom = buttonRect.top + cursorData->height - 1;
-        
+
         menuButtonHeight = cursorData->height;
         if (buttonRect.top + menuButtonHeight > windowDesc->height) {
             menuButtonHeight = windowDesc->height - buttonRect.top;
             if (menuButtonHeight < 0) menuButtonHeight = 0;
         }
-        
+
         menuButtonWidth = cursorData->width;
-        
+
         btn = buttonCreate(gInventoryWindow,
             buttonRect.left, buttonRect.top,
             menuButtonWidth, menuButtonHeight,
             -1, -1, -1, -1,
             cursorData->frmData, cursorData->frmData,
             nullptr, BUTTON_FLAG_TRANSPARENT);
-        
+
         // Store menu state (non-trade only)
         _inven_sort_menu_active = true;
         _inven_sort_menu_button = btn;
         _inven_sort_menu_x = screenX;
         _inven_sort_menu_y = screenY;
         _inven_sort_menu_selected_index = 0; // Default action is first
-        
+
         windowRefreshRect(gInventoryWindow, &buttonRect);
     }
-    
+
     // Common Menu Interaction loop
     int menuItemIndex = 0;
     int previousMouseY = screenY;
     bool menuActive = true;
     int currentWindow = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) ? menuWindow : gInventoryWindow;
-    
+
     while (menuActive) {
         sharedFpsLimiter.mark();
         inputGetInput();
-        
+
         // Check for mouse release or escape
         if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_UP) != 0) {
             menuActive = false;
         }
-        
+
         if (inputGetInput() == KEY_ESCAPE) {
             menuItemIndex = 5; // Cancel
             menuActive = false;
         }
-        
+
         if (!menuActive) break;
-        
+
         int currentX, currentY;
         mouseGetPosition(&currentX, &currentY);
-        
+
         if (abs(currentY - previousMouseY) > 10) {
             if (currentY > previousMouseY && menuItemIndex < 5) {
                 menuItemIndex++;
             } else if (currentY < previousMouseY && menuItemIndex > 0) {
                 menuItemIndex--;
             }
-            
+
             gameMouseHighlightActionMenuItemAtIndex(menuItemIndex);
             windowRefreshRect(currentWindow, &buttonRect);
-            
+
             if (inventoryWindowType != INVENTORY_WINDOW_TYPE_TRADE) {
                 _inven_sort_menu_selected_index = menuItemIndex;
             }
-            
+
             previousMouseY = currentY;
         }
-        
+
         renderPresent();
         sharedFpsLimiter.throttle();
     }
-    
+
     // Cleanup and Selection handling
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         buttonDestroy(btn);
         windowDestroy(menuWindow);
         _mouse_set_position(screenX, screenY);
-        
+
         // Handle trade window selection
         if (menuItemIndex >= 0 && menuItemIndex < 6) {
             int selectedAction = _act_sort[menuItemIndex];
-            
+
             if (selectedAction != GAME_MOUSE_ACTION_MENU_ITEM_CANCEL) {
-                if (keyCode == 2500) gFissionMessageListItem.num = 100;
-                else if (keyCode == 2501) gFissionMessageListItem.num = 101;
-                
+                if (keyCode == 2500)
+                    gFissionMessageListItem.num = 100;
+                else if (keyCode == 2501)
+                    gFissionMessageListItem.num = 101;
+
                 if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
                     gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                 }
-                
+
                 // Determine which inventory to sort
                 Object* inventoryToSort = nullptr;
                 if (keyCode == 2500) {
@@ -4592,62 +4642,61 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 } else if (keyCode == 2501) {
                     inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
                 }
-                
+
                 if (inventoryToSort != nullptr) {
                     // Perform the sort based on the selected action
                     switch (selectedAction) {
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-                            _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
-                            _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
-                            _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
-                            _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
-                            _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER, inventoryWindowType);
-                            break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
+                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
+                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
+                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
+                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER, inventoryWindowType);
+                        break;
                     }
                 }
             }
-            
+
             // ALWAYS refresh the display, even on cancel
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
             _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
             inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
-            
+
             _inven_redrawing_after_sort_menu = true;
             _display_body(-1, INVENTORY_WINDOW_TYPE_TRADE);
             _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_TRADE);
             _inven_redrawing_after_sort_menu = false;
-            
+
             windowRefresh(_barter_back_win);
             windowRefresh(gInventoryWindow);
         }
-    } 
-    else {
+    } else {
         buttonDestroy(btn);
         _inven_sort_menu_active = false;
         _inven_sort_menu_button = -1;
-        
+
         // Restore background for non-trade windows
         unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
 
-            FrmImage backgroundFrmImage;
-            int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDesc->frmId, 0, 0, 0);
-            if (backgroundFrmImage.lock(backgroundFid)) {
-                blitBufferToBuffer(backgroundFrmImage.getData() + windowDesc->width * buttonRect.top + buttonRect.left,
-                    cursorData->width, menuButtonHeight, windowDesc->width,
-                    windowBuffer + windowDesc->width * buttonRect.top + buttonRect.left, windowDesc->width);
-            }
-        
+        FrmImage backgroundFrmImage;
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDesc->frmId, 0, 0, 0);
+        if (backgroundFrmImage.lock(backgroundFid)) {
+            blitBufferToBuffer(backgroundFrmImage.getData() + windowDesc->width * buttonRect.top + buttonRect.left,
+                cursorData->width, menuButtonHeight, windowDesc->width,
+                windowBuffer + windowDesc->width * buttonRect.top + buttonRect.left, windowDesc->width);
+        }
+
         _mouse_set_position(screenX, screenY);
         _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
-        
+
         // Handle non-trade window selection
         int selectedAction = _act_sort[menuItemIndex];
         if (selectedAction != GAME_MOUSE_ACTION_MENU_ITEM_CANCEL) {
@@ -4667,7 +4716,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
                 displayMonitorAddMessage(gFissionMessageListItem.text);
             }
-            
+
             // Determine which inventory to sort
             Object* inventoryToSort = nullptr;
             if (keyCode == 2500) {
@@ -4680,25 +4729,25 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                     inventoryToSort = _stack[_curr_stack]; // Fallback for safety
                 }
             }
-            
+
             if (inventoryToSort != nullptr) {
                 // Perform the sort based on the selected action
                 switch (selectedAction) {
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
-                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
-                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
-                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
-                        _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER, inventoryWindowType);
-                        break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+                    _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
+                    _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
+                    _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
+                    _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
+                    _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER, inventoryWindowType);
+                    break;
                 }
             }
         }
@@ -4723,7 +4772,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             inventoryRenderSummary();
         }
     }
-    
+
     // Restore cursor (common to both)
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
 }

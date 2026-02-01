@@ -1698,7 +1698,8 @@ Object* gameMouseGetObjectUnderCursor(int objectType, bool a2, int elevation)
 int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int height)
 {
     CacheEntry* menuItemFrmHandle;
-    int menuItemFid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemFrmIds[menuItem], 0, 0, 0);    Art* menuItemFrm = artLock(menuItemFid, &menuItemFrmHandle);
+    int menuItemFid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemFrmIds[menuItem], 0, 0, 0);
+    Art* menuItemFrm = artLock(menuItemFid, &menuItemFrmHandle);
     if (menuItemFrm == nullptr) {
         return -1;
     }
