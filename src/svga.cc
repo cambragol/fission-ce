@@ -125,6 +125,38 @@ bool gameIsWidescreen()
     return (gWidescreen); // changed to be set in init, to prevent mid-game widescreen asset changes
 }
 
+bool gameIsFullscreen()
+{
+    if (gSdlWindow == nullptr) {
+        return false;
+    }
+
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+
+    // Update gFullscreen to stay in sync
+    if (isFullscreen != gFullscreen) {
+        gFullscreen = isFullscreen;
+    }
+
+    return isFullscreen;
+}
+
+// Mouse modes vary for windowed and fullscreen modes
+void updateMouseModeForCurrentState()
+{
+    if (!gSdlWindow) return;
+
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+
+    if (isFullscreen) {
+        SDL_SetRelativeMouseMode(SDL_TRUE);
+    } else {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
+    }
+}
+
 // 0x4CAE1C
 int _GNW95_init_mode_ex(int width, int height, int bpp)
 {
@@ -736,6 +768,40 @@ void renderPresent()
 
     SDL_RenderCopy(gSdlRenderer, gSdlTexture, &srcRect, &destRect);
     SDL_RenderPresent(gSdlRenderer);
+}
+
+void svgaToggleFullscreen()
+{
+    if (!gSdlWindow) return;
+
+    Uint32 flags = SDL_GetWindowFlags(gSdlWindow);
+    bool isFullscreen = (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+
+    if (isFullscreen) {
+        SDL_SetWindowFullscreen(gSdlWindow, 0);
+        gFullscreen = false;
+
+        SDL_SetWindowSize(gSdlWindow, settings.graphics.game_width, settings.graphics.game_height);
+        // SDL_SetWindowPosition(gSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    } else {
+        SDL_SetWindowFullscreen(gSdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        gFullscreen = true;
+    }
+
+    // Must toggle to release mouse
+    updateMouseModeForCurrentState();
+
+    // Force window redraw by sending an expose event
+    // This ensures the game redraws the screen after the mode change
+    SDL_Event exposeEvent;
+    SDL_zero(exposeEvent);
+    exposeEvent.type = SDL_WINDOWEVENT;
+    exposeEvent.window.event = SDL_WINDOWEVENT_EXPOSED;
+    exposeEvent.window.windowID = SDL_GetWindowID(gSdlWindow);
+    SDL_PushEvent(&exposeEvent);
+
+    // Process events to ensure the redraw happens promptly
+    SDL_PumpEvents();
 }
 
 } // namespace fallout

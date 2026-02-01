@@ -934,6 +934,14 @@ void _GNW95_process_message()
         case SDL_KEYDOWN:
         case SDL_KEYUP:
             if (!keyboardIsDisabled()) {
+                // Check for Alt+Enter or F11 to toggle fullscreen
+                if (e.type == SDL_KEYDOWN) {
+                    if ((e.key.keysym.sym == SDLK_RETURN && (e.key.keysym.mod & KMOD_ALT)) || e.key.keysym.sym == SDLK_F11) {
+                        svgaToggleFullscreen();
+                        break; // Don't process as a normal key
+                    }
+                }
+
                 keyboardData.key = e.key.keysym.scancode;
                 keyboardData.down = (e.key.state & SDL_PRESSED) != 0;
                 _GNW95_process_key(&keyboardData);
@@ -955,6 +963,12 @@ void _GNW95_process_message()
             case SDL_WINDOWEVENT_FOCUS_LOST:
                 gProgramIsActive = false;
                 audioEnginePause();
+                break;
+            case SDL_WINDOWEVENT_RESTORED:
+            case SDL_WINDOWEVENT_MAXIMIZED:
+            case SDL_WINDOWEVENT_MINIMIZED:
+            case SDL_WINDOWEVENT_RESIZED:
+            case SDL_WINDOWEVENT_MOVED:
                 break;
             }
             break;
