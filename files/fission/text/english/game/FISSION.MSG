@@ -60,3 +60,31 @@
 {301}{}{Flexible Isometric Simulation System for}
 {302}{}{Interactive Open-world Nuclear-roleplay}
 
+#
+# Sort Context Menu
+#
+
+# Player actions (400-404)
+{400}{}{You organize your backpack by category.}
+{401}{}{You sort your weapons to the top.}
+{402}{}{You sort your ammo to the top.}
+{403}{}{You sort your drugs to the top.}
+{404}{}{You sort your miscellaneous items to the top.}
+
+# Other inventory actions (410-414) - with %s for object name
+{410}{}{%s inventory organized by category.}
+{411}{}{%s weapons brought to top.}
+{412}{}{%s ammo brought to top.}
+{413}{}{%s drugs brought to top.}
+{414}{}{%s miscellaneous items brought to top.}
+
+# No items messages (450-453)
+{450}{}{There's no weapons to sort.}
+{451}{}{There's no ammo to sort.}
+{452}{}{There's no drugs to sort}
+{453}{}{There's no miscellaneous items to sort.}
+
+# Empty inventory messages
+{460}{}{Your inventory is already "optimized."}
+{461}{}{There's a severe lack of sorting opportunities here.}
+
