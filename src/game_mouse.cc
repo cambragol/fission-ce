@@ -230,13 +230,33 @@ static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_CO
     302, // Unload
     304, // Skill
     435, // Push
-    302, // Sort
-    302, // Sort
-    302, // Sort
-    302, // Sort
-    302, // Sort
-    302, // Sort
+    4947, // Sort Default
+    4947, // Sort Default
+    6495, // Sort Weapons
+    6671, // Sort Ammo
+    5951, // Sort Drugs
+    4519, // Sort Misc
 
+};
+
+// Array for highlighted context items - needed for sort menu
+static const short gGameMouseActionMenuItemHighlightedFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_COUNT] = {
+    252, // Cancel (highlighted) - instead of 253 - 1
+    254, // Drop (highlighted) - instead of 255 - 1
+    256, // Inventory (highlighted) - instead of 257 - 1
+    258, // Look (highlighted) - instead of 259 - 1
+    260, // Rotate (highlighted) - instead of 261 - 1
+    262, // Talk (highlighted) - instead of 263 - 1
+    264, // Use/Get (highlighted) - instead of 265 - 1
+    301, // Unload (highlighted) - instead of 302 - 1
+    303, // Skill (highlighted) - instead of 304 - 1
+    434, // Push (highlighted) - instead of 435 - 1
+    4941, // Sort Default (highlighted) - instead of 4947 - 1
+    4941, // Sort Default (highlighted) - instead of 4947 - 1
+    6489, // Sort Weapons (highlighted) - instead of 6495 - 1
+    6665, // Sort Ammo (highlighted) - instead of 6671 - 1
+    5945, // Sort Drugs (highlighted) - instead of 5951 - 1
+    4513, // Sort Misc (highlighted) - instead of 4519 - 1
 };
 
 // 0x518D34
@@ -1678,8 +1698,7 @@ Object* gameMouseGetObjectUnderCursor(int objectType, bool a2, int elevation)
 int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int height)
 {
     CacheEntry* menuItemFrmHandle;
-    int menuItemFid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemFrmIds[menuItem], 0, 0, 0);
-    Art* menuItemFrm = artLock(menuItemFid, &menuItemFrmHandle);
+    int menuItemFid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemFrmIds[menuItem], 0, 0, 0);    Art* menuItemFrm = artLock(menuItemFid, &menuItemFrmHandle);
     if (menuItemFrm == nullptr) {
         return -1;
     }
@@ -1779,9 +1798,11 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
     Art* menuItemFrms[GAME_MOUSE_ACTION_MENU_ITEM_COUNT];
 
     for (int index = 0; index < menuItemsLength; index++) {
-        int frmId = gGameMouseActionMenuItemFrmIds[menuItems[index]] & 0xFFFF;
+        int frmId;
         if (index == 0) {
-            frmId -= 1;
+            frmId = gGameMouseActionMenuItemHighlightedFrmIds[menuItems[index]] & 0xFFFF;
+        } else {
+            frmId = gGameMouseActionMenuItemFrmIds[menuItems[index]] & 0xFFFF;
         }
 
         int fid = buildFid(OBJ_TYPE_INTERFACE, frmId, 0, 0, 0);
@@ -1896,7 +1917,7 @@ int gameMouseHighlightActionMenuItemAtIndex(int menuItemIndex)
     blitBufferToBuffer(data, width, height, width, _gmouse_3d_menu_actions_start + gGameMouseActionMenuFrmWidth * height * gGameMouseActionMenuHighlightedItemIndex, gGameMouseActionMenuFrmWidth);
     artUnlock(handle);
 
-    fid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemFrmIds[gGameMouseActionMenuItems[menuItemIndex]] - 1, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, gGameMouseActionMenuItemHighlightedFrmIds[gGameMouseActionMenuItems[menuItemIndex]], 0, 0, 0);
     art = artLock(fid, &handle);
     if (art == nullptr) {
         return -1;
