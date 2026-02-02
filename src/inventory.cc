@@ -4927,6 +4927,11 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         buttonDestroy(btn);
         windowDestroy(menuWindow);
+        // Warp mouse to original position for windowed
+        if (!gameIsFullscreen()) {
+            SDL_WarpMouseInWindow(gSdlWindow, screenX, screenY);
+        }
+        // Move mouse to original position for fullscreen
         _mouse_set_position(screenX, screenY);
 
         // Handle trade window selection
@@ -5005,6 +5010,11 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 windowBuffer + windowDesc->width * buttonRect.top + buttonRect.left, windowDesc->width);
         }
 
+        // Warp mouse to original position for windowed
+        if (!gameIsFullscreen()) {
+            SDL_WarpMouseInWindow(gSdlWindow, screenX, screenY);
+        }
+        // Move mouse to original position for fullscreen
         _mouse_set_position(screenX, screenY);
         _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
 
@@ -5274,7 +5284,11 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
                 windowDescription->width);
         }
     }
-
+    // Warp mouse to original position for windowed
+    if (!gameIsFullscreen()) {
+        SDL_WarpMouseInWindow(gSdlWindow, x, y);
+    }
+    // Move mouse to original position for fullscreen
     _mouse_set_position(x, y);
 
     _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);

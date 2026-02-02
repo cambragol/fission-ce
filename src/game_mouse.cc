@@ -1212,6 +1212,12 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                     gGameMouseLastY = mouseY;
                     _gmouse_3d_last_move_time = getTicks();
 
+                    // Warp mouse to original position for windowed
+                    if (!gameIsFullscreen()) {
+                        SDL_WarpMouseInWindow(gSdlWindow, mouseX, mouseY);
+                    }
+
+                    // Move mouse to original position for fullscreen
                     _mouse_set_position(mouseX, mouseY);
 
                     if (gameMouseUpdateHexCursorFid(&cursorRect) == 0) {
