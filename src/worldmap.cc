@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include <algorithm>
 
@@ -36,6 +37,7 @@
 #include "palette.h"
 #include "party_member.h"
 #include "perk.h"
+#include "proto.h"
 #include "proto_instance.h"
 #include "queue.h"
 #include "random.h"
@@ -52,6 +54,8 @@
 #include "window_manager.h"
 
 namespace fallout {
+
+#define DIR_SEPARATOR '/'
 
 #define CITY_NAME_SIZE (40)
 #define TILE_WALK_MASK_NAME_SIZE (40)
@@ -106,6 +110,16 @@ namespace fallout {
 #define WM_VIEW_Y (21)
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
+
+#define BASE_MAP_MAX 200
+#define MOD_MAP_START 200
+#define MOD_MAP_MAX 2000
+#define TOTAL_MAP_MAX MOD_MAP_MAX
+
+#define BASE_AREA_MAX 200
+#define MOD_AREA_START 200
+#define MOD_AREA_MAX 1000
+#define TOTAL_AREA_MAX MOD_AREA_MAX
 
 typedef enum EncounterFormationType {
     ENCOUNTER_FORMATION_TYPE_SURROUNDING,
@@ -249,6 +263,9 @@ typedef struct CityInfo {
     int entrancesLength;
     EntranceInfo entrances[ENTRANCE_LIST_CAPACITY];
 } CityInfo;
+
+// separate array for mod names (indexed by area index)
+static char gAreaModNames[TOTAL_AREA_MAX][40] = { 0 };
 
 typedef struct MapAmbientSoundEffectInfo {
     char name[40];
@@ -467,6 +484,8 @@ void wmSetScriptWorldMapMulti(float value)
     gScriptWorldMapMulti = value;
 }
 
+extern uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
+
 static void wmSetFlags(int* flagsPtr, int flag, int value);
 static int wmGenDataInit();
 static int wmGenDataReset();
@@ -567,6 +586,11 @@ static void wmFadeOut();
 static void wmFadeIn();
 static void wmFadeReset();
 static void wmBlinkRndEncounterIcon(bool special);
+static uint16_t wmHashLookupName(const char* lookupName);
+static int wmMapLoadBaseFile(const char* filename);
+static int wmMapLoadModFile(const char* filename);
+static void wmMapLoadModFiles();
+static void wmGenerateMapListDebug();
 
 // 0x4BC860
 static const int _can_rest_here[ELEVATION_COUNT] = {
@@ -837,6 +861,9 @@ static int wmMaxEncBaseTypes;
 // 0x67303C
 static int wmMaxEncounterInfoTables;
 
+static char gBaseMapOverrides[BASE_MAP_MAX][COMPAT_MAX_PATH] = { 0 };
+static char gBaseAreaOverrides[BASE_AREA_MAX][COMPAT_MAX_PATH] = { 0 };
+
 static bool gTownMapHotkeysFix;
 static double gGameTimeIncRemainder = 0.0;
 static FrmImage _townFrmImage;
@@ -935,6 +962,98 @@ void worldmapWriteDefaultOffsetsToConfig(bool isWidescreen, const WorldmapOffset
     configSetInt(&gGameConfig, section, "mapcenterY", defaults->mapcenterY);
 }
 
+int wmGetAreaVisitedState(int areaIndex)
+{
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
+    return wmAreaInfoList[areaIndex].visitedState;
+}
+
+const char* wmGetAreaName(int areaIndex)
+{
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return "";
+    return wmAreaInfoList[areaIndex].name;
+}
+
+const char* wmGetMapLookupName(int mapIndex)
+{
+    if (mapIndex < 0 || mapIndex >= TOTAL_MAP_MAX) return "";
+    return wmMapInfoList[mapIndex].lookupName;
+}
+
+int wmGetAreaId(int areaIndex)
+{
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) return 0;
+    return wmAreaInfoList[areaIndex].areaId;
+}
+
+int wmGetAreaContainingMap(int mapIndex)
+{
+    int areaIndex;
+    if (wmMatchAreaContainingMapIdx(mapIndex, &areaIndex) == 0) {
+        return areaIndex;
+    }
+    return -1;
+}
+
+const char* wmGetAreaModName(int areaIndex)
+{
+    if (areaIndex < 0 || areaIndex >= TOTAL_AREA_MAX) {
+        return "";
+    }
+
+    if (gAreaModNames[areaIndex][0] == '\0') {
+        // This is a vanilla area
+        return "";
+    }
+
+    return gAreaModNames[areaIndex];
+}
+
+// Hash function for consistent mapping
+static uint32_t wmHashString(const char* str)
+{
+    // DJB2 hash algorithm - consistent across systems
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        c = tolower(c);
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+// Generate a unique namespace for each mod file
+static uint32_t wmGetModNamespace(const char* filename)
+{
+    // Use the filename itself to create a unique namespace
+    char baseName[COMPAT_MAX_PATH];
+    const char* lastSlash = strrchr(filename, DIR_SEPARATOR);
+    const char* nameStart = lastSlash ? lastSlash + 1 : filename;
+
+    // Remove extension if present
+    strncpy(baseName, nameStart, sizeof(baseName) - 1);
+    baseName[sizeof(baseName) - 1] = '\0';
+
+    char* dot = strrchr(baseName, '.');
+    if (dot) *dot = '\0';
+
+    return wmHashString(baseName);
+}
+
+// Calculate consistent slot for a map within a mod namespace
+// No collision resolution - fail on collision
+static uint16_t wmCalculateModMapSlot(const char* lookupName, uint32_t modNamespace, int mapIndexInMod)
+{
+    // Combine mod namespace with map-specific information
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", lookupName, modNamespace, mapIndexInMod);
+
+    uint32_t hash = wmHashString(combinedKey);
+    uint16_t slot = MOD_MAP_START + (hash % (MOD_MAP_MAX - MOD_MAP_START));
+
+    return slot;
+}
+
 static inline bool cityIsValid(int city)
 {
     return city >= 0 && city < wmMaxAreaNum;
@@ -965,7 +1084,7 @@ int wmWorldMap_init()
 
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "worldmap.msg");
 
-    if (!messageListLoad(&wmMsgFile, path)) {
+    if (!messageListLoadWithMods(&wmMsgFile, path, "WORLDMAP")) {
         return -1;
     }
 
@@ -1107,9 +1226,27 @@ static int wmGenDataReset()
     return 0;
 }
 
+// Hash function for mod map slot allocation
+static uint16_t wmHashLookupName(const char* lookupName)
+{
+    uint32_t hash = 0;
+    const char* p = lookupName;
+    while (*p) {
+        hash = (hash * 31) + (uint8_t)(*p);
+        p++;
+    }
+    return MOD_MAP_START + (hash % (MOD_MAP_MAX - MOD_MAP_START));
+}
+
 // 0x4BCE00
 void wmWorldMap_exit()
 {
+    if (wmMapInfoList != nullptr) {
+        internal_free(wmMapInfoList);
+        wmMapInfoList = nullptr;
+    }
+    wmMaxMapNum = 0;
+
     if (wmTerrainTypeList != nullptr) {
         internal_free(wmTerrainTypeList);
         wmTerrainTypeList = nullptr;
@@ -2542,163 +2679,698 @@ static int wmAreaSlotInit(CityInfo* area)
     return 0;
 }
 
+// Hash function for area allocation (similar to maps)
+static uint32_t wmAreaHashString(const char* str)
+{
+    // DJB2 hash algorithm - consistent across systems
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        c = tolower(c);
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+// Generate a unique namespace for each area mod file
+static uint32_t wmAreaGetModNamespace(const char* filename)
+{
+    // Use the filename itself to create a unique namespace
+    char baseName[COMPAT_MAX_PATH];
+    const char* lastSlash = strrchr(filename, DIR_SEPARATOR);
+    const char* nameStart = lastSlash ? lastSlash + 1 : filename;
+
+    // Remove extension if present
+    strncpy(baseName, nameStart, sizeof(baseName) - 1);
+    baseName[sizeof(baseName) - 1] = '\0';
+
+    char* dot = strrchr(baseName, '.');
+    if (dot) *dot = '\0';
+
+    return wmAreaHashString(baseName);
+}
+
+// Calculate consistent slot for an area within a mod namespace
+static uint16_t wmAreaCalculateModSlot(const char* areaName, uint32_t modNamespace, int areaIndexInMod)
+{
+    // Combine mod namespace with area-specific information for consistent hashing
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", areaName, modNamespace, areaIndexInMod);
+
+    uint32_t hash = wmAreaHashString(combinedKey);
+
+    // Map to mod range with good distribution
+    uint16_t slot = MOD_AREA_START + (hash % (MOD_AREA_MAX - MOD_AREA_START));
+
+    return slot;
+}
+
+// Initialize a new area from config
+static void wmAreaInitFromConfig(CityInfo* city, Config* config, const char* section, int areaId)
+{
+    char* str;
+    int num;
+
+    // Initialize the slot
+    wmAreaSlotInit(city);
+    city->areaId = areaId;
+
+    // Required field: area_name
+    if (!configGetString(config, section, "area_name", &str)) {
+        debugPrint("\nwmAreaInitFromConfig: ERROR: Missing area_name in section %s", section);
+        return;
+    }
+    strncpy(city->name, str, 40);
+
+    // Required field: world_pos
+    if (!configGetString(config, section, "world_pos", &str)) {
+        debugPrint("\nwmAreaInitFromConfig: ERROR: Missing world_pos in section %s", section);
+        return;
+    }
+    if (strParseInt(&str, &(city->x)) == -1) return;
+    if (strParseInt(&str, &(city->y)) == -1) return;
+
+    // Required field: start_state
+    if (!configGetString(config, section, "start_state", &str)) {
+        debugPrint("\nwmAreaInitFromConfig: ERROR: Missing start_state in section %s", section);
+        return;
+    }
+    if (strParseStrFromList(&str, &(city->state), wmStateStrs, 2) == -1) return;
+
+    // Required field: size
+    if (!configGetString(config, section, "size", &str)) {
+        debugPrint("\nwmAreaInitFromConfig: ERROR: Missing size in section %s", section);
+        return;
+    }
+    if (strParseStrFromList(&str, &(city->size), wmAreaSizeStrs, 3) == -1) return;
+
+    // Optional field: townmap_art_idx
+    if (configGetInt(config, section, "townmap_art_idx", &num)) {
+        if (num != -1) {
+            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+        }
+        city->mapFid = num;
+    }
+
+    // Optional field: townmap_label_art_idx
+    if (configGetInt(config, section, "townmap_label_art_idx", &num)) {
+        if (num != -1) {
+            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+        }
+        city->labelFid = num;
+    }
+
+    // Optional field: lock_state
+    if (configGetString(config, section, "lock_state", &str)) {
+        if (strParseStrFromList(&str, &(city->lockState), wmStateStrs, 2) == -1) return;
+    }
+
+    // Load entrances
+    char key[40];
+    while (city->entrancesLength < ENTRANCE_LIST_CAPACITY) {
+        snprintf(key, sizeof(key), "entrance_%d", city->entrancesLength);
+        if (!configGetString(config, section, key, &str)) {
+            break;
+        }
+
+        EntranceInfo* entrance = &(city->entrances[city->entrancesLength]);
+        wmEntranceSlotInit(entrance);
+
+        if (strParseStrFromList(&str, &(entrance->state), wmStateStrs, 2) == -1) return;
+        if (strParseInt(&str, &(entrance->x)) == -1) return;
+        if (strParseInt(&str, &(entrance->y)) == -1) return;
+        if (strParseStrFromFunc(&str, &(entrance->map), &wmParseFindMapIdxMatch) == -1) return;
+        if (strParseInt(&str, &(entrance->elevation)) == -1) return;
+        if (strParseInt(&str, &(entrance->tile)) == -1) return;
+        if (strParseInt(&str, &(entrance->rotation)) == -1) return;
+
+        city->entrancesLength++;
+    }
+}
+
+// Update existing area with new values from config
+static void wmAreaUpdateFromConfig(CityInfo* city, Config* config, const char* section)
+{
+    char* str;
+    int num;
+
+    debugPrint("\nwmAreaUpdateFromConfig: Updating area in section %s", section);
+
+    // Update fields that are present in the mod file
+
+    // Optional field: area_name
+    if (configGetString(config, section, "area_name", &str)) {
+        strncpy(city->name, str, 40);
+        debugPrint("\nwmAreaUpdateFromConfig: Updated area_name to %s", str);
+    }
+
+    // Optional field: world_pos
+    if (configGetString(config, section, "world_pos", &str)) {
+        if (strParseInt(&str, &(city->x)) != -1 && strParseInt(&str, &(city->y)) != -1) {
+            debugPrint("\nwmAreaUpdateFromConfig: Updated world_pos to %d,%d", city->x, city->y);
+        }
+    }
+
+    // Optional field: start_state
+    if (configGetString(config, section, "start_state", &str)) {
+        if (strParseStrFromList(&str, &(city->state), wmStateStrs, 2) != -1) {
+            debugPrint("\nwmAreaUpdateFromConfig: Updated start_state");
+        }
+    }
+
+    // Optional field: size
+    if (configGetString(config, section, "size", &str)) {
+        if (strParseStrFromList(&str, &(city->size), wmAreaSizeStrs, 3) != -1) {
+            debugPrint("\nwmAreaUpdateFromConfig: Updated size");
+        }
+    }
+
+    // Optional field: townmap_art_idx
+    if (configGetInt(config, section, "townmap_art_idx", &num)) {
+        if (num != -1) {
+            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+        }
+        city->mapFid = num;
+        debugPrint("\nwmAreaUpdateFromConfig: Updated townmap_art_idx");
+    }
+
+    // Optional field: townmap_label_art_idx
+    if (configGetInt(config, section, "townmap_label_art_idx", &num)) {
+        if (num != -1) {
+            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+        }
+        city->labelFid = num;
+        debugPrint("\nwmAreaUpdateFromConfig: Updated townmap_label_art_idx");
+    }
+
+    // Optional field: lock_state
+    if (configGetString(config, section, "lock_state", &str)) {
+        if (strParseStrFromList(&str, &(city->lockState), wmStateStrs, 2) != -1) {
+            debugPrint("\nwmAreaUpdateFromConfig: Updated lock_state");
+        }
+    }
+
+    // Optional: Update entrances (replace entire list)
+    char key[40];
+    city->entrancesLength = 0;
+    for (int i = 0; i < ENTRANCE_LIST_CAPACITY; i++) {
+        snprintf(key, sizeof(key), "entrance_%d", i);
+        if (!configGetString(config, section, key, &str)) {
+            break;
+        }
+
+        EntranceInfo* entrance = &(city->entrances[city->entrancesLength]);
+        wmEntranceSlotInit(entrance);
+
+        if (strParseStrFromList(&str, &(entrance->state), wmStateStrs, 2) == -1) break;
+        if (strParseInt(&str, &(entrance->x)) == -1) break;
+        if (strParseInt(&str, &(entrance->y)) == -1) break;
+        if (strParseStrFromFunc(&str, &(entrance->map), &wmParseFindMapIdxMatch) == -1) break;
+        if (strParseInt(&str, &(entrance->elevation)) == -1) break;
+        if (strParseInt(&str, &(entrance->tile)) == -1) break;
+        if (strParseInt(&str, &(entrance->rotation)) == -1) break;
+
+        city->entrancesLength++;
+    }
+    debugPrint("\nwmAreaUpdateFromConfig: Updated entrances, now %d entrances", city->entrancesLength);
+}
+
+// Load base areas sequentially (original behavior)
+static int wmAreaLoadBaseFile(const char* filename)
+{
+    Config cfg;
+    if (!configInit(&cfg)) {
+        return -1;
+    }
+
+    if (!configRead(&cfg, filename, true)) {
+        configFree(&cfg);
+        debugPrint("\nwmAreaLoadBaseFile: Could not read %s", filename);
+        return 0;
+    }
+
+    debugPrint("\nwmAreaLoadBaseFile: Loading base areas from %s", filename);
+
+    // Base files load sequentially like original
+    for (int areaIdx = 0; areaIdx < BASE_AREA_MAX; areaIdx++) {
+        char section[40];
+        snprintf(section, sizeof(section), "Area %02d", areaIdx);
+
+        int num;
+        if (!configGetInt(&cfg, section, "townmap_art_idx", &num)) {
+            break; // No more areas
+        }
+
+        CityInfo* city = &wmAreaInfoList[areaIdx];
+        wmAreaInitFromConfig(city, &cfg, section, areaIdx);
+
+        debugPrint("\nwmAreaLoadBaseFile: Loaded base area %02d: %s", areaIdx, city->name);
+    }
+
+    configFree(&cfg);
+    return 0;
+}
+
+// Load mod area files
+static int wmAreaLoadModFile(const char* filename)
+{
+    Config config;
+    if (!configInit(&config)) {
+        return -1;
+    }
+
+    if (!configRead(&config, filename, true)) {
+        configFree(&config);
+        return 0;
+    }
+
+    // Extract mod name from filename (city_xxx.txt -> xxx)
+    const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+    if (!base_filename)
+        base_filename = filename;
+    else
+        base_filename++;
+
+    char mod_name[64] = { 0 };
+    const char* prefix = "city_";
+    const char* suffix = ".txt";
+
+    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(base_filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        }
+    }
+
+    uint32_t modNamespace = wmAreaGetModNamespace(filename);
+
+    int areasLoaded = 0;
+    int areasOverridden = 0;
+    int areaIndexInThisMod = 0;
+
+    // Process all sections in the mod file
+    for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
+        char section[40];
+        bool found = false;
+        char* areaNameStr = nullptr;
+
+        // Try "Area 00" format (2-digit)
+        snprintf(section, sizeof(section), "Area %02d", sectionIdx);
+        if (configGetString(&config, section, "area_name", &areaNameStr)) {
+            found = true;
+        } else {
+            // Try "Area 0" format (no leading zeros)
+            snprintf(section, sizeof(section), "Area %d", sectionIdx);
+            if (configGetString(&config, section, "area_name", &areaNameStr)) {
+                found = true;
+            }
+        }
+
+        if (!found) {
+            continue;
+        }
+
+        // Check if this overrides a base area by area_name
+        bool overrodeBase = false;
+        for (int i = 0; i < BASE_AREA_MAX; i++) {
+            if (wmAreaInfoList[i].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, areaNameStr) == 0) {
+                strncpy(gBaseAreaOverrides[i], filename, COMPAT_MAX_PATH - 1);
+                gBaseAreaOverrides[i][COMPAT_MAX_PATH - 1] = '\0';
+
+                wmAreaUpdateFromConfig(&wmAreaInfoList[i], &config, section);
+                overrodeBase = true;
+                areasOverridden++;
+                break;
+            }
+        }
+
+        if (overrodeBase) {
+            areaIndexInThisMod++;
+            continue;
+        }
+
+        // Calculate consistent slot for this mod area
+        uint16_t targetSlot = wmAreaCalculateModSlot(areaNameStr, modNamespace, areaIndexInThisMod);
+
+        // Check for slot collisions with different areas
+        if (wmAreaInfoList[targetSlot].name[0] != '\0' && strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
+
+            char errorMsg[512];
+            snprintf(errorMsg, sizeof(errorMsg),
+                "AREA SLOT COLLISION DETECTED!\n\n"
+                "Mod file: %s\n"
+                "New area: %s\n"
+                "Target slot: %d\n"
+                "Existing area: %s\n\n"
+                "To resolve: Rename your mod file to change its namespace.",
+                filename, areaNameStr, targetSlot, wmAreaInfoList[targetSlot].name);
+            showMesageBox(errorMsg);
+
+            areaIndexInThisMod++;
+            continue;
+        }
+
+        // Initialize the area
+        CityInfo* city = &wmAreaInfoList[targetSlot];
+        wmAreaSlotInit(city);
+        city->state = CITY_STATE_KNOWN;
+        city->visitedState = 0;
+
+        if (city->name[0] == '\0') {
+            wmAreaInitFromConfig(city, &config, section, targetSlot);
+        } else {
+            wmAreaUpdateFromConfig(city, &config, section);
+        }
+
+        // Store mod name
+        strncpy(gAreaModNames[targetSlot], mod_name, sizeof(gAreaModNames[targetSlot]) - 1);
+        gAreaModNames[targetSlot][sizeof(gAreaModNames[targetSlot]) - 1] = '\0';
+
+        // Generate area message ID
+        char areaKey[256];
+        snprintf(areaKey, sizeof(areaKey), "area_name:%s", areaNameStr);
+        uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
+        city->areaId = message_id;
+
+        areasLoaded++;
+        areaIndexInThisMod++;
+    }
+
+    configFree(&config);
+    return 0;
+}
+
+// Load additional area files (city_*.txt) after base city.txt
+static void wmAreaLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%ccity_*.txt", DIR_SEPARATOR);
+
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            wmAreaLoadModFile(fullPath);
+        }
+        fileNameListFree(&foundModFiles, 0);
+    }
+}
+
+// Generate debug area_list.txt file
+static void wmGenerateAreaListDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%carea_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\nwmGenerateAreaListDebug: Could not create area_list.txt");
+        return;
+    }
+
+    // Write header
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - World Area Report\n"
+                         "==============================================================================\n"
+                         "This report shows how world areas are loaded - essential for mod debugging and\n"
+                         "finding area IDs for mod development.\n\n"
+
+                         "Key Features:\n"
+                         "- Base areas: Protected in lower slots (0-199)\n"
+                         "- Mod areas: Your content in remaining slots (200-4095) via deterministic hashing\n"
+                         "- Base areas can be overridden by mods (replacing the original area)\n"
+                         "- Hash collisions trigger popup warnings and the area is skipped\n\n"
+
+                         "Usage Notes:\n"
+                         "- Use these area indices when referencing areas in:\n"
+                         "  • Scripts (call travel_to, etc.)\n"
+                         "  • World map travel events\n"
+                         "  • City state management\n"
+                         "- Area positions are STABLE between game sessions\n"
+                         "- Mod area positions use mod filename + area name hash for consistency\n"
+                         "==============================================================================\n\n";
+
+    fputs(header, debugStream);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Gather statistics
+    int baseCount = 0, modCount = 0;
+    int overriddenBaseCount = 0;
+    int duplicateNameCount = 0;
+    int maxUsedIndex = 0;
+
+    // Track which area names are duplicates
+    bool* isDuplicateName = (bool*)internal_malloc(wmMaxAreaNum * sizeof(bool));
+    if (isDuplicateName) {
+        memset(isDuplicateName, 0, wmMaxAreaNum * sizeof(bool));
+    }
+
+    // First pass: count and mark duplicates
+    for (int i = 0; i < wmMaxAreaNum; i++) {
+        if (wmAreaInfoList[i].name[0] != '\0') {
+            if (i > maxUsedIndex) maxUsedIndex = i;
+
+            if (i < BASE_AREA_MAX) {
+                baseCount++;
+                if (gBaseAreaOverrides[i][0] != '\0') {
+                    overriddenBaseCount++;
+                }
+            } else {
+                modCount++;
+            }
+
+            // Check for duplicate area names (only check forward)
+            if (isDuplicateName) {
+                for (int j = i + 1; j < wmMaxAreaNum; j++) {
+                    if (wmAreaInfoList[j].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
+                        isDuplicateName[i] = true;
+                        isDuplicateName[j] = true;
+                        duplicateNameCount++;
+                    }
+                }
+            }
+        }
+    }
+
+    // Summary section in horizontal style
+    fprintf(debugStream,
+        "Total Areas: %d | Base: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
+        baseCount + modCount,
+        baseCount,
+        modCount,
+        wmMaxAreaNum, wmMaxAreaNum - 1,
+        maxUsedIndex);
+
+    // Slot ranges
+    fputs("------------------------------------------------------------\n", debugStream);
+    fputs("Slot Ranges:\n", debugStream);
+    fprintf(debugStream,
+        "  Base: 0-%d\n"
+        "  Mods: %d-%d\n",
+        BASE_AREA_MAX - 1,
+        MOD_AREA_START, MOD_AREA_MAX - 1);
+    fputs("------------------------------------------------------------\n", debugStream);
+
+    // Base areas section
+    if (baseCount > 0) {
+        fputs("BASE AREAS:\n", debugStream);
+        for (int i = 0; i < BASE_AREA_MAX; i++) {
+            if (wmAreaInfoList[i].name[0] != '\0') {
+                const char* overrideMarker = "";
+                if (gBaseAreaOverrides[i][0] != '\0') {
+                    // Extract just the filename from the override path
+                    const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
+                    const char* modName = lastSlash ? lastSlash + 1 : gBaseAreaOverrides[i];
+                    overrideMarker = " [OVERRIDDEN]";
+                }
+                fprintf(debugStream, "  %5d: %s (%d,%d)%s\n",
+                    i,
+                    wmAreaInfoList[i].name,
+                    wmAreaInfoList[i].x,
+                    wmAreaInfoList[i].y,
+                    overrideMarker);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Mod areas section
+    if (modCount > 0) {
+        fputs("MOD AREAS:\n", debugStream);
+        for (int i = MOD_AREA_START; i < wmMaxAreaNum; i++) {
+            if (wmAreaInfoList[i].name[0] != '\0') {
+                const char* duplicateMarker = "";
+                if (isDuplicateName && isDuplicateName[i]) {
+                    duplicateMarker = " #";
+                }
+                fprintf(debugStream, "  %5d: %s (%d,%d)%s\n",
+                    i,
+                    wmAreaInfoList[i].name,
+                    wmAreaInfoList[i].x,
+                    wmAreaInfoList[i].y,
+                    duplicateMarker);
+            }
+        }
+        fputs("\n", debugStream);
+    } else {
+        fputs("MOD AREAS:\n", debugStream);
+        fputs("  (no mod areas found)\n\n", debugStream);
+    }
+
+    // Overridden base areas details (if any)
+    if (overriddenBaseCount > 0) {
+        fputs("OVERRIDDEN BASE AREAS:\n", debugStream);
+        for (int i = 0; i < BASE_AREA_MAX; i++) {
+            if (gBaseAreaOverrides[i][0] != '\0') {
+                const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
+                const char* modName = lastSlash ? lastSlash + 1 : gBaseAreaOverrides[i];
+                fprintf(debugStream, "  ! %5d: %s -> overridden by %s\n",
+                    i, wmAreaInfoList[i].name, modName);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Duplicate area name details (if any)
+    if (duplicateNameCount > 0 && isDuplicateName) {
+        fputs("  --- DUPLICATE AREA NAMES ---\n", debugStream);
+        // Group duplicates together for clarity
+        bool* reported = (bool*)internal_malloc(wmMaxAreaNum * sizeof(bool));
+        if (reported) {
+            memset(reported, 0, wmMaxAreaNum * sizeof(bool));
+
+            for (int i = MOD_AREA_START; i < wmMaxAreaNum; i++) {
+                if (wmAreaInfoList[i].name[0] != '\0' && isDuplicateName[i] && !reported[i]) {
+                    // Find all slots with this area name
+                    fprintf(debugStream, "  # %s:\n", wmAreaInfoList[i].name);
+                    for (int j = i; j < wmMaxAreaNum; j++) {
+                        if (wmAreaInfoList[j].name[0] != '\0' && strcmp(wmAreaInfoList[i].name, wmAreaInfoList[j].name) == 0) {
+                            fprintf(debugStream, "      Slot %d at (%d,%d)\n",
+                                j, wmAreaInfoList[j].x, wmAreaInfoList[j].y);
+                            reported[j] = true;
+                        }
+                    }
+                }
+            }
+            internal_free(reported);
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Area details section
+    fputs("AREA DETAILS:\n", debugStream);
+    fputs("-------------\n", debugStream);
+
+    for (int i = 0; i < wmMaxAreaNum; i++) {
+        if (wmAreaInfoList[i].name[0] != '\0') {
+            CityInfo* city = &wmAreaInfoList[i];
+
+            fprintf(debugStream, "Slot %d: %s\n", i, city->name);
+            fprintf(debugStream, "  World Position: %d,%d\n", city->x, city->y);
+            fprintf(debugStream, "  State: %s, Size: %s\n",
+                (city->state == 0) ? "Off" : "On",
+                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium"
+                                                                : "Large");
+            fprintf(debugStream, "  Map FID: %d, Label FID: %d\n", city->mapFid, city->labelFid);
+            fprintf(debugStream, "  Entrances: %d\n", city->entrancesLength);
+
+            for (int j = 0; j < city->entrancesLength; j++) {
+                EntranceInfo* entrance = &city->entrances[j];
+                fprintf(debugStream, "    Entrance %d: %s at %d,%d -> map %d\n",
+                    j,
+                    (entrance->state == 0) ? "Off" : "On",
+                    entrance->x, entrance->y,
+                    entrance->map);
+            }
+            fputs("\n", debugStream);
+        }
+    }
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", debugStream);
+
+    if (duplicateNameCount > 0) {
+        fputs("WARNING: Duplicate area names detected!\n", debugStream);
+        fputs("This is generally safe but can cause confusion in scripts.\n", debugStream);
+        fputs("Consider using unique area names for different locations.\n\n", debugStream);
+    }
+
+    if (overriddenBaseCount > 0) {
+        fputs("! Base area overrides detected\n", debugStream);
+        fputs("  Vanilla areas have been replaced by mod versions\n", debugStream);
+        fputs("  This is intentional behavior for area replacements\n\n", debugStream);
+    }
+
+    fputs("- Area positions are STABLE - they won't change between game sessions\n", debugStream);
+    fputs("- Mod area positions use mod filename + area name hash for consistency\n", debugStream);
+    fputs("- Hash collisions show popup warnings and skip the conflicting area\n", debugStream);
+    fputs("- Reference these exact numbers in your scripts and world travel events\n", debugStream);
+    fputs("- Use 'city_*.txt' naming pattern for area mods\n", debugStream);
+
+    // Clean up
+    if (isDuplicateName) {
+        internal_free(isDuplicateName);
+    }
+
+    fclose(debugStream);
+    debugPrint("\nwmGenerateAreaListDebug: Generated area_list.txt with %d base, %d mod areas", baseCount, modCount);
+}
+
 // 0x4BEF68
 static int wmAreaInit()
 {
-    Config cfg;
-    char section[40];
-    char key[40];
-    int area_idx;
-    int num;
-    char* str;
-    CityInfo* cities;
-    CityInfo* city;
-    EntranceInfo* entrance;
+    // Pre-allocate array for all possible areas
+    wmMaxAreaNum = TOTAL_AREA_MAX;
+    wmAreaInfoList = (CityInfo*)internal_malloc(sizeof(CityInfo) * wmMaxAreaNum);
+    if (wmAreaInfoList == nullptr) {
+        showMesageBox("\nwmAreaInit::Error allocating area array!");
+        return -1;
+    }
+
+    // Initialize all slots as empty
+    for (int i = 0; i < wmMaxAreaNum; i++) {
+        wmAreaSlotInit(&wmAreaInfoList[i]);
+    }
+
+    // Initialize base area override tracking
+    memset(gBaseAreaOverrides, 0, sizeof(gBaseAreaOverrides));
+
+    // Initialize the mod names array
+    memset(gAreaModNames, 0, sizeof(gAreaModNames));
 
     if (wmMapInit() == -1) {
         return -1;
     }
 
-    if (!configInit(&cfg)) {
+    debugPrint("\nwmAreaInit: Pre-allocated %d area slots", wmMaxAreaNum);
+
+    // Load base city.txt into slots 0-199 sequentially
+    if (wmAreaLoadBaseFile("data\\city.txt") == -1) {
         return -1;
     }
 
-    if (configRead(&cfg, "data\\city.txt", true)) {
-        area_idx = 0;
-        do {
-            snprintf(section, sizeof(section), "Area %02d", area_idx);
-            if (!configGetInt(&cfg, section, "townmap_art_idx", &num)) {
-                break;
-            }
+    debugPrint("\nwmAreaInit: Base areas loaded");
 
-            wmMaxAreaNum++;
+    // Load mod files with hash-based allocation
+    wmAreaLoadModFiles();
 
-            cities = (CityInfo*)internal_realloc(wmAreaInfoList, sizeof(CityInfo) * wmMaxAreaNum);
-            if (cities == nullptr) {
-                showMesageBox("\nwmConfigInit::Error loading areas!");
-                exit(1);
-            }
+    debugPrint("\nwmAreaInit: Mod areas loaded");
 
-            wmAreaInfoList = cities;
-
-            city = &(cities[wmMaxAreaNum - 1]);
-
-            // NOTE: Uninline.
-            wmAreaSlotInit(city);
-
-            city->areaId = area_idx;
-
-            if (num != -1) {
-                num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
-            }
-
-            city->mapFid = num;
-
-            if (configGetInt(&cfg, section, "townmap_label_art_idx", &num)) {
-                if (num != -1) {
-                    num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
-                }
-
-                city->labelFid = num;
-            }
-
-            if (!configGetString(&cfg, section, "area_name", &str)) {
-                showMesageBox("\nwmConfigInit::Error loading areas!");
-                exit(1);
-            }
-
-            strncpy(city->name, str, 40);
-
-            if (!configGetString(&cfg, section, "world_pos", &str)) {
-                showMesageBox("\nwmConfigInit::Error loading areas!");
-                exit(1);
-            }
-
-            if (strParseInt(&str, &(city->x)) == -1) {
-                return -1;
-            }
-
-            if (strParseInt(&str, &(city->y)) == -1) {
-                return -1;
-            }
-
-            if (!configGetString(&cfg, section, "start_state", &str)) {
-                showMesageBox("\nwmConfigInit::Error loading areas!");
-                exit(1);
-            }
-
-            if (strParseStrFromList(&str, &(city->state), wmStateStrs, 2) == -1) {
-                return -1;
-            }
-
-            if (configGetString(&cfg, section, "lock_state", &str)) {
-                if (strParseStrFromList(&str, &(city->lockState), wmStateStrs, 2) == -1) {
-                    return -1;
-                }
-            }
-
-            if (!configGetString(&cfg, section, "size", &str)) {
-                showMesageBox("\nwmConfigInit::Error loading areas!");
-                exit(1);
-            }
-
-            if (strParseStrFromList(&str, &(city->size), wmAreaSizeStrs, 3) == -1) {
-                return -1;
-            }
-
-            while (city->entrancesLength < ENTRANCE_LIST_CAPACITY) {
-                snprintf(key, sizeof(key), "entrance_%d", city->entrancesLength);
-
-                if (!configGetString(&cfg, section, key, &str)) {
-                    break;
-                }
-
-                entrance = &(city->entrances[city->entrancesLength]);
-
-                // NOTE: Uninline.
-                wmEntranceSlotInit(entrance);
-
-                if (strParseStrFromList(&str, &(entrance->state), wmStateStrs, 2) == -1) {
-                    return -1;
-                }
-
-                if (strParseInt(&str, &(entrance->x)) == -1) {
-                    return -1;
-                }
-
-                if (strParseInt(&str, &(entrance->y)) == -1) {
-                    return -1;
-                }
-
-                if (strParseStrFromFunc(&str, &(entrance->map), &wmParseFindMapIdxMatch) == -1) {
-                    return -1;
-                }
-
-                if (strParseInt(&str, &(entrance->elevation)) == -1) {
-                    return -1;
-                }
-
-                if (strParseInt(&str, &(entrance->tile)) == -1) {
-                    return -1;
-                }
-
-                if (strParseInt(&str, &(entrance->rotation)) == -1) {
-                    return -1;
-                }
-
-                city->entrancesLength++;
-            }
-
-            area_idx++;
-        } while (area_idx < 5000);
-    }
-
-    configFree(&cfg);
-
-    if (wmMaxAreaNum != CITY_COUNT) {
-        showMesageBox("\nwmAreaInit::Error loading Cities!");
-        exit(1);
-    }
+    // Generate debug area_list.txt file
+    wmGenerateAreaListDebug();
 
     return 0;
 }
@@ -2751,165 +3423,725 @@ static int wmMapSlotInit(MapInfo* map)
     return 0;
 }
 
-// 0x4BF4BC
-static int wmMapInit()
+// Initialize a new map from config
+static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* section)
 {
     char* str;
     int num;
-    MapInfo* maps;
-    MapInfo* map;
 
+    // Required field: map_name
+    if (!configGetString(config, section, "map_name", &str)) {
+        debugPrint("\nwmMapInitFromConfig: ERROR: Missing map_name in section %s", section);
+        return;
+    }
+    compat_strlwr(str);
+    strncpy(map->mapFileName, str, 40);
+
+    if (strlen(map->mapFileName) > 8) {
+        char warning[256];
+        snprintf(warning, sizeof(warning),
+            "WARNING: map_name '%s' is %zu characters (max 8).\n"
+            "Save games will not work with this map name.\n"
+            "Please shorten the map_name in your config.",
+            map->mapFileName, strlen(map->mapFileName));
+        showMesageBox(warning);
+    }
+
+    // Optional field: music
+    if (configGetString(config, section, "music", &str)) {
+        strncpy(map->music, str, 40);
+    }
+
+    // Optional field: ambient_sfx
+    if (configGetString(config, section, "ambient_sfx", &str)) {
+        while (str) {
+            MapAmbientSoundEffectInfo* sfx = &(map->ambientSoundEffects[map->ambientSoundEffectsLength]);
+            if (strParseKeyValue(&str, sfx->name, &(sfx->chance), ":") == -1) {
+                return;
+            }
+
+            map->ambientSoundEffectsLength++;
+
+            if (*str == '\0') {
+                str = nullptr;
+            }
+
+            if (map->ambientSoundEffectsLength >= MAP_AMBIENT_SOUND_EFFECTS_CAPACITY) {
+                if (str != nullptr) {
+                    debugPrint("\nwmMapInitFromConfig: Too many ambient SFX in section %s", section);
+                    str = nullptr;
+                }
+            }
+        }
+    }
+
+    // Optional field: saved
+    if (configGetString(config, section, "saved", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_SAVED, num);
+    }
+
+    // Optional field: dead_bodies_age
+    if (configGetString(config, section, "dead_bodies_age", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_DEAD_BODIES_AGE, num);
+    }
+
+    // Optional field: can_rest_here
+    if (configGetString(config, section, "can_rest_here", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_0, num);
+
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_1, num);
+
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_2, num);
+    }
+
+    // Optional field: pipboy_active
+    if (configGetString(config, section, "pipboy_active", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        wmSetFlags(&(map->flags), MAP_PIPBOY_ACTIVE, num);
+    }
+
+    // SFALL: Pip-boy automaps patch
+    if (configGetString(config, section, "automap", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
+            return;
+        }
+        // Note: We need to calculate the map index from the pointer
+        int mapIndex = map - wmMapInfoList;
+        automapSetDisplayMap(mapIndex, num);
+    }
+
+    // Optional field: random_start_point_0
+    if (configGetString(config, section, "random_start_point_0", &str)) {
+        int rspIndex = 0;
+        while (str != nullptr) {
+            while (*str != '\0') {
+                if (map->startPointsLength >= MAP_STARTING_POINTS_CAPACITY) {
+                    break;
+                }
+
+                MapStartPointInfo* rsp = &(map->startPoints[map->startPointsLength]);
+                wmRStartSlotInit(rsp);
+
+                strParseIntWithKey(&str, "elev", &(rsp->elevation), ":");
+                strParseIntWithKey(&str, "tile_num", &(rsp->tile), ":");
+
+                map->startPointsLength++;
+            }
+
+            char key[40];
+            snprintf(key, sizeof(key), "random_start_point_%1d", ++rspIndex);
+            if (!configGetString(config, section, key, &str)) {
+                str = nullptr;
+            }
+        }
+    }
+}
+
+// Update existing map with new values from config
+static void wmMapUpdateFromConfig(MapInfo* map, Config* config, const char* section)
+{
+    char* str;
+    int num;
+
+    debugPrint("\nwmMapUpdateFromConfig: Updating map in section %s", section);
+
+    // Optional field: map_name
+    if (configGetString(config, section, "map_name", &str)) {
+        compat_strlwr(str);
+        strncpy(map->mapFileName, str, 40);
+        debugPrint("\nwmMapUpdateFromConfig: Updated map_name to %s", str);
+    }
+
+    // Optional field: music
+    if (configGetString(config, section, "music", &str)) {
+        strncpy(map->music, str, 40);
+        debugPrint("\nwmMapUpdateFromConfig: Updated music to %s", str);
+    }
+
+    // Optional field: ambient_sfx - replace entire list
+    if (configGetString(config, section, "ambient_sfx", &str)) {
+        map->ambientSoundEffectsLength = 0;
+        while (str) {
+            MapAmbientSoundEffectInfo* sfx = &(map->ambientSoundEffects[map->ambientSoundEffectsLength]);
+            if (strParseKeyValue(&str, sfx->name, &(sfx->chance), ":") == -1) {
+                break;
+            }
+
+            map->ambientSoundEffectsLength++;
+
+            if (*str == '\0') {
+                str = nullptr;
+            }
+
+            if (map->ambientSoundEffectsLength >= MAP_AMBIENT_SOUND_EFFECTS_CAPACITY) {
+                if (str != nullptr) {
+                    debugPrint("\nwmMapUpdateFromConfig: Too many ambient SFX");
+                    str = nullptr;
+                }
+            }
+        }
+        debugPrint("\nwmMapUpdateFromConfig: Updated ambient_sfx, now %d effects", map->ambientSoundEffectsLength);
+    }
+
+    // Optional field: saved
+    if (configGetString(config, section, "saved", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_SAVED, num);
+            debugPrint("\nwmMapUpdateFromConfig: Updated saved to %s", num ? "Yes" : "No");
+        }
+    }
+
+    // Optional field: dead_bodies_age
+    if (configGetString(config, section, "dead_bodies_age", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_DEAD_BODIES_AGE, num);
+            debugPrint("\nwmMapUpdateFromConfig: Updated dead_bodies_age to %s", num ? "Yes" : "No");
+        }
+    }
+
+    // Optional field: can_rest_here
+    if (configGetString(config, section, "can_rest_here", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_0, num);
+        }
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_1, num);
+        }
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_2, num);
+        }
+        debugPrint("\nwmMapUpdateFromConfig: Updated can_rest_here flags");
+    }
+
+    // Optional field: pipboy_active
+    if (configGetString(config, section, "pipboy_active", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_PIPBOY_ACTIVE, num);
+            debugPrint("\nwmMapUpdateFromConfig: Updated pipboy_active to %s", num ? "Yes" : "No");
+        }
+    }
+
+    // SFALL: Pip-boy automaps patch
+    if (configGetString(config, section, "automap", &str)) {
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            int mapIndex = map - wmMapInfoList;
+            automapSetDisplayMap(mapIndex, num);
+            debugPrint("\nwmMapUpdateFromConfig: Updated automap to %s for map %d", num ? "Yes" : "No", mapIndex);
+        }
+    }
+
+    // Optional field: random_start_point_0 - replace entire list
+    if (configGetString(config, section, "random_start_point_0", &str)) {
+        map->startPointsLength = 0;
+        int rspIndex = 0;
+        while (str != nullptr) {
+            while (*str != '\0') {
+                if (map->startPointsLength >= MAP_STARTING_POINTS_CAPACITY) {
+                    break;
+                }
+
+                MapStartPointInfo* rsp = &(map->startPoints[map->startPointsLength]);
+                wmRStartSlotInit(rsp);
+
+                strParseIntWithKey(&str, "elev", &(rsp->elevation), ":");
+                strParseIntWithKey(&str, "tile_num", &(rsp->tile), ":");
+
+                map->startPointsLength++;
+            }
+
+            char key[40];
+            snprintf(key, sizeof(key), "random_start_point_%1d", ++rspIndex);
+            if (!configGetString(config, section, key, &str)) {
+                str = nullptr;
+            }
+        }
+        debugPrint("\nwmMapUpdateFromConfig: Updated random_start_point, now %d points", map->startPointsLength);
+    }
+}
+
+// Find a map by lookup_name, return index or -1 if not found
+static int wmMapFindIndexByLookupName(const char* lookupName)
+{
+    for (int i = 0; i < wmMaxMapNum; i++) {
+        if (wmMapInfoList[i].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, lookupName) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Load base maps sequentially (original behavior)
+static int wmMapLoadBaseFile(const char* filename)
+{
     Config config;
     if (!configInit(&config)) {
         return -1;
     }
 
-    if (configRead(&config, "data\\maps.txt", true)) {
-        for (int mapIdx = 0;; mapIdx++) {
-            char section[40];
-            snprintf(section, sizeof(section), "Map %03d", mapIdx);
+    if (!configRead(&config, filename, true)) {
+        configFree(&config);
+        debugPrint("\nwmMapLoadBaseFile: Could not read %s", filename);
+        return 0;
+    }
 
-            if (!configGetString(&config, section, "lookup_name", &str)) {
-                break;
-            }
+    debugPrint("\nwmMapLoadBaseFile: Loading base maps from %s", filename);
 
+    // Base files load sequentially like original
+    for (int mapIdx = 0; mapIdx < BASE_MAP_MAX; mapIdx++) {
+        char section[40];
+        snprintf(section, sizeof(section), "Map %03d", mapIdx);
+
+        char* str;
+        if (!configGetString(&config, section, "lookup_name", &str)) {
+            break; // No more maps
+        }
+
+        MapInfo* map = &wmMapInfoList[mapIdx];
+        wmMapSlotInit(map);
+        strncpy(map->lookupName, str, 40);
+        wmMapInitFromConfig(map, &config, section);
+
+        debugPrint("\nwmMapLoadBaseFile: Loaded base map %03d: %s", mapIdx, str);
+    }
+
+    configFree(&config);
+    return 0;
+}
+
+// Load a single map file (base or mod)
+static int wmMapLoadSingleFile(const char* filename)
+{
+    Config config;
+    if (!configInit(&config)) {
+        return -1;
+    }
+
+    if (!configRead(&config, filename, true)) {
+        configFree(&config);
+        return 0; // File doesn't exist - not an error for mod files
+    }
+
+    // Process all map sections in this file
+    for (int mapIdx = 0;; mapIdx++) {
+        char section[40];
+        snprintf(section, sizeof(section), "Map %03d", mapIdx);
+
+        char* str;
+        if (!configGetString(&config, section, "lookup_name", &str)) {
+            break; // No more maps in this file
+        }
+
+        // Check if this map already exists
+        int existingIndex = wmMapFindIndexByLookupName(str);
+        if (existingIndex >= 0) {
+            // Update existing map
+            wmMapUpdateFromConfig(&wmMapInfoList[existingIndex], &config, section);
+        } else {
+            // Add new map - using the existing code pattern from wmMapInit
             wmMaxMapNum++;
-
-            maps = (MapInfo*)internal_realloc(wmMapInfoList, sizeof(*wmMapInfoList) * wmMaxMapNum);
+            MapInfo* maps = (MapInfo*)internal_realloc(wmMapInfoList, sizeof(*wmMapInfoList) * wmMaxMapNum);
             if (maps == nullptr) {
-                showMesageBox("\nwmConfigInit::Error loading maps!");
+                showMesageBox("\nwmMapLoadSingleFile::Error loading maps!");
                 exit(1);
             }
-
             wmMapInfoList = maps;
 
-            map = &(maps[wmMaxMapNum - 1]);
+            MapInfo* map = &(wmMapInfoList[wmMaxMapNum - 1]);
             wmMapSlotInit(map);
 
+            // Copy the lookup_name
             strncpy(map->lookupName, str, 40);
 
-            if (!configGetString(&config, section, "map_name", &str)) {
-                showMesageBox("\nwmConfigInit::Error loading maps!");
-                exit(1);
+            // Initialize the rest of the map from config
+            wmMapInitFromConfig(map, &config, section);
+        }
+    }
+
+    configFree(&config);
+    return 0;
+}
+
+// Load additional map files (maps_*.txt) after base maps.txt
+// Load with hash-based allocation
+static void wmMapLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cmaps_*.txt", DIR_SEPARATOR);
+
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            wmMapLoadModFile(fullPath);
+        }
+        fileNameListFree(&foundModFiles, 0);
+    }
+}
+
+// Mod file loading with consistent allocation
+static int wmMapLoadModFile(const char* filename)
+{
+    Config config;
+    if (!configInit(&config)) {
+        return -1;
+    }
+
+    if (!configRead(&config, filename, true)) {
+        configFree(&config);
+        return 0;
+    }
+
+    uint32_t modNamespace = wmGetModNamespace(filename);
+
+    int mapsLoaded = 0;
+    int mapsOverridden = 0;
+    int mapIndexInThisMod = 0;
+
+    // Process all sections in the mod file
+    for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
+        char section[40];
+        bool found = false;
+        char* lookupNameStr = nullptr;
+
+        // Try "Map 151" format (no leading zeros)
+        snprintf(section, sizeof(section), "Map %d", sectionIdx);
+        if (configGetString(&config, section, "lookup_name", &lookupNameStr)) {
+            found = true;
+        } else {
+            // Try "Map 001" format (3-digit with leading zeros)
+            snprintf(section, sizeof(section), "Map %03d", sectionIdx);
+            if (configGetString(&config, section, "lookup_name", &lookupNameStr)) {
+                found = true;
+            }
+        }
+
+        if (!found) {
+            continue;
+        }
+
+        // Check if this overrides a base map
+        bool overrodeBase = false;
+        for (int i = 0; i < BASE_MAP_MAX; i++) {
+            if (strcmp(wmMapInfoList[i].lookupName, lookupNameStr) == 0) {
+                strncpy(gBaseMapOverrides[i], filename, COMPAT_MAX_PATH - 1);
+                gBaseMapOverrides[i][COMPAT_MAX_PATH - 1] = '\0';
+
+                wmMapUpdateFromConfig(&wmMapInfoList[i], &config, section);
+                overrodeBase = true;
+                mapsOverridden++;
+                break;
+            }
+        }
+
+        if (overrodeBase) {
+            mapIndexInThisMod++;
+            continue;
+        }
+
+        // Calculate consistent slot for this mod map
+        uint16_t targetSlot = wmCalculateModMapSlot(lookupNameStr, modNamespace, mapIndexInThisMod);
+
+        // Check for slot collisions with different maps
+        if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
+
+            char errorMsg[512];
+            snprintf(errorMsg, sizeof(errorMsg),
+                "MAP SLOT COLLISION DETECTED!\n\n"
+                "Mod file: %s\n"
+                "New map: %s\n"
+                "Target slot: %d\n"
+                "Existing map: %s\n\n"
+                "To resolve: Rename your mod file to change its namespace.",
+                filename, lookupNameStr, targetSlot, wmMapInfoList[targetSlot].lookupName);
+            showMesageBox(errorMsg);
+
+            mapIndexInThisMod++;
+            continue;
+        }
+
+        // Initialize the map
+        MapInfo* map = &wmMapInfoList[targetSlot];
+        if (map->lookupName[0] == '\0') {
+            wmMapSlotInit(map);
+            strncpy(map->lookupName, lookupNameStr, 40);
+        }
+
+        wmMapInitFromConfig(map, &config, section);
+
+        mapsLoaded++;
+        mapIndexInThisMod++;
+    }
+
+    configFree(&config);
+    return 0;
+}
+
+// Generate debug maps_list.txt file
+static void wmGenerateMapListDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cmaps_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\nwmGenerateMapListDebug: Could not create maps_list.txt");
+        return;
+    }
+
+    // Write header in the consistent style
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - World Map Report\n"
+                         "==============================================================================\n"
+                         "This report shows how world maps are loaded - essential for mod debugging and\n"
+                         "finding map IDs for mod development.\n\n"
+
+                         "Key Features:\n"
+                         "- Base maps: Protected in lower slots (0-199)\n"
+                         "- Mod maps: Your content in remaining slots (200-4095) via deterministic hashing\n"
+                         "- Base maps can be overridden by mods (replacing the original map)\n"
+                         "- Hash collisions trigger popup warnings and the map is skipped\n\n"
+
+                         "Usage Notes:\n"
+                         "- Use these map indices when referencing maps in:\n"
+                         "  • Scripts (call load_map, etc.)\n"
+                         "  • Encounter tables\n"
+                         "  • World travel events\n"
+                         "- Map positions are STABLE between game sessions\n"
+                         "- Mod map positions use mod filename + lookup name hash for consistency\n"
+                         "==============================================================================\n\n";
+
+    fputs(header, debugStream);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Gather statistics
+    int baseCount = 0, modCount = 0;
+    int overriddenBaseCount = 0;
+    int duplicateNameCount = 0;
+    int maxUsedIndex = 0;
+
+    // Track which lookup names are duplicates
+    bool* isDuplicateLookup = (bool*)internal_malloc(wmMaxMapNum * sizeof(bool));
+    if (isDuplicateLookup) {
+        memset(isDuplicateLookup, 0, wmMaxMapNum * sizeof(bool));
+    }
+
+    // First pass: count and mark duplicates
+    for (int i = 0; i < wmMaxMapNum; i++) {
+        if (wmMapInfoList[i].lookupName[0] != '\0') {
+            if (i > maxUsedIndex) maxUsedIndex = i;
+
+            if (i < BASE_MAP_MAX) {
+                baseCount++;
+                if (gBaseMapOverrides[i][0] != '\0') {
+                    overriddenBaseCount++;
+                }
+            } else {
+                modCount++;
             }
 
-            compat_strlwr(str);
-            strncpy(map->mapFileName, str, 40);
-
-            if (configGetString(&config, section, "music", &str)) {
-                strncpy(map->music, str, 40);
-            }
-
-            if (configGetString(&config, section, "ambient_sfx", &str)) {
-                while (str) {
-                    MapAmbientSoundEffectInfo* sfx = &(map->ambientSoundEffects[map->ambientSoundEffectsLength]);
-                    if (strParseKeyValue(&str, sfx->name, &(sfx->chance), ":") == -1) {
-                        return -1;
-                    }
-
-                    map->ambientSoundEffectsLength++;
-
-                    if (*str == '\0') {
-                        str = nullptr;
-                    }
-
-                    if (map->ambientSoundEffectsLength >= MAP_AMBIENT_SOUND_EFFECTS_CAPACITY) {
-                        if (str != nullptr) {
-                            debugPrint("\nwmMapInit::Error reading ambient sfx.  Too many!  Str: %s, MapIdx: %d", map->lookupName, mapIdx);
-                            str = nullptr;
-                        }
-                    }
-                }
-            }
-
-            if (configGetString(&config, section, "saved", &str)) {
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_SAVED, num);
-            }
-
-            if (configGetString(&config, section, "dead_bodies_age", &str)) {
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_DEAD_BODIES_AGE, num);
-            }
-
-            if (configGetString(&config, section, "can_rest_here", &str)) {
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_0, num);
-
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_1, num);
-
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_2, num);
-            }
-
-            if (configGetString(&config, section, "pipboy_active", &str)) {
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                // NOTE: Uninline.
-                wmSetFlags(&(map->flags), MAP_PIPBOY_ACTIVE, num);
-            }
-
-            // SFALL: Pip-boy automaps patch.
-            if (configGetString(&config, section, "automap", &str)) {
-                if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) == -1) {
-                    return -1;
-                }
-
-                automapSetDisplayMap(mapIdx, num);
-            }
-
-            if (configGetString(&config, section, "random_start_point_0", &str)) {
-                int rspIndex = 0;
-                while (str != nullptr) {
-                    while (*str != '\0') {
-                        if (map->startPointsLength >= MAP_STARTING_POINTS_CAPACITY) {
-                            break;
-                        }
-
-                        MapStartPointInfo* rsp = &(map->startPoints[map->startPointsLength]);
-
-                        // NOTE: Uninline.
-                        wmRStartSlotInit(rsp);
-
-                        strParseIntWithKey(&str, "elev", &(rsp->elevation), ":");
-                        strParseIntWithKey(&str, "tile_num", &(rsp->tile), ":");
-
-                        map->startPointsLength++;
-                    }
-
-                    char key[40];
-                    snprintf(key, sizeof(key), "random_start_point_%1d", ++rspIndex);
-
-                    if (!configGetString(&config, section, key, &str)) {
-                        str = nullptr;
+            // Check for duplicate lookup names (only check forward)
+            if (isDuplicateLookup) {
+                for (int j = i + 1; j < wmMaxMapNum; j++) {
+                    if (wmMapInfoList[j].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
+                        isDuplicateLookup[i] = true;
+                        isDuplicateLookup[j] = true;
+                        duplicateNameCount++;
                     }
                 }
             }
         }
     }
+
+    // Summary section in horizontal style like art_list.txt
+    fprintf(debugStream,
+        "Total Maps: %d | Base: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
+        baseCount + modCount,
+        baseCount,
+        modCount,
+        wmMaxMapNum, wmMaxMapNum - 1,
+        maxUsedIndex);
+
+    // Slot ranges
+    fputs("------------------------------------------------------------\n", debugStream);
+    fputs("Slot Ranges:\n", debugStream);
+    fprintf(debugStream,
+        "  Base: 0-%d\n"
+        "  Mods: %d-%d\n",
+        BASE_MAP_MAX - 1,
+        MOD_MAP_START, MOD_MAP_MAX - 1);
+    fputs("------------------------------------------------------------\n", debugStream);
+
+    // Base maps section
+    if (baseCount > 0) {
+        fputs("BASE MAPS:\n", debugStream);
+        for (int i = 0; i < BASE_MAP_MAX; i++) {
+            if (wmMapInfoList[i].lookupName[0] != '\0') {
+                const char* overrideMarker = "";
+                if (gBaseMapOverrides[i][0] != '\0') {
+                    // Extract just the filename from the override path
+                    const char* lastSlash = strrchr(gBaseMapOverrides[i], DIR_SEPARATOR);
+                    const char* modName = lastSlash ? lastSlash + 1 : gBaseMapOverrides[i];
+                    overrideMarker = " [OVERRIDDEN]";
+                }
+                fprintf(debugStream, "  %5d: %s (%s)%s\n",
+                    i,
+                    wmMapInfoList[i].lookupName,
+                    wmMapInfoList[i].mapFileName,
+                    overrideMarker);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Mod maps section
+    if (modCount > 0) {
+        fputs("MOD MAPS:\n", debugStream);
+        for (int i = MOD_MAP_START; i < wmMaxMapNum; i++) {
+            if (wmMapInfoList[i].lookupName[0] != '\0') {
+                const char* duplicateMarker = "";
+                if (isDuplicateLookup && isDuplicateLookup[i]) {
+                    duplicateMarker = " #";
+                }
+                fprintf(debugStream, "  %5d: %s (%s)%s\n",
+                    i,
+                    wmMapInfoList[i].lookupName,
+                    wmMapInfoList[i].mapFileName,
+                    duplicateMarker);
+            }
+        }
+        fputs("\n", debugStream);
+    } else {
+        fputs("MOD MAPS:\n", debugStream);
+        fputs("  (no mod maps found)\n\n", debugStream);
+    }
+
+    // Overridden base maps details (if any)
+    if (overriddenBaseCount > 0) {
+        fputs("OVERRIDDEN BASE MAPS:\n", debugStream);
+        for (int i = 0; i < BASE_MAP_MAX; i++) {
+            if (gBaseMapOverrides[i][0] != '\0') {
+                const char* lastSlash = strrchr(gBaseMapOverrides[i], DIR_SEPARATOR);
+                const char* modName = lastSlash ? lastSlash + 1 : gBaseMapOverrides[i];
+                fprintf(debugStream, "  ! %5d: %s -> overridden by %s\n",
+                    i, wmMapInfoList[i].lookupName, modName);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Duplicate lookup name details (if any)
+    if (duplicateNameCount > 0 && isDuplicateLookup) {
+        fputs("  --- DUPLICATE LOOKUP NAMES ---\n", debugStream);
+        // Group duplicates together for clarity
+        bool* reported = (bool*)internal_malloc(wmMaxMapNum * sizeof(bool));
+        if (reported) {
+            memset(reported, 0, wmMaxMapNum * sizeof(bool));
+
+            for (int i = MOD_MAP_START; i < wmMaxMapNum; i++) {
+                if (wmMapInfoList[i].lookupName[0] != '\0' && isDuplicateLookup[i] && !reported[i]) {
+                    // Find all slots with this lookup name
+                    fprintf(debugStream, "  # %s:\n", wmMapInfoList[i].lookupName);
+                    for (int j = i; j < wmMaxMapNum; j++) {
+                        if (wmMapInfoList[j].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
+                            fprintf(debugStream, "      Slot %d: %s\n", j, wmMapInfoList[j].mapFileName);
+                            reported[j] = true;
+                        }
+                    }
+                }
+            }
+            internal_free(reported);
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Important notes footer (matching style of other reports)
+    fputs("=== IMPORTANT NOTES ===\n", debugStream);
+
+    if (duplicateNameCount > 0) {
+        fputs("WARNING: Duplicate map lookup names detected!\n", debugStream);
+        fputs("This is generally safe but can cause confusion in scripts.\n", debugStream);
+        fputs("Consider using unique lookup names for different maps.\n\n", debugStream);
+    }
+
+    if (overriddenBaseCount > 0) {
+        fputs("! Base map overrides detected\n", debugStream);
+        fputs("  Vanilla maps have been replaced by mod versions\n", debugStream);
+        fputs("  This is intentional behavior for map replacements\n\n", debugStream);
+    }
+
+    fputs("- Map positions are STABLE - they won't change between game sessions\n", debugStream);
+    fputs("- Mod map positions use mod filename + lookup name hash for consistency\n", debugStream);
+    fputs("- Hash collisions show popup warnings and skip the conflicting map\n", debugStream);
+    fputs("- Reference these exact numbers in your scripts and encounter tables\n", debugStream);
+
+    // Clean up
+    if (isDuplicateLookup) {
+        internal_free(isDuplicateLookup);
+    }
+
+    fclose(debugStream);
+    debugPrint("\nwmGenerateMapListDebug: Generated maps_list.txt with %d base, %d mod maps", baseCount, modCount);
+}
+
+// 0x4BF4BC
+static int wmMapInit()
+{
+    // Pre-allocate array for all possible maps
+    wmMaxMapNum = TOTAL_MAP_MAX;
+    wmMapInfoList = (MapInfo*)internal_malloc(sizeof(*wmMapInfoList) * wmMaxMapNum);
+    if (wmMapInfoList == nullptr) {
+        showMesageBox("\nwmMapInit::Error allocating map array!");
+        return -1;
+    }
+
+    // Initialize all slots as empty
+    for (int i = 0; i < wmMaxMapNum; i++) {
+        wmMapSlotInit(&wmMapInfoList[i]);
+    }
+
+    // Initialize base map override tracking
+    memset(gBaseMapOverrides, 0, sizeof(gBaseMapOverrides));
+
+    debugPrint("\nwmMapInit: Pre-allocated %d map slots", wmMaxMapNum);
+
+    // Load base maps.txt into slots 0-199 sequentially
+    if (wmMapLoadBaseFile("data\\maps.txt") == -1) {
+        return -1;
+    }
+
+    debugPrint("\nwmMapInit: Base maps loaded");
+
+    // Load mod files with hash-based allocation
+    wmMapLoadModFiles();
+
+    debugPrint("\nwmMapInit: Mod maps loaded");
 
     // Check if we should write default offsets
     int writeOffsets = 0;
@@ -2923,7 +4155,8 @@ static int wmMapInit()
     // Determine screen mode and load offsets
     worldmapLoadOffsetsFromConfig(&gOffsets, gameIsWidescreen());
 
-    configFree(&config);
+    // Generate debug maps_list.txt file
+    wmGenerateMapListDebug();
 
     return 0;
 }
@@ -5988,48 +7221,70 @@ static bool wmCursorIsVisible()
         && wmGenData.worldPosY < wmWorldOffsetY + gOffsets.viewHeight;
 }
 
-// NOTE: Inlined.
-//
-// 0x4C44D8
+// Get the display name for an area, supporting both vanilla and mod areas
+// Mod areas use dynamic message IDs (0x8000-0xFFFF range), vanilla areas use original offset
 static int wmGetAreaName(CityInfo* city, char* name)
 {
     MessageListItem messageListItem;
 
-    getmsg(&gMapMessageList, &messageListItem, city->areaId + 1500);
-    strncpy(name, messageListItem.text, 40);
+    // Check if this is a mod area (message ID in mod range)
+    if (city->areaId >= 0x8000 && city->areaId <= 0xFFFF) {
+        // Mod areas: areaId directly stores the message ID
+        if (getmsg(&gMapMessageList, &messageListItem, city->areaId)) {
+            strncpy(name, messageListItem.text, 40);
+            name[39] = '\0';
+            return 0;
+        }
+        // Fall through to config name if message not found
+    } else {
+        // Vanilla areas: use original formula (areaId + 1500 offset)
+        if (getmsg(&gMapMessageList, &messageListItem, city->areaId + 1500)) {
+            strncpy(name, messageListItem.text, 40);
+            name[39] = '\0';
+            return 0;
+        }
+    }
 
+    // Fallback for both mod and vanilla: use the raw name from area config
+    strncpy(name, city->name, 40);
+    name[39] = '\0';
     return 0;
 }
 
 // Copy city short name.
-//
-// 0x4C450C
+// Calls wmGetAreaName to handle mod areas
 int wmGetAreaIdxName(int areaIdx, char* name)
 {
-    MessageListItem messageListItem;
-
-    getmsg(&gMapMessageList, &messageListItem, 1500 + areaIdx);
-    strncpy(name, messageListItem.text, 40);
-
-    return 0;
-}
-
-// Returns true if world area is known.
-//
-// 0x4C453C
-bool wmAreaIsKnown(int areaIdx)
-{
-    if (!cityIsValid(areaIdx)) {
-        return false;
+    if (areaIdx < 0 || areaIdx >= wmMaxAreaNum) {
+        name[0] = '\0';
+        return -1;
     }
 
-    CityInfo* city = &(wmAreaInfoList[areaIdx]);
-    if (city->visitedState) {
-        if (city->state == CITY_STATE_KNOWN) {
-            return true;
+    CityInfo* city = &wmAreaInfoList[areaIdx];
+    return wmGetAreaName(city, name);
+}
+
+// Check if a world area is known/visited by the player
+// Enhanced to support mod areas by searching through all area slots
+bool wmAreaIsKnown(int areaId)
+{
+    // Search through all area slots to find the one with matching areaId
+    for (int i = 0; i < wmMaxAreaNum; i++) {
+        if (wmAreaInfoList[i].areaId == areaId) {
+            CityInfo* city = &(wmAreaInfoList[i]);
+
+            // Use the original discovery logic:
+            // Area must be visited AND in known state to be considered "known"
+            if (city->visitedState) {
+                if (city->state == CITY_STATE_KNOWN) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
+    // Area not found in the area list
     return false;
 }
 
@@ -6356,11 +7611,11 @@ static int wmTownMapInit()
     return 0;
 }
 
-// 0x4C4BD0
+// Refresh the town map display with support for both vanilla and mod areas
+// Mod areas use dynamic message IDs, vanilla areas use original 200 + 10*area + entrance formula
 static int wmTownMapRefresh()
 {
-    // WM_VIEW_X (22) WM_VIEW_Y (21) 31 100
-    //  town grid background image
+    // Render town grid background (handles widescreen adjustments)
     if (gameIsWidescreen()) {
         blitBufferToBuffer(_townBackgroundFrmImage.getData(),
             gOffsets.townBackgroundWidth,
@@ -6370,46 +7625,71 @@ static int wmTownMapRefresh()
             gOffsets.windowWidth);
     }
 
-    // WM_VIEW_X (22) WM_VIEW_Y (21) 31 100
+    // Render main town map frame
     blitBufferToBuffer(_townFrmImage.getData(),
         _townFrmImage.getWidth(),
         _townFrmImage.getHeight(),
         _townFrmImage.getWidth(),
-        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY) + gOffsets.viewX + gOffsets.townMapBgX,
+        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY)
+            + gOffsets.viewX + gOffsets.townMapBgX,
         gOffsets.windowWidth);
 
     wmRefreshInterfaceOverlay(false);
 
     CityInfo* city = &(wmAreaInfoList[wmGenData.currentAreaId]);
 
+    // Process all entrances in the current area
     for (int index = 0; index < city->entrancesLength; index++) {
         EntranceInfo* entrance = &(city->entrances[index]);
-        if (entrance->state == 0) {
-            continue;
-        }
 
-        if (entrance->x == -1 || entrance->y == -1) {
+        // Skip disabled or invalid entrances
+        if (entrance->state == 0 || entrance->x == -1 || entrance->y == -1) {
             continue;
         }
 
         MessageListItem messageListItem;
-        messageListItem.num = 200 + 10 * wmTownMapCurArea + index;
-        if (messageListGetItem(&wmMsgFile, &messageListItem)) {
-            if (messageListItem.text != nullptr) {
-                int width = fontGetStringWidth(messageListItem.text);
-                // CE: Slightly increase whitespace between marker and entrance name.
-                windowDrawText(wmBkWin,
-                    messageListItem.text,
-                    width,
-                    wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x + gOffsets.townMapLabelXOffset - width / 2,
-                    wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y + gOffsets.townMapLabelYOffset,
-                    _colorTable[992] | 0x2000000 | FONT_SHADOW);
+        const char* displayText = nullptr;
+
+        // Determine if this is a mod area (in mod slot range)
+        bool isModArea = (wmTownMapCurArea >= MOD_AREA_START && wmTownMapCurArea < MOD_AREA_MAX);
+
+        if (isModArea) {
+            // Mod area: Generate message ID from mod name and composite key
+            const char* modName = wmGetAreaModName(wmTownMapCurArea);
+
+            char compositeKey[256];
+            snprintf(compositeKey, sizeof(compositeKey), "entrance_%d:%s", index, city->name);
+
+            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            displayText = getmsg(&wmMsgFile, &messageListItem, messageId);
+        } else {
+            // Vanilla area: Use original formula (200 + 10*area + entrance index)
+            messageListItem.num = 200 + 10 * wmTownMapCurArea + index;
+            if (messageListGetItem(&wmMsgFile, &messageListItem)) {
+                displayText = messageListItem.text;
             }
+        }
+
+        // Fallback for missing mod messages
+        if (!displayText) {
+            displayText = "Location";
+        }
+
+        // Draw entrance label if we have text
+        if (displayText != nullptr) {
+            int width = fontGetStringWidth(displayText);
+            windowDrawText(wmBkWin,
+                displayText,
+                width,
+                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x
+                    + gOffsets.townMapLabelXOffset - width / 2,
+                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y
+                    + gOffsets.townMapLabelYOffset,
+                _colorTable[992] | 0x2000000 | FONT_SHADOW);
         }
     }
 
     windowRefresh(wmBkWin);
-
     return 0;
 }
 

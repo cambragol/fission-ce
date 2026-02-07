@@ -27,6 +27,7 @@
 #include "light.h"
 #include "loadsave.h"
 #include "memory.h"
+#include "message.h"
 #include "object.h"
 #include "palette.h"
 #include "party_member.h"
@@ -47,6 +48,10 @@
 #include "worldmap.h"
 
 namespace fallout {
+
+#define BASE_AREA_MAX 200
+#define MOD_AREA_START 200
+#define MOD_AREA_MAX 1000
 
 static char* mapBuildPath(char* name);
 static int mapLoad(File* stream);
@@ -293,7 +298,8 @@ void _map_init()
         char path[COMPAT_MAX_PATH];
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
-        if (!messageListLoad(&gMapMessageList, path)) {
+        // modified for mods
+        if (!messageListLoadWithMods(&gMapMessageList, path, "MAP")) {
             debugPrint("\nError loading map_msg_file!");
         }
     } else {
@@ -515,7 +521,27 @@ char* mapGetName(int map, int elevation)
     }
 
     MessageListItem messageListItem;
-    return getmsg(&gMapMessageList, &messageListItem, map * 3 + elevation + 200);
+
+    if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
+        // Mod map: generate message ID using mod name and lookup name
+        const char* lookupName = wmGetMapLookupName(map);
+        int areaIndex = wmGetAreaContainingMap(map);
+
+        if (areaIndex != -1 && lookupName != nullptr) {
+            const char* modName = wmGetAreaModName(areaIndex);
+
+            char compositeKey[256];
+            snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
+
+            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            return getmsg(&gMapMessageList, &messageListItem, messageId);
+        }
+        return nullptr;
+    } else {
+        // Vanilla map: use original formula (map * 3 + elevation + 200)
+        int messageId = map * 3 + elevation + 200;
+        return getmsg(&gMapMessageList, &messageListItem, messageId);
+    }
 }
 
 // TODO: Check, probably returns true if map1 and map2 represents the same city.
@@ -531,6 +557,27 @@ bool _is_map_idx_same(int map1, int map2)
         return 0;
     }
 
+    // For mod maps (?160), use city name comparison
+    if (map1 >= 160 || map2 >= 160) {
+        char* cityName1 = mapGetCityName(map1);
+        char* cityName2 = mapGetCityName(map2);
+
+        // If either city name is null or the error string, they're not the same
+        if (!cityName1 || !cityName2) {
+            return 0;
+        }
+
+        // Check for "ERROR! F2" error string
+        const char* errorStr = "ERROR! F2";
+        if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
+            return 0;
+        }
+
+        // Compare city names
+        return strcmp(cityName1, cityName2) == 0;
+    }
+
+    // For vanilla maps (<160), use the original logic
     if (!wmMapIdxIsSaveable(map1)) {
         return 0;
     }
@@ -552,9 +599,43 @@ bool _is_map_idx_same(int map1, int map2)
     return city1 == city2;
 }
 
-// 0x4825CC
+// 0x4825CCMod
 int _get_map_idx_same(int map1, int map2)
 {
+    // Check bounds
+    if (map1 < 0 || map1 >= wmMapMaxCount() || map2 < 0 || map2 >= wmMapMaxCount()) {
+        return -1;
+    }
+
+    // For mod maps (?160), use city name comparison
+    if (map1 >= 160 || map2 >= 160) {
+        // If one is mod and one is vanilla, they're not the same
+        if ((map1 < 160 && map2 >= 160) || (map1 >= 160 && map2 < 160)) {
+            return -1;
+        }
+
+        // Both are mod maps, compare city names
+        char* cityName1 = mapGetCityName(map1);
+        char* cityName2 = mapGetCityName(map2);
+
+        if (!cityName1 || !cityName2) {
+            return -1;
+        }
+
+        // Check for error string
+        const char* errorStr = "ERROR! F2";
+        if (strcmp(cityName1, errorStr) == 0 || strcmp(cityName2, errorStr) == 0) {
+            return -1;
+        }
+
+        if (strcmp(cityName1, cityName2) == 0) {
+            // Return 0 to indicate they're the same (non-negative, not -1)
+            return 0;
+        }
+        return -1;
+    }
+
+    // Original logic for vanilla maps
     int city1 = -1;
     if (wmMatchAreaContainingMapIdx(map1, &city1) == -1) {
         return -1;
@@ -569,7 +650,7 @@ int _get_map_idx_same(int map1, int map2)
         return -1;
     }
 
-    return city1;
+    return city1; // Return the city index as original
 }
 
 // 0x48261C
@@ -581,8 +662,18 @@ char* mapGetCityName(int map)
     }
 
     MessageListItem messageListItem;
-    char* name = getmsg(&gMapMessageList, &messageListItem, 1500 + city);
-    return name;
+
+    if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
+        // Mod area: use the area's message ID (already set during loading)
+        messageListItem.num = wmGetAreaId(city);
+        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+        return name ? name : _aErrorF2;
+    } else {
+        // Vanilla area: use original formula (1500 + city)
+        messageListItem.num = 1500 + city;
+        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+        return name ? name : _aErrorF2;
+    }
 }
 
 // 0x48268C
@@ -760,41 +851,66 @@ int mapLoadByName(char* fileName)
 {
     int rc;
 
+    // Convert to uppercase for consistent file handling
     compat_strupr(fileName);
+
+    debugPrint("\nmapLoadByName: Loading map %s", fileName);
 
     rc = -1;
 
+    // First check if there's a saved version of this map
     char* extension = strstr(fileName, ".MAP");
     if (extension != nullptr) {
+        // Temporarily change extension to .SAV to check for saved map
         strcpy(extension, ".SAV");
 
         const char* filePath = mapBuildPath(fileName);
-
         File* stream = fileOpen(filePath, "rb");
 
+        // Restore original extension
         strcpy(extension, ".MAP");
 
         if (stream != nullptr) {
+            debugPrint("\nmapLoadByName: Found saved map, loading %s", filePath);
             fileClose(stream);
             rc = mapLoadSaved(fileName);
             wmMapMusicStart();
+        } else {
+            debugPrint("\nmapLoadByName: No saved map found for %s", fileName);
         }
     }
 
+    // If no saved map found or loading failed, try loading fresh .MAP file
     if (rc == -1) {
         const char* filePath = mapBuildPath(fileName);
+
+        debugPrint("\nmapLoadByName: Attempting to load fresh map %s", filePath);
+
         File* stream = fileOpen(filePath, "rb");
         if (stream != nullptr) {
+            debugPrint("\nmapLoadByName: Map file opened successfully, loading data");
+
             rc = mapLoad(stream);
             fileClose(stream);
-        }
 
-        if (rc == 0) {
-            strcpy(gMapHeader.name, fileName);
-            gDude->data.critter.combat.whoHitMe = nullptr;
+            debugPrint("\nmapLoadByName: Map load result: %d, header name: %s",
+                rc, gMapHeader.name);
+
+            if (rc == 0) {
+                // Success - update map header and clear combat target
+                strcpy(gMapHeader.name, fileName);
+                gDude->data.critter.combat.whoHitMe = nullptr;
+
+                debugPrint("\nmapLoadByName: Map loaded successfully");
+            } else {
+                debugPrint("\nmapLoadByName: Map load failed with code %d", rc);
+            }
+        } else {
+            debugPrint("\nmapLoadByName: ERROR - Map file not found or cannot open: %s", filePath);
         }
     }
 
+    debugPrint("\nmapLoadByName: Completed with return code %d", rc);
     return rc;
 }
 

@@ -16,6 +16,8 @@ void resizeContent(int width, int height);
 void resizeContent(int width, int height, bool preserveAspect);
 void restoreUserAspectPreference(void);
 bool gameIsWidescreen();
+bool gameIsFullscreen();
+void svgaToggleFullscreen();
 
 extern SDL_Window* gSdlWindow;
 extern SDL_Surface* gSdlSurface;
@@ -23,6 +25,8 @@ extern SDL_Renderer* gSdlRenderer;
 extern SDL_Texture* gSdlTexture;
 extern SDL_Surface* gSdlTextureSurface;
 extern FpsLimiter sharedFpsLimiter;
+
+extern Rect gMouseClipRect;
 
 int _init_mode_320_200();
 int _init_mode_320_400();

@@ -388,10 +388,19 @@ void _mouse_info()
 
         switch (gesture.type) {
         case kTap:
-            if (gesture.numberOfTouches == 1) {
-                _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
-            } else if (gesture.numberOfTouches == 2) {
-                _mouse_simulate_input(0, 0, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+            // toggle for SDL_GetMouseState() handling
+            if (gameIsFullscreen()) {
+                if (gesture.numberOfTouches == 1) {
+                    _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
+                } else if (gesture.numberOfTouches == 2) {
+                    _mouse_simulate_input(0, 0, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+                }
+            } else {
+                if (gesture.numberOfTouches == 1) {
+                    _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_LEFT_BUTTON_DOWN);
+                } else if (gesture.numberOfTouches == 2) {
+                    _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+                }
             }
             break;
         case kLongPress:
@@ -399,6 +408,11 @@ void _mouse_info()
             if (gesture.state == kBegan) {
                 prevx = gesture.x;
                 prevy = gesture.y;
+            }
+            // toggle for SDL_GetMouseState() handling
+            if (!gameIsFullscreen()) {
+                prevx = 0;
+                prevy = 0;
             }
 
             if (gesture.type == kLongPress) {
@@ -549,8 +563,14 @@ void _mouse_simulate_input(int delta_x, int delta_y, int buttons)
         mouseRect.right = gMouseCursorWidth + gMouseCursorX - 1;
         mouseRect.bottom = gMouseCursorHeight + gMouseCursorY - 1;
 
-        gMouseCursorX += delta_x;
-        gMouseCursorY += delta_y;
+        // toggle for SDL_GetMouseState() handling
+        if (gameIsFullscreen()) {
+            gMouseCursorX += delta_x;
+            gMouseCursorY += delta_y;
+        } else {
+            gMouseCursorX = delta_x;
+            gMouseCursorY = delta_y;
+        }
         _mouse_clip();
 
         windowRefreshAll(&mouseRect);
@@ -615,18 +635,27 @@ void _mouse_set_position(int x, int y)
 }
 
 // 0x4CAA38
+// Modified to use gMouseClipRect set in resizeContent
 static void _mouse_clip()
 {
-    if (_mouse_hotx + gMouseCursorX < _scr_size.left) {
-        gMouseCursorX = _scr_size.left - _mouse_hotx;
-    } else if (_mouse_hotx + gMouseCursorX > _scr_size.right) {
-        gMouseCursorX = _scr_size.right - _mouse_hotx;
+    Rect* clipRect = &_scr_size; // Default to _scr_size
+
+    // Check if we have a separate mouse clipping rectangle
+    extern Rect gMouseClipRect;
+    if (gMouseClipRect.right > gMouseClipRect.left && gMouseClipRect.bottom > gMouseClipRect.top) {
+        clipRect = &gMouseClipRect;
     }
 
-    if (_mouse_hoty + gMouseCursorY < _scr_size.top) {
-        gMouseCursorY = _scr_size.top - _mouse_hoty;
-    } else if (_mouse_hoty + gMouseCursorY > _scr_size.bottom) {
-        gMouseCursorY = _scr_size.bottom - _mouse_hoty;
+    if (_mouse_hotx + gMouseCursorX < clipRect->left) {
+        gMouseCursorX = clipRect->left - _mouse_hotx;
+    } else if (_mouse_hotx + gMouseCursorX > clipRect->right) {
+        gMouseCursorX = clipRect->right - _mouse_hotx;
+    }
+
+    if (_mouse_hoty + gMouseCursorY < clipRect->top) {
+        gMouseCursorY = clipRect->top - _mouse_hoty;
+    } else if (_mouse_hoty + gMouseCursorY > clipRect->bottom) {
+        gMouseCursorY = clipRect->bottom - _mouse_hoty;
     }
 }
 
@@ -654,9 +683,14 @@ void _mouse_get_raw_state(int* out_x, int* out_y, int* out_buttons)
     }
 
     _raw_buttons = 0;
-    _raw_x += mouseData.x;
-    _raw_y += mouseData.y;
-
+    // toggle for SDL_GetMouseState() handling
+    if (gameIsFullscreen()) {
+        _raw_x += mouseData.x;
+        _raw_y += mouseData.y;
+    } else {
+        _raw_x = mouseData.x;
+        _raw_y = mouseData.y;
+    }
     if (mouseData.buttons[0] != 0) {
         _raw_buttons |= MOUSE_EVENT_LEFT_BUTTON_DOWN;
     }

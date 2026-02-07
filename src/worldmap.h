@@ -237,6 +237,14 @@ typedef enum Map {
 
 extern unsigned char* circleBlendTable;
 
+// Accessor functions for map system
+int wmGetAreaId(int areaIndex);
+int wmGetAreaVisitedState(int areaIndex);
+const char* wmGetAreaName(int areaIndex);
+const char* wmGetMapLookupName(int mapIndex);
+int wmGetAreaContainingMap(int mapIndex); // Returns area index or -1
+const char* wmGetAreaModName(int areaIndex);
+
 int wmWorldMap_init();
 void wmWorldMap_exit();
 int wmWorldMap_reset();
@@ -288,6 +296,9 @@ void wmSetPartyWorldPos(int x, int y);
 void wmCarSetCurrentArea(int area);
 void wmForceEncounter(int map, unsigned int flags);
 void wmSetScriptWorldMapMulti(float value);
+
+int wmGetAreaMessageId(int areaIndex);
+int wmGetMapEntranceMessageId(int mapIndex, int elevation);
 
 } // namespace fallout
 

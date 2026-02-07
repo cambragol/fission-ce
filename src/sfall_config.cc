@@ -88,7 +88,7 @@ bool sfallConfigInit(int argc, char** argv)
         strcpy(path, SFALL_CONFIG_FILE_NAME);
     }
 
-    auto configChecker = ConfigChecker(gSfallConfig, "ddraw.ini");
+    auto configChecker = ConfigChecker(gSfallConfig, "fallout2.cfg");
 
     configRead(&gSfallConfig, path, false);
 
