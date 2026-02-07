@@ -4326,25 +4326,57 @@ static int _compare_items_by_type(const void* a, const void* b)
 
     // Map item types to display priority (1 = top, 7 = near bottom)
     switch (typeA) {
-        case ITEM_TYPE_WEAPON:    orderA = 1; break;  // Top priority - weapons at top
-        case ITEM_TYPE_AMMO:      orderA = 2; break;
-        case ITEM_TYPE_DRUG:      orderA = 3; break;
-        case ITEM_TYPE_ARMOR:     orderA = 4; break;
-        case ITEM_TYPE_MISC:      orderA = 5; break;
-        case ITEM_TYPE_CONTAINER: orderA = 6; break;
-        case ITEM_TYPE_KEY:       orderA = 7; break;
-        default:                  orderA = MAX_SORT_PRIORITY; break;  // Unknown types at very bottom
+    case ITEM_TYPE_WEAPON:
+        orderA = 1;
+        break; // Top priority - weapons at top
+    case ITEM_TYPE_AMMO:
+        orderA = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderA = 3;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderA = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderA = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderA = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderA = 7;
+        break;
+    default:
+        orderA = MAX_SORT_PRIORITY;
+        break; // Unknown types at very bottom
     }
 
     switch (typeB) {
-        case ITEM_TYPE_WEAPON:    orderB = 1; break;
-        case ITEM_TYPE_AMMO:      orderB = 2; break;
-        case ITEM_TYPE_DRUG:      orderB = 3; break;
-        case ITEM_TYPE_ARMOR:     orderB = 4; break;
-        case ITEM_TYPE_MISC:      orderB = 5; break;
-        case ITEM_TYPE_CONTAINER: orderB = 6; break;
-        case ITEM_TYPE_KEY:       orderB = 7; break;
-        default:                  orderB = MAX_SORT_PRIORITY; break;
+    case ITEM_TYPE_WEAPON:
+        orderB = 1;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderB = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderB = 3;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderB = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderB = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderB = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderB = 7;
+        break;
+    default:
+        orderB = MAX_SORT_PRIORITY;
+        break;
     }
 
     // Different types: sort by display priority
@@ -4429,7 +4461,7 @@ static int _compare_items_all_others(const void* a, const void* b)
 
     switch (typeB) {
     case ITEM_TYPE_ARMOR:
-        orderB = 1; 
+        orderB = 1;
         break;
     case ITEM_TYPE_MISC:
         orderB = 2;
