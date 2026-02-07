@@ -3988,7 +3988,7 @@ static void _show_sort_message(Object* obj, int sortType, int inventoryWindowTyp
 }
 
 // Shows message when inventory has 0 or 1 items (nothing meaningful to sort)
-// Uses message 460 for player, 461 for NPC/container inventories 
+// Uses message 460 for player, 461 for NPC/container inventories
 static void _nothing_to_sort_message(Object* obj, int inventoryWindowType)
 {
     if (obj == nullptr) return;
@@ -4025,31 +4025,25 @@ static int _compare_weapons_specific(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     Object* weaponA = itemA->item;
     Object* weaponB = itemB->item;
-    
+
     if (weaponA == nullptr || weaponB == nullptr) {
         return 0;
     }
-    
+
     // Check if actual grenade: Throwing skill + grenade damage type
     int skillA = weaponGetSkillForHitMode(weaponA, 0);
     int skillB = weaponGetSkillForHitMode(weaponB, 0);
-    
+
     int damageTypeA = weaponGetDamageType(nullptr, weaponA);
     int damageTypeB = weaponGetDamageType(nullptr, weaponB);
-    
-    bool isGrenadeA = (skillA == SKILL_THROWING) && 
-                      (damageTypeA == DAMAGE_TYPE_EXPLOSION || 
-                       damageTypeA == DAMAGE_TYPE_PLASMA || 
-                       damageTypeA == DAMAGE_TYPE_EMP);
-    
-    bool isGrenadeB = (skillB == SKILL_THROWING) && 
-                      (damageTypeB == DAMAGE_TYPE_EXPLOSION || 
-                       damageTypeB == DAMAGE_TYPE_PLASMA || 
-                       damageTypeB == DAMAGE_TYPE_EMP);
-    
+
+    bool isGrenadeA = (skillA == SKILL_THROWING) && (damageTypeA == DAMAGE_TYPE_EXPLOSION || damageTypeA == DAMAGE_TYPE_PLASMA || damageTypeA == DAMAGE_TYPE_EMP);
+
+    bool isGrenadeB = (skillB == SKILL_THROWING) && (damageTypeB == DAMAGE_TYPE_EXPLOSION || damageTypeB == DAMAGE_TYPE_PLASMA || damageTypeB == DAMAGE_TYPE_EMP);
+
     // Grenades at bottom of weapons section
     if (isGrenadeA && !isGrenadeB) {
         return -1; // Grenade before non-grenade = grenades at BOTTOM
@@ -4057,15 +4051,15 @@ static int _compare_weapons_specific(const void* a, const void* b)
     if (!isGrenadeA && isGrenadeB) {
         return 1; // Non-grenade after grenade = grenades at BOTTOM
     }
-    
+
     // Both same type, sort by damage
     int minDamageA, maxDamageA, minDamageB, maxDamageB;
     weaponGetDamageMinMax(weaponA, &minDamageA, &maxDamageA);
     weaponGetDamageMinMax(weaponB, &minDamageB, &maxDamageB);
-    
+
     int avgDamageA = (minDamageA + maxDamageA) / 2;
     int avgDamageB = (minDamageB + maxDamageB) / 2;
-    
+
     // Ascending order: lowest damage first, highest last (at TOP)
     return avgDamageA - avgDamageB;
 }
@@ -4075,7 +4069,7 @@ static int _compare_ammo_specific(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     // Ascending order: smallest stacks first in array, largest last (at TOP)
     return itemA->quantity - itemB->quantity;
 }
@@ -4085,18 +4079,18 @@ static int _compare_drugs_specific(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     Object* drugA = itemA->item;
     Object* drugB = itemB->item;
-    
+
     if (drugA == nullptr || drugB == nullptr) {
         return 0;
     }
-    
+
     // Check if healing items
     bool isHealingA = itemIsHealing(drugA->pid);
     bool isHealingB = itemIsHealing(drugB->pid);
-    
+
     // Healing items first
     if (isHealingA && !isHealingB) {
         return 1; // A (healing) goes after B (non-healing) = healing at END = TOP
@@ -4104,11 +4098,11 @@ static int _compare_drugs_specific(const void* a, const void* b)
     if (!isHealingA && isHealingB) {
         return -1; // A (non-healing) goes before B (healing) = healing at END = TOP
     }
-    
+
     // Same type, sort by total value Ascending
     int valueA = itemGetCost(drugA) * itemA->quantity;
     int valueB = itemGetCost(drugB) * itemB->quantity;
-    
+
     return valueA - valueB; // Ascending: lowest value first, highest last (at TOP)
 }
 
@@ -4117,18 +4111,18 @@ static int _compare_armor_specific(const void* a, const void* b)
 {
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
-    
+
     Object* armorA = itemA->item;
     Object* armorB = itemB->item;
-    
+
     if (armorA == nullptr || armorB == nullptr) {
         return 0;
     }
-    
+
     // Get damage resistance for normal damage (damageType = 0)
     int drA = armorGetDamageResistance(armorA, 0);
     int drB = armorGetDamageResistance(armorB, 0);
-    
+
     // Ascending order: lowest DR first in array, highest DR last (at TOP)
     return drA - drB;
 }
@@ -4327,30 +4321,62 @@ static int _compare_items_by_type(const void* a, const void* b)
 
     // Display is reversed: array[0] = bottom of screen, array[N-1] = top of screen
     // Lower priority number = higher display position (top of screen)
-    int orderA = MAX_SORT_PRIORITY;  // Default: bottom of screen
-    int orderB = MAX_SORT_PRIORITY;  // Default: bottom of screen
+    int orderA = MAX_SORT_PRIORITY; // Default: bottom of screen
+    int orderB = MAX_SORT_PRIORITY; // Default: bottom of screen
 
     // Map item types to display priority (1 = top, 7 = near bottom)
     switch (typeA) {
-        case ITEM_TYPE_WEAPON:    orderA = 1; break;  // Top priority - weapons at top
-        case ITEM_TYPE_AMMO:      orderA = 2; break;
-        case ITEM_TYPE_DRUG:      orderA = 3; break;
-        case ITEM_TYPE_MISC:      orderA = 4; break;
-        case ITEM_TYPE_CONTAINER: orderA = 5; break;
-        case ITEM_TYPE_KEY:       orderA = 6; break;
-        case ITEM_TYPE_ARMOR:     orderA = 7; break;
-        default:                  orderA = MAX_SORT_PRIORITY; break;  // Unknown types at very bottom
+    case ITEM_TYPE_WEAPON:
+        orderA = 1;
+        break; // Top priority - weapons at top
+    case ITEM_TYPE_AMMO:
+        orderA = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderA = 3;
+        break;
+    case ITEM_TYPE_MISC:
+        orderA = 4;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderA = 5;
+        break;
+    case ITEM_TYPE_KEY:
+        orderA = 6;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderA = 7;
+        break;
+    default:
+        orderA = MAX_SORT_PRIORITY;
+        break; // Unknown types at very bottom
     }
 
     switch (typeB) {
-        case ITEM_TYPE_WEAPON:    orderB = 1; break;
-        case ITEM_TYPE_AMMO:      orderB = 2; break;
-        case ITEM_TYPE_DRUG:      orderB = 3; break;
-        case ITEM_TYPE_MISC:      orderB = 4; break;
-        case ITEM_TYPE_CONTAINER: orderB = 5; break;
-        case ITEM_TYPE_KEY:       orderB = 6; break;
-        case ITEM_TYPE_ARMOR:     orderB = 7; break;
-        default:                  orderB = MAX_SORT_PRIORITY; break;
+    case ITEM_TYPE_WEAPON:
+        orderB = 1;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderB = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderB = 3;
+        break;
+    case ITEM_TYPE_MISC:
+        orderB = 4;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderB = 5;
+        break;
+    case ITEM_TYPE_KEY:
+        orderB = 6;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderB = 7;
+        break;
+    default:
+        orderB = MAX_SORT_PRIORITY;
+        break;
     }
 
     // Different types: sort by display priority
@@ -4363,26 +4389,26 @@ static int _compare_items_by_type(const void* a, const void* b)
 
     // Same type: apply type-specific sorting
     switch (typeA) {
-        case ITEM_TYPE_WEAPON:
-            return _compare_weapons_specific(a, b);
-        case ITEM_TYPE_AMMO:
-            return _compare_ammo_specific(a, b);
-        case ITEM_TYPE_DRUG:
-            return _compare_drugs_specific(a, b);
-        case ITEM_TYPE_ARMOR:
-            return _compare_armor_specific(a, b);
-        default:
-            // For other types (MISC, CONTAINER, KEY), sort alphabetically
-            const char* nameA = objectGetName(itemA->item);
-            const char* nameB = objectGetName(itemB->item);
+    case ITEM_TYPE_WEAPON:
+        return _compare_weapons_specific(a, b);
+    case ITEM_TYPE_AMMO:
+        return _compare_ammo_specific(a, b);
+    case ITEM_TYPE_DRUG:
+        return _compare_drugs_specific(a, b);
+    case ITEM_TYPE_ARMOR:
+        return _compare_armor_specific(a, b);
+    default:
+        // For other types (MISC, CONTAINER, KEY), sort alphabetically
+        const char* nameA = objectGetName(itemA->item);
+        const char* nameB = objectGetName(itemB->item);
 
-            if (nameA == nullptr || nameB == nullptr) {
-                if (nameA == nullptr && nameB == nullptr) return 0;
-                if (nameA == nullptr) return -1;  // Null names first
-                return 1;  // Non-null after null
-            }
+        if (nameA == nullptr || nameB == nullptr) {
+            if (nameA == nullptr && nameB == nullptr) return 0;
+            if (nameA == nullptr) return -1; // Null names first
+            return 1; // Non-null after null
+        }
 
-            return strcmp(nameA, nameB);
+        return strcmp(nameA, nameB);
     }
 }
 
@@ -4484,11 +4510,11 @@ static int _compare_items_by_weight(const void* a, const void* b)
     // Get weight PER ITEM
     int weightPerItemA = itemGetWeight(itemA->item);
     int weightPerItemB = itemGetWeight(itemB->item);
-    
+
     // Calculate TOTAL stack weight (per item * quantity)
     int totalWeightA = weightPerItemA * itemA->quantity;
     int totalWeightB = weightPerItemB * itemB->quantity;
-    
+
     // Ascending order: lightest first in array, heaviest last (at TOP)
     return totalWeightA - totalWeightB;
 }
@@ -4502,11 +4528,11 @@ static int _compare_items_by_value(const void* a, const void* b)
     // Get value PER ITEM
     int valuePerItemA = itemGetCost(itemA->item);
     int valuePerItemB = itemGetCost(itemB->item);
-    
+
     // Calculate TOTAL stack value (per item * quantity)
     int totalValueA = valuePerItemA * itemA->quantity;
     int totalValueB = valuePerItemB * itemB->quantity;
-    
+
     // Ascending order: least valuable first in array, most valuable last (at TOP)
     return totalValueA - totalValueB;
 }
