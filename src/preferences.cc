@@ -454,10 +454,10 @@ void applyPlayAreaResolution()
             settings.graphics.game_width = 800;
             settings.graphics.game_height = 500;
             break;
-        case 2: // Large - 75% of screen size
+        case 2: // Large - 70% of screen size
         case 3: // Massive - Full screen size
             if (SDL_GetCurrentDisplayMode(displayIndex, &dm) == 0) {
-                float scale = (gPreferencesPlayArea1 == 2) ? 0.75f : 1.0f;
+                float scale = (gPreferencesPlayArea1 == 2) ? 0.7f : 1.0f;
 
                 // Calculate target dimensions while maintaining screen aspect ratio
                 settings.graphics.game_width = (int)roundf(dm.w * scale);

@@ -1,3 +1,13 @@
 PRFDIAL.FRM      ; new dial for widescreen preference screen
 TWNBACK.FRM      ; background for towns in widescreen mode
 FISSION.FRM      ; logo for the engine
+SORTMISN.FRM        ; sort misc off button
+SORTMISH.FRM        ; sort misc on button
+SORTWEAN.FRM        ; sort weapon off button
+SORTWEAH.FRM        ; sort weapon on button
+SORTAMMN.FRM        ; sort ammo off button
+SORTAMMH.FRM        ; sort ammo on button
+SORTDEFN.FRM        ; sort default off button
+SORTDEFH.FRM        ; sort default on button
+SORTDRUN.FRM        ; sort drug off button
+SORTDRUH.FRM        ; sort drug on button

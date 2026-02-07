@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "art.h"
 #include "automap.h"
@@ -44,6 +45,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define PIPBOY_WINDOW_WIDTH (640)
 #define PIPBOY_WINDOW_HEIGHT (480)
 
@@ -71,12 +74,40 @@ namespace fallout {
 
 #define PIPBOY_BOMB_COUNT (16)
 
+// Pipboy pagination defines
+#define PIPBOY_KEY_UP 1030
+#define PIPBOY_KEY_DOWN 1031
+#define PIPBOY_KEY_RIGHT 1033
+#define PIPBOY_KEY_LEFT 1034
+#define PIPBOY_KEY_SELECT 1032
+
+// Mod Holodisk defines
+#define MOD_HOLODISK_ID_START 50000
+#define MOD_HOLODISK_ID_BLOCK 500 // Same as vanilla
+#define MAX_HOLODISKS_PER_MOD 100
+
 // constants for setting lines per page in pagination functions
 const int PIPBOY_STATUS_QUEST_LINES = 19;
 const int PIPBOY_STATUS_HOLODISK_LINES = 19;
 const int PIPBOY_AUTOMAP_LINES = 19;
 const int PIPBOY_AUTOMAP_SUB_LINES = 5;
 const int PIPBOY_STATUS_QUESTLIST_LINES = 12;
+
+// global for selected item in lists
+int gPipboySelectedItem = 0;
+int gPipboySelectedIndex = 0; // Currently selected item index (0-based)
+int gPipboyMaxSelectableItems = 0; // Maximum selectable items on current page
+bool gPipboyKeyboardMode = false; // Are we in keyboard navigation mode?
+
+static int gNextModHolodiskId = MOD_HOLODISK_ID_START;
+
+typedef enum PipboyColumn {
+    PIPBOY_COLUMN_NONE = 0,
+    PIPBOY_COLUMN_QUESTS,
+    PIPBOY_COLUMN_HOLODISKS,
+} PipboyColumn;
+
+static PipboyColumn gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
 
 typedef enum Holiday {
     HOLIDAY_NEW_YEAR,
@@ -161,7 +192,7 @@ typedef enum PipboyFrm {
 
 // Provides metadata information on quests.
 //
-// Loaded from `data/quest.txt`.
+// Loaded from `data/quests.txt`.
 typedef struct QuestDescription {
     int location;
     int description;
@@ -270,6 +301,9 @@ HolodiskDescription* gHolodiskDescriptions = nullptr;
 // 0x51C134
 int gHolodisksCount = 0;
 
+int gPipboySelectedQuestIndex = 0;
+int gPipboySelectedHolodiskIndex = 0;
+
 // Number of rest options available.
 //
 // 0x51C138
@@ -308,7 +342,7 @@ MessageListItem gPipboyMessageListItem;
 MessageList gPipboyMessageList = { 0, nullptr };
 
 // 0x664350
-STRUCT_664350 _sortlist[24];
+STRUCT_664350 _sortlist[AUTOMAP_MAP_COUNT];
 
 // quests.msg
 //
@@ -440,6 +474,363 @@ static bool pipboy_available_at_game_start = false;
 
 static FrmImage _pipboyFrmImages[PIPBOY_FRM_COUNT];
 
+// Quest mod system globals
+ModQuestInfo gModQuests[MOD_QUEST_MAX - MOD_QUEST_START];
+int gModQuestCount = 0;
+char gQuestModNames[TOTAL_QUEST_MAX][64];
+
+// Convert a mod holodisk to vanilla format and load it
+static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, int gvar)
+{
+    // generate base ID for this holodisk
+    int baseId = gNextModHolodiskId;
+    gNextModHolodiskId += MOD_HOLODISK_ID_BLOCK;
+
+    // Get the string keys
+    char baseKey[64];
+    snprintf(baseKey, sizeof(baseKey), "holodisk:%d", holodiskIndex);
+
+    // Get holodisk name using string key
+    char nameKey[128];
+    snprintf(nameKey, sizeof(nameKey), "%s:name", baseKey);
+    int nameHashId = generate_mod_message_id(modName, nameKey);
+
+    // try to get the name from message list
+    MessageListItem nameMsgItem;
+    nameMsgItem.num = nameHashId;
+    const char* nameText = getmsg(&gPipboyMessageList, &nameMsgItem, nameHashId);
+
+    // Error check
+    if (!nameText || strstr(nameText, "Error") != nullptr || strstr(nameText, "String not found") != nullptr) {
+        return false;
+    }
+
+    // Add name to message list with numeric ID
+    if (!messageListAddEntry(&gPipboyMessageList, baseId, nameText)) {
+        return false;
+    }
+
+    // Read lines and add with consecutive IDs
+    int currentId = baseId + 1;
+    bool foundEndDisk = false;
+    int lineNum = 0;
+
+    while (lineNum < MOD_HOLODISK_ID_BLOCK - 1 && !foundEndDisk) {
+        char lineKey[128];
+        snprintf(lineKey, sizeof(lineKey), "%s:line:%d", baseKey, lineNum);
+        int lineHashId = generate_mod_message_id(modName, lineKey);
+
+        MessageListItem lineMsgItem;
+        lineMsgItem.num = lineHashId;
+        const char* lineText = getmsg(&gPipboyMessageList, &lineMsgItem, lineHashId);
+
+        // Check for errors
+        if (!lineText || strstr(lineText, "Error") != nullptr || strstr(lineText, "String not found") != nullptr) {
+            break;
+        }
+
+        // Check if this is the end marker
+        if (strcmp(lineText, "**END-DISK**") == 0) {
+            if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
+                return false;
+            }
+            foundEndDisk = true;
+            currentId++;
+            break;
+        }
+
+        // Add the line
+        if (!messageListAddEntry(&gPipboyMessageList, currentId, lineText)) {
+            return false;
+        }
+
+        currentId++;
+        lineNum++;
+    }
+
+    // Add final END-DISK if we didn't find one
+    if (!foundEndDisk) {
+        if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
+            return false;
+        }
+    }
+
+    // 6. Add to holodisk array (vanilla format!)
+    HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(
+        gHolodiskDescriptions,
+        sizeof(HolodiskDescription) * (gHolodisksCount + 1));
+
+    if (!entries) {
+        return false;
+    }
+
+    gHolodiskDescriptions = entries;
+    HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
+
+    holodisk->gvar = gvar;
+    holodisk->name = baseId; // Numeric ID for name
+    holodisk->description = baseId + 1; // First line ID (consecutive!)
+
+    gHolodisksCount++;
+
+    return true;
+}
+
+// Load a mod holodisk file (format: GVAR on each line)
+static void holodiskLoadModFile(const char* filename)
+{
+    File* stream = fileOpen(filename, "rt");
+    if (!stream) {
+        return;
+    }
+
+    // Extract mod name from filename (holodisk_xxx.txt -> xxx)
+    const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+    if (!base_filename) {
+        base_filename = filename;
+    } else {
+        base_filename++;
+    }
+
+    char mod_name[64] = { 0 };
+    const char* prefix = "holodisk_";
+    const char* suffix = ".txt";
+
+    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(base_filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        } else {
+            strncpy(mod_name, "unknown", sizeof(mod_name) - 1);
+        }
+    } else {
+        fileClose(stream);
+        return;
+    }
+
+    char line[256];
+    int holodiskIndex = 0;
+
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+
+        // Parse GVAR
+        int gvar;
+        if (sscanf(line, "%d", &gvar) != 1) {
+            continue;
+        }
+
+        // Convert and load as vanilla
+        convertAndLoadModHolodisk(mod_name, holodiskIndex, gvar);
+
+        holodiskIndex++;
+
+        // Safety check
+        if (holodiskIndex >= MAX_HOLODISKS_PER_MOD) {
+            break;
+        }
+    }
+
+    fileClose(stream);
+}
+
+static void pipboyRedrawStatusPageWithSelection()
+{
+    // Clear the content area
+    blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+        PIPBOY_WINDOW_WIDTH,
+        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_WIDTH);
+
+    if (gPipboyLinesCount >= 0) {
+        gPipboyCurrentLine = 0;
+    }
+
+    // Render quest locations
+    pipboyWindowRenderQuestLocationList(-1);
+
+    if (gPipboyQuestLocationsCount == 0) {
+        const char* text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 203);
+        pipboyDrawText(text, 0, _colorTable[992]);
+    }
+
+    // Render holodisk list
+    gPipboyWindowHolodisksCount = pipboyWindowRenderHolodiskList(-1);
+
+    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+}
+
+static int pipboyGetSelectionColor(bool isKeyboardSelected, bool isMouseSelected)
+{
+    if (isKeyboardSelected && gPipboyKeyboardMode) {
+        return _colorTable[32747]; // Bright green for keyboard selection
+    } else if (isMouseSelected) {
+        return _colorTable[32747]; // Bright green for mouse hover
+    } else {
+        return _colorTable[992]; // Normal color
+    }
+}
+
+// Debug function to activate test quests
+static void debugActivateTestQuests()
+{
+    // Set GVARs for our test quests
+    // This will make them appear in the Pip-Boy
+
+    char debugMsg[1024];
+    int offset = 0;
+
+    offset += snprintf(debugMsg, sizeof(debugMsg),
+        "Activating test quests for debugging:\n\n");
+
+    // Scraptown Main Quest (GVAR 900) - set to 1 (active)
+    int oldVal900 = gGameGlobalVars[900];
+    gGameGlobalVars[900] = 1;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 900: %d -> %d (Active)\n", oldVal900, gGameGlobalVars[900]);
+
+    // Scraptown Side Quest (GVAR 901) - set to 2 (completed)
+    int oldVal901 = gGameGlobalVars[901];
+    gGameGlobalVars[901] = 2;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 901: %d -> %d (Completed)\n", oldVal901, gGameGlobalVars[901]);
+
+    // Hightown Side Quest (GVAR 902) - set to 1 (active)
+    int oldVal902 = gGameGlobalVars[902];
+    gGameGlobalVars[902] = 1;
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "GVAR 902: %d -> %d (Active)\n\n", oldVal902, gGameGlobalVars[902]);
+
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "Test quests activated!\n");
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "- Scraptown: 1 active, 1 completed\n");
+    offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset,
+        "- Hightown: 1 active\n");
+
+    showMesageBox(debugMsg);
+}
+
+// Helper function to find city index in _sortlist
+static int findCityIndexInSortlist(int cityIndex, int elevation)
+{
+    for (int i = 0; i < _map_count; i++) {
+        if (_sortlist[i].field_4 == elevation && _sortlist[i].field_6 == cityIndex) {
+            return i;
+        }
+    }
+    return 0; // Default to first item
+}
+
+// Hash function for mod quest slot allocation (DJB2 hash)
+static uint32_t questHashString(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        c = tolower(c);
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+// Calculate consistent slot for a mod quest
+static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespace, int questIndexInMod)
+{
+    // Combine mod namespace with quest-specific information for consistent hashing
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
+
+    uint32_t hash = questHashString(combinedKey);
+
+    // Map to mod quest range (200-999)
+    uint16_t slot = MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
+
+    return slot;
+}
+
+// Get mod namespace from filename
+static uint32_t questGetModNamespace(const char* filename)
+{
+    char baseName[COMPAT_MAX_PATH];
+    const char* lastSlash = strrchr(filename, DIR_SEPARATOR);
+    const char* nameStart = lastSlash ? lastSlash + 1 : filename;
+
+    // Remove extension if present
+    strncpy(baseName, nameStart, sizeof(baseName) - 1);
+    baseName[sizeof(baseName) - 1] = '\0';
+
+    char* dot = strrchr(baseName, '.');
+    if (dot) *dot = '\0';
+
+    return questHashString(baseName);
+}
+
+// Parse a single quest line from quests.txt format
+static bool parseQuestLine(const char* line, int* location, int* description, int* gvar,
+    int* displayThreshold, int* completedThreshold)
+{
+    // Format: location, description, gvar, displayThreshold, completedThreshold
+    // Example: 1500, 100, 79, 1, 2
+    return sscanf(line, "%d, %d, %d, %d, %d",
+               location, description, gvar, displayThreshold, completedThreshold)
+        == 5;
+}
+
+// Initialize quest mod system
+static void questModInit()
+{
+    // Clear mod quest tracking
+    memset(gModQuests, 0, sizeof(gModQuests));
+    gModQuestCount = 0;
+
+    // Clear mod names array
+    memset(gQuestModNames, 0, sizeof(gQuestModNames));
+}
+
+// Helper function to get mod quest info by quest ID
+static ModQuestInfo* getModQuestInfo(int questId)
+{
+    if (questId < MOD_QUEST_START || questId >= MOD_QUEST_MAX) {
+        return nullptr;
+    }
+
+    for (int i = 0; i < gModQuestCount; i++) {
+        if (gModQuests[i].questId == questId) {
+            return &gModQuests[i];
+        }
+    }
+
+    return nullptr;
+}
+
+// Helper function to get quest description message ID
+static int getQuestDescriptionMessageId(int questId)
+{
+    if (questId < MOD_QUEST_START) {
+        // Vanilla quest: use the description field directly
+        // (which contains a message ID relative to quests.msg)
+        return gQuestDescriptions[questId].description;
+    } else {
+        // Mod quest: the description field already contains the hashed message ID
+        return gQuestDescriptions[questId].description;
+    }
+}
+
 // master navigation function to handle main and sub navigation
 static void renderNavigationButtons(int _view_page, int totalPages, bool isSubPage)
 {
@@ -539,8 +930,43 @@ int pipboyOpen(int intent)
         }
 
         // SFALL: Close with 'Z'.
-        if (keyCode == 503 || keyCode == KEY_ESCAPE || keyCode == KEY_RETURN || keyCode == KEY_UPPERCASE_P || keyCode == KEY_LOWERCASE_P || keyCode == KEY_UPPERCASE_Z || keyCode == KEY_LOWERCASE_Z || _game_user_wants_to_quit != 0) {
+        if (keyCode == 503 || keyCode == KEY_ESCAPE || keyCode == KEY_UPPERCASE_P || keyCode == KEY_LOWERCASE_P || keyCode == KEY_UPPERCASE_Z || keyCode == KEY_LOWERCASE_Z || _game_user_wants_to_quit != 0) {
             break;
+        }
+
+        // Handle Return key - if in keyboard mode, use for selection; otherwise exit
+        if (keyCode == KEY_RETURN) {
+            if (gPipboyKeyboardMode) {
+                // In keyboard mode, use Return for selection
+                _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT); // Send select event
+            } else {
+                // Not in keyboard mode, exit Pipboy
+                break;
+            }
+            continue;
+        }
+
+        // Arrow key support for pagination
+        if (keyCode == KEY_ARROW_LEFT) {
+            // Left arrow - go to previous page OR switch to quest column
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_LEFT); // New event for column switching
+            continue;
+        } else if (keyCode == KEY_ARROW_RIGHT) {
+            // Right arrow - go to next page OR switch to holodisk column
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_RIGHT); // New event for column switching
+            continue;
+        } else if (keyCode == KEY_ARROW_UP) {
+            // Up arrow - navigate up in lists
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_UP); // New event for up arrow
+            continue;
+        } else if (keyCode == KEY_ARROW_DOWN) {
+            // Down arrow - navigate down in lists
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_DOWN); // New event for down arrow
+            continue;
+        } else if (keyCode == KEY_RETURN || keyCode == KEY_UPPERCASE_E || keyCode == KEY_LOWERCASE_E) {
+            // Enter/E key - select highlighted item
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT); // New event for Enter/select
+            continue;
         }
 
         if (keyCode == KEY_F12) {
@@ -585,7 +1011,7 @@ int pipboyMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
 
-    if (!(messageListLoad(&gPipboyMessageList, path))) {
+    if (!(messageListLoadWithMods(&gPipboyMessageList, path, "PIPBOY"))) {
         return -1;
     }
 
@@ -627,11 +1053,12 @@ static int pipboyWindowInit(int intent)
     gPipboyWindowButtonStart = 0;
     _hot_back_line = 0;
 
-    if (holodiskInit() == -1) {
+    // Must load messages before holodisk
+    if (pipboyMessageListInit() == -1) {
         return -1;
     }
 
-    if (pipboyMessageListInit() == -1) {
+    if (holodiskInit() == -1) {
         return -1;
     }
 
@@ -1008,6 +1435,34 @@ int pipboyLoad(File* stream)
     return _save_pipboy(stream);
 }
 
+static void pipboyRedrawStatusContent()
+{
+    // Clear the content area
+    blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+        PIPBOY_WINDOW_WIDTH,
+        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_WIDTH);
+
+    if (gPipboyLinesCount >= 0) {
+        gPipboyCurrentLine = 0;
+    }
+
+    // Render quest locations
+    pipboyWindowRenderQuestLocationList(-1);
+
+    if (gPipboyQuestLocationsCount == 0) {
+        const char* text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 203);
+        pipboyDrawText(text, 0, _colorTable[992]);
+    }
+
+    // Render holodisk list
+    pipboyWindowRenderHolodiskList(-1);
+
+    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+}
+
 // 0x497BD8
 static void pipboyWindowHandleStatus(int userInput)
 {
@@ -1038,6 +1493,13 @@ static void pipboyWindowHandleStatus(int userInput)
             }
         }
 
+        // Initialize keyboard selection for main status page
+        gPipboySelectedQuestIndex = 0;
+        gPipboySelectedHolodiskIndex = 0;
+        gPipboySelectedIndex = 0;
+        gPipboyKeyboardMode = true;
+        gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS; // Start in quest column
+
         pipboyWindowRenderQuestLocationList(-1);
 
         if (gPipboyQuestLocationsCount == 0) {
@@ -1050,6 +1512,613 @@ static void pipboyWindowHandleStatus(int userInput)
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         pipboyWindowCreateButtons(2, gPipboyQuestLocationsCount + gPipboyWindowHolodisksCount + 1, true);
         windowRefresh(gPipboyWindow);
+        return;
+    }
+
+    // Arrow key support for status page navigation
+    if (userInput == 1026) { // Right arrow / Next page
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (_view_page_quest < totalPages - 1) {
+                _view_page_quest++;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowHandleStatus(1024);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        } else if (_holo_flag == 1) {
+            // Holodisk page
+            if (_view_page < gPipboyHolodiskLastPage) {
+                _view_page++;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        } else if (_stat_flag == 1) {
+            // Quest list page
+            if (_view_page_questlist < totalPages - 1) {
+                _view_page_questlist++;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowQuestList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        }
+        return;
+    } else if (userInput == 1027) { // Left arrow / Previous page
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (_view_page_quest > 0) {
+                _view_page_quest--;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowHandleStatus(1024);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        } else if (_holo_flag == 1) {
+            // Holodisk page
+            if (_view_page > 0) {
+                _view_page--;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        } else if (_stat_flag == 1) {
+            // Quest list page
+            if (_view_page_questlist > 0) {
+                _view_page_questlist--;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowQuestList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                windowRefresh(gPipboyWindow);
+            }
+        }
+        return;
+    }
+
+    // Handle up arrow (PIPBOY_KEY_UP) - navigate within current column
+    if (userInput == PIPBOY_KEY_UP) {
+
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (!gPipboyKeyboardMode) {
+                gPipboyKeyboardMode = true;
+                gPipboySelectedIndex = 0;
+                gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+            } else {
+                if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
+                    // In quest column
+                    if (gPipboySelectedQuestIndex > 0) {
+                        gPipboySelectedQuestIndex--;
+                        gPipboySelectedIndex = gPipboySelectedQuestIndex;
+                        pipboyRedrawStatusPageWithSelection();
+                    } else {
+                        // At top of quest column, go to previous page for both lists
+                        int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
+
+                        // Count total holodisks for pagination
+                        int totalHolodisks = 0;
+                        for (int index = 0; index < gHolodisksCount; index++) {
+                            if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                                totalHolodisks++;
+                            }
+                        }
+                        int totalHolodiskPages = (totalHolodisks + PIPBOY_STATUS_HOLODISK_LINES - 1) / PIPBOY_STATUS_HOLODISK_LINES;
+
+                        // Go to previous page for quests if available
+                        if (_view_page_quest > 0) {
+                            soundPlayFile("ib1p1xx1");
+                            _view_page_quest--;
+
+                            // Calculate how many quests are on the new page
+                            int maxEntriesPerPage = PIPBOY_STATUS_QUEST_LINES;
+                            int startIndex = _view_page_quest * maxEntriesPerPage;
+                            int endIndex = startIndex + maxEntriesPerPage;
+                            if (endIndex > gPipboyQuestLocationsCount) {
+                                endIndex = gPipboyQuestLocationsCount;
+                            }
+
+                            int questsOnNewPage = endIndex - startIndex;
+
+                            // Set selection to last item on the new page
+                            gPipboySelectedQuestIndex = questsOnNewPage - 1;
+                            if (gPipboySelectedQuestIndex < 0) gPipboySelectedQuestIndex = 0;
+                            gPipboySelectedIndex = gPipboySelectedQuestIndex;
+
+                            // Also go to previous page for holodisks if available
+                            if (_view_page_holodisk > 0) {
+                                _view_page_holodisk--;
+                            }
+
+                            pipboyRedrawStatusPageWithSelection();
+                        }
+                    }
+                } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
+                    // In holodisk column - calculate max index correctly
+
+                    // Calculate how many holodisks are on the CURRENT page
+                    int holodisksOnCurrentPage = 0;
+                    int currentHolodiskCount = 0;
+
+                    for (int index = 0; index < gHolodisksCount; index++) {
+                        if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                            // Check if this holodisk is on the current page
+                            if (currentHolodiskCount >= (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) && currentHolodiskCount < ((_view_page_holodisk + 1) * PIPBOY_STATUS_HOLODISK_LINES)) {
+                                holodisksOnCurrentPage++;
+                            }
+                            currentHolodiskCount++;
+                        }
+                    }
+
+                    if (gPipboySelectedHolodiskIndex > 0) {
+                        gPipboySelectedHolodiskIndex--;
+                        pipboyRedrawStatusPageWithSelection();
+                    } else {
+                        // At top of holodisk column, go to previous page for both lists
+                        int totalHolodisks = 0;
+                        for (int index = 0; index < gHolodisksCount; index++) {
+                            if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                                totalHolodisks++;
+                            }
+                        }
+
+                        int totalHolodiskPages = (totalHolodisks + PIPBOY_STATUS_HOLODISK_LINES - 1) / PIPBOY_STATUS_HOLODISK_LINES;
+                        int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
+
+                        // Go to previous page for holodisks if available
+                        if (_view_page_holodisk > 0) {
+                            _view_page_holodisk--;
+
+                            soundPlayFile("ib1p1xx1");
+
+                            // Calculate holodisks on new page
+                            holodisksOnCurrentPage = 0;
+                            currentHolodiskCount = 0;
+
+                            for (int index = 0; index < gHolodisksCount; index++) {
+                                if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                                    // Check if this holodisk is on the new page
+                                    if (currentHolodiskCount >= (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) && currentHolodiskCount < ((_view_page_holodisk + 1) * PIPBOY_STATUS_HOLODISK_LINES)) {
+                                        holodisksOnCurrentPage++;
+                                    }
+                                    currentHolodiskCount++;
+                                }
+                            }
+
+                            // Set to last holodisk on the new page
+                            gPipboySelectedHolodiskIndex = holodisksOnCurrentPage - 1;
+                            if (gPipboySelectedHolodiskIndex < 0) gPipboySelectedHolodiskIndex = 0;
+
+                            // Also go to previous page for quests if available
+                            if (_view_page_quest > 0) {
+                                _view_page_quest--;
+                            }
+
+                            // rebuild entire page
+                            pipboyWindowHandleStatus(1024);
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Handle down arrow (PIPBOY_KEY_DOWN) - navigate within current column
+    if (userInput == PIPBOY_KEY_DOWN) {
+
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (!gPipboyKeyboardMode) {
+                gPipboyKeyboardMode = true;
+                gPipboySelectedIndex = 0;
+                gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+            } else {
+                if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
+                    // In quest column
+                    int maxQuestIndex = gPipboyWindowQuestsCurrentPageCount - 1;
+
+                    if (gPipboySelectedQuestIndex < maxQuestIndex) {
+                        gPipboySelectedQuestIndex++;
+                        gPipboySelectedIndex = gPipboySelectedQuestIndex;
+                        pipboyRedrawStatusPageWithSelection();
+                    } else {
+                        // At bottom of quest column, go to next page for both lists
+                        int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
+
+                        // Count total holodisks for pagination
+                        int totalHolodisks = 0;
+                        for (int index = 0; index < gHolodisksCount; index++) {
+                            if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                                totalHolodisks++;
+                            }
+                        }
+                        int totalHolodiskPages = (totalHolodisks + PIPBOY_STATUS_HOLODISK_LINES - 1) / PIPBOY_STATUS_HOLODISK_LINES;
+
+                        // Go to next page for quests if available
+                        if (_view_page_quest < totalQuestPages - 1) {
+                            soundPlayFile("ib1p1xx1");
+                            _view_page_quest++;
+                            gPipboySelectedQuestIndex = 0;
+                            gPipboySelectedIndex = 0;
+
+                            // Also go to next page for holodisks if available
+                            if (_view_page_holodisk < totalHolodiskPages - 1) {
+                                _view_page_holodisk++;
+                            }
+
+                            pipboyWindowHandleStatus(1024);
+                        }
+                    }
+                } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
+                    // In holodisk column - calculate max index correctly
+
+                    // Calculate how many holodisks are on the current page
+                    int holodisksOnCurrentPage = 0;
+                    int currentHolodiskCount = 0;
+
+                    for (int index = 0; index < gHolodisksCount; index++) {
+                        if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                            // Check if this holodisk is on the current page
+                            if (currentHolodiskCount >= (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) && currentHolodiskCount < ((_view_page_holodisk + 1) * PIPBOY_STATUS_HOLODISK_LINES)) {
+                                holodisksOnCurrentPage++;
+                            }
+                            currentHolodiskCount++;
+                        }
+                    }
+
+                    int maxHolodiskIndex = holodisksOnCurrentPage - 1;
+
+                    if (gPipboySelectedHolodiskIndex < maxHolodiskIndex) {
+                        gPipboySelectedHolodiskIndex++;
+                        pipboyRedrawStatusPageWithSelection();
+                    } else {
+                        // At bottom of holodisk column, go to next page for both lists
+                        int totalHolodisks = 0;
+                        for (int index = 0; index < gHolodisksCount; index++) {
+                            if (gGameGlobalVars[gHolodiskDescriptions[index].gvar] != 0) {
+                                totalHolodisks++;
+                            }
+                        }
+
+                        int totalHolodiskPages = (totalHolodisks + PIPBOY_STATUS_HOLODISK_LINES - 1) / PIPBOY_STATUS_HOLODISK_LINES;
+                        int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
+
+                        // Go to next page for holodisks if available
+                        if (_view_page_holodisk < totalHolodiskPages - 1) {
+                            _view_page_holodisk++;
+
+                            soundPlayFile("ib1p1xx1");
+
+                            gPipboySelectedHolodiskIndex = 0;
+
+                            // Also go to next page for quests if available
+                            if (_view_page_quest < totalQuestPages - 1) {
+                                _view_page_quest++;
+                            }
+
+                            // Rebuild page
+                            pipboyWindowHandleStatus(1024);
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Handle right arrow (PIPBOY_KEY_RIGHT) - switch from quests to holodisks OR next page when in holodisk column
+    if (userInput == PIPBOY_KEY_RIGHT) {
+        if (_holo_flag == 1) {
+            // In holodisk subpage
+            if (gPipboyHolodiskLastPage == 0) {
+                // Only one page - return to main (like "Back" button)
+                soundPlayFile("ib1p1xx1");
+                _holo_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            } else if (_view_page < gPipboyHolodiskLastPage) {
+                // Not on last page - go to next page
+                _view_page++;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On last page - return to main
+                soundPlayFile("ib1p1xx1");
+                _holo_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            }
+            return;
+        }
+
+        if (_stat_flag == 1) {
+            // In quest list subpage
+            if (totalPages <= 1) {
+                // Only one page - return to main (like "Back" button)
+                soundPlayFile("ib1p1xx1");
+                _stat_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            } else if (_view_page_questlist < totalPages - 1) {
+                // Not on last page - go to next page
+                _view_page_questlist++;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowQuestList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On last page - return to main
+                soundPlayFile("ib1p1xx1");
+                _stat_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            }
+            return;
+        }
+
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (!gPipboyKeyboardMode) {
+                gPipboyKeyboardMode = true;
+                gPipboySelectedIndex = 0;
+                gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+            } else {
+                if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
+                    // Switch to holodisk column - preserve quest index
+                    gPipboyCurrentColumn = PIPBOY_COLUMN_HOLODISKS;
+
+                    // Try to use the same index in holodisk list
+                    gPipboySelectedHolodiskIndex = fmin(gPipboySelectedQuestIndex, gPipboyWindowHolodisksCount - 1);
+                    if (gPipboySelectedHolodiskIndex < 0) gPipboySelectedHolodiskIndex = 0;
+                    gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
+
+                    pipboyRedrawStatusPageWithSelection();
+                } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
+
+                    // Calculate total pages for quests
+                    int totalQuestPages = (gPipboyQuestLocationsCount + PIPBOY_STATUS_QUEST_LINES - 1) / PIPBOY_STATUS_QUEST_LINES;
+
+                    // Count total holodisks for pagination
+                    int totalHolodisks = 0;
+                    for (int index = 0; index < gHolodisksCount; index++) {
+                        HolodiskDescription* holodisk = &(gHolodiskDescriptions[index]);
+                        if (gGameGlobalVars[holodisk->gvar] != 0) {
+                            totalHolodisks++;
+                        }
+                    }
+                    int totalHolodiskPages = (totalHolodisks + PIPBOY_STATUS_HOLODISK_LINES - 1) / PIPBOY_STATUS_HOLODISK_LINES;
+
+                    // Store current column before rebuilding
+                    PipboyColumn savedColumn = gPipboyCurrentColumn;
+
+                    if (_view_page_quest < totalQuestPages - 1 || _view_page_holodisk < totalHolodiskPages - 1) {
+
+                        // Go to next page for quests if available
+                        if (_view_page_quest < totalQuestPages - 1) {
+                            _view_page_quest++;
+                        }
+
+                        // Go to next page for holodisks if available
+                        if (_view_page_holodisk < totalHolodiskPages - 1) {
+                            _view_page_holodisk++;
+                        }
+
+                        soundPlayFile("ib1p1xx1");
+
+                        // Update selection to first item in holodisk column
+                        gPipboySelectedHolodiskIndex = 0;
+                        gPipboySelectedIndex = 0;
+
+                        // Rebuild the page - this resets column to quests
+                        pipboyWindowHandleStatus(1024);
+
+                        // Restore the column to holodisk after rebuild
+                        gPipboyCurrentColumn = savedColumn;
+                        gPipboyKeyboardMode = true; // Ensure keyboard mode is on
+                        gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
+
+                        // Now redraw with holodisk column selected
+                        pipboyRedrawStatusPageWithSelection();
+                    } else {
+                        // do nothing, last page
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Handle left arrow (PIPBOY_KEY_LEFT) - switch from holodisks to quests OR previous page when in quest column
+    if (userInput == PIPBOY_KEY_LEFT) {
+        if (_holo_flag == 1) {
+            // In holodisk subpage
+            if (gPipboyHolodiskLastPage == 0) {
+                // Only one page - return to main (like "Back" button)
+                soundPlayFile("ib1p1xx1");
+                _holo_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            } else if (_view_page > 0) {
+                // Not on first page - go to previous page
+                _view_page--;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On first page - return to main
+                soundPlayFile("ib1p1xx1");
+                _holo_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            }
+            return;
+        }
+
+        if (_stat_flag == 1) {
+            // In quest list subpage
+            if (totalPages <= 1) {
+                // Only one page - return to main (like "Back" button)
+                soundPlayFile("ib1p1xx1");
+                _stat_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            } else if (_view_page_questlist > 0) {
+                // Not on first page - go to previous page
+                _view_page_questlist--;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowQuestList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On first page - return to main
+                soundPlayFile("ib1p1xx1");
+                _stat_flag = 0;
+                pipboyWindowHandleStatus(1024);
+            }
+            return;
+        }
+
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (!gPipboyKeyboardMode) {
+                gPipboyKeyboardMode = true;
+                gPipboySelectedIndex = 0;
+                gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+            } else {
+                if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
+                    // Switch to quest column - preserve holodisk index
+                    gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+
+                    // Try to use the same index in quest list
+                    gPipboySelectedQuestIndex = fmin(gPipboySelectedHolodiskIndex, gPipboyWindowQuestsCurrentPageCount - 1);
+                    if (gPipboySelectedQuestIndex < 0) gPipboySelectedQuestIndex = 0;
+                    gPipboySelectedIndex = gPipboySelectedQuestIndex;
+
+                    pipboyRedrawStatusPageWithSelection();
+                } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
+
+                    if (_view_page_quest > 0 || _view_page_holodisk > 0) {
+
+                        // Go to previous page for quests if available
+                        if (_view_page_quest > 0) {
+                            _view_page_quest--;
+                        }
+
+                        // Go to previous page for holodisks if available
+                        if (_view_page_holodisk > 0) {
+                            _view_page_holodisk--;
+                        }
+                        soundPlayFile("ib1p1xx1");
+
+                        // Calculate how many quests are on the new page
+                        int maxEntriesPerPage = PIPBOY_STATUS_QUEST_LINES;
+                        int startIndex = _view_page_quest * maxEntriesPerPage;
+                        int endIndex = startIndex + maxEntriesPerPage;
+                        if (endIndex > gPipboyQuestLocationsCount) {
+                            endIndex = gPipboyQuestLocationsCount;
+                        }
+
+                        int questsOnNewPage = endIndex - startIndex;
+
+                        // Set quest selection to last item on the new page (for left arrow)
+                        gPipboySelectedQuestIndex = questsOnNewPage - 1;
+                        if (gPipboySelectedQuestIndex < 0) gPipboySelectedQuestIndex = 0;
+                        gPipboySelectedIndex = gPipboySelectedQuestIndex;
+
+                        // rebuild entire page
+                        pipboyWindowHandleStatus(1024);
+                    } else {
+                        // first page, do nothing
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Handle Enter/select (PIPBOY_KEY_SELECT)
+    if (userInput == PIPBOY_KEY_SELECT) {
+        if (_stat_flag == 0 && _holo_flag == 0) {
+            // Main status page
+            if (gPipboyKeyboardMode) {
+                if (gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS) {
+                    // Selected a quest location
+                    if (gPipboyWindowQuestsCurrentPageCount > 0 && gPipboySelectedQuestIndex < gPipboyWindowQuestsCurrentPageCount) {
+
+                        soundPlayFile("ib1p1xx1");
+
+                        // Convert page-relative index (0-based) to global index (1-based)
+                        int globalIndex = (_view_page_quest * PIPBOY_STATUS_QUEST_LINES) + gPipboySelectedQuestIndex + 1;
+
+                        // Clear and highlight the selected quest
+                        blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                            PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+                            PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+                            PIPBOY_WINDOW_WIDTH,
+                            gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                            PIPBOY_WINDOW_WIDTH);
+
+                        pipboyWindowRenderQuestLocationList(globalIndex);
+                        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                        inputPauseForTocks(200);
+
+                        // Enter quest list view
+                        _stat_flag = 1;
+                        gPipboyKeyboardMode = false; // Disable keyboard mode for quest list
+                        pipboyWindowQuestList(globalIndex);
+                    }
+                } else if (gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS) {
+                    // Selected a holodisk
+                    if (gPipboyWindowHolodisksCount > 0 && gPipboySelectedHolodiskIndex < gPipboyWindowHolodisksCount) {
+
+                        soundPlayFile("ib1p1xx1");
+
+                        // gPipboySelectedHolodiskIndex is now 0-based within current holodisk page
+                        int holodiskIndex = gPipboySelectedHolodiskIndex;
+
+                        // Calculate the real index in the holodisk list (considering pagination)
+                        int realIndex = (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) + holodiskIndex;
+
+                        // Find the actual holodisk in the global list
+                        _holodisk = 0;
+                        int foundIndex = 0;
+                        for (; foundIndex < gHolodisksCount; foundIndex++) {
+                            HolodiskDescription* holodiskDescription = &(gHolodiskDescriptions[foundIndex]);
+                            if (gGameGlobalVars[holodiskDescription->gvar] > 0) {
+                                if (_holodisk == realIndex) {
+                                    break;
+                                }
+                                _holodisk++;
+                            }
+                        }
+                        _holodisk = foundIndex;
+
+                        blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                            PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+                            PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+                            PIPBOY_WINDOW_WIDTH,
+                            gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                            PIPBOY_WINDOW_WIDTH);
+
+                        // Highlight the selected holodisk (convert to 1-based for rendering)
+                        pipboyWindowRenderHolodiskList(holodiskIndex + 1);
+                        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                        inputPauseForTocks(200);
+
+                        // Enter holodisk view
+                        pipboyWindowDestroyButtons();
+                        pipboyRenderHolodiskText();
+                        _holo_flag = 1;
+                        gPipboyKeyboardMode = false; // Disable keyboard mode for holodisk view
+                    }
+                }
+            }
+        }
         return;
     }
 
@@ -1193,15 +2262,12 @@ static void pipboyWindowHandleStatus(int userInput)
 
 static void pipboyWindowQuestList(int selectedLocationIndex)
 {
-
     // Declare and initialize local variables
     static int lastLocation = -1; // Store the last location passed, initialized to -1
     const int maxEntriesPerPage = PIPBOY_STATUS_QUESTLIST_LINES;
 
-    int index = 0;
-    int validQuestLocationCount = 0;
-    int totalQuests = 0;
     int displayedQuests = 0;
+    int totalQuests = 0;
     int number = 1 + (_view_page_questlist * maxEntriesPerPage);
 
     // If -1 is passed, use the last location
@@ -1211,26 +2277,51 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
         lastLocation = selectedLocationIndex; // Update the last location with the new one
     }
 
-    // Locate the correct quest list for the selected location
-    for (; index < gQuestsCount; index++) {
-        QuestDescription* questDescription = &(gQuestDescriptions[index]);
+    // NEW: Find the target location ID for the selected location index
+    int targetLocationId = -1;
+    int locationCount = 0;
 
-        // Check if the quest is valid based on the displayThreshold and global variables
-        if (questDescription->displayThreshold <= gGameGlobalVars[questDescription->gvar]) {
-            // Check if we have reached the selected quest
-            if (validQuestLocationCount == selectedLocationIndex - 1) {
+    // Build the same location list as in pipboyWindowRenderQuestLocationList
+    // to find which location ID corresponds to selectedLocationIndex
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* quest = &(gQuestDescriptions[i]);
+
+        // Skip empty quests
+        if (quest->location == 0) {
+            continue;
+        }
+
+        // Skip if quest doesn't meet display threshold
+        if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
+            continue;
+        }
+
+        // Check if this is a new location (not already counted)
+        bool newLocation = true;
+        for (int j = 0; j < i; j++) {
+            QuestDescription* prevQuest = &(gQuestDescriptions[j]);
+            if (prevQuest->location != 0 && prevQuest->displayThreshold <= gGameGlobalVars[prevQuest->gvar] && prevQuest->location == quest->location) {
+                newLocation = false;
                 break;
             }
+        }
 
-            validQuestLocationCount += 1;
+        if (newLocation) {
+            locationCount++;
 
-            // Skip quests in the same location
-            for (; index < gQuestsCount; index++) {
-                if (gQuestDescriptions[index].location != gQuestDescriptions[index + 1].location) {
-                    break;
-                }
+            // Is this the selected location?
+            if (locationCount == selectedLocationIndex) {
+                targetLocationId = quest->location;
+                break;
             }
         }
+    }
+
+    if (targetLocationId == -1) {
+        // Fallback: Show no quests if location not found
+        pipboyWindowDestroyButtons();
+        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+        return;
     }
 
     // Clear previous buttons
@@ -1254,11 +2345,12 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
         gPipboyCurrentLine = 1;
     }
 
-    // Get the quest description for the selected quest
-    QuestDescription* questDescription = &(gQuestDescriptions[index]);
+    // For quest list page, disable keyboard mode (no selectable items)
+    gPipboyKeyboardMode = false;
 
+    // Display the location header
     const char* text1 = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 210);
-    const char* text2 = getmsg(&gMapMessageList, &gPipboyMessageListItem, questDescription->location);
+    const char* text2 = getmsg(&gMapMessageList, &gPipboyMessageListItem, targetLocationId);
     char formattedText[1024];
     snprintf(formattedText, sizeof(formattedText), "%s %s", text2, text1);
     pipboyDrawText(formattedText, PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[992]);
@@ -1271,70 +2363,94 @@ static void pipboyWindowQuestList(int selectedLocationIndex)
     int startIndex = _view_page_questlist * maxEntriesPerPage;
     int endIndex = startIndex + maxEntriesPerPage;
 
-    // Loop through the quests and display them
-    for (; index < gQuestsCount; index++) {
-        QuestDescription* questDescription = &(gQuestDescriptions[index]);
+    // NEW: Count total quests for this location (for pagination)
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* quest = &(gQuestDescriptions[i]);
 
-        // If quest is valid and meets the display threshold
-        if (gGameGlobalVars[questDescription->gvar] >= questDescription->displayThreshold) {
-            // Count total valid quests for pagination
-            totalQuests++;
+        // Skip empty quests
+        if (quest->location == 0 || quest->description == 0) {
+            continue;
+        }
 
-            // Skip quests that should be on a previous page
-            if (displayedQuests < startIndex) {
-                displayedQuests++;
-                continue;
-            }
+        // Skip quests not in target location
+        if (quest->location != targetLocationId) {
+            continue;
+        }
 
-            // Stop processing if we've reached the page limit
-            if (displayedQuests >= endIndex) {
-                break;
-            }
+        // Skip if quest doesn't meet display threshold
+        if (gGameGlobalVars[quest->gvar] < quest->displayThreshold) {
+            continue;
+        }
 
-            // Display the quest with numbering
-            const char* text = getmsg(&gQuestsMessageList, &gPipboyMessageListItem, questDescription->description);
-            char formattedText[1024];
-            snprintf(formattedText, sizeof(formattedText), "%d. %s", number, text);
-            number++;
+        totalQuests++;
+    }
 
-            short beginnings[WORD_WRAP_MAX_COUNT];
-            short count;
-            if (wordWrap(formattedText, 350, beginnings, &count) == 0) {
-                for (int line = 0; line < count - 1; line++) {
-                    char* beginning = formattedText + beginnings[line];
-                    char* ending = formattedText + beginnings[line + 1];
-                    char c = *ending;
-                    *ending = '\0';
+    // Display quests for the target location
+    int questsDisplayed = 0;
 
-                    int flags;
-                    int color;
-                    if (gGameGlobalVars[questDescription->gvar] < questDescription->completedThreshold) {
-                        flags = 0;
-                        color = _colorTable[992];
-                    } else {
-                        flags = PIPBOY_TEXT_STYLE_STRIKE_THROUGH;
-                        color = _colorTable[8804];
-                    }
+    for (int i = 0; i < gQuestsCount; i++) {
+        QuestDescription* questDescription = &(gQuestDescriptions[i]);
 
-                    pipboyDrawText(beginning, flags, color);
-                    *ending = c;
-                    gPipboyCurrentLine++;
+        // Skip empty quests
+        if (questDescription->location == 0 || questDescription->description == 0) {
+            continue;
+        }
+
+        // Skip quests not in target location
+        if (questDescription->location != targetLocationId) {
+            continue;
+        }
+
+        // Skip if quest doesn't meet display threshold
+        if (gGameGlobalVars[questDescription->gvar] < questDescription->displayThreshold) {
+            continue;
+        }
+
+        // Pagination: Skip quests before startIndex
+        if (questsDisplayed < startIndex) {
+            questsDisplayed++;
+            continue;
+        }
+
+        // Stop if we've reached the page limit
+        if (questsDisplayed >= endIndex) {
+            break;
+        }
+
+        // Display the quest
+        const char* text = getmsg(&gQuestsMessageList, &gPipboyMessageListItem, questDescription->description);
+        char formattedText[1024];
+        snprintf(formattedText, sizeof(formattedText), "%d. %s", number, text);
+        number++;
+
+        short beginnings[WORD_WRAP_MAX_COUNT];
+        short count;
+        if (wordWrap(formattedText, 350, beginnings, &count) == 0) {
+            for (int line = 0; line < count - 1; line++) {
+                char* beginning = formattedText + beginnings[line];
+                char* ending = formattedText + beginnings[line + 1];
+                char c = *ending;
+                *ending = '\0';
+
+                int flags;
+                int color;
+                if (gGameGlobalVars[questDescription->gvar] < questDescription->completedThreshold) {
+                    flags = 0;
+                    color = _colorTable[992];
+                } else {
+                    flags = PIPBOY_TEXT_STYLE_STRIKE_THROUGH;
+                    color = _colorTable[8804];
                 }
-            } else {
-                debugPrint("\n ** Word wrap error in pipboy! **\n");
-            }
 
-            // Only increment displayedQuests when a quest is printed
-            displayedQuests++;
+                pipboyDrawText(beginning, flags, color);
+                *ending = c;
+                gPipboyCurrentLine++;
+            }
+        } else {
+            debugPrint("\n ** Word wrap error in pipboy! **\n");
         }
 
-        // Ensure we stop at the end of the current location's quests
-        if (index != gQuestsCount - 1) {
-            QuestDescription* nextQuestDescription = &(gQuestDescriptions[index + 1]);
-            if (questDescription->location != nextQuestDescription->location) {
-                break;
-            }
-        }
+        questsDisplayed++;
     }
 
     // Calculate total pages for pagination
@@ -1374,22 +2490,44 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
     gPipboyQuestLocationsCount = 0;
     const char* gPipboyQuestLocations[100]; // Fix: Use const char* to match getmsg() return type
 
+    gQuestsCount = MOD_QUEST_MAX;
+    // Build the list of quest locations
+    int addedLocationIds[100]; // Can hold up to 100 unique locations
+    int addedCount = 0;
+
     // Build the list of quest locations
     for (int index = 0; index < gQuestsCount; index++) {
         QuestDescription* quest = &(gQuestDescriptions[index]);
+
+        // Skip empty quests
+        if (quest->location == 0) {
+            continue;
+        }
+
+        // Skip if quest doesn't meet display threshold
         if (quest->displayThreshold > gGameGlobalVars[quest->gvar]) {
+            continue;
+        }
+
+        // Check if we've already added this location
+        bool duplicate = false;
+        for (int j = 0; j < addedCount; j++) {
+            if (addedLocationIds[j] == quest->location) {
+                duplicate = true;
+                break;
+            }
+        }
+
+        if (duplicate) {
             continue;
         }
 
         const char* questLocation = getmsg(&gMapMessageList, &gPipboyMessageListItem, quest->location);
         if (questLocation != NULL) {
-            gPipboyQuestLocations[gPipboyQuestLocationsCount] = questLocation; // No more type mismatch
+            gPipboyQuestLocations[gPipboyQuestLocationsCount] = questLocation;
+            addedLocationIds[addedCount] = quest->location;
             gPipboyQuestLocationsCount += 1;
-        }
-
-        // Skip quests in the same location
-        while (index < gQuestsCount - 1 && gQuestDescriptions[index].location == gQuestDescriptions[index + 1].location) {
-            index++; // Skip to the next quest in the same location
+            addedCount += 1;
         }
     }
 
@@ -1401,19 +2539,35 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 
     // Ensure that we don't go out of bounds
     if (startIndex >= gPipboyQuestLocationsCount) {
-        startIndex = gPipboyQuestLocationsCount - 1; // Adjust to the last item if we're beyond the list size
+        startIndex = gPipboyQuestLocationsCount - 1;
     }
     if (endIndex > gPipboyQuestLocationsCount) {
-        endIndex = gPipboyQuestLocationsCount; // Ensure we don't exceed the list size
+        endIndex = gPipboyQuestLocationsCount;
     }
 
-    gPipboyWindowQuestsCurrentPageCount = endIndex - startIndex; // for building buttons when paginated
+    gPipboyWindowQuestsCurrentPageCount = endIndex - startIndex;
+
+    // Update max selectable items for keyboard navigation
+    if (_stat_flag == 0 && _holo_flag == 0) {
+        gPipboyMaxSelectableItems = gPipboyWindowQuestsCurrentPageCount;
+
+        // Adjust selection if it's out of bounds
+        if (gPipboySelectedIndex >= gPipboyMaxSelectableItems) {
+            gPipboySelectedIndex = gPipboyMaxSelectableItems - 1;
+        }
+    }
 
     // Render the current page
     for (int index = startIndex; index < endIndex; index++) {
-        // Render the location at index
+        int pageRelativeIndex = index - startIndex;
+
+        // Determine if this item is keyboard-selected
+        bool isKeyboardSelected = (gPipboyKeyboardMode && gPipboyCurrentColumn == PIPBOY_COLUMN_QUESTS && pageRelativeIndex == gPipboySelectedQuestIndex);
+        bool isMouseSelected = ((gPipboyCurrentLine - 1) / 2 == (selectedQuestLocation - 1));
+
+        int color = pipboyGetSelectionColor(isKeyboardSelected, isMouseSelected);
+
         const char* questLocation = gPipboyQuestLocations[index];
-        int color = (gPipboyCurrentLine - 1) / 2 == (selectedQuestLocation - 1) ? _colorTable[32747] : _colorTable[992];
         pipboyDrawText(questLocation, 0, color);
         gPipboyCurrentLine += 1;
     }
@@ -1438,6 +2592,9 @@ static void pipboyRenderHolodiskText()
     if (gPipboyLinesCount >= 0) {
         gPipboyCurrentLine = 0;
     }
+
+    // For holodisk content, disable keyboard mode (no selectable items)
+    gPipboyKeyboardMode = false;
 
     HolodiskDescription* holodisk = &(gHolodiskDescriptions[_holodisk]);
 
@@ -1560,7 +2717,15 @@ static int pipboyWindowRenderHolodiskList(int selectedHolodiskEntry)
             continue;
 
         if (currentIndex >= startIdx && currentIndex < startIdx + maxEntriesPerPage) {
-            int color = ((gPipboyCurrentLine - 1) / 2 == selectedHolodiskEntry - 1) ? _colorTable[32747] : _colorTable[992];
+            int pageRelativeIndex = currentIndex - startIdx;
+
+            // Check if this is keyboard selected
+            bool isKeyboardSelected = (gPipboyKeyboardMode && gPipboyCurrentColumn == PIPBOY_COLUMN_HOLODISKS && pageRelativeIndex == gPipboySelectedHolodiskIndex);
+
+            bool isMouseSelected = ((gPipboyCurrentLine - 1) / 2 == (selectedHolodiskEntry - 1));
+
+            int color = pipboyGetSelectionColor(isKeyboardSelected, isMouseSelected);
+
             const char* text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, holodisk->name);
             pipboyDrawText(text, PIPBOY_TEXT_ALIGNMENT_RIGHT_COLUMN, color);
             gPipboyCurrentLine++;
@@ -1594,6 +2759,9 @@ static int _qscmp(const void* a1,
 static void pipboyWindowHandleAutomaps(int userInput)
 {
     if (userInput == 1024) { // 1024 'resets' the page (kindof)
+        // Reset selection for automaps
+        gPipboySelectedIndex = 0;
+        gPipboyKeyboardMode = false;
         pipboyWindowDestroyButtons();
         blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
             PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
@@ -1605,14 +2773,238 @@ static void pipboyWindowHandleAutomaps(int userInput)
         const char* title = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 205);
         pipboyDrawText(title, PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[992]);
 
+        // Reset city index when returning to main list
+        _amcty_indx = -1;
+
+        // Initialize keyboard selection before drawing
+        gPipboySelectedIndex = 0;
+        gPipboyKeyboardMode = true;
+
         _location_count = _PrintAMList(-1); // get main page list count
 
         pipboyWindowCreateButtons(2, _location_count, true); // create buttons for main page
         main_sub_mode = 0; // Set mode for handling navigation (main or sub navigation)
 
+        gPipboyMaxSelectableItems = _location_count; // Update max items
+
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         _view_page_automap_sub = 0; // reset subpages start at page 1(0)
 
+        return;
+    }
+
+    if (userInput == PIPBOY_KEY_LEFT) { // Left arrow
+        userInput = 1027; // Map to Page Up (previous page)
+    } else if (userInput == PIPBOY_KEY_RIGHT) { // Right arrow
+        userInput = 1026; // Map to Page Down (next page)
+    }
+
+    // Handle left/right arrow keys for page navigation
+    if (userInput == 1026) { // Right arrow (next page)
+        soundPlayFile("ib1p1xx1");
+
+        if (main_sub_mode == 0) { // Main page
+            if (_view_page_automap_main < totalPages - 1) {
+                _view_page_automap_main++;
+
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+
+                pipboyWindowDestroyButtons();
+                _location_count = _PrintAMList(-1);
+                pipboyWindowCreateButtons(2, _location_count, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        } else if (main_sub_mode == 1) { // Sub-page
+            if (_view_page_automap_sub < totalPages - 1) {
+                _view_page_automap_sub++;
+
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowDestroyButtons();
+                _map_count = _PrintAMelevList(-1);
+                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On last page, right arrow goes back to main automap list
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowHandleAutomaps(1024);
+            }
+        }
+        return;
+    } else if (userInput == 1027) { // Left arrow (previous page)
+        soundPlayFile("ib1p1xx1");
+
+        if (main_sub_mode == 0) { // Main page
+            if (_view_page_automap_main > 0) {
+                _view_page_automap_main--;
+
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+
+                pipboyWindowDestroyButtons();
+                _location_count = _PrintAMList(-1);
+                pipboyWindowCreateButtons(2, _location_count, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        } else if (main_sub_mode == 1) { // Sub-page
+            if (_view_page_automap_sub > 0) {
+                _view_page_automap_sub--;
+
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowDestroyButtons();
+                _map_count = _PrintAMelevList(-1);
+                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // On first page, left arrow goes back to main automap list
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowHandleAutomaps(1024);
+            }
+        }
+        return;
+    }
+
+    // Handle up arrow (PIPBOY_KEY_UP)
+    if (userInput == PIPBOY_KEY_UP) {
+        if (main_sub_mode == 0) {
+            // Main page up arrow
+            if (gPipboySelectedIndex > 0) {
+                gPipboySelectedIndex--;
+                gPipboyKeyboardMode = true;
+                _PrintAMList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else if (gPipboySelectedIndex == 0 && _view_page_automap_main > 0) {
+                // Wrap to previous page
+                soundPlayFile("ib1p1xx1");
+                _view_page_automap_main--;
+                gPipboySelectedIndex = (_view_page_automap_main + 1) * PIPBOY_AUTOMAP_LINES - 1;
+                gPipboyKeyboardMode = true;
+                pipboyWindowDestroyButtons();
+                _location_count = _PrintAMList(-1);
+                pipboyWindowCreateButtons(2, _location_count, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        } else if (main_sub_mode == 1) {
+            // Sub-page up arrow
+            if (gPipboySelectedIndex > 0) {
+                gPipboySelectedIndex--;
+                gPipboyKeyboardMode = true;
+                _PrintAMelevList(-1); // Changed from 1 to -1
+                automapRenderInPipboyWindow(gPipboyWindow,
+                    _sortlist[gPipboySelectedIndex].field_6,
+                    _sortlist[gPipboySelectedIndex].field_4);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else if (gPipboySelectedIndex == 0 && _view_page_automap_sub > 0) {
+                // Wrap to previous page
+                _view_page_automap_sub--;
+                gPipboySelectedIndex = (_view_page_automap_main + 1) * PIPBOY_AUTOMAP_LINES - 1;
+                gPipboyKeyboardMode = true;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowDestroyButtons();
+                _map_count = _PrintAMelevList(-1); // Changed from two calls to one
+                automapRenderInPipboyWindow(gPipboyWindow,
+                    _sortlist[gPipboySelectedIndex].field_6,
+                    _sortlist[gPipboySelectedIndex].field_4);
+                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        }
+        return;
+    }
+
+    // Handle down arrow (PIPBOY_KEY_DOWN)
+    if (userInput == PIPBOY_KEY_DOWN) {
+        if (main_sub_mode == 0) {
+            // Main page down arrow
+            int maxItems = _location_count;
+            if (gPipboySelectedIndex < maxItems - 1) {
+                gPipboySelectedIndex++;
+                gPipboyKeyboardMode = true;
+                _PrintAMList(-1);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else if (gPipboySelectedIndex == maxItems - 1 && _view_page_automap_main < totalPages - 1) {
+                // Wrap to next page
+                soundPlayFile("ib1p1xx1");
+                _view_page_automap_main++;
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+                pipboyWindowDestroyButtons();
+                _location_count = _PrintAMList(-1);
+                pipboyWindowCreateButtons(2, _location_count, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        } else if (main_sub_mode == 1) {
+            // Sub-page down arrow
+            int maxItems = _map_count;
+            if (gPipboySelectedIndex < maxItems - 1) {
+                gPipboySelectedIndex++;
+                gPipboyKeyboardMode = true;
+                _PrintAMelevList(-1); // Changed from 1 to -1
+                automapRenderInPipboyWindow(gPipboyWindow,
+                    _sortlist[gPipboySelectedIndex].field_6,
+                    _sortlist[gPipboySelectedIndex].field_4);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else if (gPipboySelectedIndex == maxItems - 1 && _view_page_automap_sub < totalPages - 1) {
+                // Wrap to next page
+                _view_page_automap_sub++;
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowDestroyButtons();
+                _map_count = _PrintAMelevList(-1); // Changed from two calls to one
+                automapRenderInPipboyWindow(gPipboyWindow,
+                    _sortlist[gPipboySelectedIndex].field_6,
+                    _sortlist[gPipboySelectedIndex].field_4);
+                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+        }
+        return;
+    }
+
+    // Handle Enter (PIPBOY_KEY_SELECT) - select highlighted item
+    if (userInput == PIPBOY_KEY_SELECT) {
+        if (gPipboyKeyboardMode && gPipboySelectedIndex >= 0) {
+            // Convert selected index to button index (1-based)
+            int buttonIndex = gPipboySelectedIndex + 1;
+
+            if (main_sub_mode == 0) {
+                // Select location on main page
+                if (buttonIndex <= _location_count) {
+                    soundPlayFile("ib1p1xx1");
+                    pipboyWindowDestroyButtons();
+                    int realIndex = (_view_page_automap_main * PIPBOY_AUTOMAP_LINES) + (buttonIndex - 1);
+                    _amcty_indx = _sortlist[realIndex].field_4;
+                    gPipboySelectedIndex = 0;
+                    gPipboyKeyboardMode = true;
+                    _map_count = _PrintAMelevList(-1); // Changed from 1 to -1
+                    pipboyWindowCreateButtons(0, _map_count + 2, true);
+                    automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
+                    gPipboyMaxSelectableItems = _map_count;
+                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                    main_sub_mode = 1;
+                }
+            } else if (main_sub_mode == 1) {
+                // Select elevation on sub-page
+                if (buttonIndex <= _map_count) {
+                    soundPlayFile("ib1p1xx1");
+                    gPipboyKeyboardMode = false; // Mouse-like selection, so turn off keyboard mode
+                    _PrintAMelevList(buttonIndex);
+                    automapRenderInPipboyWindow(gPipboyWindow,
+                        _sortlist[buttonIndex - 1].field_6,
+                        _sortlist[buttonIndex - 1].field_4);
+                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                }
+            }
+        }
         return;
     }
 
@@ -1641,16 +3033,41 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 });
         }
 
-        if (userInput > 0 && userInput <= _location_count) {
+        if (userInput > 0 && userInput <= _location_count && main_sub_mode == 0) {
             soundPlayFile("ib1p1xx1");
             pipboyWindowDestroyButtons();
-            //_PrintAMList(userInput);
-            // windowRefreshRect(gPipboyWindow, & gPipboyWindowContentRect);
-            int realIndex = (_view_page_automap_main * PIPBOY_AUTOMAP_LINES) + (userInput - 1); // Adjust for pagination
-            _amcty_indx = _sortlist[realIndex].field_4;
-            _map_count = _PrintAMelevList(1);
-            pipboyWindowCreateButtons(0, _map_count + 2, true); // create buttons for sub-locations (elevation), and back/more
-            automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
+            int realIndex = (_view_page_automap_main * PIPBOY_AUTOMAP_LINES) + (userInput - 1);
+
+            // Store the clicked city index in a local variable
+            int clickedCityIndex = _sortlist[realIndex].field_4;
+
+            // Set the global city index to the clicked city
+            _amcty_indx = clickedCityIndex;
+
+            // Reset keyboard state for new sub-page
+            gPipboySelectedIndex = 0;
+            gPipboyKeyboardMode = true;
+
+            _map_count = _PrintAMelevList(-1);
+            pipboyWindowCreateButtons(0, _map_count + 2, true);
+
+            // Use the clicked city to render the map
+            // Find which index in _sortlist corresponds to the clicked city
+            int foundIndex = -1;
+            for (int i = 0; i < _map_count; i++) {
+                if (_sortlist[i].field_4 == clickedCityIndex) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            // Default to first item if not found
+            int displayIndex = findCityIndexInSortlist(clickedCityIndex, 0); // Default to elevation 0
+
+            automapRenderInPipboyWindow(gPipboyWindow,
+                _sortlist[displayIndex].field_6,
+                _sortlist[displayIndex].field_4);
+
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             main_sub_mode = 1;
         }
@@ -1677,6 +3094,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
 
         if (userInput >= 1 && userInput <= _map_count + 3) {
             soundPlayFile("ib1p1xx1");
+            gPipboyKeyboardMode = false; // mouse click turns off keyboard mode
             _PrintAMelevList(userInput);
             automapRenderInPipboyWindow(gPipboyWindow, _sortlist[userInput - 1].field_6, _sortlist[userInput - 1].field_4);
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
@@ -1698,16 +3116,28 @@ static int _PrintAMelevList(int selectedMap)
     int elevationsListSize = 0;
     const int maxEntriesPerPage = PIPBOY_AUTOMAP_SUB_LINES;
 
-    // First pass: Count total valid entries
-    for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-        if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
-            totalEntries++;
+    // First pass: Count total valid entries with bounds checking
+    if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT) {
+        for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
+            if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
+                totalEntries++;
+            }
         }
     }
 
     int mapCount = wmMapMaxCount();
+    // Cap mapCount to AUTOMAP_MAP_COUNT
+    if (mapCount > AUTOMAP_MAP_COUNT) {
+        mapCount = AUTOMAP_MAP_COUNT;
+    }
+
     for (int map = 0; map < mapCount; map++) {
         if (map == _amcty_indx || _get_map_idx_same(_amcty_indx, map) == -1) {
+            continue;
+        }
+
+        // Bounds check
+        if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
             continue;
         }
 
@@ -1731,12 +3161,17 @@ static int _PrintAMelevList(int selectedMap)
 
     // Second pass: Build the list for the selected page
     for (int elevation = 0; elevation < ELEVATION_COUNT && elevationsListSize < maxEntriesPerPage; elevation++) {
-        if (automapHeader->offsets[_amcty_indx][elevation] > 0) {
+        if (_amcty_indx >= 0 && _amcty_indx < AUTOMAP_MAP_COUNT && automapHeader->offsets[_amcty_indx][elevation] > 0) {
             if (currentIndex >= startIndex && currentIndex < endIndex) {
                 _sortlist[elevationsListSize].name = mapGetName(_amcty_indx, elevation);
                 _sortlist[elevationsListSize].field_4 = elevation;
                 _sortlist[elevationsListSize].field_6 = _amcty_indx;
                 elevationsListSize++;
+
+                // Safety check
+                if (elevationsListSize >= 2000) {
+                    break;
+                }
             }
             currentIndex++;
         }
@@ -1760,7 +3195,7 @@ static int _PrintAMelevList(int selectedMap)
         }
     }
 
-    // update the UI
+    // Update the UI
     blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
         PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
@@ -1786,16 +3221,33 @@ static int _PrintAMelevList(int selectedMap)
         gPipboyCurrentLine = 4;
     }
 
+    // Set max selectable items for keyboard navigation
+    gPipboyMaxSelectableItems = elevationsListSize;
+
+    // Adjust keyboard selection if out of bounds for this page
+    if (gPipboySelectedIndex >= gPipboyMaxSelectableItems) {
+        gPipboySelectedIndex = gPipboyMaxSelectableItems - 1;
+        if (gPipboySelectedIndex < 0) {
+            gPipboySelectedIndex = 0;
+        }
+    }
+
     int selectedPipboyLine = (selectedMap - 1) * 2;
 
-    for (int index = 0; index < elevationsListSize; index++) { // draw locations list
-
+    for (int index = 0; index < elevationsListSize; index++) {
         int color;
-        if (gPipboyCurrentLine - 4 == selectedPipboyLine) {
-            color = _colorTable[32747];
-        } else {
-            color = _colorTable[992];
+
+        // Check for keyboard selection first
+        if (gPipboyKeyboardMode && index == gPipboySelectedIndex) {
+            color = _colorTable[32747]; // Bright green for keyboard selection
         }
+        // Then check for mouse selection
+        else if (gPipboyCurrentLine - 4 == selectedPipboyLine) {
+            color = _colorTable[32747]; // Bright green for mouse selection
+        } else {
+            color = _colorTable[992]; // Normal color
+        }
+
         pipboyDrawText(_sortlist[index].name, 0, color);
         gPipboyCurrentLine++;
     }
@@ -1812,6 +3264,11 @@ static int _PrintAMelevList(int selectedMap)
 // 0x499150
 static int _PrintAMList(int selectedLocation)
 {
+
+    // don't process invalid indices
+    if (_amcty_indx < -1 || _amcty_indx >= AUTOMAP_MAP_COUNT) {
+        _amcty_indx = -1;
+    }
     AutomapHeader* automapHeader;
     if (automapGetHeader(&automapHeader) == -1) {
         return -1;
@@ -1820,10 +3277,27 @@ static int _PrintAMList(int selectedLocation)
     int count = 0;
 
     int mapCount = wmMapMaxCount();
+    // Don't exceed AUTOMAP_MAP_COUNT
+    if (mapCount > AUTOMAP_MAP_COUNT) {
+        mapCount = AUTOMAP_MAP_COUNT;
+    }
+
     for (int map = 0; map < mapCount; map++) {
+
+        char* cityName = mapGetCityName(map);
+        // Skip if cityName is null OR starts with "ERROR!"
+        if (!cityName || (cityName && strncmp(cityName, "ERROR!", 6) == 0)) {
+            continue;
+        }
+        // Bounds check for displayMapList
+        if (map < 0 || map >= AUTOMAP_MAP_COUNT) {
+            continue;
+        }
+
         int elevation;
         for (elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-            if (automapHeader->offsets[map][elevation] > 0) {
+            // Bounds check for offsets
+            if (map < AUTOMAP_MAP_COUNT && elevation < ELEVATION_COUNT && automapHeader->offsets[map][elevation] > 0) {
                 if (_automapDisplayMap(map) == 0) {
                     break;
                 }
@@ -1845,6 +3319,11 @@ static int _PrintAMList(int selectedLocation)
                 _sortlist[count].name = mapGetCityName(map);
                 _sortlist[count].field_4 = map;
                 count++;
+
+                // Safety check - don't exceed sortlist bounds
+                if (count >= 2000) { // Adjust based on actual _sortlist size
+                    break;
+                }
             }
         }
     }
@@ -1901,9 +3380,19 @@ static int _PrintAMList(int selectedLocation)
         endIdx = count;
     }
 
-    // Print paginated locations
+    // Print paginated locations with keyboard selection
     for (int index = startIdx; index < endIdx; index++) {
-        int color = (gPipboyCurrentLine - 1 == selectedLocation) ? _colorTable[32747] : _colorTable[992];
+        int pageRelativeIndex = index - startIdx;
+
+        int color;
+        if (gPipboyKeyboardMode && pageRelativeIndex == gPipboySelectedIndex) {
+            color = _colorTable[32747]; // Keyboard selected
+        } else if ((gPipboyCurrentLine - 1) == selectedLocation) {
+            color = _colorTable[32747]; // Mouse selected (existing)
+        } else {
+            color = _colorTable[992];
+        }
+
         pipboyDrawText(_sortlist[index].name, 0, color);
         gPipboyCurrentLine++;
     }
@@ -2512,6 +4001,15 @@ static int pipboyRenderScreensaver()
         unsigned int time = getTicks();
 
         mouseGetPositionInWindow(gPipboyWindow, &gPipboyMouseX, &gPipboyMouseY);
+
+        // If mouse moves, exit keyboard mode
+        if (gPipboyMouseX != gPipboyPreviousMouseX || gPipboyMouseY != gPipboyPreviousMouseY) {
+            gPipboyKeyboardMode = false;
+            gPipboyLastEventTimestamp = getTicks();
+            gPipboyPreviousMouseX = gPipboyMouseX;
+            gPipboyPreviousMouseY = gPipboyMouseY;
+        }
+
         if (inputGetInput() != -1 || gPipboyPreviousMouseX != gPipboyMouseX || gPipboyPreviousMouseY != gPipboyMouseY) {
             break;
         }
@@ -2646,9 +4144,336 @@ static int pipboyRenderScreensaver()
     return 0;
 }
 
+// Generate debug quest_list.txt file
+static void generateQuestListDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cquests_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\ngenerateQuestListDebug: Could not create quests_list.txt");
+        return;
+    }
+
+    // Write header
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 Fission - Quest System Report\n"
+                         "==============================================================================\n"
+                         "This report shows all loaded quests - essential for mod debugging and\n"
+                         "finding quest IDs for script development.\n\n"
+
+                         "Key Features:\n"
+                         "- Base quests: Protected in lower slots (0-199)\n"
+                         "- Mod quests: Your content in remaining slots (200-999) via deterministic hashing\n"
+                         "- Hash collisions trigger popup warnings and the quest is skipped\n\n"
+
+                         "Usage Notes:\n"
+                         "- Use these quest IDs when referencing quests in scripts:\n"
+                         "  - op_set_quest(ID, state)  // Set quest state\n"
+                         "  - op_get_quest(ID)         // Get quest state\n"
+                         "- Quest IDs are STABLE between game sessions\n"
+                         "- Mod quest positions use mod filename + quest index hash for consistency\n"
+                         "==============================================================================\n\n";
+
+    fputs(header, debugStream);
+
+    // Write timestamp
+    time_t now = time(0);
+    struct tm* t = localtime(&now);
+    fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Gather statistics
+    int baseCount = 0, modCount = 0;
+    int maxUsedIndex = 0;
+
+    // First pass: count quests
+    for (int i = 0; i < TOTAL_QUEST_MAX; i++) {
+        if (i < BASE_QUEST_MAX) {
+            // Check if this is a valid base quest (non-zero location indicates initialized)
+            if (gQuestDescriptions[i].location != 0) {
+                baseCount++;
+                if (i > maxUsedIndex) maxUsedIndex = i;
+            }
+        } else {
+            // Check if this is a valid mod quest
+            if (gQuestModNames[i][0] != '\0') {
+                modCount++;
+                if (i > maxUsedIndex) maxUsedIndex = i;
+            }
+        }
+    }
+
+    // Summary section
+    fprintf(debugStream,
+        "Total Quests: %d | Base: %d | Mods: %d\n"
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
+        baseCount + modCount,
+        baseCount,
+        modCount,
+        TOTAL_QUEST_MAX, TOTAL_QUEST_MAX - 1,
+        maxUsedIndex);
+
+    // Slot ranges
+    fputs("------------------------------------------------------------\n", debugStream);
+    fputs("Slot Ranges:\n", debugStream);
+    fprintf(debugStream,
+        "  Base: 0-%d\n"
+        "  Mods: %d-%d\n",
+        BASE_QUEST_MAX - 1,
+        MOD_QUEST_START, MOD_QUEST_MAX - 1);
+    fputs("------------------------------------------------------------\n", debugStream);
+
+    // Base quests section
+    if (baseCount > 0) {
+        fputs("BASE QUESTS:\n", debugStream);
+        for (int i = 0; i < BASE_QUEST_MAX; i++) {
+            if (gQuestDescriptions[i].location != 0) {
+                QuestDescription* quest = &gQuestDescriptions[i];
+                fprintf(debugStream, "  %5d: Location %d, GVAR %d, DescMsg %d\n",
+                    i,
+                    quest->location,
+                    quest->gvar,
+                    quest->description);
+            }
+        }
+        fputs("\n", debugStream);
+    }
+
+    // Mod quests section
+    if (modCount > 0) {
+        fputs("MOD QUESTS:\n", debugStream);
+        for (int i = MOD_QUEST_START; i < TOTAL_QUEST_MAX; i++) {
+            if (gQuestModNames[i][0] != '\0') {
+                QuestDescription* quest = &gQuestDescriptions[i];
+
+                // Find mod quest info for this slot
+                ModQuestInfo* modQuest = nullptr;
+                for (int j = 0; j < gModQuestCount; j++) {
+                    if (gModQuests[j].questId == i) {
+                        modQuest = &gModQuests[j];
+                        break;
+                    }
+                }
+
+                fprintf(debugStream, "  %5d: %s (Mod: %s)\n", i,
+                    modQuest ? modQuest->questKey : "Unknown",
+                    gQuestModNames[i]);
+                fprintf(debugStream, "        Location: %d, GVAR: %d, DescMsg: %d\n",
+                    quest->location,
+                    quest->gvar,
+                    quest->description);
+            }
+        }
+        fputs("\n", debugStream);
+    } else {
+        fputs("MOD QUESTS:\n", debugStream);
+        fputs("  (no mod quests found)\n\n", debugStream);
+    }
+
+    // Quest details section (only if we have mod quests)
+    if (modCount > 0) {
+        fputs("MOD QUEST DETAILS:\n", debugStream);
+        fputs("-----------------\n", debugStream);
+
+        for (int i = 0; i < gModQuestCount; i++) {
+            ModQuestInfo* modQuest = &gModQuests[i];
+            QuestDescription* quest = &gQuestDescriptions[modQuest->questId];
+
+            fprintf(debugStream, "Quest %d: %s\n", modQuest->questId, modQuest->questKey);
+            fprintf(debugStream, "  Mod: %s\n", modQuest->modName);
+            fprintf(debugStream, "  Message ID: Desc=%d\n", modQuest->descMessageId);
+            fprintf(debugStream, "  Game Data: Location=%d, GVAR=%d\n",
+                quest->location, quest->gvar);
+            fprintf(debugStream, "  Thresholds: Display=%d, Complete=%d\n\n",
+                quest->displayThreshold, quest->completedThreshold);
+        }
+    }
+
+    // Important notes footer
+    fputs("=== IMPORTANT NOTES ===\n", debugStream);
+
+    fputs("- Quest IDs are STABLE - they won't change between game sessions\n", debugStream);
+    fputs("- Mod quest positions use mod filename + quest index hash for consistency\n", debugStream);
+    fputs("- Hash collisions show popup warnings and skip the conflicting quest\n", debugStream);
+    fputs("- Reference these exact numbers in your scripts with op_set_quest/op_get_quest\n", debugStream);
+    fputs("- Use 'quests_*.txt' naming pattern for quest mods\n", debugStream);
+    fputs("\nMESSAGE FILE FORMAT:\n", debugStream);
+    fputs("data/text/english/game/messages_YourMod.txt:\n", debugStream);
+    fputs("  [quests]\n", debugStream);
+    fputs("  quest:0 = Quest description text\n", debugStream);
+
+    fclose(debugStream);
+    debugPrint("\ngenerateQuestListDebug: Generated quests_list.txt with %d base, %d mod quests", baseCount, modCount);
+}
+
+// Load a single mod quest file
+static int questLoadModFile(const char* filename)
+{
+    File* stream = fileOpen(filename, "rt");
+    if (!stream) {
+        return -1;
+    }
+
+    // Extract mod name from filename (quests_xxx.txt -> xxx)
+    const char* base_filename = strrchr(filename, DIR_SEPARATOR);
+    if (!base_filename)
+        base_filename = filename;
+    else
+        base_filename++;
+
+    char mod_name[64] = { 0 };
+    const char* prefix = "quests_";
+    const char* suffix = ".txt";
+
+    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+        size_t filename_len = strlen(base_filename);
+        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
+
+        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
+            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
+            mod_name[mod_name_len] = '\0';
+        }
+    }
+
+    uint32_t modNamespace = questGetModNamespace(filename);
+
+    int questsLoaded = 0;
+    int questIndexInThisMod = 0;
+    char line[256];
+
+    // Read file line by line (following quests.txt format)
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' || line[0] == ';') {
+            continue;
+        }
+
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines after trimming
+        if (line[0] == '\0') {
+            continue;
+        }
+
+        // Try to parse quest line
+        int location, description, gvar, displayThreshold, completedThreshold;
+        if (!parseQuestLine(line, &location, &description, &gvar, &displayThreshold, &completedThreshold)) {
+            // Not a quest line, might be a section header or comment
+            continue;
+        }
+
+        // Generate quest key from mod name and index
+        char questKey[64];
+        snprintf(questKey, sizeof(questKey), "%s:%d", mod_name, questIndexInThisMod);
+
+        // Calculate consistent slot for this mod quest
+        uint16_t targetSlot = questCalculateModSlot(questKey, modNamespace, questIndexInThisMod);
+
+        // Check if the target slot is in the mod range and not already occupied by a different mod
+        if (targetSlot < MOD_QUEST_START || targetSlot >= MOD_QUEST_MAX) {
+            // This should not happen, but skip if it does
+            questIndexInThisMod++;
+            continue;
+        }
+
+        // Check for collision with a different mod
+        if (gQuestModNames[targetSlot][0] != '\0' && strcmp(gQuestModNames[targetSlot], mod_name) != 0) {
+
+            char errorMsg[512];
+            snprintf(errorMsg, sizeof(errorMsg),
+                "QUEST SLOT COLLISION DETECTED!\n\n"
+                "Mod file: %s\n"
+                "New quest key: %s\n"
+                "Target slot: %d\n"
+                "Existing mod: %s\n\n"
+                "To resolve: Rename your mod file to change its namespace.",
+                filename, questKey, targetSlot, gQuestModNames[targetSlot]);
+            showMesageBox(errorMsg);
+
+            questIndexInThisMod++;
+            continue;
+        }
+
+        // Fill in the quest description for the target slot.
+        QuestDescription* quest = &gQuestDescriptions[targetSlot];
+
+        // Generate message ID for the quest description (we only need description)
+        char descKey[256];
+        snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod); // Keep same format!
+
+        int descMessageId = generate_mod_message_id(mod_name, descKey);
+
+        // IMPORTANT: For mod quests, we need to override the description field
+        // with our hashed message ID. This ensures getmsg() can find the mod quest text.
+        // The vanilla description number is ignored for mod quests.
+        quest->location = location;
+        quest->description = descMessageId; // Use the generated message ID for the description
+        quest->gvar = gvar;
+        quest->displayThreshold = displayThreshold;
+        quest->completedThreshold = completedThreshold;
+
+        // Store mod name
+        strncpy(gQuestModNames[targetSlot], mod_name, sizeof(gQuestModNames[targetSlot]) - 1);
+        gQuestModNames[targetSlot][sizeof(gQuestModNames[targetSlot]) - 1] = '\0';
+
+        // Store in mod quest tracking array
+        if (gModQuestCount < (MOD_QUEST_MAX - MOD_QUEST_START)) {
+            ModQuestInfo* modQuest = &gModQuests[gModQuestCount];
+            modQuest->questId = targetSlot;
+            strncpy(modQuest->modName, mod_name, sizeof(modQuest->modName) - 1);
+            modQuest->modName[sizeof(modQuest->modName) - 1] = '\0';
+
+            strncpy(modQuest->questKey, questKey, sizeof(modQuest->questKey) - 1);
+            modQuest->questKey[sizeof(modQuest->questKey) - 1] = '\0';
+
+            modQuest->descMessageId = descMessageId;
+
+            gModQuestCount++;
+        }
+
+        questsLoaded++;
+        gQuestsCount++;
+        questIndexInThisMod++;
+    }
+
+    fileClose(stream);
+    return questsLoaded;
+}
+
+// Load all mod quest files (quests_*.txt)
+static void questLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cquests_*.txt", DIR_SEPARATOR);
+
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            questLoadModFile(fullPath);
+        }
+        fileNameListFree(&foundModFiles, 0);
+    }
+}
+
 // 0x49A5D4
 static int questInit()
 {
+    // Initialize mod quest system
+    memset(gModQuests, 0, sizeof(gModQuests));
+    gModQuestCount = 0;
+    memset(gQuestModNames, 0, sizeof(gQuestModNames));
+
     if (gQuestDescriptions != nullptr) {
         internal_free(gQuestDescriptions);
         gQuestDescriptions = nullptr;
@@ -2662,87 +4487,84 @@ static int questInit()
         return -1;
     }
 
-    if (!messageListLoad(&gQuestsMessageList, "game\\quests.msg")) {
+    // Load base and mod quest messages
+    // Changed from messageListLoad to messageListLoadWithMods
+    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", "QUESTS")) {
         return -1;
     }
+
+    // Allocate quest descriptions for all possible quests (vanilla + mod)
+    gQuestDescriptions = (QuestDescription*)internal_malloc(sizeof(QuestDescription) * TOTAL_QUEST_MAX);
+    if (gQuestDescriptions == nullptr) {
+        return -1;
+    }
+
+    // Initialize all quest descriptions to zero
+    memset(gQuestDescriptions, 0, sizeof(QuestDescription) * TOTAL_QUEST_MAX);
 
     File* stream = fileOpen("data\\quests.txt", "rt");
     if (stream == nullptr) {
         return -1;
     }
 
-    char string[256];
-    while (fileReadString(string, 256, stream)) {
-        const char* delim = " \t,";
-        char* tok;
-        QuestDescription entry;
+    // Load vanilla quests (slots 0-199)
+    char line[256];
+    int currentQuestIndex = 0;
 
-        char* pch = string;
-        while (isspace(*pch)) {
-            pch++;
-        }
-
-        if (*pch == '#') {
+    while (fileReadString(line, sizeof(line) - 1, stream)) {
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' || line[0] == ';') {
             continue;
         }
 
-        tok = strtok(pch, delim);
-        if (tok == nullptr) {
+        // Remove line endings
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // Skip empty lines after trimming
+        if (line[0] == '\0') {
             continue;
         }
 
-        entry.location = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
+        // Parse the quest line
+        int location, description, gvar, displayThreshold, completedThreshold;
+        if (!parseQuestLine(line, &location, &description, &gvar, &displayThreshold, &completedThreshold)) {
+            // Not a valid quest line, skip
             continue;
         }
 
-        entry.description = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
+        // Check that we don't exceed the base quest limit
+        if (currentQuestIndex >= BASE_QUEST_MAX) {
+            debugPrint("\nWarning: Too many quests in base quests.txt, ignoring extra.");
+            break;
         }
 
-        entry.gvar = atoi(tok);
+        // Fill in the quest description
+        QuestDescription* quest = &gQuestDescriptions[currentQuestIndex];
+        quest->location = location;
+        quest->description = description;
+        quest->gvar = gvar;
+        quest->displayThreshold = displayThreshold;
+        quest->completedThreshold = completedThreshold;
 
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.displayThreshold = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.completedThreshold = atoi(tok);
-
-        QuestDescription* entries = (QuestDescription*)internal_realloc(gQuestDescriptions, sizeof(*gQuestDescriptions) * (gQuestsCount + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gQuestsCount]), &entry, sizeof(entry));
-
-        gQuestDescriptions = entries;
+        currentQuestIndex++;
         gQuestsCount++;
     }
 
-    qsort(gQuestDescriptions, gQuestsCount, sizeof(*gQuestDescriptions), questDescriptionCompare);
-
     fileClose(stream);
+
+    // Load mod quests from quests_*.txt files
+    questLoadModFiles();
+
+    // DEBUG: Activate test quests automatically
+    // debugActivateTestQuests();
+
+    // Generate debug report
+    generateQuestListDebug();
 
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // 0x49A7E4
@@ -2766,6 +4588,111 @@ static int questDescriptionCompare(const void* a1, const void* a2)
     return v1->location - v2->location;
 }
 
+// Generate a report of all loaded holodisks (vanilla + mod)
+static void generateHolodiskListReport()
+{
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "./data%clists%cholodisks_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* reportFile = compat_fopen(reportPath, "wt");
+    if (!reportFile) {
+        return;
+    }
+
+    // Write header
+    fprintf(reportFile,
+        "==============================================================================\n"
+        "Fallout 2 Fission - Holodisk System Report\n"
+        "==============================================================================\n"
+        "All holodisks (vanilla and mod) converted to vanilla format.\n"
+        "Mod holodisks use IDs starting at %d in blocks of %d.\n\n"
+        "Format: Index | GVAR | Name ID | Desc ID | Type | Name\n"
+        "------------------------------------------------------------------------------\n",
+        MOD_HOLODISK_ID_START, MOD_HOLODISK_ID_BLOCK);
+
+    // Count statistics
+    int vanillaCount = 0;
+    int modCount = 0;
+
+    // First pass: count vanilla vs mod
+    for (int i = 0; i < gHolodisksCount; i++) {
+        if (gHolodiskDescriptions[i].name >= MOD_HOLODISK_ID_START) {
+            modCount++;
+        } else {
+            vanillaCount++;
+        }
+    }
+
+    fprintf(reportFile, "Summary: %d total holodisks (%d vanilla, %d mod)\n\n",
+        gHolodisksCount, vanillaCount, modCount);
+
+    // List all holodisks
+    for (int i = 0; i < gHolodisksCount; i++) {
+        HolodiskDescription* holo = &gHolodiskDescriptions[i];
+
+        // Get the name text
+        MessageListItem nameItem;
+        nameItem.num = holo->name;
+        const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
+
+        const char* type = (holo->name >= MOD_HOLODISK_ID_START) ? "MOD" : "Vanilla";
+
+        fprintf(reportFile, "%5d | %4d | %7d | %7d | %-7s | %s\n",
+            i, holo->gvar, holo->name, holo->description, type,
+            nameText ? nameText : "(not found)");
+    }
+
+    // Add mod-specific info section
+    if (modCount > 0) {
+        fprintf(reportFile,
+            "\n\nMOD HOLODISK DETAILS:\n"
+            "====================\n"
+            "Mod holodisks use the following ID blocks:\n\n");
+
+        for (int i = 0; i < gHolodisksCount; i++) {
+            HolodiskDescription* holo = &gHolodiskDescriptions[i];
+
+            if (holo->name >= MOD_HOLODISK_ID_START) {
+                // Calculate which mod block this is
+                int blockNumber = (holo->name - MOD_HOLODISK_ID_START) / MOD_HOLODISK_ID_BLOCK;
+
+                MessageListItem nameItem;
+                nameItem.num = holo->name;
+                const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
+
+                fprintf(reportFile, "Block %d: IDs %d-%d (GVAR %d) - %s\n",
+                    blockNumber, holo->name, holo->name + MOD_HOLODISK_ID_BLOCK - 1,
+                    holo->gvar, nameText ? nameText : "(no name)");
+            }
+        }
+    }
+
+    // Usage notes
+    fprintf(reportFile,
+        "\n\nUSAGE NOTES:\n"
+        "============\n"
+        "1. Mod holodisks are identical to vanilla after conversion\n"
+        "2. In scripts, use: set_global_var(GVAR, 1) to give holodisk to player\n"
+        "3. IDs are stable - same mod files always generate same IDs\n"
+        "4. Empty lines in message files are skipped (use a space for blank lines)\n"
+        "5. **END-DISK** marker is required (auto-added if missing)\n"
+        "6. **END-PAR** creates paragraph breaks\n"
+        "\nFILE STRUCTURE:\n"
+        "--------------\n"
+        "data/holodisk_ModName.txt:\n"
+        "    900  # First holodisk GVAR\n"
+        "    901  # Second holodisk GVAR\n"
+        "\n"
+        "data/text/english/game/messages_ModName.txt:\n"
+        "    [PIPBOY]\n"
+        "    holodisk:0:name = Holodisk Name\n"
+        "    holodisk:0:line:0 = First line of text\n"
+        "    holodisk:0:line:1 = Second line\n"
+        "    holodisk:0:line:2 = **END-DISK**\n");
+
+    fclose(reportFile);
+}
+
 // 0x49A824
 static int holodiskInit()
 {
@@ -2776,67 +4703,88 @@ static int holodiskInit()
 
     gHolodisksCount = 0;
 
+    // Reset mod holodisk ID counter
+    gNextModHolodiskId = MOD_HOLODISK_ID_START;
+
+    // Load vanilla holodisks first
     File* stream = fileOpen("data\\holodisk.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    if (stream != nullptr) {
+        char str[256];
+        while (fileReadString(str, sizeof(str), stream)) {
+            const char* delim = " \t,";
+            char* tok;
+
+            char* ch = str;
+            while (isspace(*ch)) {
+                ch++;
+            }
+
+            if (*ch == '#') {
+                continue;
+            }
+
+            tok = strtok(ch, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int gvar = atoi(tok);
+
+            tok = strtok(nullptr, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int name = atoi(tok);
+
+            tok = strtok(nullptr, delim);
+            if (tok == nullptr) {
+                continue;
+            }
+
+            int description = atoi(tok);
+
+            HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(
+                gHolodiskDescriptions,
+                sizeof(HolodiskDescription) * (gHolodisksCount + 1));
+            if (entries == nullptr) {
+                fileClose(stream);
+                return -1;
+            }
+
+            gHolodiskDescriptions = entries;
+            HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
+
+            holodisk->gvar = gvar;
+            holodisk->name = name;
+            holodisk->description = description;
+
+            gHolodisksCount++;
+        }
+
+        fileClose(stream);
     }
 
-    char str[256];
-    while (fileReadString(str, sizeof(str), stream)) {
-        const char* delim = " \t,";
-        char* tok;
-        HolodiskDescription entry;
+    // Load mod holodisk files
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cholodisk_*.txt", DIR_SEPARATOR);
 
-        char* ch = str;
-        while (isspace(*ch)) {
-            ch++;
+    char** foundModFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        for (int i = 0; i < modFileCount; i++) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
+            holodiskLoadModFile(fullPath);
         }
-
-        if (*ch == '#') {
-            continue;
-        }
-
-        tok = strtok(ch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.name = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.description = atoi(tok);
-
-        HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(gHolodiskDescriptions, sizeof(*gHolodiskDescriptions) * (gHolodisksCount + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gHolodisksCount]), &entry, sizeof(*gHolodiskDescriptions));
-
-        gHolodiskDescriptions = entries;
-        gHolodisksCount++;
+        fileNameListFree(&foundModFiles, 0);
     }
 
-    fileClose(stream);
+    // Generate report after loading all holodisks - later make toggle
+    generateHolodiskListReport();
 
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // 0x49A968

@@ -103,6 +103,32 @@ extern MessageList gProtoMessageList;
 extern char* _proto_none_str;
 extern char* gItemTypeNames[ITEM_TYPE_COUNT];
 
+// Mod proto constants
+#define MOD_PROTO_START 0x800000 // Start of mod proto index range
+#define MOD_PROTO_MAX 0xFFFFFF // Maximum mod proto index
+#define VANILLA_PROTO_MAX 0x7FFFFF // Maximum vanilla proto index
+
+// Mod proto entry tracking
+typedef struct ModProtoEntry {
+    int pid;
+    char* mod_name;
+    char* proto_name;
+    char* proto_path; // Full path to .pro file
+    int type; // Proto type (OBJ_TYPE_ITEM, etc.)
+} ModProtoEntry;
+
+typedef struct NameToPidEntry {
+    char* key;
+    int pid;
+} NameToPidEntry;
+
+// Mod proto registry structure
+typedef struct ModProtoRegistry {
+    ModProtoEntry* entries;
+    int size;
+    int capacity;
+} ModProtoRegistry;
+
 void proto_make_path(char* path, int pid);
 int _proto_list_str(int pid, char* proto_path);
 size_t proto_size(int type);
@@ -139,6 +165,8 @@ void _proto_remove_all();
 int protoGetProto(int pid, Proto** protoPtr);
 int _ResetPlayer();
 int proto_max_id(int type);
+
+void load_mod_proto_messages();
 
 static bool isExitGridPid(int pid)
 {
