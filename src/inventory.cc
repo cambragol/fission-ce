@@ -2298,7 +2298,6 @@ static int inventoryCommonInit()
     _portrait_im_value = -1;
     _last_quick_sorted_object = nullptr; // reset quick-sort loop
 
-
     return 0;
 }
 
@@ -3935,30 +3934,30 @@ static void _show_sort_message(Object* obj, int sortType, int inventoryWindowTyp
     int messageId = 400;
 
     switch (sortType) {
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-            messageId = isPlayer ? 400 : 410; // You organize your backpack by category
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
-            messageId = isPlayer ? 401 : 411; // You sort your weapons to the top
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
-            messageId = isPlayer ? 402 : 412; // You sort your ammo to the top
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
-            messageId = isPlayer ? 403 : 413; // You sort your drugs to the top
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
-            messageId = isPlayer ? 404 : 414; // You sort your miscellaneous items to the top
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
-            messageId = isPlayer ? 405 : 415; // You sort your inventory by weight
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
-            messageId = isPlayer ? 406 : 416; // You sort your inventory by value
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
-            messageId = isPlayer ? 407 : 417; // You sort your inventory in reverse order
-            break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+        messageId = isPlayer ? 400 : 410; // You organize your backpack by category
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
+        messageId = isPlayer ? 401 : 411; // You sort your weapons to the top
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
+        messageId = isPlayer ? 402 : 412; // You sort your ammo to the top
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
+        messageId = isPlayer ? 403 : 413; // You sort your drugs to the top
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
+        messageId = isPlayer ? 404 : 414; // You sort your miscellaneous items to the top
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
+        messageId = isPlayer ? 405 : 415; // You sort your inventory by weight
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
+        messageId = isPlayer ? 406 : 416; // You sort your inventory by value
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
+        messageId = isPlayer ? 407 : 417; // You sort your inventory in reverse order
+        break;
     }
 
     gFissionMessageListItem.num = messageId;
@@ -4022,16 +4021,16 @@ static void _nothing_to_sort_message(Object* obj, int inventoryWindowType)
 static int _get_next_quick_sort_type(int current)
 {
     switch (current) {
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-            return GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO;  // Skip weapons (default already does weapons at top)
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
-            return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
-            return GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
-            return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;  // Back to full organization
-        default:
-            return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;  // Fallback
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+        return GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO; // Skip weapons (default already does weapons at top)
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
+        return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
+        return GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
+        return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT; // Back to full organization
+    default:
+        return GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT; // Fallback
     }
 }
 
@@ -4039,20 +4038,20 @@ static int _get_next_quick_sort_type(int current)
 static bool _sort_by_weight(Object* obj, int inventoryWindowType)
 {
     if (obj == nullptr) return false;
-    
+
     Inventory* inventory = &(obj->data.inventory);
     int itemCount = inventory->length;
-    
+
     if (itemCount <= 1) return false;
-    
+
     // Handle trade window money special case
     bool isTradeWindow = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE);
     int itemsToSort = itemCount;
-    
+
     if (isTradeWindow) {
         // Move money to top without sorting it
         _move_money_to_top(inventory, itemCount);
-        
+
         // Find where money starts (at the end after moving)
         itemsToSort = itemCount;
         for (int i = 0; i < itemCount; i++) {
@@ -4062,12 +4061,12 @@ static bool _sort_by_weight(Object* obj, int inventoryWindowType)
             }
         }
     }
-    
+
     if (itemsToSort > 1) {
         qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_by_weight);
         return true;
     }
-    
+
     return false;
 }
 
@@ -4075,20 +4074,20 @@ static bool _sort_by_weight(Object* obj, int inventoryWindowType)
 static bool _sort_by_value(Object* obj, int inventoryWindowType)
 {
     if (obj == nullptr) return false;
-    
+
     Inventory* inventory = &(obj->data.inventory);
     int itemCount = inventory->length;
-    
+
     if (itemCount <= 1) return false;
-    
+
     // Handle trade window money special case
     bool isTradeWindow = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE);
     int itemsToSort = itemCount;
-    
+
     if (isTradeWindow) {
         // Move money to top without sorting it
         _move_money_to_top(inventory, itemCount);
-        
+
         // Find where money starts
         itemsToSort = itemCount;
         for (int i = 0; i < itemCount; i++) {
@@ -4098,12 +4097,12 @@ static bool _sort_by_value(Object* obj, int inventoryWindowType)
             }
         }
     }
-    
+
     if (itemsToSort > 1) {
         qsort(inventory->items, itemsToSort, sizeof(InventoryItem), _compare_items_by_value);
         return true;
     }
-    
+
     return false;
 }
 
@@ -4111,19 +4110,19 @@ static bool _sort_by_value(Object* obj, int inventoryWindowType)
 static bool _sort_reverse(Object* obj, int inventoryWindowType)
 {
     if (obj == nullptr) return false;
-    
+
     Inventory* inventory = &(obj->data.inventory);
     int itemCount = inventory->length;
-    
+
     if (itemCount <= 1) return false;
-    
+
     // Handle trade window money special case
     bool isTradeWindow = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE);
-    
+
     if (isTradeWindow) {
         // For trade windows, we need to keep money at top after reverse
         // So we reverse the non-money portion, then move money back to top
-        
+
         // Find where money starts
         int moneyStart = itemCount;
         for (int i = 0; i < itemCount; i++) {
@@ -4132,7 +4131,7 @@ static bool _sort_reverse(Object* obj, int inventoryWindowType)
                 break;
             }
         }
-        
+
         // Reverse only the non-money portion
         int itemsToReverse = moneyStart;
         for (int i = 0; i < itemsToReverse / 2; i++) {
@@ -4140,11 +4139,11 @@ static bool _sort_reverse(Object* obj, int inventoryWindowType)
             inventory->items[i] = inventory->items[itemsToReverse - 1 - i];
             inventory->items[itemsToReverse - 1 - i] = temp;
         }
-        
+
         // Money stays where it was (now at end of reversed section)
         // But we need it at top, so move it
         _move_money_to_top(inventory, itemCount);
-        
+
     } else {
         // For non-trade windows, simple reverse
         for (int i = 0; i < itemCount / 2; i++) {
@@ -4153,7 +4152,7 @@ static bool _sort_reverse(Object* obj, int inventoryWindowType)
             inventory->items[itemCount - 1 - i] = temp;
         }
     }
-    
+
     return true;
 }
 
@@ -4167,15 +4166,15 @@ static void _move_money_to_top(Inventory* inventory, int itemCount)
             moneyCount++;
         }
     }
-    
+
     if (moneyCount == 0) return;
-    
+
     // Simple bubble money to the end (top)
     for (int i = 0; i < itemCount - 1; i++) {
         for (int j = 0; j < itemCount - i - 1; j++) {
             bool currentIsMoney = (inventory->items[j].item->pid == PROTO_ID_MONEY);
             bool nextIsMoney = (inventory->items[j + 1].item->pid == PROTO_ID_MONEY);
-            
+
             if (currentIsMoney && !nextIsMoney) {
                 InventoryItem temp = inventory->items[j];
                 inventory->items[j] = inventory->items[j + 1];
@@ -4462,9 +4461,9 @@ static int _compare_items_by_weight(const void* a, const void* b)
     InventoryItem* itemA = (InventoryItem*)a;
     InventoryItem* itemB = (InventoryItem*)b;
 
-    int weightA = itemGetWeight(itemA->item);  // Assuming this returns total stack weight
+    int weightA = itemGetWeight(itemA->item); // Assuming this returns total stack weight
     int weightB = itemGetWeight(itemB->item);
-    
+
     // Sort by weight ASCENDING (lightest at array[0], heaviest at array[N-1] = TOP)
     return weightA - weightB;
 }
@@ -4478,11 +4477,11 @@ static int _compare_items_by_value(const void* a, const void* b)
     // Get value per item
     int valuePerItemA = itemGetCost(itemA->item);
     int valuePerItemB = itemGetCost(itemB->item);
-    
+
     // Calculate total stack value
     int totalValueA = valuePerItemA * itemA->quantity;
     int totalValueB = valuePerItemB * itemB->quantity;
-    
+
     // Sort by total value ascending
     // This matches the "reversed display" pattern
     return totalValueA - totalValueB;
@@ -4846,22 +4845,22 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             // ===========================================
             // QUICK CLICK: Rotating sort system
             // ===========================================
-            
+
             // Reset rotation if we're sorting a different inventory
             // Reset when reloading inventory?
             if (inventoryToSort != _last_quick_sorted_object) {
                 _last_quick_sorted_object = inventoryToSort;
                 _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
             }
-            
+
             // Use the current rotation sort type
             int sortTypeToUse = _next_quick_sort_type;
-            
+
             // Update rotation for next click
             _next_quick_sort_type = _get_next_quick_sort_type(sortTypeToUse);
-            
+
             bool didSort = _inven_sort_inventory(inventoryToSort, sortTypeToUse, inventoryWindowType);
-            
+
             if (didSort) {
                 _show_sort_message(inventoryToSort, sortTypeToUse, inventoryWindowType);
             } else {
@@ -5155,23 +5154,23 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                     // Perform the sort based on the selected action
                     bool didSort = false;
                     switch (selectedAction) {
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-                            didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
-                            didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
-                            didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
-                            break;
-                        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
-                            didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
-                            break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+                        didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
+                        didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
+                        didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
+                        break;
+                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
+                        didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
+                        break;
                     }
 
                     if (didSort) {
                         _show_sort_message(inventoryToSort, selectedAction, inventoryWindowType);
-                        
+
                         // Reset quick-click rotation to the chosen context menu option
                         // Next quick click will be the next type in rotation from this choice
                         _last_quick_sorted_object = inventoryToSort;
@@ -5243,23 +5242,23 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 // Perform the sort based on the selected action
                 bool didSort = false;
                 switch (selectedAction) {
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-                        didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
-                        didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
-                        didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
-                        didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
-                        break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+                    didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
+                    didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
+                    didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
+                    didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
+                    break;
                 }
 
                 if (didSort) {
                     _show_sort_message(inventoryToSort, selectedAction, inventoryWindowType);
-                    
+
                     // Reset quick-click rotation to the chosen context menu option
                     // Next quick click will be the next type in rotation from this choice
                     _last_quick_sorted_object = inventoryToSort;
