@@ -281,14 +281,14 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">scr_init\t");
 
+    showMesageBox("Made it here");
+
     if (gameLoadGlobalVars() != 0) {
         debugPrint("Failed on game_load_info\n");
         return -1;
     }
 
     debugPrint(">game_load_info\t");
-
-    showMesageBox("Made it here");
 
     if (_scr_game_init() != 0) {
         debugPrint("Failed on scr_game_init\n");
