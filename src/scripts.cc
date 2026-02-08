@@ -1906,7 +1906,7 @@ int scriptsInit()
     }
 
     // Initialize script language support
-    scriptsInitLanguage();
+    //scriptsInitLanguage();
 
     for (int index = 0; index < SCRIPT_DIALOG_MESSAGE_LIST_CAPACITY; index++) {
         if (!messageListInit(&(_script_dialog_msgs[index]))) {
