@@ -1653,7 +1653,7 @@ static int scriptsLoadScriptsList()
 
     // Initialize collision tracking
     bool collisionOccurred = false;
-    char collisionDetails[4096][256] = { { 0 } }; // For tracking collisions
+    static char collisionDetails[4096][256] = { { 0 } }; // For tracking collisions
 
     // same pattern used in art.cc for .dat compatibility - very finicky
     char searchPattern[COMPAT_MAX_PATH];
