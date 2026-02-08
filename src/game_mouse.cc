@@ -236,7 +236,9 @@ static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_CO
     6671, // Sort Ammo
     5951, // Sort Drugs
     4519, // Sort Misc
-
+    6783, // Sort Weight
+    4203, // Sort Value
+    7443, // Sort Reverse
 };
 
 // Array for highlighted context items - needed for sort menu
@@ -257,6 +259,9 @@ static const short gGameMouseActionMenuItemHighlightedFrmIds[GAME_MOUSE_ACTION_M
     6665, // Sort Ammo (highlighted) - instead of 6671 - 1
     5945, // Sort Drugs (highlighted) - instead of 5951 - 1
     4513, // Sort Misc (highlighted) - instead of 4519 - 1
+    6777, // Sort Weight (highlighted) - instead of 6495 - 1
+    4197, // Sort Value (highlighted) - instead of 6671 - 1
+    7437, // Sort Reverse (highlighted) - instead of 5951 - 1
 };
 
 // 0x518D34
