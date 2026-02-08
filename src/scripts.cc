@@ -1905,8 +1905,6 @@ int scriptsInit()
         return -1;
     }
 
-    showMesageBox("Made it here");
-
     // Initialize script language support
     scriptsInitLanguage();
 
@@ -1915,6 +1913,8 @@ int scriptsInit()
             return -1;
         }
     }
+
+    showMesageBox("Made it here");
 
     _scr_remove_all();
     _interpretOutputFunc(_win_debug);
@@ -1926,11 +1926,11 @@ int scriptsInit()
 
     _partyMemberClear();
 
+    showMesageBox("and Made it here");
+
     if (scriptsLoadScriptsList() == -1) {
         return -1;
     }
-
-    showMesageBox("and Made it here");
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_SCRIPT, &gScrMessageList);
 
