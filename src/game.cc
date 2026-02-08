@@ -216,7 +216,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     showMesageBox("Made it here");
 
-
     if (partyMembersInit() != 0) {
         debugPrint("Failed on partyMember_init\n");
         return -1;
