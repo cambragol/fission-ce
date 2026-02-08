@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
-set(EXECUTABLE_NAME fallout2-ce)
+set(EXECUTABLE_NAME fission-ce)
 
 if(APPLE)
     if(IOS)
@@ -340,7 +340,7 @@ if(APPLE)
         set_target_properties(${EXECUTABLE_NAME} PROPERTIES
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/ios/Info.plist"
             XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
-            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.cambragol.fission-ce"
             XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
         )
 
@@ -359,7 +359,7 @@ if(APPLE)
             OUTPUT_NAME "Fallout-Sonora"
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/macos/Info.plist"
             XCODE_ATTRIBUTE_EXECUTABLE_NAME "${EXECUTABLE_NAME}"
-            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.cambragol.fission-ce"
         )
 
         set(MACOSX_BUNDLE_ICON_FILE "fallout2-sonora.icns")
@@ -367,9 +367,9 @@ if(APPLE)
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Sonora")
     endif()
 
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
-    set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.3.0")
-    set(MACOSX_BUNDLE_BUNDLE_VERSION "1.3.0")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "cambragol.fission-ce")
+    set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.16E")
+    set(MACOSX_BUNDLE_BUNDLE_VERSION "1.16E")
 endif()
 
 if((NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten"))
