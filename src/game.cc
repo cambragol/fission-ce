@@ -295,14 +295,14 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">scr_game_init\t");
 
+    showMesageBox("Made it here");
+
     if (wmWorldMap_init() != 0) {
         debugPrint("Failed on wmWorldMap_init\n");
         return -1;
     }
 
     debugPrint(">wmWorldMap_init\t");
-
-    showMesageBox("Made it here");
 
     characterEditorInit();
     debugPrint(">CharEditInit\t");
