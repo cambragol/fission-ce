@@ -255,8 +255,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
-    showMesageBox("Made it here");
-
     debugPrint(">iso_init\t");
 
     if (gameMouseInit() != 0) {
@@ -303,6 +301,8 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     }
 
     debugPrint(">wmWorldMap_init\t");
+
+    showMesageBox("Made it here");
 
     characterEditorInit();
     debugPrint(">CharEditInit\t");
