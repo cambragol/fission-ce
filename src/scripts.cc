@@ -1914,8 +1914,6 @@ int scriptsInit()
         }
     }
 
-    showMesageBox("Made it here");
-
     _scr_remove_all();
     _interpretOutputFunc(_win_debug);
     interpreterRegisterOpcodeHandlers();
@@ -1925,8 +1923,6 @@ int scriptsInit()
     scriptsClearPendingRequests();
 
     _partyMemberClear();
-
-    showMesageBox("and Made it here");
 
     if (scriptsLoadScriptsList() == -1) {
         return -1;
