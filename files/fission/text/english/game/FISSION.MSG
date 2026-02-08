@@ -70,6 +70,9 @@
 {402}{}{You sort your ammo to the top.}
 {403}{}{You sort your drugs to the top.}
 {404}{}{You sort your miscellaneous items to the top.}
+{405}{}{You sort your inventory by weight.}
+{406}{}{You sort your inventory by value.}
+{407}{}{You sort your inventory in reverse order.}
 
 # Other inventory actions (410-414) - with %s for object name
 {410}{}{%s inventory organized by category.}
@@ -77,6 +80,9 @@
 {412}{}{%s ammo brought to top.}
 {413}{}{%s drugs brought to top.}
 {414}{}{%s miscellaneous items brought to top.}
+{415}{}{%s inventory sorted by weight.}
+{416}{}{%s inventory sorted by value.}
+{417}{}{%s inventory sorted in reverse order.}
 
 # No items messages (450-453)
 {450}{}{There's no weapons to sort.}
