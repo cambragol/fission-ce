@@ -274,8 +274,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     animationInit();
     debugPrint(">anim_init\t");
 
-    showMesageBox("Made it here");
-
     if (scriptsInit() != 0) {
         debugPrint("Failed on scr_init\n");
         return -1;

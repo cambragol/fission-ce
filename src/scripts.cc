@@ -1905,8 +1905,10 @@ int scriptsInit()
         return -1;
     }
 
+    showMesageBox("Made it here");
+
     // Initialize script language support
-    // scriptsInitLanguage();
+    scriptsInitLanguage();
 
     for (int index = 0; index < SCRIPT_DIALOG_MESSAGE_LIST_CAPACITY; index++) {
         if (!messageListInit(&(_script_dialog_msgs[index]))) {
@@ -1927,6 +1929,8 @@ int scriptsInit()
     if (scriptsLoadScriptsList() == -1) {
         return -1;
     }
+
+    showMesageBox("and Made it here");
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_SCRIPT, &gScrMessageList);
 
