@@ -214,8 +214,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     skillsInit();
     statsInit();
 
-    showMesageBox("Made it here");
-
     if (partyMembersInit() != 0) {
         debugPrint("Failed on partyMember_init\n");
         return -1;
@@ -232,6 +230,8 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     if (gameSoundInit() != 0) {
         debugPrint("Sound initialization failed.\n");
     }
+
+    showMesageBox("Made it here");
 
     debugPrint(">gsound_init\t");
 
