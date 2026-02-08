@@ -231,8 +231,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         debugPrint("Sound initialization failed.\n");
     }
 
-    showMesageBox("Made it here");
-
     debugPrint(">gsound_init\t");
 
     movieInit();
@@ -256,6 +254,8 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         debugPrint("Failed on iso_init\n");
         return -1;
     }
+
+    showMesageBox("Made it here");
 
     debugPrint(">iso_init\t");
 
