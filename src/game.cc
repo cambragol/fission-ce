@@ -288,14 +288,14 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">game_load_info\t");
 
+    showMesageBox("Made it here");
+
     if (_scr_game_init() != 0) {
         debugPrint("Failed on scr_game_init\n");
         return -1;
     }
 
     debugPrint(">scr_game_init\t");
-
-    showMesageBox("Made it here");
 
     if (wmWorldMap_init() != 0) {
         debugPrint("Failed on wmWorldMap_init\n");
