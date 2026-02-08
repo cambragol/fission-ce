@@ -174,14 +174,14 @@ struct SfallMiscSettings {
     std::string extra_message_lists = "";
     bool numbers_is_dialog = false;
     int auto_quick_save = 0;
-    std::string version_string = "FALLOUT SONORA 1.15.1e";
+    std::string version_string = "FALLOUT SONORA 1.16e";
     std::string config_file = "";
     std::string patch_file = "";
     int pipboy_available_at_gamestart = 0;
     int use_walk_distance = 5;
     int auto_open_doors = 0;
     int gapless_music = 0;
-    int worldmap_trail_markers = 0;
+    int worldmap_trail_markers = 1;
     bool enhanced_barter = false;
     bool iface_bar_mode = true;
     int iface_bar_width = 800;
