@@ -538,22 +538,22 @@ bool HandleHoldToHighlight()
 {
     static bool wasHighlighting = false;
     static bool keyProcessed = false;
-    
+
     // Check if 'H' is currently pressed (including repeat state)
     int hKeyScancode = SDL_SCANCODE_H;
     bool hKeyPressed = false;
-    
+
     if (hKeyScancode >= 0 && hKeyScancode < SDL_NUM_SCANCODES) {
         int keyState = gPressedPhysicalKeys[hKeyScancode];
         hKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
     }
-    
+
     if (hKeyPressed && !keyProcessed) {
         keyProcessed = true;
-        
+
         if (!wasHighlighting) {
             wasHighlighting = true;
-            
+
             // Highlight all items
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
@@ -563,41 +563,40 @@ bool HandleHoldToHighlight()
                 }
                 obj = objectFindNextAtElevation();
             }
-            
+
             tileWindowRefresh();
         }
-    }
-    else if (!hKeyPressed && keyProcessed) {
+    } else if (!hKeyPressed && keyProcessed) {
         keyProcessed = false;
-        
+
         if (wasHighlighting) {
             wasHighlighting = false;
 
             // Get the item currently under the cursor (if any)
             Object* pointedObject = gameMouseGetObjectUnderCursor(-1, true, gElevation);
-            
+
             if (pointedObject != nullptr && FID_TYPE(pointedObject->fid) == OBJ_TYPE_ITEM) {
                 // set object under cursor to the highlight item, in case it was not by pre-mass highlighting
                 gGameMouseHighlightedItem = pointedObject;
             }
-            
+
             // Clear all item outlines
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
-                    // Don't clear mouse-highlighted item
-                    if (obj != gGameMouseHighlightedItem){
-                        if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
-                            Rect tmp;
-                            objectClearOutline(obj, &tmp);
-                        }
+                // Don't clear mouse-highlighted item
+                if (obj != gGameMouseHighlightedItem) {
+                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                        Rect tmp;
+                        objectClearOutline(obj, &tmp);
                     }
-                    obj = objectFindNextAtElevation();
+                }
+                obj = objectFindNextAtElevation();
             }
-            
+
             tileWindowRefresh();
         }
     }
-    
+
     return wasHighlighting;
 }
 
@@ -747,7 +746,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!strictVanilla && gGameMouseItemHighlightEnabled){
+    if (!strictVanilla && gGameMouseItemHighlightEnabled) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 
@@ -797,7 +796,7 @@ void gameMouseRefresh()
                     switch (FID_TYPE(pointedObject->fid)) {
                     case OBJ_TYPE_ITEM:
                         primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
-                        
+
                         // Don't set individual outline if we're mass highlighting
                         if (gGameMouseItemHighlightEnabled && !isMassHighlighting) {
                             Rect tmp;

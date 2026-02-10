@@ -5925,9 +5925,9 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 int newInventoryWeight = objectGetInventoryWeight(target);
                 if (newInventoryWeight <= maxCarryWeight - currentWeight) {
                     itemMoveAll(target, looter); // items moved
-                    if(!strictVanilla){
+                    if (!strictVanilla) {
                         soundPlayFile("ib1p1xx1");
-                        break;  // Exit loop early and close window for convenience
+                        break; // Exit loop early and close window for convenience
                     }
                     // display changes but do not exit
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
@@ -7476,11 +7476,11 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             isTyping = false;
             value = max;
             _draw_amount(value, inventoryWindowType);
-            
-            if(!strictVanilla){
+
+            if (!strictVanilla) {
                 // For move items, treat "All" as immediate confirmation
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
-                    break;  // Exit loop to return the value
+                    break; // Exit loop to return the value
                 }
             }
         } else if (keyCode == 6000) {
