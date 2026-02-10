@@ -564,6 +564,9 @@ static int gBarterInsultIncrease = 0;
 // used to switch enhancedBarter on/off from config
 static bool enhancedBarter = false;
 
+// used for setting strict vanilla behavior from config
+static bool strictVanilla = false;
+
 // Rotation tracking for quick-click sort
 static Object* _last_quick_sorted_object;
 static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
@@ -809,6 +812,8 @@ static bool _setup_inventory(int inventoryWindowType)
 
     // turn enhanced barter on or off from conifg
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ENHANCED_BARTER, &enhancedBarter);
+    // turn strict vanilla mode on or off from conifg
+    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, &strictVanilla);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);
@@ -5919,7 +5924,12 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 int currentWeight = objectGetInventoryWeight(looter);
                 int newInventoryWeight = objectGetInventoryWeight(target);
                 if (newInventoryWeight <= maxCarryWeight - currentWeight) {
-                    itemMoveAll(target, looter);
+                    itemMoveAll(target, looter); // items moved
+                    if(!strictVanilla){
+                        soundPlayFile("ib1p1xx1");
+                        break;  // Exit loop early and close window for convenience
+                    }
+                    // display changes but do not exit
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
                     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
                 } else {
@@ -7466,6 +7476,13 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             isTyping = false;
             value = max;
             _draw_amount(value, inventoryWindowType);
+            
+            if(!strictVanilla){
+                // For move items, treat "All" as immediate confirmation
+                if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
+                    break;  // Exit loop to return the value
+                }
+            }
         } else if (keyCode == 6000) {
             isTyping = false;
             if (value < max) {
