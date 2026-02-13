@@ -539,16 +539,16 @@ bool HandleHoldToHighlight()
     static bool wasHighlighting = false;
     static bool keyProcessed = false;
 
-    // Check if 'H' is currently pressed (including repeat state)
-    int hKeyScancode = SDL_SCANCODE_H;
-    bool hKeyPressed = false;
+    // Check if 'Left Shift' is currently pressed (including repeat state)
+    int shiftKeyScancode = SDL_SCANCODE_LSHIFT;
+    bool shiftKeyPressed = false;
 
-    if (hKeyScancode >= 0 && hKeyScancode < SDL_NUM_SCANCODES) {
-        int keyState = gPressedPhysicalKeys[hKeyScancode];
-        hKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
+    if (shiftKeyScancode >= 0 && shiftKeyScancode < SDL_NUM_SCANCODES) {
+        int keyState = gPressedPhysicalKeys[shiftKeyScancode];
+        shiftKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
     }
 
-    if (hKeyPressed && !keyProcessed) {
+    if (shiftKeyPressed && !keyProcessed) {
         keyProcessed = true;
 
         if (!wasHighlighting) {
@@ -566,7 +566,7 @@ bool HandleHoldToHighlight()
 
             tileWindowRefresh();
         }
-    } else if (!hKeyPressed && keyProcessed) {
+    } else if (!shiftKeyPressed && keyProcessed) {
         keyProcessed = false;
 
         if (wasHighlighting) {
