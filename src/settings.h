@@ -183,6 +183,7 @@ struct SfallMiscSettings {
     int gapless_music = 0;
     int worldmap_trail_markers = 0;
     bool enhanced_barter = false;
+    bool strict_vanilla = false;
     bool iface_bar_mode = true;
     int iface_bar_width = 800;
     int iface_bar_side_art = 0;
