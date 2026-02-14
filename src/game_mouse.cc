@@ -340,6 +340,9 @@ static Object* gGameMousePointedObject;
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
 
+// used for setting strict vanilla behavior
+static bool strictVanilla = false;
+
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
@@ -376,6 +379,9 @@ int gameMouseInit()
     if (gameMouseObjectsInit() != 0) {
         return -1;
     }
+
+    // turn strict vanilla mode on or off from conifg
+    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, &strictVanilla);
 
     gGameMouseInitialized = true;
     _gmouse_enabled = 1;
@@ -527,6 +533,73 @@ int _gmouse_is_scrolling()
     return v1;
 }
 
+// Function to handle hold-to-highlight functionality
+bool HandleHoldToHighlight()
+{
+    static bool wasHighlighting = false;
+    static bool keyProcessed = false;
+
+    // Check if 'Left Shift' is currently pressed (including repeat state)
+    int shiftKeyScancode = SDL_SCANCODE_LSHIFT;
+    bool shiftKeyPressed = false;
+
+    if (shiftKeyScancode >= 0 && shiftKeyScancode < SDL_NUM_SCANCODES) {
+        int keyState = gPressedPhysicalKeys[shiftKeyScancode];
+        shiftKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
+    }
+
+    if (shiftKeyPressed && !keyProcessed) {
+        keyProcessed = true;
+
+        if (!wasHighlighting) {
+            wasHighlighting = true;
+
+            // Highlight all items
+            Object* obj = objectFindFirstAtElevation(gElevation);
+            while (obj != nullptr) {
+                if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                    Rect tmp;
+                    objectSetOutline(obj, OUTLINE_TYPE_ITEM, &tmp);
+                }
+                obj = objectFindNextAtElevation();
+            }
+
+            tileWindowRefresh();
+        }
+    } else if (!shiftKeyPressed && keyProcessed) {
+        keyProcessed = false;
+
+        if (wasHighlighting) {
+            wasHighlighting = false;
+
+            // Get the item currently under the cursor (if any)
+            Object* pointedObject = gameMouseGetObjectUnderCursor(-1, true, gElevation);
+
+            if (pointedObject != nullptr && FID_TYPE(pointedObject->fid) == OBJ_TYPE_ITEM) {
+                // set object under cursor to the highlight item, in case it was not by pre-mass highlighting
+                gGameMouseHighlightedItem = pointedObject;
+            }
+
+            // Clear all item outlines
+            Object* obj = objectFindFirstAtElevation(gElevation);
+            while (obj != nullptr) {
+                // Don't clear mouse-highlighted item
+                if (obj != gGameMouseHighlightedItem) {
+                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                        Rect tmp;
+                        objectClearOutline(obj, &tmp);
+                    }
+                }
+                obj = objectFindNextAtElevation();
+            }
+
+            tileWindowRefresh();
+        }
+    }
+
+    return wasHighlighting;
+}
+
 // 0x44B684
 void gameMouseRefresh()
 {
@@ -670,6 +743,13 @@ void gameMouseRefresh()
         return;
     }
 
+    // hold-to-highlight function here, to prevent out of window highlighting.
+    bool isMassHighlighting = false;
+    // turn off if strictVanilla is being enforced or highlighting not enabled
+    if (!strictVanilla && gGameMouseItemHighlightEnabled) {
+        isMassHighlighting = HandleHoldToHighlight();
+    }
+
     // NOTE: Strange set of conditions and jumps. Not sure about this one.
     switch (gGameMouseCursor) {
     case MOUSE_CURSOR_NONE:
@@ -716,7 +796,9 @@ void gameMouseRefresh()
                     switch (FID_TYPE(pointedObject->fid)) {
                     case OBJ_TYPE_ITEM:
                         primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
-                        if (gGameMouseItemHighlightEnabled) {
+
+                        // Don't set individual outline if we're mass highlighting
+                        if (gGameMouseItemHighlightEnabled && !isMassHighlighting) {
                             Rect tmp;
                             if (objectSetOutline(pointedObject, OUTLINE_TYPE_ITEM, &tmp) == 0) {
                                 tileWindowRefreshRect(&tmp, gElevation);
