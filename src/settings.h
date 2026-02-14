@@ -174,7 +174,7 @@ struct SfallMiscSettings {
     std::string extra_message_lists = "";
     bool numbers_is_dialog = false;
     int auto_quick_save = 0;
-    std::string version_string = "FALLOUT SONORA 1.16e";
+    std::string version_string = "FALLOUT SONORA 1.16.1e";
     std::string config_file = "";
     std::string patch_file = "";
     int pipboy_available_at_gamestart = 0;
