@@ -64,7 +64,7 @@
 # Sort Context Menu
 #
 
-# Player actions (400-404)
+# Player actions
 {400}{}{You organize your backpack by category.}
 {401}{}{You sort your weapons to the top.}
 {402}{}{You sort your ammo to the top.}
@@ -74,7 +74,7 @@
 {406}{}{You sort your inventory by value.}
 {407}{}{You sort your inventory in reverse order.}
 
-# Other inventory actions (410-414) - with %s for object name
+# Other inventory actions - with %s for object name
 {410}{}{%s inventory organized by category.}
 {411}{}{%s weapons brought to top.}
 {412}{}{%s ammo brought to top.}
@@ -84,7 +84,7 @@
 {416}{}{%s inventory sorted by value.}
 {417}{}{%s inventory sorted in reverse order.}
 
-# No items messages (450-453)
+# No items messages
 {450}{}{There's no weapons to sort.}
 {451}{}{There's no ammo to sort.}
 {452}{}{There's no drugs to sort}
