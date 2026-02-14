@@ -11,3 +11,9 @@ SORTDEFN.FRM        ; sort default off button
 SORTDEFH.FRM        ; sort default on button
 SORTDRUN.FRM        ; sort drug off button
 SORTDRUH.FRM        ; sort drug on button
+SORTWEIN.FRM        ; sort by weight off
+SORTWEIH.FRM        ; sort by weight on
+SORTVALN.FRM        ; sort by value off
+SORTVALH.FRM        ; sort by value on
+SORTREVN.FRM        ; reverse sort off
+SORTREVH.FRM        ; reverse sort on
