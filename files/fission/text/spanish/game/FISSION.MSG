@@ -15,10 +15,10 @@
 
 {100}{}{Quitar la pantalla completa}
 {101}{}{desactiva las preferencias}
-{102}{}{adicionales. øContinuar?}
+{102}{}{adicionales. ¬øContinuar?}
 {103}{}{Reinicia para aplicar los}
-{104}{}{cambios gr·ficos.}
-{105}{}{Cambiar ·rea de juego a original}
+{104}{}{cambios gr√°ficos.}
+{105}{}{Cambiar √°rea de juego a original}
 
 #
 # Extended Titles
@@ -27,7 +27,7 @@
 {124}{}{PANTALLA}
 {125}{}{ESTIRAR PANTALLA}
 {126}{}{CALIDAD}
-{127}{}{¡REA ACTIVA}
+{127}{}{√ÅREA ACTIVA}
 {128}{}{} #Leave blank
 {129}{}{} #Leave blank
 
@@ -42,13 +42,13 @@
 {229}{}{No}           
 {230}{}{Estirar} 
 {231}{}{No}
-{232}{}{RelaciÛn Aspecto}
+{232}{}{Relaci√≥n Aspecto}
 {233}{}{No}         
 {234}{}{Alta Calidad}        
 {235}{}{No}
 {236}{}{Pixeles Cuadrados}
 {237}{}{Original}      
-{238}{}{Est·ndar}        
+{238}{}{Est√°ndar}        
 {239}{}{Grande}
 {240}{}{Enorme}
 
@@ -57,40 +57,40 @@
 #
 
 {300}{}{F.I.S.S.I.O.N.}
-{301}{}{Flexible e IsomÈtrico Sistema de SimulaciÛn}
+{301}{}{Flexible e Isom√©trico Sistema de Simulaci√≥n}
 {302}{}{Interactiva de Origen Nuclear}
 
 #
-# Men˙ contextual de ordenamiento
+# Men√∫ contextual de ordenamiento
 #
 
-# Acciones del jugador (400-404)
-{400}{}{Organizas tu mochila por categorÌa.}
+# Acciones del jugador
+{400}{}{Organizas tu mochila por categor√≠a.}
 {401}{}{Colocas tus armas en la parte superior.}
-{402}{}{Colocas tu municiÛn en la parte superior.}
+{402}{}{Colocas tu munici√≥n en la parte superior.}
 {403}{}{Colocas tus drogas en la parte superior.}
 {404}{}{Colocas tus objetos varios en la parte superior.}
 {405}{}{Ordenas tu inventario por peso.}
 {406}{}{Ordenas tu inventario por valor.}
 {407}{}{Ordenas tu inventario en orden inverso.}
 
-# Otras acciones de inventario (410-414) - con %s para el nombre del objeto
-{410}{}{Inventario de %s organizado por categorÌa.}
+# Otras acciones de inventario - con %s para el nombre del objeto
+{410}{}{Inventario de %s organizado por categor√≠a.}
 {411}{}{Armas de %s colocadas en la parte superior.}
-{412}{}{MuniciÛn de %s colocada en la parte superior.}
+{412}{}{Munici√≥n de %s colocada en la parte superior.}
 {413}{}{Drogas de %s colocadas en la parte superior.}
 {414}{}{Objetos varios de %s colocados en la parte superior.}
 {415}{}{Inventario de %s ordenado por peso.}
 {416}{}{Inventario de %s ordenado por valor.}
 {417}{}{Inventario de %s ordenado en orden inverso.}
 
-# Mensajes sin objetos (450-453)
+# Mensajes sin objetos
 {450}{}{No hay armas para ordenar.}
-{451}{}{No hay municiÛn para ordenar.}
+{451}{}{No hay munici√≥n para ordenar.}
 {452}{}{No hay drogas para ordenar}
 {453}{}{No hay objetos varios para ordenar.}
 
-# Mensajes de inventario vacÌo
-{460}{}{Tu inventario ya est· "optimizado."}
-{461}{}{Hay una grave falta de oportunidades de ordenamiento aquÌ.}
+# Mensajes de inventario vac√≠o
+{460}{}{Tu inventario ya est√° "optimizado."}
+{461}{}{Hay una grave falta de oportunidades de ordenamiento aqu√≠.}
 
