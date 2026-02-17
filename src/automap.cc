@@ -20,6 +20,7 @@
 #include "kb.h"
 #include "map.h"
 #include "memory.h"
+#include "mouse.h"
 #include "object.h"
 #include "platform_compat.h"
 #include "settings.h"
@@ -33,6 +34,9 @@ namespace fallout {
 
 #define AUTOMAP_WINDOW_WIDTH (519)
 #define AUTOMAP_WINDOW_HEIGHT (480)
+
+#define MINIMAP_WINDOW_WIDTH (250)
+#define MINIMAP_WINDOW_HEIGHT (250)
 
 #define AUTOMAP_PIPBOY_VIEW_X (238)
 #define AUTOMAP_PIPBOY_VIEW_Y (105)
@@ -52,6 +56,9 @@ typedef enum AutomapFrm {
     AUTOMAP_FRM_BUTTON_DOWN,
     AUTOMAP_FRM_SWITCH_UP,
     AUTOMAP_FRM_SWITCH_DOWN,
+    AUTOMAP_FRM_MINIMAP,
+    AUTOMAP_FRM_MINIMAP_SWITCH_UP,
+    AUTOMAP_FRM_MINIMAP_SWITCH_DOWN,
     AUTOMAP_FRM_COUNT,
 } AutomapFrm;
 
@@ -245,6 +252,9 @@ static const int gAutomapFrmIds[AUTOMAP_FRM_COUNT] = {
     9, // lilreddn.frm - little red button down
     172, // autoup.frm - switch up
     173, // autodwn.frm - switch down
+    4193, // minimap.frm - minimap window
+    5958, // autoup_m.frm - minimap up toggle
+    4838, // autodn_m.frm - minimap down toggle
 };
 
 // 0x5108C4
@@ -252,6 +262,10 @@ static int gAutomapFlags = 0;
 
 // 0x56CB18
 static AutomapHeader gAutomapHeader;
+
+static int zoom = 2;          
+static bool gUseNewAutomapProjection = false; 
+static bool strictVanilla = false;
 
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
@@ -591,66 +605,120 @@ void automapShow(bool isInGame, bool isUsingScanner)
     fontSetCurrent(101);
     touch_set_touchscreen_mode(true);
 
-    // Create automap window
-    int automapWindowX = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
-    int automapWindowY = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
-    // adding WINDOW_TRANSPARENT and WINDOW_DRAGGABLE_BY_BACKGROUND for testing temporarily
-    int window = windowCreate(automapWindowX, automapWindowY, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
+    int window;
+    // Create automap  or minimap window
+    if (strictVanilla) {
+        // automap
+        int automapWindowX = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
+        int automapWindowY = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
+        window = windowCreate(automapWindowX, automapWindowY, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+    } else {
+        // minimap
+        int automapWindowX = 20;
+        int automapWindowY = 20;
+        window = windowCreate(automapWindowX, automapWindowY, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
+    }
 
-    // Create control buttons
-    int scannerBtn = buttonCreate(window,
-        111,
-        454,
-        15,
-        16,
-        -1,
-        -1,
-        -1,
-        KEY_LOWERCASE_S,
-        frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
-        frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
+    // Buttons and button parameters (set based on mode)
+    int scannerBtn, cancelBtn, switchBtn1, switchBtn2, switchBtn3;
+    int scannerX, scannerY, scannerWidth, scannerHeight, scannerKey;
+    int cancelX, cancelY, cancelWidth, cancelHeight, cancelKey;
+    int switch1X, switch1Y, switch2X, switch2Y, switch3X, switch3Y;
+    int switchWidth, switchHeight;
+    int switch1KeyUp, switch1KeyDown, switch2KeyUp, switch2KeyDown, switch3KeyUp, switch3KeyDown;
+    int switchFrmUp, switchFrmDown;  // FRM indices for switch buttons vary by mode
+
+    if (strictVanilla) {
+        // Vanilla mode – original automap layout
+        scannerX = 111; scannerY = 454; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_LOWERCASE_S;
+        cancelX = 277; cancelY = 454; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_ESCAPE;
+
+        // Only one switch button (details) – others remain unused
+        switch1X = 457; switch1Y = 340;
+        switch2X = 0; switch2Y = 0;
+        switch3X = 0; switch3Y = 0;
+        switchWidth = 42; switchHeight = 74;
+        switch1KeyUp = KEY_LOWERCASE_L; switch1KeyDown = KEY_LOWERCASE_H;
+        switch2KeyUp = 0; switch2KeyDown = 0;
+        switch3KeyUp = 0; switch3KeyDown = 0;
+        switchFrmUp = AUTOMAP_FRM_SWITCH_UP;
+        switchFrmDown = AUTOMAP_FRM_SWITCH_DOWN;
+
+    } else {
+        // minimap mode – new button layout
+        scannerX = 23; scannerY = 217; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_LOWERCASE_S;
+        cancelX = 141; cancelY = 217; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_ESCAPE;
+
+        // Three switch buttons (details, zoom, projection)
+        switch1X = 195; switch1Y = 30;   // details
+        switch2X = 195; switch2Y = 93;   // zoom
+        switch3X = 195; switch3Y = 156;  // projection
+        switchWidth = 42; switchHeight = 63;
+        switch1KeyUp = KEY_LOWERCASE_L; switch1KeyDown = KEY_LOWERCASE_H;
+        switch2KeyUp = KEY_LOWERCASE_I; switch2KeyDown = KEY_LOWERCASE_O;
+        switch3KeyUp = KEY_LOWERCASE_D; switch3KeyDown = KEY_LOWERCASE_T;
+        switchFrmUp = AUTOMAP_FRM_MINIMAP_SWITCH_UP;
+        switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
+    }
+
+    // Scanner (always present)
+    scannerBtn = buttonCreate(window, scannerX, scannerY, scannerWidth, scannerHeight,
+                -1, -1, -1, scannerKey,
+                frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
+                frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
+                nullptr, BUTTON_FLAG_TRANSPARENT);
     if (scannerBtn != -1) {
         buttonSetCallbacks(scannerBtn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
-    int cancelBtn = buttonCreate(window,
-        277,
-        454,
-        15,
-        16,
-        -1,
-        -1,
-        -1,
-        KEY_ESCAPE,
-        frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
-        frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
+    // Cancel (always present)
+    cancelBtn = buttonCreate(window, cancelX, cancelY, cancelWidth, cancelHeight,
+                -1, -1, -1, cancelKey,
+                frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
+                frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
+                nullptr, BUTTON_FLAG_TRANSPARENT);
     if (cancelBtn != -1) {
         buttonSetCallbacks(cancelBtn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
-    int switchBtn = buttonCreate(window,
-        457,
-        340,
-        42,
-        74,
-        -1,
-        -1,
-        KEY_LOWERCASE_L,
-        KEY_LOWERCASE_H,
-        frmImages[AUTOMAP_FRM_SWITCH_UP].getData(),
-        frmImages[AUTOMAP_FRM_SWITCH_DOWN].getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-    if (switchBtn != -1) {
-        buttonSetCallbacks(switchBtn, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+    // Switch buttons
+    // Details (always present)
+    switchBtn1 = buttonCreate(window, switch1X, switch1Y, switchWidth, switchHeight,
+                -1, -1, switch1KeyUp, switch1KeyDown,
+                frmImages[switchFrmUp].getData(),
+                frmImages[switchFrmDown].getData(),
+                nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+    if (switchBtn1 != -1) {
+        buttonSetCallbacks(switchBtn1, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
     }
-
     if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
-        _win_set_button_rest_state(switchBtn, 1, 0);
+        _win_set_button_rest_state(switchBtn1, 1, 0);
+    }
+    if (!strictVanilla) {
+        // Zoom
+        switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
+                    -1, -1, switch2KeyUp, switch2KeyDown,
+                    frmImages[switchFrmUp].getData(),
+                    frmImages[switchFrmDown].getData(),
+                    nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+        if (switchBtn2 != -1) {
+            buttonSetCallbacks(switchBtn2, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+        }
+        // Projection
+        switchBtn3 = buttonCreate(window, switch3X, switch3Y, switchWidth, switchHeight,
+                    -1, -1, switch3KeyUp, switch3KeyDown,
+                    frmImages[switchFrmUp].getData(),
+                    frmImages[switchFrmDown].getData(),
+                    nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+        if (switchBtn3 != -1) {
+            buttonSetCallbacks(switchBtn3, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+        }
+        if (zoom == 2) {
+        _win_set_button_rest_state(switchBtn2, 1, 0);
+        }
+        if (gUseNewAutomapProjection) {
+        _win_set_button_rest_state(switchBtn3, 1, 0);
+        }
     }
 
     int elevation = gElevation;
@@ -666,101 +734,161 @@ void automapShow(bool isInGame, bool isUsingScanner)
     }
 
     // Render initial automap view
-    automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
+    if(strictVanilla){
+        automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
+    } else {
+        automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_MINIMAP].getData(), gAutomapFlags);
+    }
 
-    bool isoWasEnabled = isoDisable();
+    bool isoWasEnabled;
+    if (strictVanilla){
+        isoWasEnabled = isoDisable();
+    }
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
 
     bool done = false;
+    unsigned int lastUpdateTime = getTicks();
+    const unsigned int UPDATE_INTERVAL_MS = 50;
+
     while (!done) {
         sharedFpsLimiter.mark();
 
         bool needsRefresh = false;
 
-        // FIXME: There is minor bug in the interface - pressing H/L to toggle
-        // high/low details does not update switch state.
+        // --- Mouse handling ---
+        int mouseX, mouseY;
+        mouseGetPosition(&mouseX, &mouseY);
+        int mouseState = mouseGetEvent();
+
+        if (mouseState != 0) {
+            if (windowGetAtPoint(mouseX, mouseY) != window) {
+                // Outside automap – always pass
+                _gmouse_handle_event(mouseX, mouseY, mouseState);
+            } else if (mouseState & MOUSE_EVENT_RIGHT_BUTTON_DOWN) {
+                // Inside automap, right?click – pass (for mode cycling)
+                _gmouse_handle_event(mouseX, mouseY, mouseState);
+            }
+            // Left clicks inside automap are ignored (handled by window)
+        }
+
+        // --- Keyboard handling (your existing code) ---
         int keyCode = inputGetInput();
         switch (keyCode) {
-        case KEY_TAB:
-        case KEY_ESCAPE:
-        case KEY_UPPERCASE_A:
-        case KEY_LOWERCASE_A:
-            done = true;
-            break;
-        case KEY_UPPERCASE_H:
-        case KEY_LOWERCASE_H:
-            if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
-                gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
-                needsRefresh = true;
-            }
-            break;
-        case KEY_UPPERCASE_L:
-        case KEY_LOWERCASE_L:
-            if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
-                gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
-                needsRefresh = true;
-            }
-            break;
-        case KEY_UPPERCASE_S:
-        case KEY_LOWERCASE_S:
-            if (elevation != gElevation) {
-                elevation = gElevation;
-                needsRefresh = true;
-            }
+            case KEY_TAB:
+            case KEY_ESCAPE:
+            case KEY_UPPERCASE_A:
+            case KEY_LOWERCASE_A:
+                done = true;
+                break;
+            case KEY_UPPERCASE_H:
+            case KEY_LOWERCASE_H:
+                if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
+                    gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
+                    needsRefresh = true;
+                }
+                break;
+            case KEY_UPPERCASE_L:
+            case KEY_LOWERCASE_L:
+                if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
+                    gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
+                    needsRefresh = true;
+                }
+                break;
+            case KEY_UPPERCASE_I:
+            case KEY_LOWERCASE_I:
+                    zoom = 2;
+                    needsRefresh = true;
+                
+                break;
+            case KEY_UPPERCASE_O:
+            case KEY_LOWERCASE_O:
+                    zoom = 1;
+                    needsRefresh = true;
+                break;
+            case KEY_UPPERCASE_D:
+            case KEY_LOWERCASE_D:
+                    gUseNewAutomapProjection = true;
+                    needsRefresh = true;
+                break;
+            case KEY_UPPERCASE_T:
+            case KEY_LOWERCASE_T:
+                    gUseNewAutomapProjection = false;
+                    needsRefresh = true;
+                break;
+            case KEY_UPPERCASE_S:
+            case KEY_LOWERCASE_S:
+                if (elevation != gElevation) {
+                    elevation = gElevation;
+                    needsRefresh = true;
+                }
 
-            if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
-                Object* scanner = nullptr;
+                if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
+                    Object* scanner = nullptr;
 
-                Object* item1 = critterGetItem1(gDude);
-                if (item1 != nullptr && item1->pid == PROTO_ID_MOTION_SENSOR) {
-                    scanner = item1;
-                } else {
-                    Object* item2 = critterGetItem2(gDude);
-                    if (item2 != nullptr && item2->pid == PROTO_ID_MOTION_SENSOR) {
-                        scanner = item2;
+                    Object* item1 = critterGetItem1(gDude);
+                    if (item1 != nullptr && item1->pid == PROTO_ID_MOTION_SENSOR) {
+                        scanner = item1;
+                    } else {
+                        Object* item2 = critterGetItem2(gDude);
+                        if (item2 != nullptr && item2->pid == PROTO_ID_MOTION_SENSOR) {
+                            scanner = item2;
+                        }
+                    }
+
+                    if (scanner != nullptr && miscItemGetCharges(scanner) > 0) {
+                        needsRefresh = true;
+                        gAutomapFlags |= AUTOMAP_WITH_SCANNER;
+                        miscItemConsumeCharge(scanner);
+                    } else {
+                        soundPlayFile("iisxxxx1");
+
+                        MessageListItem messageListItem;
+                        // 17 - The motion sensor is not installed.
+                        // 18 - The motion sensor has no charges remaining.
+                        const char* title = getmsg(&gMiscMessageList, &messageListItem, scanner != nullptr ? 18 : 17);
+                        showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
                     }
                 }
 
-                if (scanner != nullptr && miscItemGetCharges(scanner) > 0) {
-                    needsRefresh = true;
-                    gAutomapFlags |= AUTOMAP_WITH_SCANNER;
-                    miscItemConsumeCharge(scanner);
-                } else {
-                    soundPlayFile("iisxxxx1");
-
-                    MessageListItem messageListItem;
-                    // 17 - The motion sensor is not installed.
-                    // 18 - The motion sensor has no charges remaining.
-                    const char* title = getmsg(&gMiscMessageList, &messageListItem, scanner != nullptr ? 18 : 17);
-                    showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
-                }
+                break;
+            case KEY_CTRL_Q:
+            case KEY_ALT_X:
+            case KEY_F10:
+                showQuitConfirmationDialog();
+                break;
+            case KEY_F12:
+                takeScreenshot();
+                break;
             }
 
-            break;
-        case KEY_CTRL_Q:
-        case KEY_ALT_X:
-        case KEY_F10:
-            showQuitConfirmationDialog();
-            break;
-        case KEY_F12:
-            takeScreenshot();
-            break;
+        // --- Throttled automap update ---
+        unsigned int currentTime = getTicks();
+        if (currentTime - lastUpdateTime >= UPDATE_INTERVAL_MS) {
+            needsRefresh = true;
+            lastUpdateTime = currentTime;
         }
 
-        if (_game_user_wants_to_quit != 0) {
-            break;
-        }
-
+        // --- Render automap if needed ---
         if (needsRefresh) {
-            automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
-            needsRefresh = false;
+            if (strictVanilla){
+                automapRenderInMapWindow(window, elevation,
+                    frmImages[AUTOMAP_FRM_BACKGROUND].getData(),
+                    gAutomapFlags);
+            } else {
+                automapRenderInMapWindow(window, elevation,
+                    frmImages[AUTOMAP_FRM_MINIMAP].getData(),
+                    gAutomapFlags);
+            }
         }
+
+        if (_game_user_wants_to_quit) break;
 
         renderPresent();
         sharedFpsLimiter.throttle();
     }
 
-    if (isoWasEnabled) {
+    // isoWasEnabled not set for minimap mode to allow click/actions behind/outside window
+    if (isoWasEnabled && strictVanilla) {
         isoEnable();
     }
 
@@ -774,6 +902,12 @@ void automapShow(bool isInGame, bool isUsingScanner)
  */
 static void automapRenderInMapWindow(int window, int elevation, unsigned char* backgroundData, int flags)
 {
+    // Get actual window dimensions (set in automapShow)
+    int winWidth = windowGetWidth(window);
+    int winHeight = windowGetHeight(window);
+
+    static double original_scale = 0.5; //
+
     int color;
     if ((flags & AUTOMAP_IN_GAME) != 0) {
         color = _colorTable[8456];
@@ -781,110 +915,210 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
         color = _colorTable[22025];
     }
 
-    windowFill(window, 0, 0, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, color);
+    windowFill(window, 0, 0, winWidth, winHeight, color);
     windowDrawBorder(window);
 
     unsigned char* windowBuffer = windowGetBuffer(window);
-    blitBufferToBuffer(backgroundData, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, AUTOMAP_WINDOW_WIDTH, windowBuffer, AUTOMAP_WINDOW_WIDTH);
+    blitBufferToBuffer(backgroundData, winWidth, winHeight, winWidth, windowBuffer, winWidth);
 
-    for (Object* object = objectFindFirstAtElevation(elevation); object != nullptr; object = objectFindNextAtElevation()) {
-        if (object->tile == -1) {
-            continue;
-        }
+    // ===== VANILLA MODE – use original fixed rendering =====
+    if (strictVanilla) {
+        for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
+            if (obj->tile == -1) continue;
 
-        int objectType = FID_TYPE(object->fid);
-        unsigned char objectColor;
+            int tileX = obj->tile % 200;
+            int tileY = obj->tile / 200;
+            int objectType = FID_TYPE(obj->fid);
+            unsigned char objColor = _colorTable[0];
 
-        if ((flags & AUTOMAP_IN_GAME) != 0) {
-            if (objectType == OBJ_TYPE_CRITTER
-                && (object->flags & OBJECT_HIDDEN) == 0
-                && (flags & AUTOMAP_WITH_SCANNER) != 0
-                && (object->data.critter.combat.results & DAM_DEAD) == 0) {
-                objectColor = _colorTable[31744];
-            } else {
-                if ((object->flags & OBJECT_SEEN) == 0) {
-                    continue;
-                }
-
-                if (object->pid == PROTO_ID_0x2000031) {
-                    objectColor = _colorTable[32328];
-                } else if (objectType == OBJ_TYPE_WALL) {
-                    objectColor = _colorTable[992];
-                } else if (objectType == OBJ_TYPE_SCENERY
-                    && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
-                    && object->pid != PROTO_ID_0x2000158) {
-                    objectColor = _colorTable[480];
-                } else if (object == gDude) {
-                    objectColor = _colorTable[31744];
-                } else {
-                    objectColor = _colorTable[0];
-                }
-            }
-        }
-
-        int v10 = -2 * (object->tile % 200) - 10 + AUTOMAP_WINDOW_WIDTH * (2 * (object->tile / 200) + 9) - 60;
-        if ((flags & AUTOMAP_IN_GAME) == 0) {
-            switch (objectType) {
-            case OBJ_TYPE_ITEM:
-                objectColor = _colorTable[6513];
-                break;
-            case OBJ_TYPE_CRITTER:
-                objectColor = _colorTable[28672];
-                break;
-            case OBJ_TYPE_SCENERY:
-                objectColor = _colorTable[448];
-                break;
-            case OBJ_TYPE_WALL:
-                objectColor = _colorTable[12546];
-                break;
-            case OBJ_TYPE_MISC:
-                objectColor = _colorTable[31650];
-                break;
-            default:
-                objectColor = _colorTable[0];
-            }
-        }
-
-        if (objectColor != _colorTable[0]) {
-            unsigned char* v12 = windowBuffer + v10;
+            // Color determination (same as before)
             if ((flags & AUTOMAP_IN_GAME) != 0) {
-                if (*v12 != _colorTable[992] || objectColor != _colorTable[480]) {
-                    v12[0] = objectColor;
-                    v12[1] = objectColor;
-                }
-
-                if (object == gDude) {
-                    v12[-1] = objectColor;
-                    v12[-AUTOMAP_WINDOW_WIDTH] = objectColor;
-                    v12[AUTOMAP_WINDOW_WIDTH] = objectColor;
+                if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
+                    && (flags & AUTOMAP_WITH_SCANNER) != 0
+                    && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
+                    objColor = _colorTable[31744];
+                } else {
+                    if ((obj->flags & OBJECT_SEEN) == 0) continue;
+                    if (obj->pid == PROTO_ID_0x2000031)
+                        objColor = _colorTable[32328];
+                    else if (objectType == OBJ_TYPE_WALL)
+                        objColor = _colorTable[992];
+                    else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
+                             && obj->pid != PROTO_ID_0x2000158)
+                        objColor = _colorTable[480];
+                    else if (obj == gDude)
+                        objColor = _colorTable[31744];
+                    else
+                        objColor = _colorTable[0];
                 }
             } else {
-                v12[0] = objectColor;
-                v12[1] = objectColor;
-                v12[AUTOMAP_WINDOW_WIDTH] = objectColor;
-                v12[AUTOMAP_WINDOW_WIDTH + 1] = objectColor;
+                switch (objectType) {
+                case OBJ_TYPE_ITEM:    objColor = _colorTable[6513]; break;
+                case OBJ_TYPE_CRITTER: objColor = _colorTable[28672]; break;
+                case OBJ_TYPE_SCENERY: objColor = _colorTable[448]; break;
+                case OBJ_TYPE_WALL:    objColor = _colorTable[12546]; break;
+                case OBJ_TYPE_MISC:    objColor = _colorTable[31650]; break;
+                default:               objColor = _colorTable[0]; break;
+                }
+            }
 
-                v12[AUTOMAP_WINDOW_WIDTH - 1] = objectColor;
-                v12[AUTOMAP_WINDOW_WIDTH + 2] = objectColor;
-                v12[AUTOMAP_WINDOW_WIDTH * 2] = objectColor;
-                v12[AUTOMAP_WINDOW_WIDTH * 2 + 1] = objectColor;
+            if (objColor == _colorTable[0]) continue;
+
+            // Original Fallout automap formula
+            int v10 = -2 * tileX - 10 + winWidth * (2 * tileY + 9) - 60;
+            unsigned char* pixel = windowBuffer + v10;
+
+            if ((flags & AUTOMAP_IN_GAME) != 0) {
+                if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+                    pixel[0] = objColor;
+                    pixel[1] = objColor;
+                }
+                if (obj == gDude) {
+                    pixel[-1] = objColor;
+                    pixel[-winWidth] = objColor;
+                    pixel[winWidth] = objColor;
+                }
+            } else {
+                pixel[0] = objColor;
+                pixel[1] = objColor;
+                pixel[winWidth] = objColor;
+                pixel[winWidth + 1] = objColor;
+                pixel[winWidth - 1] = objColor;
+                pixel[winWidth + 2] = objColor;
+                pixel[winWidth * 2] = objColor;
+                pixel[winWidth * 2 + 1] = objColor;
+            }
+        }
+    }
+    // ===== MINIMAP MODE – player?centered projection with zoom & toggles =====
+    else {
+        // Clipping rectangle (map display area)
+        int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
+
+        // Viewport center (used for player centering)
+        int vpCenterX = winWidth / 2 - clipLeft / 2;
+        int vpCenterY = winHeight / 2 - clipTop / 2;
+
+        // Player tile
+        int playerTile = gDude->tile;
+        int uPlayer = playerTile % 200;
+        int vPlayer = playerTile / 200;
+
+        // Player base coordinates (before zoom)
+        double playerBaseX = 0.0, playerBaseY = 0.0;
+        if (gUseNewAutomapProjection) {
+            double angleEW = 14.2, angleNS = 37.0;
+            double slopeEW = tan(angleEW * M_PI / 180.0);
+            double slopeNS = tan(angleNS * M_PI / 180.0);
+            playerBaseX = (vPlayer - uPlayer);
+            playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+        } else {
+            playerBaseX = original_scale * (-2 * uPlayer);
+            playerBaseY = original_scale * (2 * vPlayer);
+        }
+
+        // Object loop
+        for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
+            if (obj->tile == -1) continue;
+
+            int u = obj->tile % 200;
+            int v = obj->tile / 200;
+
+            // Color determination (same as before, copy from above)
+            int objectType = FID_TYPE(obj->fid);
+            unsigned char objColor = _colorTable[0];
+            if ((flags & AUTOMAP_IN_GAME) != 0) {
+                if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
+                    && (flags & AUTOMAP_WITH_SCANNER) != 0
+                    && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
+                    objColor = _colorTable[31744];
+                } else {
+                    if ((obj->flags & OBJECT_SEEN) == 0) continue;
+                    if (obj->pid == PROTO_ID_0x2000031)
+                        objColor = _colorTable[32328];
+                    else if (objectType == OBJ_TYPE_WALL)
+                        objColor = _colorTable[992];
+                    else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
+                             && obj->pid != PROTO_ID_0x2000158)
+                        objColor = _colorTable[480];
+                    else if (obj == gDude)
+                        objColor = _colorTable[31744];
+                    else
+                        objColor = _colorTable[0];
+                }
+            } else {
+                switch (objectType) {
+                case OBJ_TYPE_ITEM:    objColor = _colorTable[6513]; break;
+                case OBJ_TYPE_CRITTER: objColor = _colorTable[28672]; break;
+                case OBJ_TYPE_SCENERY: objColor = _colorTable[448]; break;
+                case OBJ_TYPE_WALL:    objColor = _colorTable[12546]; break;
+                case OBJ_TYPE_MISC:    objColor = _colorTable[31650]; break;
+                default:               objColor = _colorTable[0]; break;
+                }
+            }
+
+            if (objColor == _colorTable[0]) continue;
+
+            // Object base coordinates
+            double objBaseX, objBaseY;
+            if (gUseNewAutomapProjection) {
+                double angleEW = 14.2, angleNS = 37.0;
+                double slopeEW = tan(angleEW * M_PI / 180.0);
+                double slopeNS = tan(angleNS * M_PI / 180.0);
+                objBaseX = (v - u);
+                objBaseY = u * slopeEW + v * slopeNS;
+            } else {
+                objBaseX = original_scale * (-2 * u);
+                objBaseY = original_scale * (2 * v);
+            }
+
+            // Apply zoom and center on player
+            int screenX = (int)(zoom * (objBaseX - playerBaseX) + vpCenterX + 0.5);
+            int screenY = (int)(zoom * (objBaseY - playerBaseY) + vpCenterY + 0.5);
+
+            // Clip
+            if (screenX < clipLeft || screenX + 1 > clipRight || screenY < clipTop || screenY + 1 > clipBottom)
+                continue;
+
+            int v10 = screenY * winWidth + screenX;
+            unsigned char* pixel = windowBuffer + v10;
+
+            // Drawing (same as before)
+            if ((flags & AUTOMAP_IN_GAME) != 0) {
+                if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+                    pixel[0] = objColor;
+                    pixel[1] = objColor;
+                }
+                if (obj == gDude) {
+                    pixel[-1] = objColor;
+                    pixel[-winWidth] = objColor;
+                    pixel[winWidth] = objColor;
+                }
+            } else {
+                pixel[0] = objColor;
+                pixel[1] = objColor;
+                pixel[winWidth] = objColor;
+                pixel[winWidth + 1] = objColor;
+                pixel[winWidth - 1] = objColor;
+                pixel[winWidth + 2] = objColor;
+                pixel[winWidth * 2] = objColor;
+                pixel[winWidth * 2 + 1] = objColor;
             }
         }
     }
 
-    int textColor;
-    if ((flags & AUTOMAP_IN_GAME) != 0) {
-        textColor = _colorTable[992];
-    } else {
-        textColor = _colorTable[12546];
-    }
-
+    // Map name and area name (same for both modes)
+    int textColor = ((flags & AUTOMAP_IN_GAME) != 0) ? _colorTable[992] : _colorTable[12546];
     if (mapGetCurrentMap() != -1) {
         char* areaName = mapGetCityName(mapGetCurrentMap());
-        windowDrawText(window, areaName, 240, 150, 380, textColor | 0x2000000);
-
         char* mapName = mapGetName(mapGetCurrentMap(), elevation);
-        windowDrawText(window, mapName, 240, 150, 396, textColor | 0x2000000);
+        if(strictVanilla){
+            windowDrawText(window, areaName, 240, 150, 380, textColor | 0x2000000);
+            windowDrawText(window, mapName, 240, 150, 396, textColor | 0x2000000);
+        } else {
+            int areaWidth = fontGetStringWidth(areaName);
+            windowDrawText(window, areaName, areaWidth, (220 - areaWidth)/2, 182, textColor | 0x2000000);
+        }
     }
 
     windowRefresh(window);
