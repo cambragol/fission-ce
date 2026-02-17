@@ -226,8 +226,9 @@ int isoInit()
 
     debugPrint(">obj_init\t\t");
 
-    colorCycleInit();
-    debugPrint(">cycle_init\t\t");
+    // moved this to game.cc gameInitWithOptions to prevent color cycle on splash screen
+    // colorCycleInit();
+    // debugPrint(">cycle_init\t\t");
 
     tileScrollBlockingEnable();
     tileScrollLimitingEnable();

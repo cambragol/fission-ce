@@ -565,6 +565,210 @@ int showDialogBox(const char* title, const char** body, int bodyLength, int x, i
     return rc;
 }
 
+int showLanguageSelectionDialog(char* title, char** items, int itemsLength, int x, int y)
+{
+    int oldFont = fontGetCurrent();
+
+    // Always set isScrollable to false since we have a small fixed list
+    bool isScrollable = false;
+
+    int selectedIndex = 0;
+    int pageOffset = 0;
+    // Since we're not scrolling, maxPageOffset should be 0
+    int maxPageOffset = 0;
+
+    FrmImage frmImages[FILE_DIALOG_FRM_COUNT];
+
+    for (int index = 0; index < FILE_DIALOG_FRM_COUNT; index++) {
+        int fid = buildFid(OBJ_TYPE_INTERFACE, gLoadFileDialogFrmIds[index], 0, 0, 0);
+        if (!frmImages[index].lock(fid)) {
+            return -1;
+        }
+    }
+
+    int backgroundWidth = frmImages[FILE_DIALOG_FRM_BACKGROUND].getWidth();
+    int backgroundHeight = frmImages[FILE_DIALOG_FRM_BACKGROUND].getHeight();
+
+    // Maintain original position in original resolution, otherwise center it.
+    x += (screenGetWidth() - 640) / 2;
+    y += (screenGetHeight() - 480) / 2;
+    int win = windowCreate(x, y, backgroundWidth, backgroundHeight, 256, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+    if (win == -1) {
+        return -1;
+    }
+
+    unsigned char* windowBuffer = windowGetBuffer(win);
+    memcpy(windowBuffer, frmImages[FILE_DIALOG_FRM_BACKGROUND].getData(), backgroundWidth * backgroundHeight);
+
+    MessageList messageList;
+    MessageListItem messageListItem;
+
+    if (!messageListInit(&messageList)) {
+        windowDestroy(win);
+        return -1;
+    }
+
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "DBOX.MSG");
+
+    if (!messageListLoad(&messageList, path)) {
+        windowDestroy(win);
+        return -1;
+    }
+
+    fontSetCurrent(103);
+
+    // DONE
+    const char* done = getmsg(&messageList, &messageListItem, 100);
+    fontDrawText(windowBuffer + backgroundWidth * LOAD_FILE_DIALOG_DONE_LABEL_Y + SAVE_FILE_DIALOG_DONE_LABEL_X, done, backgroundWidth, backgroundWidth, _colorTable[18979]);
+
+    // CANCEL
+    const char* cancel = getmsg(&messageList, &messageListItem, 103);
+    fontDrawText(windowBuffer + backgroundWidth * LOAD_FILE_DIALOG_CANCEL_LABEL_Y + SAVE_FILE_DIALOG_CANCEL_LABEL_X, cancel, backgroundWidth, backgroundWidth, _colorTable[18979]);
+
+    int doneBtn = buttonCreate(win,
+        LOAD_FILE_DIALOG_DONE_BUTTON_X,
+        LOAD_FILE_DIALOG_DONE_BUTTON_Y,
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getWidth(),
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getHeight(),
+        -1,
+        -1,
+        -1,
+        500,
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_NORMAL].getData(),
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (doneBtn != -1) {
+        buttonSetCallbacks(doneBtn, _gsound_red_butt_press, _gsound_red_butt_release);
+    }
+
+    int cancelBtn = buttonCreate(win,
+        LOAD_FILE_DIALOG_CANCEL_BUTTON_X,
+        LOAD_FILE_DIALOG_CANCEL_BUTTON_Y,
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getWidth(),
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getHeight(),
+        -1,
+        -1,
+        -1,
+        501,
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_NORMAL].getData(),
+        frmImages[FILE_DIALOG_FRM_LITTLE_RED_BUTTON_PRESSED].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (cancelBtn != -1) {
+        buttonSetCallbacks(cancelBtn, _gsound_red_butt_press, _gsound_red_butt_release);
+    }
+
+    // File list area as a button for click handling
+    int listAreaBtn = buttonCreate(
+        win,
+        FILE_DIALOG_FILE_LIST_X,
+        FILE_DIALOG_FILE_LIST_Y,
+        FILE_DIALOG_FILE_LIST_WIDTH,
+        FILE_DIALOG_FILE_LIST_HEIGHT,
+        -1,
+        -1,
+        -1,
+        502,
+        nullptr,
+        nullptr,
+        nullptr,
+        0);
+
+    if (title != nullptr) {
+        fontDrawText(windowBuffer + backgroundWidth * FILE_DIALOG_TITLE_Y + FILE_DIALOG_TITLE_X, title, backgroundWidth, backgroundWidth, _colorTable[18979]);
+    }
+
+    fontSetCurrent(101);
+
+    // Use fileDialogRenderFileList function but with our fixed parameters
+    fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
+    windowRefresh(win);
+
+    // Add double-click tracking for immediate selection
+    int doubleClickSelectedIndex = -2;
+    int doubleClickTimer = 8; // Double-click delay in ticks
+
+    int rc = -1;
+    while (rc == -1) {
+        sharedFpsLimiter.mark();
+
+        unsigned int tick = getTicks();
+        int keyCode = inputGetInput();
+        int scrollDirection = FILE_DIALOG_SCROLL_DIRECTION_NONE;
+
+        convertMouseWheelToArrowKey(&keyCode);
+
+        if (keyCode == 500 || keyCode == KEY_RETURN) {
+            // Done button or Enter key
+            // soundPlayFile("ib1p1xx1");
+            rc = selectedIndex; // Return the selected index
+        } else if (keyCode == 501 || keyCode == KEY_ESCAPE) {
+            // Cancel button or Escape key
+            rc = -1; // Return -1 for cancel
+        } else if (keyCode == 502 && itemsLength != 0) {
+            // Clicked in list area
+            int mouseX, mouseY;
+            mouseGetPosition(&mouseX, &mouseY);
+
+            int selectedLine = (mouseY - y - FILE_DIALOG_FILE_LIST_Y) / fontGetLineHeight();
+            if (selectedLine >= 0 && selectedLine < itemsLength) {
+                selectedIndex = selectedLine;
+
+                // Check for double-click
+                if (selectedIndex == doubleClickSelectedIndex) {
+                    // Double-click detected - select immediately
+                    soundPlayFile("ib1p1xx1");
+                    rc = selectedIndex;
+                } else {
+                    // Single click - just update selection
+                    doubleClickSelectedIndex = selectedIndex;
+                    doubleClickTimer = 18; // Reset double-click timer
+                }
+
+                fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
+                windowRefresh(win);
+            }
+        } else if (keyCode == KEY_ARROW_UP) {
+            // Move selection up
+            if (selectedIndex > 0) {
+                selectedIndex--;
+                fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
+                windowRefresh(win);
+                doubleClickSelectedIndex = -2; // Reset double-click on arrow key
+            }
+        } else if (keyCode == KEY_ARROW_DOWN) {
+            // Move selection down
+            if (selectedIndex < itemsLength - 1) {
+                selectedIndex++;
+                fileDialogRenderFileList(windowBuffer, items, pageOffset, itemsLength, selectedIndex, backgroundWidth);
+                windowRefresh(win);
+                doubleClickSelectedIndex = -2; // Reset double-click on arrow key
+            }
+        }
+
+        // Update double-click timer
+        doubleClickTimer--;
+        if (doubleClickTimer <= 0) {
+            doubleClickSelectedIndex = -2; // Reset double-click tracking
+        }
+
+        if (_game_user_wants_to_quit != 0) {
+            rc = -1;
+        }
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+
+    windowDestroy(win);
+    messageListFree(&messageList);
+    fontSetCurrent(oldFont);
+
+    return rc;
+}
+
 // 0x41DE90
 int showLoadFileDialog(char* title, char** fileList, char* dest, int fileListLength, int x, int y, int flags)
 {
