@@ -1558,9 +1558,9 @@ static int preferencesWindowInit()
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 121);
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 
-    // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise 
+    // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise
     fontSetCurrent(101);
-    if (gStrictVanillaEnabled){
+    if (gStrictVanillaEnabled) {
         messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
     } else {
         messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, 110);
