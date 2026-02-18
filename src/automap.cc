@@ -2,11 +2,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <cmath>
 
 #include <algorithm>
 
+#include "animation.h"
 #include "art.h"
 #include "color.h"
+#include "combat.h"
 #include "config.h"
 #include "dbox.h"
 #include "debug.h"
@@ -26,6 +29,7 @@
 #include "settings.h"
 #include "svga.h"
 #include "text_font.h"
+#include "tile.h"
 #include "window_manager.h"
 
 namespace fallout {
@@ -266,6 +270,7 @@ static AutomapHeader gAutomapHeader;
 static int zoom = 2;
 static bool gUseNewAutomapProjection = false;
 static bool strictVanilla = false;
+static double original_scale = 0.5;
 
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
@@ -572,6 +577,55 @@ int _automapDisplayMap(int map)
     return _displayMapList[map];
 }
 
+static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight)
+{
+    int uPlayer = playerTile % 200;
+    int vPlayer = playerTile / 200;
+
+    // minimap mode constants (must match renderer - move to constants/defines?)
+    int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
+    int vpCenterX = winWidth / 2 - clipLeft / 2;
+    int vpCenterY = winHeight / 2 - clipTop / 2;
+
+    // Player base coordinates (same as in render)
+    double playerBaseX, playerBaseY;
+    if (gUseNewAutomapProjection) {
+        double angleEW = 14.2, angleNS = 37.0;
+        double slopeEW = tan(angleEW * M_PI / 180.0);
+        double slopeNS = tan(angleNS * M_PI / 180.0);
+        playerBaseX = (vPlayer - uPlayer);
+        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+    } else {
+        playerBaseX = original_scale * (-2 * uPlayer);
+        playerBaseY = original_scale * (2 * vPlayer);
+    }
+
+    // Reverse zoom and centering
+    double targetBaseX = (relX - vpCenterX) / (double)zoom + playerBaseX;
+    double targetBaseY = (relY - vpCenterY) / (double)zoom + playerBaseY;
+
+    // Solve for u, v
+    double uDouble, vDouble;
+    if (gUseNewAutomapProjection) {
+        double angleEW = 14.2, angleNS = 37.0;
+        double slopeEW = tan(angleEW * M_PI / 180.0);
+        double slopeNS = tan(angleNS * M_PI / 180.0);
+        double denom = slopeEW + slopeNS;
+        if (fabs(denom) < 0.0001) return -1;
+        uDouble = (targetBaseY - targetBaseX * slopeNS) / denom;
+        vDouble = targetBaseX + uDouble;
+    } else {
+        uDouble = -targetBaseX / (2.0 * original_scale);
+        vDouble =  targetBaseY / (2.0 * original_scale);
+    }
+
+    int u = (int)round(uDouble);
+    int v = (int)round(vDouble);
+    if (u >= 0 && u < 200 && v >= 0 && v < 200)
+        return v * 200 + u;
+    return -1;
+}
+
 /**
  * Shows the full-screen automap interface.
  * Can be called from in-game or from pipboy.
@@ -785,20 +839,56 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
         bool needsRefresh = false;
 
-        // --- Mouse handling ---
+        // --- Mouse handling with click-to-move ---
         int mouseX, mouseY;
         mouseGetPosition(&mouseX, &mouseY);
         int mouseState = mouseGetEvent();
 
-        if (mouseState != 0) {
-            if (windowGetAtPoint(mouseX, mouseY) != window) {
-                // Outside automap – always pass
-                _gmouse_handle_event(mouseX, mouseY, mouseState);
-            } else if (mouseState & MOUSE_EVENT_RIGHT_BUTTON_DOWN) {
-                // Inside automap, right?click – pass (for mode cycling)
-                _gmouse_handle_event(mouseX, mouseY, mouseState);
+        // --- Mouse handling with click-to-move (minimap mode only) ---
+        if (!strictVanilla && mouseState != 0) {
+            Rect winRect;
+            if (windowGetRect(window, &winRect) == 0) {
+                int winX = winRect.left;
+                int winY = winRect.top;
+                int winW = winRect.right - winRect.left;
+                int winH = winRect.bottom - winRect.top;
+
+                int relX = mouseX - winX;
+                int relY = mouseY - winY;
+
+                if (relX >= 34 && relX <= 182 && relY >= 29 && relY <= 192) {
+                    if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                        int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
+                        if (targetTile != -1 && targetTile != gDude->tile) {
+                            // Stop any current movement
+                            reg_anim_clear(gDude);
+
+                            int actionPoints = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+                            bool shiftPressed = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] ||
+                                                gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                            bool running = settings.preferences.running;
+                            bool shouldRun = (running && !shiftPressed) || (!running && shiftPressed);
+
+                            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+                            if (shouldRun) {
+                                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, actionPoints, 0);
+                            } else {
+                                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, actionPoints, 0);
+                            }
+                            reg_anim_end();
+
+                            needsRefresh = true;
+                        }
+                    } else if (mouseState & MOUSE_EVENT_RIGHT_BUTTON_DOWN) {
+                        _gmouse_handle_event(mouseX, mouseY, mouseState);
+                    }
+                }
             }
-            // Left clicks inside automap are ignored (handled by window)
+        }
+
+        // Always pass clicks outside the automap window to the game
+        if (mouseState != 0 && windowGetAtPoint(mouseX, mouseY) != window) {
+            _gmouse_handle_event(mouseX, mouseY, mouseState);
         }
 
         // --- Keyboard handling (your existing code) ---
