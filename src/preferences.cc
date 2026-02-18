@@ -1558,9 +1558,13 @@ static int preferencesWindowInit()
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 121);
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 
-    // Affect player speed
+    // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise 
     fontSetCurrent(101);
-    messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
+    if (gStrictVanillaEnabled){
+        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
+    } else {
+        messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, 110);
+    }
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.speedLabelX + gOffsets.speedLabelY, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 
     for (i = 0; i < PREF_COUNT; i++) {
@@ -1645,7 +1649,7 @@ static int preferencesWindowInit()
         }
     }
 
-    // Player Speed Checkbox
+    // Player Speed Checkbox in strictVanilla mode - Affect Non-combat Speed otherwise
     _plyrspdbid = buttonCreate(gPreferencesWindow,
         gOffsets.playerSpeedCheckboxX,
         gOffsets.playerSpeedCheckboxY,

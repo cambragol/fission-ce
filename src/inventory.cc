@@ -564,9 +564,6 @@ static int gBarterInsultIncrease = 0;
 // used to switch enhancedBarter on/off from config
 static bool enhancedBarter = false;
 
-// used for setting strict vanilla behavior from config
-static bool strictVanilla = false;
-
 // Rotation tracking for quick-click sort
 static Object* _last_quick_sorted_object;
 static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
@@ -812,8 +809,6 @@ static bool _setup_inventory(int inventoryWindowType)
 
     // turn enhanced barter on or off from conifg
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ENHANCED_BARTER, &enhancedBarter);
-    // turn strict vanilla mode on or off from conifg
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, &strictVanilla);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);
@@ -5925,7 +5920,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 int newInventoryWeight = objectGetInventoryWeight(target);
                 if (newInventoryWeight <= maxCarryWeight - currentWeight) {
                     itemMoveAll(target, looter); // items moved
-                    if (!strictVanilla) {
+                    if (!gStrictVanillaEnabled) {
                         soundPlayFile("ib1p1xx1");
                         break; // Exit loop early and close window for convenience
                     }
@@ -7477,7 +7472,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             value = max;
             _draw_amount(value, inventoryWindowType);
 
-            if (!strictVanilla) {
+            if (!gStrictVanillaEnabled) {
                 // For move items, treat "All" as immediate confirmation
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
                     break; // Exit loop to return the value

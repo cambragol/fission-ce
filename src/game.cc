@@ -108,6 +108,8 @@ int* gGameGlobalVars = nullptr;
 // 0x5186C4
 int gGameGlobalVarsLength = 0;
 
+bool gStrictVanillaEnabled = false;
+
 // 0x5186C8
 const char* asc_5186C8 = _aGame_0;
 
@@ -137,6 +139,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     settingsInit(isMapper, argc, argv);
 
+    gStrictVanillaEnabled = settings.sfall_misc.strict_vanilla;
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {

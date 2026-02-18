@@ -242,7 +242,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_RUNNING_KEY, settings.preferences.running);
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_SUBTITLES_KEY, settings.preferences.subtitles);
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_COMBAT_SPEED_KEY, settings.preferences.combat_speed);
-    settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_PLAYER_SPEED_KEY, settings.preferences.player_speedup);
+    settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_PLAYER_SPEED_KEY, settings.preferences.player_speedup); // also used for Affect Non-Combat Speed
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_TEXT_BASE_DELAY_KEY, settings.preferences.text_base_delay);
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_TEXT_LINE_DELAY_KEY, settings.preferences.text_line_delay);
     settingsWrite(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_BRIGHTNESS_KEY, settings.preferences.brightness);

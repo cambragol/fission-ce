@@ -3318,11 +3318,24 @@ static unsigned int animationComputeTicksPerFrame(Object* object, int fid)
         fps = 10;
     }
 
-    if (isInCombat()) {
-        if (FID_ANIM_TYPE(fid) == ANIM_WALK) {
+    int animType = FID_ANIM_TYPE(fid);
+
+    if (gStrictVanillaEnabled) {
+        // Original behaviour: only speed up walking animations in combat,
+        // and only for the player if player_speedup is false.
+        if (isInCombat() && animType == ANIM_WALK) {
             if (object != gDude || settings.preferences.player_speedup) {
                 fps += settings.preferences.combat_speed;
             }
+        }
+    } else {
+        // New behaviour:
+        if (isInCombat()) {
+            // Combat speed applies to all animations during combat.
+            fps += settings.preferences.combat_speed;
+        } else if (settings.preferences.player_speedup) {
+            // Non‑combat speedup applies to all animations outside combat.
+            fps += settings.preferences.combat_speed;
         }
     }
 
