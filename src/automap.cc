@@ -1,8 +1,8 @@
 #include "automap.h"
 
+#include <cmath>
 #include <stdio.h>
 #include <string.h>
-#include <cmath>
 
 #include <algorithm>
 
@@ -616,7 +616,7 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
         vDouble = targetBaseX + uDouble;
     } else {
         uDouble = -targetBaseX / (2.0 * original_scale);
-        vDouble =  targetBaseY / (2.0 * original_scale);
+        vDouble = targetBaseY / (2.0 * original_scale);
     }
 
     int u = (int)round(uDouble);
@@ -864,8 +864,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
                             reg_anim_clear(gDude);
 
                             int actionPoints = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
-                            bool shiftPressed = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] ||
-                                                gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                            bool shiftPressed = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
                             bool running = settings.preferences.running;
                             bool shouldRun = (running && !shiftPressed) || (!running && shiftPressed);
 
