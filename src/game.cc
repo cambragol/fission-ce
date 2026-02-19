@@ -108,6 +108,7 @@ int* gGameGlobalVars = nullptr;
 // 0x5186C4
 int gGameGlobalVarsLength = 0;
 
+// global for all strictVanilla controls
 bool gStrictVanillaEnabled = false;
 
 // 0x5186C8
