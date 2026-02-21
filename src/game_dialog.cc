@@ -540,8 +540,8 @@ static unsigned int gGameDialogFidgetUpdateDelay;
 // 0x596C38
 static int gGameDialogFidgetFrmCurrentFrame;
 
-static int _gd_options_scroll_offset = 0;      // index of first visible option
-static int _gd_options_visible_count = 0;      // how many options currently fit
+static int _gd_options_scroll_offset = 0; // index of first visible option
+static int _gd_options_visible_count = 0; // how many options currently fit
 static int _gd_options_scroll_up_btn = -1;
 static int _gd_options_scroll_down_btn = -1;
 
@@ -2267,9 +2267,9 @@ void _gdProcessUpdate()
 {
     int winWidth = windowGetWidth(gGameDialogOptionsWindow);
     int winHeight = windowGetHeight(gGameDialogOptionsWindow);
-    int upBtnHeight = 10;   // use 10px margin on top
-    int downBtnHeight = 20;   // use 20px margin on bottom
-    
+    int upBtnHeight = 10; // use 10px margin on top
+    int downBtnHeight = 20; // use 20px margin on bottom
+
     _replyRect.left = 5;
     _replyRect.top = 10;
     _replyRect.right = 374;
@@ -2436,7 +2436,7 @@ void _gdProcessUpdate()
 
     // restore background for all entire text area
     if (drawnCount > 0) {
-        Rect textArea = {0, 0, winWidth, winHeight};
+        Rect textArea = { 0, 0, winWidth, winHeight };
         _gDialogRefreshOptionsRect(gGameDialogOptionsWindow, &textArea);
     }
 
