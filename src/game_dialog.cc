@@ -59,7 +59,7 @@ namespace fallout {
 #define GAME_DIALOG_OPTIONS_WINDOW_X 127
 #define GAME_DIALOG_OPTIONS_WINDOW_Y 325 // Adjusted to hold invisible scroll buttons
 #define GAME_DIALOG_OPTIONS_WINDOW_WIDTH 393
-#define GAME_DIALOG_OPTIONS_WINDOW_HEIGHT 147 // Adjusted to hold invisible scroll buttons
+#define GAME_DIALOG_OPTIONS_WINDOW_HEIGHT 152 // Adjusted to hold invisible scroll buttons
 
 #define GAME_DIALOG_REVIEW_WINDOW_WIDTH 640
 #define GAME_DIALOG_REVIEW_WINDOW_HEIGHT 480
@@ -540,8 +540,8 @@ static unsigned int gGameDialogFidgetUpdateDelay;
 // 0x596C38
 static int gGameDialogFidgetFrmCurrentFrame;
 
-static int _gd_options_scroll_offset = 0; // index of first visible option
-static int _gd_options_visible_count = 0; // how many options currently fit
+static int _gd_options_scroll_offset = 0;      // index of first visible option
+static int _gd_options_visible_count = 0;      // how many options currently fit
 static int _gd_options_scroll_up_btn = -1;
 static int _gd_options_scroll_down_btn = -1;
 
@@ -2267,18 +2267,18 @@ void _gdProcessUpdate()
 {
     int winWidth = windowGetWidth(gGameDialogOptionsWindow);
     int winHeight = windowGetHeight(gGameDialogOptionsWindow);
-    int upBtnHeight = 10; // use 10px margin on top
-    int downBtnHeight = 20; // use 20px margin on bottom
-
+    int upBtnHeight = 10;   // use 10px margin on top
+    int downBtnHeight = 20;   // use 20px margin on bottom - 5px space between last option and scroll button to handle cursor switching
+    
     _replyRect.left = 5;
     _replyRect.top = 10;
     _replyRect.right = 374;
     _replyRect.bottom = 58;
 
     _optionRect.left = 5;
-    _optionRect.top = upBtnHeight + 5;
+    _optionRect.top = upBtnHeight + 5; // adjusted up for new y value - 10px up scroll button
     _optionRect.right = 388;
-    _optionRect.bottom = winHeight - upBtnHeight - downBtnHeight - 5; // 147 - 35 = 112 - same as original
+    _optionRect.bottom = 112; 
 
     _demo_copy_title(gGameDialogReplyWindow);
     _demo_copy_options(gGameDialogOptionsWindow);
@@ -2436,7 +2436,7 @@ void _gdProcessUpdate()
 
     // restore background for all entire text area
     if (drawnCount > 0) {
-        Rect textArea = { 0, 0, winWidth, winHeight };
+        Rect textArea = {0, 0, winWidth, winHeight};
         _gDialogRefreshOptionsRect(gGameDialogOptionsWindow, &textArea);
     }
 
@@ -2477,7 +2477,7 @@ void _gdProcessUpdate()
         // Down scroll button (covers bottom 20px)
         // set y using _optionRect.bottom considering the expanded height and 10+20 px padding from scroll buttons
         _gd_options_scroll_down_btn = buttonCreate(gGameDialogOptionsWindow,
-            0, _optionRect.bottom, winWidth, downBtnHeight,
+            0, _optionRect.bottom + 5 /*5px gap between last option*/, winWidth, downBtnHeight,
             -1, -1, KEY_ARROW_DOWN, -1,
             nullptr,
             nullptr,
