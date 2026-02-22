@@ -289,7 +289,7 @@ void isoExit()
 
 // 0x481FB4
 void _map_init()
-{    
+{
     if (compat_stricmp(settings.system.executable.c_str(), "mapper") == 0) {
         _map_scroll_refresh = isoWindowRefreshRectMapper;
     }

@@ -295,7 +295,7 @@ int gameMoviePlay(int movie, int flags)
     // movies in the pipboy or played from a map (temple of trials) need to be set to the actual maps size
     if (GameMode::isInGameMode(GameMode::kPipboy) || GameMode::isInGameMode(GameMode::kMap)) {
         resizeContent(screenGetWidth(), screenGetHeight(), true);
-    // other movies play from outside game area - main, scripts(worldmap)
+        // other movies play from outside game area - main, scripts(worldmap)
     } else {
         if (gameIsWidescreen()) {
             resizeContent(800, 500);
