@@ -1247,6 +1247,427 @@ int proto_critter_init(Proto* proto, int pid)
     return 0;
 }
 
+// 0x49EEA4
+void objectDataReset(Object* obj)
+{
+    // NOTE: Original code is slightly different. It uses loop to zero object
+    // data byte by byte.
+    memset(&(obj->data), 0, sizeof(obj->data));
+}
+
+// 0x49EEB8
+static int objectCritterCombatDataRead(CritterCombatData* data, File* stream)
+{
+    if (fileReadInt32(stream, &(data->damageLastTurn)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->maneuver)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->ap)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->results)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->aiPacket)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->team)) == -1) return -1;
+    if (fileReadInt32(stream, &(data->whoHitMeCid)) == -1) return -1;
+
+    return 0;
+}
+
+// 0x49EF40
+static int objectCritterCombatDataWrite(CritterCombatData* data, File* stream)
+{
+    if (fileWriteInt32(stream, data->damageLastTurn) == -1) return -1;
+    if (fileWriteInt32(stream, data->maneuver) == -1) return -1;
+    if (fileWriteInt32(stream, data->ap) == -1) return -1;
+    if (fileWriteInt32(stream, data->results) == -1) return -1;
+    if (fileWriteInt32(stream, data->aiPacket) == -1) return -1;
+    if (fileWriteInt32(stream, data->team) == -1) return -1;
+    if (fileWriteInt32(stream, data->whoHitMeCid) == -1) return -1;
+
+    return 0;
+}
+
+// 0x49F004
+int objectDataRead(Object* obj, File* stream)
+{
+    Proto* proto;
+    int temp;
+
+    Inventory* inventory = &(obj->data.inventory);
+    if (fileReadInt32(stream, &(inventory->length)) == -1) return -1;
+    if (fileReadInt32(stream, &(inventory->capacity)) == -1) return -1;
+    // CE: Original code reads inventory items pointer which is meaningless.
+    if (fileReadInt32(stream, &temp) == -1) return -1;
+
+    if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
+        if (fileReadInt32(stream, &(obj->data.critter.field_0)) == -1) return -1;
+        if (objectCritterCombatDataRead(&(obj->data.critter.combat), stream) == -1) return -1;
+        if (fileReadInt32(stream, &(obj->data.critter.hp)) == -1) return -1;
+        if (fileReadInt32(stream, &(obj->data.critter.radiation)) == -1) return -1;
+        if (fileReadInt32(stream, &(obj->data.critter.poison)) == -1) return -1;
+    } else {
+        if (fileReadInt32(stream, &(obj->data.flags)) == -1) return -1;
+
+        if (obj->data.flags == 0xCCCCCCCC) {
+            debugPrint("\nNote: Reading pud: updated_flags was un-Set!");
+            obj->data.flags = 0;
+        }
+
+        switch (PID_TYPE(obj->pid)) {
+        case OBJ_TYPE_ITEM:
+            if (protoGetProto(obj->pid, &proto) == -1) return -1;
+
+            switch (proto->item.type) {
+            case ITEM_TYPE_WEAPON:
+                if (fileReadInt32(stream, &(obj->data.item.weapon.ammoQuantity)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.item.weapon.ammoTypePid)) == -1) return -1;
+                break;
+            case ITEM_TYPE_AMMO:
+                if (fileReadInt32(stream, &(obj->data.item.ammo.quantity)) == -1) return -1;
+                break;
+            case ITEM_TYPE_MISC:
+                if (fileReadInt32(stream, &(obj->data.item.misc.charges)) == -1) return -1;
+                break;
+            case ITEM_TYPE_KEY:
+                if (fileReadInt32(stream, &(obj->data.item.key.keyCode)) == -1) return -1;
+                break;
+            default:
+                break;
+            }
+
+            break;
+        case OBJ_TYPE_SCENERY:
+            if (protoGetProto(obj->pid, &proto) == -1) return -1;
+
+            switch (proto->scenery.type) {
+            case SCENERY_TYPE_DOOR:
+                if (fileReadInt32(stream, &(obj->data.scenery.door.openFlags)) == -1) return -1;
+                break;
+            case SCENERY_TYPE_STAIRS:
+                if (fileReadInt32(stream, &(obj->data.scenery.stairs.destinationBuiltTile)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.scenery.stairs.destinationMap)) == -1) return -1;
+                break;
+            case SCENERY_TYPE_ELEVATOR:
+                if (fileReadInt32(stream, &(obj->data.scenery.elevator.type)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.scenery.elevator.level)) == -1) return -1;
+                break;
+            case SCENERY_TYPE_LADDER_UP:
+                if (gMapHeader.version == 19) {
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationBuiltTile)) == -1) return -1;
+                } else {
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationMap)) == -1) return -1;
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationBuiltTile)) == -1) return -1;
+                }
+                break;
+            case SCENERY_TYPE_LADDER_DOWN:
+                if (gMapHeader.version == 19) {
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationBuiltTile)) == -1) return -1;
+                } else {
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationMap)) == -1) return -1;
+                    if (fileReadInt32(stream, &(obj->data.scenery.ladder.destinationBuiltTile)) == -1) return -1;
+                }
+                break;
+            }
+
+            break;
+        case OBJ_TYPE_MISC:
+            if (isExitGridPid(obj->pid)) {
+                if (fileReadInt32(stream, &(obj->data.misc.map)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.misc.tile)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.misc.elevation)) == -1) return -1;
+                if (fileReadInt32(stream, &(obj->data.misc.rotation)) == -1) return -1;
+            }
+            break;
+        }
+    }
+
+    return 0;
+}
+
+// 0x49F428
+int objectDataWrite(Object* obj, File* stream)
+{
+    Proto* proto;
+
+    ObjectData* data = &(obj->data);
+    if (fileWriteInt32(stream, data->inventory.length) == -1) return -1;
+    if (fileWriteInt32(stream, data->inventory.capacity) == -1) return -1;
+    // CE: Original code writes inventory items pointer, which is meaningless.
+    if (fileWriteInt32(stream, 0) == -1) return -1;
+
+    if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
+        if (fileWriteInt32(stream, data->flags) == -1) return -1;
+        if (objectCritterCombatDataWrite(&(obj->data.critter.combat), stream) == -1) return -1;
+        if (fileWriteInt32(stream, data->critter.hp) == -1) return -1;
+        if (fileWriteInt32(stream, data->critter.radiation) == -1) return -1;
+        if (fileWriteInt32(stream, data->critter.poison) == -1) return -1;
+    } else {
+        if (fileWriteInt32(stream, data->flags) == -1) return -1;
+
+        switch (PID_TYPE(obj->pid)) {
+        case OBJ_TYPE_ITEM:
+            if (protoGetProto(obj->pid, &proto) == -1) return -1;
+
+            switch (proto->item.type) {
+            case ITEM_TYPE_WEAPON:
+                if (fileWriteInt32(stream, data->item.weapon.ammoQuantity) == -1) return -1;
+                if (fileWriteInt32(stream, data->item.weapon.ammoTypePid) == -1) return -1;
+                break;
+            case ITEM_TYPE_AMMO:
+                if (fileWriteInt32(stream, data->item.ammo.quantity) == -1) return -1;
+                break;
+            case ITEM_TYPE_MISC:
+                if (fileWriteInt32(stream, data->item.misc.charges) == -1) return -1;
+                break;
+            case ITEM_TYPE_KEY:
+                if (fileWriteInt32(stream, data->item.key.keyCode) == -1) return -1;
+                break;
+            }
+            break;
+        case OBJ_TYPE_SCENERY:
+            if (protoGetProto(obj->pid, &proto) == -1) return -1;
+
+            switch (proto->scenery.type) {
+            case SCENERY_TYPE_DOOR:
+                if (fileWriteInt32(stream, data->scenery.door.openFlags) == -1) return -1;
+                break;
+            case SCENERY_TYPE_STAIRS:
+                if (fileWriteInt32(stream, data->scenery.stairs.destinationBuiltTile) == -1) return -1;
+                if (fileWriteInt32(stream, data->scenery.stairs.destinationMap) == -1) return -1;
+                break;
+            case SCENERY_TYPE_ELEVATOR:
+                if (fileWriteInt32(stream, data->scenery.elevator.type) == -1) return -1;
+                if (fileWriteInt32(stream, data->scenery.elevator.level) == -1) return -1;
+                break;
+            case SCENERY_TYPE_LADDER_UP:
+                if (fileWriteInt32(stream, data->scenery.ladder.destinationMap) == -1) return -1;
+                if (fileWriteInt32(stream, data->scenery.ladder.destinationBuiltTile) == -1) return -1;
+                break;
+            case SCENERY_TYPE_LADDER_DOWN:
+                if (fileWriteInt32(stream, data->scenery.ladder.destinationMap) == -1) return -1;
+                if (fileWriteInt32(stream, data->scenery.ladder.destinationBuiltTile) == -1) return -1;
+                break;
+            default:
+                break;
+            }
+            break;
+        case OBJ_TYPE_MISC:
+            if (isExitGridPid(obj->pid)) {
+                if (fileWriteInt32(stream, data->misc.map) == -1) return -1;
+                if (fileWriteInt32(stream, data->misc.tile) == -1) return -1;
+                if (fileWriteInt32(stream, data->misc.elevation) == -1) return -1;
+                if (fileWriteInt32(stream, data->misc.rotation) == -1) return -1;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    return 0;
+}
+
+// 0x49F73C
+static int _proto_update_gen(Object* obj)
+{
+    Proto* proto;
+
+    if (!_protos_been_initialized) {
+        return -1;
+    }
+
+    ObjectData* data = &(obj->data);
+    data->inventory.length = 0;
+    data->inventory.capacity = 0;
+    data->inventory.items = nullptr;
+
+    if (protoGetProto(obj->pid, &proto) == -1) {
+        return -1;
+    }
+
+    switch (PID_TYPE(obj->pid)) {
+    case OBJ_TYPE_ITEM:
+        switch (proto->item.type) {
+        case ITEM_TYPE_CONTAINER:
+            data->flags = 0;
+            break;
+        case ITEM_TYPE_WEAPON:
+            data->item.weapon.ammoQuantity = proto->item.data.weapon.ammoCapacity;
+            data->item.weapon.ammoTypePid = proto->item.data.weapon.ammoTypePid;
+            break;
+        case ITEM_TYPE_AMMO:
+            data->item.ammo.quantity = proto->item.data.ammo.quantity;
+            break;
+        case ITEM_TYPE_MISC:
+            data->item.misc.charges = proto->item.data.misc.charges;
+            break;
+        case ITEM_TYPE_KEY:
+            data->item.key.keyCode = proto->item.data.key.keyCode;
+            break;
+        }
+        break;
+    case OBJ_TYPE_SCENERY:
+        switch (proto->scenery.type) {
+        case SCENERY_TYPE_DOOR:
+            data->scenery.door.openFlags = proto->scenery.data.door.openFlags;
+            break;
+        case SCENERY_TYPE_STAIRS:
+            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.field_0;
+            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.field_4;
+            break;
+        case SCENERY_TYPE_ELEVATOR:
+            data->scenery.elevator.type = proto->scenery.data.elevator.type;
+            data->scenery.elevator.level = proto->scenery.data.elevator.level;
+            break;
+        case SCENERY_TYPE_LADDER_UP:
+        case SCENERY_TYPE_LADDER_DOWN:
+            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.field_0;
+            break;
+        }
+        break;
+    case OBJ_TYPE_MISC:
+        if (isExitGridPid(obj->pid)) {
+            data->misc.tile = -1;
+            data->misc.elevation = 0;
+            data->misc.rotation = 0;
+            data->misc.map = -1;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+// 0x49F8A0
+int _proto_update_init(Object* obj)
+{
+    if (!_protos_been_initialized) {
+        return -1;
+    }
+
+    if (obj == nullptr) {
+        return -1;
+    }
+
+    if (obj->pid == -1) {
+        return -1;
+    }
+
+    memset(&(obj->data), 0, sizeof(ObjectData));
+
+    if (PID_TYPE(obj->pid) != OBJ_TYPE_CRITTER) {
+        return _proto_update_gen(obj);
+    }
+
+    ObjectData* data = &(obj->data);
+    data->inventory.length = 0;
+    data->inventory.capacity = 0;
+    data->inventory.items = nullptr;
+    _combat_data_init(obj);
+    data->critter.hp = critterGetStat(obj, STAT_MAXIMUM_HIT_POINTS);
+    data->critter.combat.ap = critterGetStat(obj, STAT_MAXIMUM_ACTION_POINTS);
+    critterUpdateDerivedStats(obj);
+    obj->data.critter.combat.whoHitMe = nullptr;
+
+    Proto* proto;
+    if (protoGetProto(obj->pid, &proto) != -1) {
+        data->critter.combat.aiPacket = proto->critter.aiPacket;
+        data->critter.combat.team = proto->critter.team;
+    }
+
+    return 0;
+}
+
+// 0x49F984
+int _proto_dude_update_gender()
+{
+    Proto* proto;
+    if (protoGetProto(0x1000000, &proto) == -1) {
+        return -1;
+    }
+
+    int nativeLook = DUDE_NATIVE_LOOK_TRIBAL;
+    if (gameMovieIsSeen(MOVIE_VSUIT)) {
+        nativeLook = DUDE_NATIVE_LOOK_JUMPSUIT;
+    }
+
+    int frmId;
+    if (critterGetStat(gDude, STAT_GENDER) == GENDER_MALE) {
+        frmId = _art_vault_person_nums[nativeLook][GENDER_MALE];
+    } else {
+        frmId = _art_vault_person_nums[nativeLook][GENDER_FEMALE];
+    }
+
+    _art_vault_guy_num = frmId;
+
+    if (critterGetArmor(gDude) == nullptr) {
+        int v1 = 0;
+        if (critterGetItem2(gDude) != nullptr || critterGetItem1(gDude) != nullptr) {
+            v1 = (gDude->fid & 0xF000) >> 12;
+        }
+
+        int fid = buildFid(OBJ_TYPE_CRITTER, _art_vault_guy_num, 0, v1, 0);
+        objectSetFid(gDude, fid, nullptr);
+    }
+
+    proto->fid = buildFid(OBJ_TYPE_CRITTER, _art_vault_guy_num, 0, 0, 0);
+
+    return 0;
+}
+
+// proto_dude_init
+// 0x49FA64
+int _proto_dude_init(const char* path)
+{
+    gDudeProto.fid = buildFid(OBJ_TYPE_CRITTER, _art_vault_guy_num, 0, 0, 0);
+
+    if (_init_true) {
+        _obj_inven_free(&(gDude->data.inventory));
+    }
+
+    _init_true = 1;
+
+    Proto* proto;
+    if (protoGetProto(0x1000000, &proto) == -1) {
+        return -1;
+    }
+
+    protoGetProto(gDude->pid, &proto);
+
+    _proto_update_init(gDude);
+    gDude->data.critter.combat.aiPacket = 0;
+    gDude->data.critter.combat.team = 0;
+    _ResetPlayer();
+
+    if (gcdLoad(path) == -1) {
+        _retval = -1;
+    }
+
+    proto->critter.data.baseStats[STAT_DAMAGE_RESISTANCE_EMP] = 100;
+    proto->critter.data.bodyType = 0;
+    proto->critter.data.experience = 0;
+    proto->critter.data.killType = 0;
+    proto->critter.data.damageType = 0;
+
+    _proto_dude_update_gender();
+    inventoryResetDude();
+
+    if ((gDude->flags & OBJECT_FLAT) != 0) {
+        _obj_toggle_flat(gDude, nullptr);
+    }
+
+    if ((gDude->flags & OBJECT_NO_BLOCK) != 0) {
+        gDude->flags &= ~OBJECT_NO_BLOCK;
+    }
+
+    critterUpdateDerivedStats(gDude);
+    critterAdjustHitPoints(gDude, 10000);
+
+    if (_retval) {
+        debugPrint("\n ** Error in proto_dude_init()! **\n");
+    }
+
+    return 0;
+}
+
 // 0x49FBBC
 int proto_scenery_init(Proto* proto, int pid)
 {
