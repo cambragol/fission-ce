@@ -3336,7 +3336,7 @@ void _barter_end_to_talk_to()
     _dialogQuit();
     _dialogClose();
     _updatePrograms();
-    _updateWindows();
+    windowUpdateAll();
     _dialogue_state = 1;
     _dialogue_switch_mode = 1;
 }
