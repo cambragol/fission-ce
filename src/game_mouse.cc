@@ -340,9 +340,6 @@ static Object* gGameMousePointedObject;
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
 
-// used for setting strict vanilla behavior
-static bool strictVanilla = false;
-
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
@@ -379,9 +376,6 @@ int gameMouseInit()
     if (gameMouseObjectsInit() != 0) {
         return -1;
     }
-
-    // turn strict vanilla mode on or off from conifg
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, &strictVanilla);
 
     gGameMouseInitialized = true;
     _gmouse_enabled = 1;
@@ -746,7 +740,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!strictVanilla && gGameMouseItemHighlightEnabled) {
+    if (!gStrictVanillaEnabled && gGameMouseItemHighlightEnabled) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 
