@@ -540,10 +540,10 @@ static unsigned int gGameDialogFidgetUpdateDelay;
 // 0x596C38
 static int gGameDialogFidgetFrmCurrentFrame;
 
-static int _gd_options_scroll_offset = 0; // index of first visible option
-static int _gd_options_visible_count = 0; // how many options currently fit
-static int _gd_options_scroll_up_btn = -1;
-static int _gd_options_scroll_down_btn = -1;
+static int gdOptionsScrollOffsets = 0; // index of first visible option
+static int gdOptionsVisibleCount = 0; // how many options currently fit
+static int gdOptionsScrollUpBtn = -1;
+static int gdOptionsScrollDownBtn = -1;
 
 static FrmImage _reviewBackgroundFrmImage;
 static FrmImage _reviewFrmImages[GAME_DIALOG_REVIEW_WINDOW_BUTTON_FRM_COUNT];
@@ -1748,7 +1748,7 @@ int _gdProcessInit()
     int downBtn;
     int optionsWindowX;
     int optionsWindowY;
-    _gd_options_scroll_offset = 0;
+    gdOptionsScrollOffsets = 0;
 
     int replyWindowX = (screenGetWidth() - GAME_DIALOG_WINDOW_WIDTH) / 2 + GAME_DIALOG_REPLY_WINDOW_X;
     int replyWindowY = (screenGetHeight() - GAME_DIALOG_WINDOW_HEIGHT) / 2 + GAME_DIALOG_REPLY_WINDOW_Y;
@@ -1814,13 +1814,13 @@ err:
 // 0x446454
 void _gdProcessCleanup()
 {
-    if (_gd_options_scroll_up_btn != -1) {
-        buttonDestroy(_gd_options_scroll_up_btn);
-        _gd_options_scroll_up_btn = -1;
+    if (gdOptionsScrollUpBtn != -1) {
+        buttonDestroy(gdOptionsScrollUpBtn);
+        gdOptionsScrollUpBtn = -1;
     }
-    if (_gd_options_scroll_down_btn != -1) {
-        buttonDestroy(_gd_options_scroll_down_btn);
-        _gd_options_scroll_down_btn = -1;
+    if (gdOptionsScrollDownBtn != -1) {
+        buttonDestroy(gdOptionsScrollDownBtn);
+        gdOptionsScrollDownBtn = -1;
     }
     for (int index = 0; index < gGameDialogOptionEntriesLength; index++) {
         GameDialogOptionEntry* optionEntry = &(gDialogOptionEntries[index]);
@@ -2008,12 +2008,12 @@ int _gdProcess()
         }
 
         // Dialgogue options arrow scrolling – only if mouse is over options window and there are more options than fit
-        if (windowUnderMouse == gGameDialogOptionsWindow && gGameDialogOptionEntriesLength > _gd_options_visible_count) {
-            if (keyCode == KEY_ARROW_UP && _gd_options_scroll_offset > 0) {
-                _gd_options_scroll_offset--;
+        if (windowUnderMouse == gGameDialogOptionsWindow && gGameDialogOptionEntriesLength > gdOptionsVisibleCount) {
+            if (keyCode == KEY_ARROW_UP && gdOptionsScrollOffsets > 0) {
+                gdOptionsScrollOffsets--;
                 _gdProcessOptionsUpdate();
-            } else if (keyCode == KEY_ARROW_DOWN && _gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
-                _gd_options_scroll_offset++;
+            } else if (keyCode == KEY_ARROW_DOWN && gdOptionsScrollOffsets + gdOptionsVisibleCount < gGameDialogOptionEntriesLength) {
+                gdOptionsScrollOffsets++;
                 _gdProcessOptionsUpdate();
             }
         }
@@ -2080,7 +2080,7 @@ int _gdProcessChoice(int a1)
     GameDialogOptionEntry dummy;
     memset(&dummy, 0, sizeof(dummy));
 
-    _gd_options_scroll_offset = 0;
+    gdOptionsScrollOffsets = 0;
 
     mouseHideCursor();
     _gdProcessCleanup();
@@ -2349,7 +2349,7 @@ static void _gdProcessOptionsUpdate()
     const int OPTION_SPACING = 2;
     int currentY = _optionRect.top;
     int drawnCount = 0;
-    for (int i = _gd_options_scroll_offset; i < gGameDialogOptionEntriesLength; i++) {
+    for (int i = gdOptionsScrollOffsets; i < gGameDialogOptionEntriesLength; i++) {
         GameDialogOptionEntry* entry = &gDialogOptionEntries[i];
 
         int lines = _text_num_lines(entry->text, _optionRect.right - _optionRect.left);
@@ -2423,44 +2423,44 @@ static void _gdProcessOptionsUpdate()
         _gDialogRefreshOptionsRect(gGameDialogOptionsWindow, &textArea);
     }
 
-    _gd_options_visible_count = drawnCount;
+    gdOptionsVisibleCount = drawnCount;
 
     // Force a redraw for all visible options
-    for (int i = _gd_options_scroll_offset; i < _gd_options_scroll_offset + drawnCount; i++) {
+    for (int i = gdOptionsScrollOffsets; i < gdOptionsScrollOffsets + drawnCount; i++) {
         gameDialogOptionOnMouseExit(i);
     }
 
     // Destroy old scroll buttons
-    if (_gd_options_scroll_up_btn != -1) {
-        buttonDestroy(_gd_options_scroll_up_btn);
-        _gd_options_scroll_up_btn = -1;
+    if (gdOptionsScrollUpBtn != -1) {
+        buttonDestroy(gdOptionsScrollUpBtn);
+        gdOptionsScrollUpBtn = -1;
     }
-    if (_gd_options_scroll_down_btn != -1) {
-        buttonDestroy(_gd_options_scroll_down_btn);
-        _gd_options_scroll_down_btn = -1;
+    if (gdOptionsScrollDownBtn != -1) {
+        buttonDestroy(gdOptionsScrollDownBtn);
+        gdOptionsScrollDownBtn = -1;
     }
 
     // Create new scroll buttons if needed
-    if (gGameDialogOptionEntriesLength > _gd_options_visible_count) {
+    if (gGameDialogOptionEntriesLength > gdOptionsVisibleCount) {
         // Up scroll button (covers top 10px)
-        _gd_options_scroll_up_btn = buttonCreate(gGameDialogOptionsWindow,
+        gdOptionsScrollUpBtn = buttonCreate(gGameDialogOptionsWindow,
             0, 0, winWidth, upBtnHeight,
             -1, -1, KEY_ARROW_UP, -1,
             nullptr, nullptr, nullptr, 32);
-        if (_gd_options_scroll_up_btn != -1) {
-            buttonSetMouseCallbacks(_gd_options_scroll_up_btn, _options_arrow_up, _options_arrow_restore, nullptr, nullptr); // small up arrow
-            buttonSetCallbacks(_gd_options_scroll_up_btn, _options_scroll_up, nullptr);
+        if (gdOptionsScrollUpBtn != -1) {
+            buttonSetMouseCallbacks(gdOptionsScrollUpBtn, _options_arrow_up, _options_arrow_restore, nullptr, nullptr); // small up arrow
+            buttonSetCallbacks(gdOptionsScrollUpBtn, _options_scroll_up, nullptr);
         }
 
         // Down scroll button (covers bottom 20px)
         // set y using _optionRect.bottom + 5px padding for mouse cursor switch
-        _gd_options_scroll_down_btn = buttonCreate(gGameDialogOptionsWindow,
+        gdOptionsScrollDownBtn = buttonCreate(gGameDialogOptionsWindow,
             0, _optionRect.bottom + 5, winWidth, downBtnHeight,
             -1, -1, KEY_ARROW_DOWN, -1,
             nullptr, nullptr, nullptr, 32);
-        if (_gd_options_scroll_down_btn != -1) {
-            buttonSetMouseCallbacks(_gd_options_scroll_down_btn, _options_arrow_down, _options_arrow_restore, nullptr, nullptr); // small down arrow
-            buttonSetCallbacks(_gd_options_scroll_down_btn, _options_scroll_down, nullptr);
+        if (gdOptionsScrollDownBtn != -1) {
+            buttonSetMouseCallbacks(gdOptionsScrollDownBtn, _options_arrow_down, _options_arrow_restore, nullptr, nullptr); // small down arrow
+            buttonSetCallbacks(gdOptionsScrollDownBtn, _options_scroll_down, nullptr);
         }
     }
 
@@ -2782,14 +2782,14 @@ void _reply_arrow_restore(int btn, int keyCode)
 
 void _options_arrow_up(int btn, int keyCode)
 {
-    if (gGameDialogOptionEntriesLength > _gd_options_visible_count && _gd_options_scroll_offset > 0) {
+    if (gGameDialogOptionEntriesLength > gdOptionsVisibleCount && gdOptionsScrollOffsets > 0) {
         gameMouseSetCursor(MOUSE_CURSOR_SMALL_ARROW_UP);
     }
 }
 
 void _options_arrow_down(int btn, int keyCode)
 {
-    if (gGameDialogOptionEntriesLength > _gd_options_visible_count && _gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
+    if (gGameDialogOptionEntriesLength > gdOptionsVisibleCount && gdOptionsScrollOffsets + gdOptionsVisibleCount < gGameDialogOptionEntriesLength) {
         gameMouseSetCursor(MOUSE_CURSOR_SMALL_ARROW_DOWN);
     }
 }
@@ -2801,16 +2801,16 @@ void _options_arrow_restore(int btn, int keyCode)
 
 void _options_scroll_up(int btn, int keyCode)
 {
-    if (_gd_options_scroll_offset > 0) {
-        _gd_options_scroll_offset--;
+    if (gdOptionsScrollOffsets > 0) {
+        gdOptionsScrollOffsets--;
         _gdProcessOptionsUpdate();
     }
 }
 
 void _options_scroll_down(int btn, int keyCode)
 {
-    if (_gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
-        _gd_options_scroll_offset++;
+    if (gdOptionsScrollOffsets + gdOptionsVisibleCount < gGameDialogOptionEntriesLength) {
+        gdOptionsScrollOffsets++;
         _gdProcessOptionsUpdate();
     }
 }
