@@ -3235,7 +3235,7 @@ static void characterEditorDrawSkills(int a1)
 
     fontSetCurrent(103);
 
-    // SKILLS title using offsets
+    // SKILLS title using offsets – this is outside the conditional because it's always shown
     str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 117);
     fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * gOffsets.skillsLabelY + gOffsets.skillsLabelX,
         str,
@@ -3243,6 +3243,7 @@ static void characterEditorDrawSkills(int a1)
         gOffsets.windowWidth,
         _colorTable[18979]);
 
+    // Draw the right label - must appear before the list
     if (!gCharacterEditorIsCreationMode) {
         // SKILL POINTS using offsets
         str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 112);
@@ -3251,14 +3252,6 @@ static void characterEditorDrawSkills(int a1)
             gOffsets.windowWidth,
             gOffsets.windowWidth,
             _colorTable[18979]);
-
-        value = pcGetStat(PC_STAT_UNSPENT_SKILL_POINTS);
-        characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
-            gOffsets.skillsPointsValueY,
-            0,
-            value,
-            0,
-            gCharacterEditorWindow);
     } else {
         // TAG SKILLS using offsets
         str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 138);
@@ -3267,27 +3260,9 @@ static void characterEditorDrawSkills(int a1)
             gOffsets.windowWidth,
             gOffsets.windowWidth,
             _colorTable[18979]);
-
-        if (a1 == 2 && !gCharacterEditorIsSkillsFirstDraw) {
-            characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
-                gOffsets.skillsPointsValueY,
-                ANIMATE,
-                gCharacterEditorTaggedSkillCount,
-                gCharacterEditorOldTaggedSkillCount,
-                gCharacterEditorWindow);
-        } else {
-            characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
-                gOffsets.skillsPointsValueY,
-                0,
-                gCharacterEditorTaggedSkillCount,
-                0,
-                gCharacterEditorWindow);
-            gCharacterEditorIsSkillsFirstDraw = 0;
-        }
     }
 
-    skillsSetTagged(gCharacterEditorTempTaggedSkills, NUM_TAGGED_SKILLS);
-
+    // Draw the skills list (skill names and values)
     fontSetCurrent(101);
 
     y = gOffsets.skillsListStartY;
@@ -3325,6 +3300,37 @@ static void characterEditorDrawSkills(int a1)
         y += fontGetLineHeight() + 1;
     }
 
+    // Now draw the big number - after the list is fully drawn
+    if (!gCharacterEditorIsCreationMode) {
+        // SKILL POINTS big number
+        value = pcGetStat(PC_STAT_UNSPENT_SKILL_POINTS);
+        characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
+            gOffsets.skillsPointsValueY,
+            0,
+            value,
+            0,
+            gCharacterEditorWindow);
+    } else {
+        // TAG SKILLS big number
+        if (a1 == 2 && !gCharacterEditorIsSkillsFirstDraw) {
+            characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
+                gOffsets.skillsPointsValueY,
+                ANIMATE,
+                gCharacterEditorTaggedSkillCount,
+                gCharacterEditorOldTaggedSkillCount,
+                gCharacterEditorWindow);
+        } else {
+            characterEditorDrawBigNumber(gOffsets.skillsPointsValueX,
+                gOffsets.skillsPointsValueY,
+                0,
+                gCharacterEditorTaggedSkillCount,
+                0,
+                gCharacterEditorWindow);
+            gCharacterEditorIsSkillsFirstDraw = 0;
+        }
+    }
+
+    // Non‑creation mode: draw the slider and buttons
     if (!gCharacterEditorIsCreationMode) {
         y = gCharacterEditorCurrentSkill * (fontGetLineHeight() + 1);
         gCharacterEditorSkillValueAdjustmentSliderY = y + gOffsets.skillsListStartY;
