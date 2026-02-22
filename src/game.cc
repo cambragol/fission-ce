@@ -487,7 +487,7 @@ void gameExit()
     partyMembersExit();
     endgameDeathEndingExit();
     interfaceFontsExit();
-    _windowClose();
+    windowClose();
     messageListRepositoryExit();
     dbExit();
     settingsExit(true);
