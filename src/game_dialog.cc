@@ -2012,8 +2012,7 @@ int _gdProcess()
             if (keyCode == KEY_ARROW_UP && _gd_options_scroll_offset > 0) {
                 _gd_options_scroll_offset--;
                 _gdProcessOptionsUpdate();
-            } else if (keyCode == KEY_ARROW_DOWN && 
-                    _gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
+            } else if (keyCode == KEY_ARROW_DOWN && _gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
                 _gd_options_scroll_offset++;
                 _gdProcessOptionsUpdate();
             }
