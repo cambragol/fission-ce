@@ -2310,7 +2310,7 @@ static void _gdProcessOptionsUpdate()
         } else if (dialogOptionEntry->messageListId == -1) {
             if (index == 0 && critterGetStat(gDude, STAT_INTELLIGENCE) < 4) {
                 MessageListItem msg;
-                msg.num = 655;
+                msg.num = 655; // Uhh... (No intelligence tests can be passed)
                 if (messageListGetItem(&gProtoMessageList, &msg)) {
                     if (gNumberOptions) {
                         snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, msg.text);
