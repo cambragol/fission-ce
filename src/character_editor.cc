@@ -3262,6 +3262,7 @@ static void characterEditorDrawSkills(int a1)
             _colorTable[18979]);
     }
 
+    skillsSetTagged(gCharacterEditorTempTaggedSkills, NUM_TAGGED_SKILLS);
     // Draw the skills list (skill names and values)
     fontSetCurrent(101);
 
