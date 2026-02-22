@@ -21,6 +21,12 @@
 {105}{}{Cambiar área de juego a original}
 
 #
+# Preferencias Ajustadas
+#
+
+{110}{}{Afectar velocidad fuera de combate}
+
+#
 # Extended Titles
 #
 
