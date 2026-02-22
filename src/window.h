@@ -118,7 +118,7 @@ bool windowAddRegionRightProc(const char* regionName, Program* program, int a3, 
 bool windowSetRegionFlag(const char* regionName, int value);
 bool windowAddRegionName(const char* regionName);
 bool windowDeleteRegion(const char* regionName);
-void _updateWindows();
+void windowUpdateAll();
 int windowMoviePlaying();
 bool windowSetMovieFlags(int flags);
 bool windowPlayMovie(char* filePath);

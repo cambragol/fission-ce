@@ -2270,7 +2270,7 @@ bool windowDeleteRegion(const char* regionName)
 }
 
 // 0x4BB220
-void _updateWindows()
+void windowUpdateAll()
 {
     _movieUpdate();
     mouseManagerUpdate();
