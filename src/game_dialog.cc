@@ -640,6 +640,8 @@ static void _options_arrow_restore(int btn, int keyCode);
 static void _options_scroll_up(int btn, int keyCode);
 static void _options_scroll_down(int btn, int keyCode);
 
+static void _gdProcessOptionsUpdate();
+
 static bool gGameDialogFix;
 static bool gNumberOptions;
 
@@ -1907,6 +1909,11 @@ int _gdProcess()
 
         int keyCode = inputGetInput();
 
+        // Determine which window should receive arrow key scrolling
+        int mouseX, mouseY;
+        mouseGetPosition(&mouseX, &mouseY);
+        int windowUnderMouse = windowGetAtPoint(mouseX, mouseY);
+
         convertMouseWheelToArrowKey(&keyCode);
 
         if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X || keyCode == KEY_F10) {
@@ -1971,44 +1978,44 @@ int _gdProcess()
                 }
             }
 
+            // Reply arrow scrolling – only if mouse is over reply window
             if (keyCode == KEY_ARROW_UP) {
-                if (pageIndex > 0) {
+                if (windowUnderMouse == gGameDialogReplyWindow && pageIndex > 0) {
                     pageIndex--;
                     dword_58F4E0 = pageOffsets[pageIndex];
                     v18 = 0;
                     gameDialogRenderReply();
                 }
             } else if (keyCode == KEY_ARROW_DOWN) {
-                if (pageIndex < pageCount) {
-                    pageIndex++;
-                    dword_58F4E0 = pageOffsets[pageIndex];
-                    v18 = 0;
-                    gameDialogRenderReply();
-                } else {
-                    if (dword_58F4E0 != 0) {
-                        tick = v6;
+                if (windowUnderMouse == gGameDialogReplyWindow) {
+                    if (pageIndex < pageCount) {
                         pageIndex++;
-                        pageCount++;
-                        pageOffsets[pageCount] = dword_58F4E0;
+                        dword_58F4E0 = pageOffsets[pageIndex];
                         v18 = 0;
                         gameDialogRenderReply();
+                    } else {
+                        if (dword_58F4E0 != 0) {
+                            tick = v6;
+                            pageIndex++;
+                            pageCount++;
+                            pageOffsets[pageCount] = dword_58F4E0;
+                            v18 = 0;
+                            gameDialogRenderReply();
+                        }
                     }
                 }
             }
         }
 
-        // Scroll PC options if there are more than fit
-        if (gGameDialogOptionEntriesLength > _gd_options_visible_count) {
-            if (keyCode == KEY_ARROW_UP) {
-                if (_gd_options_scroll_offset > 0) {
-                    _gd_options_scroll_offset--;
-                    _gdProcessUpdate();
-                }
-            } else if (keyCode == KEY_ARROW_DOWN) {
-                if (_gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
-                    _gd_options_scroll_offset++;
-                    _gdProcessUpdate();
-                }
+        // Dialgogue options arrow scrolling – only if mouse is over options window and there are more options than fit
+        if (windowUnderMouse == gGameDialogOptionsWindow && gGameDialogOptionEntriesLength > _gd_options_visible_count) {
+            if (keyCode == KEY_ARROW_UP && _gd_options_scroll_offset > 0) {
+                _gd_options_scroll_offset--;
+                _gdProcessOptionsUpdate();
+            } else if (keyCode == KEY_ARROW_DOWN && 
+                    _gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
+                _gd_options_scroll_offset++;
+                _gdProcessOptionsUpdate();
             }
         }
 
@@ -2262,44 +2269,28 @@ void gameDialogRenderReply()
     windowRefresh(gGameDialogReplyWindow);
 }
 
-// 0x446D30
-void _gdProcessUpdate()
+static void _gdProcessOptionsUpdate()
 {
     int winWidth = windowGetWidth(gGameDialogOptionsWindow);
     int winHeight = windowGetHeight(gGameDialogOptionsWindow);
     int upBtnHeight = 10; // use 10px margin on top
-    int downBtnHeight = 20; // use 20px margin on bottom - 5px space between last option and scroll button to handle cursor switching
-
-    _replyRect.left = 5;
-    _replyRect.top = 10;
-    _replyRect.right = 374;
-    _replyRect.bottom = 58;
+    int downBtnHeight = 20; // use 20px margin on bottom
 
     _optionRect.left = 5;
-    _optionRect.top = upBtnHeight + 5; // adjusted up for new y value - 10px up scroll button
+    _optionRect.top = upBtnHeight + 5; // adjusted for new y value
     _optionRect.right = 388;
-    _optionRect.bottom = 112;
+    _optionRect.bottom = 112; // original drawable height
 
-    _demo_copy_title(gGameDialogReplyWindow);
+    // Restore background for options window
     _demo_copy_options(gGameDialogOptionsWindow);
 
-    if (gDialogReplyMessageListId > 0) {
-        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1);
-        if (s == nullptr) {
-            showMesageBox("\n'GDialog::Error Grabbing text message!");
-            exit(1);
-        }
-        strncpy(gDialogReplyText, s, sizeof(gDialogReplyText) - 1);
-        *(gDialogReplyText + sizeof(gDialogReplyText) - 1) = '\0';
-    }
-    gameDialogRenderReply();
-
-    // Destroy any existing option buttons (and clear their btn field)
+    // Destroy any existing option buttons
     _gdProcessCleanup();
 
     bool hasEmpathy = perkGetRank(gDude, PERK_EMPATHY) != 0;
     int baseColor = _colorTable[992] | 0x2000000;
 
+    // Prepare option texts (same as in _gdProcessUpdate)
     for (int index = 0; index < gGameDialogOptionEntriesLength; index++) {
         GameDialogOptionEntry* dialogOptionEntry = &gDialogOptionEntries[index];
         dialogOptionEntry->btn = -1;
@@ -2341,10 +2332,8 @@ void _gdProcessUpdate()
             }
         } else if (dialogOptionEntry->messageListId == -2) {
             MessageListItem messageListItem;
-            // [Done]
             messageListItem.num = 650;
             if (messageListGetItem(&gProtoMessageList, &messageListItem)) {
-                // SFALL
                 if (gNumberOptions) {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, messageListItem.text);
                 } else {
@@ -2357,23 +2346,20 @@ void _gdProcessUpdate()
         }
     }
 
-    // draw options from scroll offset until window is full
+    // Draw options from scroll offset until window is full
     const int OPTION_SPACING = 2;
     int currentY = _optionRect.top;
     int drawnCount = 0;
     for (int i = _gd_options_scroll_offset; i < gGameDialogOptionEntriesLength; i++) {
         GameDialogOptionEntry* entry = &gDialogOptionEntries[i];
 
-        // Compute required height for this option
         int lines = _text_num_lines(entry->text, _optionRect.right - _optionRect.left);
         int height = lines * fontGetLineHeight();
 
-        // Check if it fits (including this option's text only; spacing after is added later)
         if (currentY + height > _optionRect.bottom) {
             break;
         }
 
-        // Determine color (with empathy) � same as before
         int color = baseColor;
         if (hasEmpathy) {
             switch (entry->reaction) {
@@ -2392,7 +2378,6 @@ void _gdProcessUpdate()
             }
         }
 
-        // Draw the text
         Rect textRect = _optionRect;
         textRect.top = currentY;
         text_to_rect_wrapped(windowGetBuffer(gGameDialogOptionsWindow),
@@ -2429,18 +2414,16 @@ void _gdProcessUpdate()
             debugPrint("\nError: Can't create button!");
         }
 
-        // Move down, adding spacing after the option
         currentY += height + OPTION_SPACING;
         drawnCount++;
     }
 
-    // restore background for all entire text area
+    // Restore background for entire text area (to clear any artifacts)
     if (drawnCount > 0) {
         Rect textArea = { 0, 0, winWidth, winHeight };
         _gDialogRefreshOptionsRect(gGameDialogOptionsWindow, &textArea);
     }
 
-    // Store visible count
     _gd_options_visible_count = drawnCount;
 
     // Force a redraw for all visible options
@@ -2460,39 +2443,59 @@ void _gdProcessUpdate()
 
     // Create new scroll buttons if needed
     if (gGameDialogOptionEntriesLength > _gd_options_visible_count) {
-
         // Up scroll button (covers top 10px)
         _gd_options_scroll_up_btn = buttonCreate(gGameDialogOptionsWindow,
             0, 0, winWidth, upBtnHeight,
             -1, -1, KEY_ARROW_UP, -1,
-            nullptr,
-            nullptr,
-            nullptr,
-            32);
+            nullptr, nullptr, nullptr, 32);
         if (_gd_options_scroll_up_btn != -1) {
             buttonSetMouseCallbacks(_gd_options_scroll_up_btn, _options_arrow_up, _options_arrow_restore, nullptr, nullptr); // small up arrow
             buttonSetCallbacks(_gd_options_scroll_up_btn, _options_scroll_up, nullptr);
         }
 
         // Down scroll button (covers bottom 20px)
-        // set y using _optionRect.bottom considering the expanded height and 10+20 px padding from scroll buttons
+        // set y using _optionRect.bottom + 5px padding for mouse cursor switch
         _gd_options_scroll_down_btn = buttonCreate(gGameDialogOptionsWindow,
-            0, _optionRect.bottom + 5 /*5px gap between last option*/, winWidth, downBtnHeight,
+            0, _optionRect.bottom + 5, winWidth, downBtnHeight,
             -1, -1, KEY_ARROW_DOWN, -1,
-            nullptr,
-            nullptr,
-            nullptr,
-            32);
+            nullptr, nullptr, nullptr, 32);
         if (_gd_options_scroll_down_btn != -1) {
             buttonSetMouseCallbacks(_gd_options_scroll_down_btn, _options_arrow_down, _options_arrow_restore, nullptr, nullptr); // small down arrow
             buttonSetCallbacks(_gd_options_scroll_down_btn, _options_scroll_down, nullptr);
         }
     }
 
-    // Update caps and refresh windows
+    // Refresh options window
+    windowRefresh(gGameDialogOptionsWindow);
+}
+
+// 0x446D30
+void _gdProcessUpdate()
+{
+    _replyRect.left = 5;
+    _replyRect.top = 10;
+    _replyRect.right = 374;
+    _replyRect.bottom = 58;
+
+    _demo_copy_title(gGameDialogReplyWindow);
+
+    if (gDialogReplyMessageListId > 0) {
+        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1);
+        if (s == nullptr) {
+            showMesageBox("\n'GDialog::Error Grabbing text message!");
+            exit(1);
+        }
+        strncpy(gDialogReplyText, s, sizeof(gDialogReplyText) - 1);
+        *(gDialogReplyText + sizeof(gDialogReplyText) - 1) = '\0';
+    }
+    gameDialogRenderReply();
+
+    // Update options window
+    _gdProcessOptionsUpdate();
+
+    // Update caps and refresh reply window (options already refreshed inside _gdProcessOptionsUpdate)
     gameDialogRenderCaps();
     windowRefresh(gGameDialogReplyWindow);
-    windowRefresh(gGameDialogOptionsWindow);
 }
 
 // 0x44715C
@@ -2801,7 +2804,7 @@ void _options_scroll_up(int btn, int keyCode)
 {
     if (_gd_options_scroll_offset > 0) {
         _gd_options_scroll_offset--;
-        _gdProcessUpdate();
+        _gdProcessOptionsUpdate();
     }
 }
 
@@ -2809,7 +2812,7 @@ void _options_scroll_down(int btn, int keyCode)
 {
     if (_gd_options_scroll_offset + _gd_options_visible_count < gGameDialogOptionEntriesLength) {
         _gd_options_scroll_offset++;
-        _gdProcessUpdate();
+        _gdProcessOptionsUpdate();
     }
 }
 
