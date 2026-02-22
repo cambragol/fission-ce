@@ -936,6 +936,8 @@ int mapLoadById(int map)
 // 0x482B74
 static int mapLoad(File* stream)
 {
+    ScopedGameMode gm(GameMode::kMap);
+
     _map_save_in_game(true);
     int gaplessMusic = 0;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
