@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <cstdint>
 
 #include "actions.h"
 #include "animation.h"
