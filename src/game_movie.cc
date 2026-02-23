@@ -292,9 +292,10 @@ int gameMoviePlay(int movie, int flags)
         windowSetTextColor(r, g, b);
     }
 
-    if (GameMode::isInGameMode(GameMode::kPipboy)) {
-        // other movies play from outside game area - main, scripts(worldmap)
+    // movies in the pipboy or played from a map (temple of trials) need to be set to the actual maps size
+    if (GameMode::isInGameMode(GameMode::kPipboy) || GameMode::isInGameMode(GameMode::kMap)) {
         resizeContent(screenGetWidth(), screenGetHeight(), true);
+        // other movies play from outside game area - main, scripts(worldmap)
     } else {
         if (gameIsWidescreen()) {
             resizeContent(800, 500);

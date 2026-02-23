@@ -1418,7 +1418,7 @@ static int animationRunSequence(int animationSequenceIndex)
             rc = _anim_animate(animationDescription->owner, animationDescription->anim, animationSequenceIndex, ANIM_SAD_FOREVER);
             break;
         case ANIM_KIND_ROTATE_TO_TILE:
-            if (!_critter_is_prone(animationDescription->owner)) {
+            if (!critterIsProne(animationDescription->owner)) {
                 int rotation = tileGetRotationTo(animationDescription->owner->tile, animationDescription->tile);
                 _dude_stand(animationDescription->owner, rotation, -1);
             }
@@ -1637,7 +1637,7 @@ static int _anim_set_end(int animationSequenceIndex)
                                 }
                             }
 
-                            if ((animationSequence->flags & ANIM_SEQ_NO_STAND) == 0 && !_critter_is_prone(owner)) {
+                            if ((animationSequence->flags & ANIM_SEQ_NO_STAND) == 0 && !critterIsProne(owner)) {
                                 _dude_stand(owner, owner->rotation, -1);
                             }
                         }
@@ -2613,7 +2613,7 @@ static void _object_move(int index)
                 }
                 nextTile = -1;
             } else {
-                _obj_use_door(object, obstacle, 0);
+                objectUseDoor(object, obstacle, 0);
             }
         }
 
@@ -3219,7 +3219,7 @@ void _dude_standup(Object* a1)
 // 0x4185EC
 static int actionRotate(Object* obj, int delta, int animationSequenceIndex)
 {
-    if (!_critter_is_prone(obj)) {
+    if (!critterIsProne(obj)) {
         int rotation = obj->rotation + delta;
         if (rotation >= ROTATION_COUNT) {
             rotation = ROTATION_NE;
@@ -3318,11 +3318,24 @@ static unsigned int animationComputeTicksPerFrame(Object* object, int fid)
         fps = 10;
     }
 
-    if (isInCombat()) {
-        if (FID_ANIM_TYPE(fid) == ANIM_WALK) {
+    int animType = FID_ANIM_TYPE(fid);
+
+    if (gStrictVanillaEnabled) {
+        // Original behaviour: only speed up walking animations in combat,
+        // and only for the player if player_speedup is false.
+        if (isInCombat() && animType == ANIM_WALK) {
             if (object != gDude || settings.preferences.player_speedup) {
                 fps += settings.preferences.combat_speed;
             }
+        }
+    } else {
+        // New behaviour:
+        if (isInCombat()) {
+            // Combat speed applies to all animations during combat.
+            fps += settings.preferences.combat_speed;
+        } else if (settings.preferences.player_speedup) {
+            // Non‑combat speedup applies to all animations outside combat.
+            fps += settings.preferences.combat_speed;
         }
     }
 

@@ -20,6 +20,7 @@ extern int* gGameGlobalVars;
 extern int gGameGlobalVarsLength;
 extern const char* asc_5186C8;
 extern int _game_user_wants_to_quit;
+extern bool gStrictVanillaEnabled; // global for enforcing strict Vanilla gameplay
 
 extern MessageList gMiscMessageList;
 
@@ -62,7 +63,7 @@ public:
         kUseOn = 0x8000,
         kLoot = 0x10000,
         kBarter = 0x20000,
-        kHero = 0x40000,
+        kMap = 0x40000,
         kDialogReview = 0x80000,
         kCounter = 0x100000,
         kSpecial = 0x80000000,

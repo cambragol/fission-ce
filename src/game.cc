@@ -108,6 +108,9 @@ int* gGameGlobalVars = nullptr;
 // 0x5186C4
 int gGameGlobalVarsLength = 0;
 
+// global for all strictVanilla controls
+bool gStrictVanillaEnabled = false;
+
 // 0x5186C8
 const char* asc_5186C8 = _aGame_0;
 
@@ -137,6 +140,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     settingsInit(isMapper, argc, argv);
 
+    gStrictVanillaEnabled = settings.sfall_misc.strict_vanilla;
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
@@ -225,7 +229,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     queueInit();
     critterInit();
     aiInit();
-    _inven_reset_dude();
+    inventoryResetDude();
 
     if (gameSoundInit() != 0) {
         debugPrint("Sound initialization failed.\n");
@@ -411,7 +415,7 @@ void gameReset()
     lsgInit();
     critterReset();
     aiReset();
-    _inven_reset_dude();
+    inventoryResetDude();
     gameSoundReset();
     _movieStop();
     movieEffectsReset();
@@ -487,7 +491,7 @@ void gameExit()
     partyMembersExit();
     endgameDeathEndingExit();
     interfaceFontsExit();
-    _windowClose();
+    windowClose();
     messageListRepositoryExit();
     dbExit();
     settingsExit(true);
@@ -1056,7 +1060,7 @@ static int gameLoadGlobalVars()
 // 0x443CE8
 int globalVarsRead(const char* path, const char* section, int* variablesListLengthPtr, int** variablesListPtr)
 {
-    _inven_reset_dude();
+    inventoryResetDude();
 
     File* stream = fileOpen(path, "rt");
     if (stream == nullptr) {

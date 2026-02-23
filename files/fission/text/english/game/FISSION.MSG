@@ -21,6 +21,12 @@
 {105}{}{Setting Play Area to original will disable}
 
 #
+# Tweaked Preferences
+#
+
+{110}{}{Affect Non-Combat Speed}
+
+#
 # Extended Titles
 #
 
