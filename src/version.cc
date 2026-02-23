@@ -15,7 +15,8 @@ void versionGetVersion(char* dest, size_t size)
             versionString = nullptr;
         }
     }
-    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
+    // read the versionString from master.dat?
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT FISSION %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
 }
 
 } // namespace fallout
