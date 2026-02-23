@@ -134,7 +134,9 @@ static int _script_engine_game_mode = 0;
 // Game time in ticks (1/10 second).
 //
 // 0x51C720
-static unsigned int gGameTime = 302400;
+//static unsigned int gGameTime = 302400;
+static uint64_t gGameTime = 302400;
+
 
 // 0x51C724
 static const int gGameTimeDaysPerMonth[12] = {
@@ -287,7 +289,7 @@ static int gMovieTimerArtimer4;
 // Returns game time in ticks (1/10 second).
 //
 // 0x4A3330
-unsigned int gameTimeGetTime()
+uint64_t gameTimeGetTime()
 {
     return gGameTime;
 }
@@ -344,19 +346,21 @@ int gameTimeGetHour()
 // Returns time string (h:mm)
 //
 // 0x4A3420
+// 0x4A3420
 char* gameTimeGetTimeString()
 {
-    // 0x66772C
     static char hour_str[7];
 
-    snprintf(hour_str, sizeof(hour_str), "%d:%02d", (gGameTime / 600) / 60 % 24, (gGameTime / 600) % 60);
+    snprintf(hour_str, sizeof(hour_str), "%d:%02d",
+        (int)((gGameTime / 600) / 60 % 24),
+        (int)((gGameTime / 600) % 60));
     return hour_str;
 }
 
 // TODO: Make unsigned.
 //
 // 0x4A347C
-void gameTimeSetTime(unsigned int time)
+void gameTimeSetTime(uint64_t time)
 {
     if (time == 0) {
         time = 1;
