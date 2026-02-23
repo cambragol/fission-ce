@@ -1,10 +1,10 @@
 #include "scripts.h"
 
+#include <cstdint>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <cstdint>
 
 #include "actions.h"
 #include "animation.h"
