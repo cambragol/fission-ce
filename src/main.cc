@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "art.h"
+#include "automap.h"
 #include "autorun.h"
 #include "character_selector.h"
 #include "color.h"
@@ -353,7 +354,13 @@ static void mainLoop()
         // SFALL: MainLoopHook.
         sfall_gl_scr_process_main();
 
-        gameHandleKey(keyCode, false);
+        bool handled = false;
+        if (automapIsOpen()) {
+            handled = automapHandleKey(keyCode);
+        }
+        if (!handled) {
+            gameHandleKey(keyCode, false);
+        }
 
         scriptsHandleRequests();
 
@@ -369,8 +376,17 @@ static void mainLoop()
             _game_user_wants_to_quit = 2;
         }
 
+        if (automapIsOpen()) {
+            automapUpdate();
+        }
+
         renderPresent();
         sharedFpsLimiter.throttle();
+    }
+
+    // Cleanup automap if still open
+    if (automapIsOpen()) {
+        automapClose();
     }
 
     scriptsDisable();

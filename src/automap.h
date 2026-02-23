@@ -56,6 +56,12 @@ int automapGetHeader(AutomapHeader** automapHeaderPtr);
 
 void automapSetDisplayMap(int map, bool available);
 
+// New functions for persistant minimap (automap)
+bool automapIsOpen();
+bool automapHandleKey(int keyCode);
+void automapUpdate();
+void automapClose();
+
 } // namespace fallout
 
 #endif /* AUTOMAP_H */

@@ -54,6 +54,8 @@ static void _decode_map_data(int elevation);
 static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
+static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
+
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
     AUTOMAP_FRM_BUTTON_UP,
@@ -269,8 +271,24 @@ static AutomapHeader gAutomapHeader;
 
 static int zoom = 2;
 static bool gUseNewAutomapProjection = false;
-static bool strictVanilla = false;
+static bool strictVanilla = false; // temporary
 static double original_scale = 0.5;
+
+// minimap persistent state globals
+static bool gAutomapWindowOpen = false;
+static int gAutomapWindow = -1;
+static int gAutomapElevation = 0;
+static int gAutomapMapLeft = 0;
+static int gAutomapMapTop = 0;
+static int gAutomapMapRight = 0;
+static int gAutomapMapBottom = 0;
+static unsigned int gAutomapLastRenderTime = 0;
+static bool gAutomapNeedsRefresh = true;
+static FrmImage gAutomapFrmImages[AUTOMAP_FRM_COUNT];
+
+// Saved context for cleanup
+static int gOldFont = 0;
+static bool gIsoWasEnabled = false;
 
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
@@ -632,16 +650,19 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
  */
 void automapShow(bool isInGame, bool isUsingScanner)
 {
-    ScopedGameMode gm(GameMode::kAutomap);
+    if (!strictVanilla && gAutomapWindowOpen) {
+        // Minimap already open â€“ optionally bring to front
+        return;
+    }
 
-    int frmIds[AUTOMAP_FRM_COUNT];
-    memcpy(frmIds, gAutomapFrmIds, sizeof(gAutomapFrmIds));
-
-    // Load automap interface graphics
-    FrmImage frmImages[AUTOMAP_FRM_COUNT];
+    // Load all interface FRMs into global array
     for (int index = 0; index < AUTOMAP_FRM_COUNT; index++) {
-        int fid = buildFid(OBJ_TYPE_INTERFACE, frmIds[index], 0, 0, 0);
-        if (!frmImages[index].lock(fid)) {
+        int fid = buildFid(OBJ_TYPE_INTERFACE, gAutomapFrmIds[index], 0, 0, 0);
+        if (!gAutomapFrmImages[index].lock(fid)) {
+            // Cleanup already loaded ones
+            for (int j = 0; j < index; j++) {
+                gAutomapFrmImages[j].unlock();
+            }
             return;
         }
     }
@@ -654,366 +675,236 @@ void automapShow(bool isInGame, bool isUsingScanner)
         color = _colorTable[22025];
     }
 
-    // Setup UI
-    int oldFont = fontGetCurrent();
+    gOldFont = fontGetCurrent();
     fontSetCurrent(101);
     touch_set_touchscreen_mode(true);
 
+    // Create window based on mode
     int window;
-    // Create automap  or minimap window
     if (strictVanilla) {
-        // automap
-        int automapWindowX = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
-        int automapWindowY = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
-        window = windowCreate(automapWindowX, automapWindowY, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+        int x = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
+        int y = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
+        window = windowCreate(x, y, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT,
+                              color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+        // No click area
+        gAutomapMapLeft = gAutomapMapTop = gAutomapMapRight = gAutomapMapBottom = 0;
     } else {
-        // minimap
-        int automapWindowX = 20;
-        int automapWindowY = 20;
-        window = windowCreate(automapWindowX, automapWindowY, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT, color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
+        int x = 20, y = 20;
+        window = windowCreate(x, y, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT,
+                              color, WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
+        // Set click area for minimap
+        gAutomapMapLeft = 34;
+        gAutomapMapTop = 29;
+        gAutomapMapRight = 182;
+        gAutomapMapBottom = 192;
     }
 
-    // Buttons and button parameters (set based on mode)
+    // Common button creation (using global FRM images)
     int scannerBtn, cancelBtn, switchBtn1, switchBtn2, switchBtn3;
     int scannerX, scannerY, scannerWidth, scannerHeight, scannerKey;
     int cancelX, cancelY, cancelWidth, cancelHeight, cancelKey;
     int switch1X, switch1Y, switch2X, switch2Y, switch3X, switch3Y;
     int switchWidth, switchHeight;
     int switch1KeyUp, switch1KeyDown, switch2KeyUp, switch2KeyDown, switch3KeyUp, switch3KeyDown;
-    int switchFrmUp, switchFrmDown; // FRM indices for switch buttons vary by mode
+    int switchFrmUp, switchFrmDown;
 
     if (strictVanilla) {
-        // Vanilla mode – original automap layout
-        scannerX = 111;
-        scannerY = 454;
-        scannerWidth = 15;
-        scannerHeight = 16;
-        scannerKey = KEY_LOWERCASE_S;
-        cancelX = 277;
-        cancelY = 454;
-        cancelWidth = 15;
-        cancelHeight = 16;
-        cancelKey = KEY_ESCAPE;
-
-        // Only one switch button (details) – others remain unused
-        switch1X = 457;
-        switch1Y = 340;
-        switch2X = 0;
-        switch2Y = 0;
-        switch3X = 0;
-        switch3Y = 0;
-        switchWidth = 42;
-        switchHeight = 74;
-        switch1KeyUp = KEY_LOWERCASE_L;
-        switch1KeyDown = KEY_LOWERCASE_H;
-        switch2KeyUp = 0;
-        switch2KeyDown = 0;
-        switch3KeyUp = 0;
-        switch3KeyDown = 0;
-        switchFrmUp = AUTOMAP_FRM_SWITCH_UP;
-        switchFrmDown = AUTOMAP_FRM_SWITCH_DOWN;
-
+        scannerX = 111; scannerY = 454; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_ALT_S;
+        cancelX = 277; cancelY = 454; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_TAB;
+        switch1X = 457; switch1Y = 340; switch2X = 0; switch2Y = 0; switch3X = 0; switch3Y = 0;
+        switchWidth = 42; switchHeight = 74;
+        switch1KeyUp = KEY_ALT_L; switch1KeyDown = KEY_ALT_H;
+        switch2KeyUp = 0; switch2KeyDown = 0; switch3KeyUp = 0; switch3KeyDown = 0;
+        switchFrmUp = AUTOMAP_FRM_SWITCH_UP; switchFrmDown = AUTOMAP_FRM_SWITCH_DOWN;
     } else {
-        // minimap mode – new button layout
-        scannerX = 23;
-        scannerY = 217;
-        scannerWidth = 15;
-        scannerHeight = 16;
-        scannerKey = KEY_LOWERCASE_S;
-        cancelX = 141;
-        cancelY = 217;
-        cancelWidth = 15;
-        cancelHeight = 16;
-        cancelKey = KEY_ESCAPE;
-
-        // Three switch buttons (details, zoom, projection)
-        switch1X = 195;
-        switch1Y = 30; // details
-        switch2X = 195;
-        switch2Y = 93; // zoom
-        switch3X = 195;
-        switch3Y = 156; // projection
-        switchWidth = 42;
-        switchHeight = 63;
-        switch1KeyUp = KEY_LOWERCASE_L;
-        switch1KeyDown = KEY_LOWERCASE_H;
-        switch2KeyUp = KEY_LOWERCASE_I;
-        switch2KeyDown = KEY_LOWERCASE_O;
-        switch3KeyUp = KEY_LOWERCASE_D;
-        switch3KeyDown = KEY_LOWERCASE_T;
-        switchFrmUp = AUTOMAP_FRM_MINIMAP_SWITCH_UP;
-        switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
+        scannerX = 23; scannerY = 217; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_ALT_S;
+        cancelX = 141; cancelY = 217; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_TAB;
+        switch1X = 195; switch1Y = 30;
+        switch2X = 195; switch2Y = 93;
+        switch3X = 195; switch3Y = 156;
+        switchWidth = 42; switchHeight = 63;
+        switch1KeyUp = KEY_ALT_L; switch1KeyDown = KEY_ALT_H;
+        switch2KeyUp = KEY_ALT_I; switch2KeyDown = KEY_ALT_O;
+        switch3KeyUp = KEY_ALT_D; switch3KeyDown = KEY_ALT_T;
+        switchFrmUp = AUTOMAP_FRM_MINIMAP_SWITCH_UP; switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
     }
 
-    // Scanner (always present)
     scannerBtn = buttonCreate(window, scannerX, scannerY, scannerWidth, scannerHeight,
         -1, -1, -1, scannerKey,
-        frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
-        frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
+        gAutomapFrmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
+        gAutomapFrmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT);
-    if (scannerBtn != -1) {
-        buttonSetCallbacks(scannerBtn, _gsound_red_butt_press, _gsound_red_butt_release);
-    }
+    if (scannerBtn != -1) buttonSetCallbacks(scannerBtn, _gsound_red_butt_press, _gsound_red_butt_release);
 
-    // Cancel (always present)
     cancelBtn = buttonCreate(window, cancelX, cancelY, cancelWidth, cancelHeight,
         -1, -1, -1, cancelKey,
-        frmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
-        frmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
+        gAutomapFrmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
+        gAutomapFrmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT);
-    if (cancelBtn != -1) {
-        buttonSetCallbacks(cancelBtn, _gsound_red_butt_press, _gsound_red_butt_release);
-    }
+    if (cancelBtn != -1) buttonSetCallbacks(cancelBtn, _gsound_red_butt_press, _gsound_red_butt_release);
 
-    // Switch buttons
-    // Details (always present)
     switchBtn1 = buttonCreate(window, switch1X, switch1Y, switchWidth, switchHeight,
         -1, -1, switch1KeyUp, switch1KeyDown,
-        frmImages[switchFrmUp].getData(),
-        frmImages[switchFrmDown].getData(),
+        gAutomapFrmImages[switchFrmUp].getData(),
+        gAutomapFrmImages[switchFrmDown].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-    if (switchBtn1 != -1) {
-        buttonSetCallbacks(switchBtn1, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-    }
-    if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
+    if (switchBtn1 != -1) buttonSetCallbacks(switchBtn1, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+    // Initial button state for details
+    if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0)
         _win_set_button_rest_state(switchBtn1, 1, 0);
-    }
+
     if (!strictVanilla) {
-        // Zoom
         switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
             -1, -1, switch2KeyUp, switch2KeyDown,
-            frmImages[switchFrmUp].getData(),
-            frmImages[switchFrmDown].getData(),
+            gAutomapFrmImages[switchFrmUp].getData(),
+            gAutomapFrmImages[switchFrmDown].getData(),
             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-        if (switchBtn2 != -1) {
-            buttonSetCallbacks(switchBtn2, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-        }
-        // Projection
+        if (switchBtn2 != -1) buttonSetCallbacks(switchBtn2, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+        if (zoom == 2) _win_set_button_rest_state(switchBtn2, 1, 0);
+
         switchBtn3 = buttonCreate(window, switch3X, switch3Y, switchWidth, switchHeight,
             -1, -1, switch3KeyUp, switch3KeyDown,
-            frmImages[switchFrmUp].getData(),
-            frmImages[switchFrmDown].getData(),
+            gAutomapFrmImages[switchFrmUp].getData(),
+            gAutomapFrmImages[switchFrmDown].getData(),
             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-        if (switchBtn3 != -1) {
-            buttonSetCallbacks(switchBtn3, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-        }
-        if (zoom == 2) {
-            _win_set_button_rest_state(switchBtn2, 1, 0);
-        }
-        if (gUseNewAutomapProjection) {
-            _win_set_button_rest_state(switchBtn3, 1, 0);
-        }
+        if (switchBtn3 != -1) buttonSetCallbacks(switchBtn3, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
+        if (gUseNewAutomapProjection) _win_set_button_rest_state(switchBtn3, 1, 0);
     }
 
-    int elevation = gElevation;
+    // Initial render
+    int bgFrm = strictVanilla ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
+    automapRenderInMapWindow(window, gElevation,
+                             gAutomapFrmImages[bgFrm].getData(),
+                             (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0));
 
-    gAutomapFlags &= AUTOMAP_WTH_HIGH_DETAILS;
-
-    if (isInGame) {
-        gAutomapFlags |= AUTOMAP_IN_GAME;
-    }
-
-    if (isUsingScanner) {
-        gAutomapFlags |= AUTOMAP_WITH_SCANNER;
-    }
-
-    // Render initial automap view
-    if (strictVanilla) {
-        automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
-    } else {
-        automapRenderInMapWindow(window, elevation, frmImages[AUTOMAP_FRM_MINIMAP].getData(), gAutomapFlags);
-    }
-
-    bool isoWasEnabled;
-    if (strictVanilla) {
-        isoWasEnabled = isoDisable();
-    }
+    // Set cursor
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
 
-    bool done = false;
-    unsigned int lastUpdateTime = getTicks();
-    const unsigned int UPDATE_INTERVAL_MS = 50;
+    if (strictVanilla) {
+        // AUTOMAP (original behaviour)
+        ScopedGameMode gm(GameMode::kAutomap); // keep for strictVanilla
 
-    while (!done) {
-        sharedFpsLimiter.mark();
-
-        bool needsRefresh = false;
-
-        // --- Mouse handling with click-to-move ---
-        int mouseX, mouseY;
-        mouseGetPosition(&mouseX, &mouseY);
-        int mouseState = mouseGetEvent();
-
-        // --- Mouse handling with click-to-move (minimap mode only) ---
-        if (!strictVanilla && mouseState != 0) {
-            Rect winRect;
-            if (windowGetRect(window, &winRect) == 0) {
-                int winX = winRect.left;
-                int winY = winRect.top;
-                int winW = winRect.right - winRect.left;
-                int winH = winRect.bottom - winRect.top;
-
-                int relX = mouseX - winX;
-                int relY = mouseY - winY;
-
-                if (relX >= 34 && relX <= 182 && relY >= 29 && relY <= 192) {
-                    if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
-                        int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
-                        if (targetTile != -1 && targetTile != gDude->tile) {
-                            // Stop any current movement
-                            reg_anim_clear(gDude);
-
-                            int actionPoints = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
-                            bool shiftPressed = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
-                            bool running = settings.preferences.running;
-                            bool shouldRun = (running && !shiftPressed) || (!running && shiftPressed);
-
-                            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
-                            if (shouldRun) {
-                                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, actionPoints, 0);
-                            } else {
-                                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, actionPoints, 0);
-                            }
-                            reg_anim_end();
-
-                            needsRefresh = true;
-                        }
-                    } else if (mouseState & MOUSE_EVENT_RIGHT_BUTTON_DOWN) {
-                        _gmouse_handle_event(mouseX, mouseY, mouseState);
-                    }
-                }
-            }
+        bool isoWasEnabled = isoDisable();
+        gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+        
+        // Ensure cursor is visible
+        if (cursorIsHidden()) {
+            mouseShowCursor();
         }
 
-        // Always pass clicks outside the automap window to the game
-        if (mouseState != 0 && windowGetAtPoint(mouseX, mouseY) != window) {
-            _gmouse_handle_event(mouseX, mouseY, mouseState);
-        }
+        bool done = false;
+        int localFlags = (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
+        int localElevation = gElevation;
+        unsigned int lastUpdateTime = getTicks();
+        const unsigned int UPDATE_INTERVAL_MS = 50;
 
-        // --- Keyboard handling (your existing code) ---
-        int keyCode = inputGetInput();
-        switch (keyCode) {
-        case KEY_TAB:
-        case KEY_ESCAPE:
-        case KEY_UPPERCASE_A:
-        case KEY_LOWERCASE_A:
-            done = true;
-            break;
-        case KEY_UPPERCASE_H:
-        case KEY_LOWERCASE_H:
-            if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
-                gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
-                needsRefresh = true;
-            }
-            break;
-        case KEY_UPPERCASE_L:
-        case KEY_LOWERCASE_L:
-            if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
-                gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
-                needsRefresh = true;
-            }
-            break;
-        case KEY_UPPERCASE_I:
-        case KEY_LOWERCASE_I:
-            zoom = 2;
-            needsRefresh = true;
+        while (!done) {
+            sharedFpsLimiter.mark();
+            bool needsRefresh = false;
 
-            break;
-        case KEY_UPPERCASE_O:
-        case KEY_LOWERCASE_O:
-            zoom = 1;
-            needsRefresh = true;
-            break;
-        case KEY_UPPERCASE_D:
-        case KEY_LOWERCASE_D:
-            gUseNewAutomapProjection = true;
-            needsRefresh = true;
-            break;
-        case KEY_UPPERCASE_T:
-        case KEY_LOWERCASE_T:
-            gUseNewAutomapProjection = false;
-            needsRefresh = true;
-            break;
-        case KEY_UPPERCASE_S:
-        case KEY_LOWERCASE_S:
-            if (elevation != gElevation) {
-                elevation = gElevation;
-                needsRefresh = true;
-            }
-
-            if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
-                Object* scanner = nullptr;
-
-                Object* item1 = critterGetItem1(gDude);
-                if (item1 != nullptr && item1->pid == PROTO_ID_MOTION_SENSOR) {
-                    scanner = item1;
-                } else {
-                    Object* item2 = critterGetItem2(gDude);
-                    if (item2 != nullptr && item2->pid == PROTO_ID_MOTION_SENSOR) {
-                        scanner = item2;
-                    }
+            // Mouse events outside automap window go to game
+            int mouseState = mouseGetEvent();
+            if (mouseState != 0) {
+                int mouseX, mouseY;
+                mouseGetPosition(&mouseX, &mouseY);
+                if (windowGetAtPoint(mouseX, mouseY) != window) {
+                    _gmouse_handle_event(mouseX, mouseY, mouseState);
                 }
+            }
 
-                if (scanner != nullptr && miscItemGetCharges(scanner) > 0) {
+            int keyCode = inputGetInput();
+            switch (keyCode) {
+            case KEY_TAB:
+                done = true;
+                break;
+            case KEY_ALT_H:
+                if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
+                    localFlags |= AUTOMAP_WTH_HIGH_DETAILS;
                     needsRefresh = true;
-                    gAutomapFlags |= AUTOMAP_WITH_SCANNER;
-                    miscItemConsumeCharge(scanner);
-                } else {
-                    soundPlayFile("iisxxxx1");
-
-                    MessageListItem messageListItem;
-                    // 17 - The motion sensor is not installed.
-                    // 18 - The motion sensor has no charges remaining.
-                    const char* title = getmsg(&gMiscMessageList, &messageListItem, scanner != nullptr ? 18 : 17);
-                    showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
                 }
+                break;
+            case KEY_ALT_L:
+                if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
+                    localFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
+                    needsRefresh = true;
+                }
+                break;
+            case KEY_ALT_S:
+                if (localElevation != gElevation) {
+                    localElevation = gElevation;
+                    needsRefresh = true;
+                }
+                if ((localFlags & AUTOMAP_WITH_SCANNER) == 0) {
+                    Object* scanner = nullptr;
+                    Object* item1 = critterGetItem1(gDude);
+                    if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR) scanner = item1;
+                    else {
+                        Object* item2 = critterGetItem2(gDude);
+                        if (item2 && item2->pid == PROTO_ID_MOTION_SENSOR) scanner = item2;
+                    }
+                    if (scanner && miscItemGetCharges(scanner) > 0) {
+                        localFlags |= AUTOMAP_WITH_SCANNER;
+                        miscItemConsumeCharge(scanner);
+                        needsRefresh = true;
+                    } else {
+                        soundPlayFile("iisxxxx1");
+                        MessageListItem msg;
+                        const char* title = getmsg(&gMiscMessageList, &msg, scanner ? 18 : 17);
+                        showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    }
+                }
+                break;
+            case KEY_ALT_Q:
+            case KEY_ALT_X:
+            case KEY_F10:
+                showQuitConfirmationDialog();
+                break;
+            case KEY_F12:
+                takeScreenshot();
+                break;
             }
 
-            break;
-        case KEY_CTRL_Q:
-        case KEY_ALT_X:
-        case KEY_F10:
-            showQuitConfirmationDialog();
-            break;
-        case KEY_F12:
-            takeScreenshot();
-            break;
-        }
-
-        // --- Throttled automap update ---
-        unsigned int currentTime = getTicks();
-        if (currentTime - lastUpdateTime >= UPDATE_INTERVAL_MS) {
-            needsRefresh = true;
-            lastUpdateTime = currentTime;
-        }
-
-        // --- Render automap if needed ---
-        if (needsRefresh) {
-            if (strictVanilla) {
-                automapRenderInMapWindow(window, elevation,
-                    frmImages[AUTOMAP_FRM_BACKGROUND].getData(),
-                    gAutomapFlags);
-            } else {
-                automapRenderInMapWindow(window, elevation,
-                    frmImages[AUTOMAP_FRM_MINIMAP].getData(),
-                    gAutomapFlags);
+            unsigned int now = getTicks();
+            if (now - lastUpdateTime >= UPDATE_INTERVAL_MS) {
+                needsRefresh = true;
+                lastUpdateTime = now;
             }
+
+            if (needsRefresh) {
+                automapRenderInMapWindow(window, localElevation,
+                                         gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(),
+                                         localFlags);
+            }
+
+            if (_game_user_wants_to_quit) break;
+
+            renderPresent();
+            sharedFpsLimiter.throttle();
         }
 
-        if (_game_user_wants_to_quit) break;
+        if (isoWasEnabled) isoEnable();
 
-        renderPresent();
-        sharedFpsLimiter.throttle();
+        // Cleanup
+        windowDestroy(window);
+        for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
+            gAutomapFrmImages[i].unlock();
+        }
+        fontSetCurrent(gOldFont);
+        touch_set_touchscreen_mode(false);
+    } else {
+        // MINIMAP persistant non-modal behaviour
+        gAutomapWindow = window;
+        gAutomapWindowOpen = true;
+        gAutomapElevation = gElevation;
+        gAutomapFlags = (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
+        gAutomapNeedsRefresh = true;
+        gAutomapLastRenderTime = getTicks();
+
+        // ISO remains enabled
+        gIsoWasEnabled = false;
+
+        // Return immediately â€“ main loop will handle updates
     }
-
-    // isoWasEnabled not set for minimap mode to allow click/actions behind/outside window
-    if (isoWasEnabled && strictVanilla) {
-        isoEnable();
-    }
-
-    windowDestroy(window);
-    fontSetCurrent(oldFont);
-    touch_set_touchscreen_mode(false);
 }
 
 /**
@@ -1040,7 +931,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     unsigned char* windowBuffer = windowGetBuffer(window);
     blitBufferToBuffer(backgroundData, winWidth, winHeight, winWidth, windowBuffer, winWidth);
 
-    // ===== VANILLA MODE – use original fixed rendering =====
+    // ===== VANILLA MODE ï¿½ use original fixed rendering =====
     if (strictVanilla) {
         for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
             if (obj->tile == -1) continue;
@@ -1121,7 +1012,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             }
         }
     }
-    // ===== MINIMAP MODE – player?centered projection with zoom & toggles =====
+    // ===== MINIMAP MODE ï¿½ player?centered projection with zoom & toggles =====
     else {
         // Clipping rectangle (map display area)
         int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
@@ -1720,7 +1611,7 @@ static int automapLoadHeader(File* stream)
     }
 
     if (gAutomapHeader.version == 1) {
-        // Version 1: Read 480 offsets (160 maps × 3 elevations)
+        // Version 1: Read 480 offsets (160 maps ï¿½ 3 elevations)
         int oldOffsets[480];
         if (_db_freadIntCount(stream, oldOffsets, 480) == -1) {
             return -1;
@@ -1803,7 +1694,7 @@ static void _decode_map_data(int elevation)
 static int automapCreate()
 {
     gAutomapHeader.version = 2; // NEW FORMAT
-    gAutomapHeader.dataSize = 24005; // 1 + 4 + (2000×3×4)
+    gAutomapHeader.dataSize = 24005; // 1 + 4 + (2000ï¿½3ï¿½4)
 
     // Initialize ALL offsets to 0
     for (int i = 0; i < AUTOMAP_MAP_COUNT; i++) {
@@ -1915,6 +1806,191 @@ void automapSetDisplayMap(int map, bool available)
     if (map >= 0 && map < AUTOMAP_MAP_COUNT) {
         _displayMapList[map] = available ? 0 : -1;
     }
+}
+
+/**
+ * Checks if the minimap (nonâ€‘modal automap) is currently open.
+ *
+ * @return true if minimap is open, false otherwise
+ */
+bool automapIsOpen()
+{
+    return gAutomapWindowOpen;
+}
+
+/**
+ * Handles keyboard and mouse input when the minimap is open.
+ * This function is called from the main game loop.
+ *
+ * @param keyCode The key code from inputGetInput() (or -2 for mouse events)
+ * @return true if the event was consumed by the minimap, false otherwise
+ */
+bool automapHandleKey(int keyCode)
+{
+    if (!gAutomapWindowOpen) return false;
+
+    // Handle TAB (close)
+    if (keyCode == KEY_TAB) {
+        automapClose();
+        return true;
+    }
+
+    bool handled = true;
+    switch (keyCode) {
+    case KEY_ALT_H:
+        if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
+            gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
+            gAutomapNeedsRefresh = true;
+        }
+        break;
+    case KEY_ALT_L:
+        if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
+            gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
+            gAutomapNeedsRefresh = true;
+        }
+        break;
+    case KEY_ALT_I:
+        zoom = 2;
+        gAutomapNeedsRefresh = true;
+        break;
+    case KEY_ALT_O:
+        zoom = 1;
+        gAutomapNeedsRefresh = true;
+        break;
+    case KEY_ALT_D:
+        gUseNewAutomapProjection = true;
+        gAutomapNeedsRefresh = true;
+        break;
+    case KEY_ALT_T:
+        gUseNewAutomapProjection = false;
+        gAutomapNeedsRefresh = true;
+        break;
+    case KEY_ALT_S:
+        // Scanner
+        if (gAutomapElevation != gElevation) {
+            gAutomapElevation = gElevation;
+            gAutomapNeedsRefresh = true;
+        }
+        if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
+            Object* scanner = nullptr;
+            Object* item1 = critterGetItem1(gDude);
+            if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR) scanner = item1;
+            else {
+                Object* item2 = critterGetItem2(gDude);
+                if (item2 && item2->pid == PROTO_ID_MOTION_SENSOR) scanner = item2;
+            }
+            if (scanner && miscItemGetCharges(scanner) > 0) {
+                gAutomapFlags |= AUTOMAP_WITH_SCANNER;
+                miscItemConsumeCharge(scanner);
+                gAutomapNeedsRefresh = true;
+            } else {
+                soundPlayFile("iisxxxx1");
+                MessageListItem msg;
+                const char* title = getmsg(&gMiscMessageList, &msg, scanner ? 18 : 17);
+                showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
+            }
+        }
+        break;
+    case -2: // Mouse event
+        {
+            int mouseState = mouseGetEvent();
+            int mouseX, mouseY;
+            mouseGetPosition(&mouseX, &mouseY);
+            Rect winRect;
+            if (windowGetRect(gAutomapWindow, &winRect) == 0) {
+                if (mouseX >= winRect.left && mouseX < winRect.right &&
+                    mouseY >= winRect.top && mouseY < winRect.bottom) {
+                    // Inside automap window â€“ consume event
+                    int winW = winRect.right - winRect.left;
+                    int winH = winRect.bottom - winRect.top;
+                    int relX = mouseX - winRect.left;
+                    int relY = mouseY - winRect.top;
+                    if (!strictVanilla &&
+                        relX >= gAutomapMapLeft && relX <= gAutomapMapRight &&
+                        relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
+                        // Inside map area â€“ handle clickâ€‘toâ€‘move
+                        if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                            int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
+                            if (targetTile != -1 && targetTile != gDude->tile) {
+                                reg_anim_clear(gDude);
+                                int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+                                bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                                bool run = settings.preferences.running;
+                                bool shouldRun = (run && !shift) || (!run && shift);
+                                reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+                                if (shouldRun)
+                                    animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                                else
+                                    animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                                reg_anim_end();
+                                gAutomapNeedsRefresh = true;
+                            }
+                        }
+                    }
+                    handled = true; // consume any mouse event on the automap window
+                } else {
+                    handled = false; // outside window, let game handle
+                }
+            } else {
+                handled = false;
+            }
+        }
+        break;
+    default:
+        handled = false;
+        break;
+    }
+    return handled;
+}
+
+/**
+ * Updates the minimap display when needed.
+ * Called once per frame from the main game loop.
+ * Refreshes the map periodically and when the elevation changes.
+ */
+void automapUpdate()
+{
+    if (!gAutomapWindowOpen) return;
+
+    // Refresh if elevation changed
+    if (gElevation != gAutomapElevation) {
+        gAutomapElevation = gElevation;
+        gAutomapNeedsRefresh = true;
+    }
+
+    unsigned int now = getTicks();
+    if (now - gAutomapLastRenderTime >= 50 || gAutomapNeedsRefresh) {
+        if (strictVanilla) {
+            automapRenderInMapWindow(gAutomapWindow, gAutomapElevation,
+                gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
+        } else {
+            automapRenderInMapWindow(gAutomapWindow, gAutomapElevation,
+                gAutomapFrmImages[AUTOMAP_FRM_MINIMAP].getData(), gAutomapFlags);
+        }
+        gAutomapLastRenderTime = now;
+        gAutomapNeedsRefresh = false;
+    }
+}
+
+/**
+ * Closes the minimap if it is open and cleans up resources.
+ * Called from the main loop on KEY_TAB or when the game exits.
+ */
+void automapClose()
+{
+    if (!gAutomapWindowOpen) return;
+
+    windowDestroy(gAutomapWindow);
+    for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
+        gAutomapFrmImages[i].unlock();
+    }
+    fontSetCurrent(gOldFont);
+    touch_set_touchscreen_mode(false);
+    if (strictVanilla && gIsoWasEnabled) {
+        isoEnable();
+    }
+    gAutomapWindowOpen = false;
+    gAutomapWindow = -1;
 }
 
 } // namespace fallout
