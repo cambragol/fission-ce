@@ -685,13 +685,13 @@ void automapShow(bool isInGame, bool isUsingScanner)
         int x = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
         int y = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
         window = windowCreate(x, y, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT,
-                              color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
+            color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
         // No click area
         gAutomapMapLeft = gAutomapMapTop = gAutomapMapRight = gAutomapMapBottom = 0;
     } else {
         int x = 20, y = 20;
         window = windowCreate(x, y, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT,
-                              color, WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
+            color, WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
         // Set click area for minimap
         gAutomapMapLeft = 34;
         gAutomapMapTop = 29;
@@ -709,24 +709,59 @@ void automapShow(bool isInGame, bool isUsingScanner)
     int switchFrmUp, switchFrmDown;
 
     if (strictVanilla) {
-        scannerX = 111; scannerY = 454; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_ALT_S;
-        cancelX = 277; cancelY = 454; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_TAB;
-        switch1X = 457; switch1Y = 340; switch2X = 0; switch2Y = 0; switch3X = 0; switch3Y = 0;
-        switchWidth = 42; switchHeight = 74;
-        switch1KeyUp = KEY_ALT_L; switch1KeyDown = KEY_ALT_H;
-        switch2KeyUp = 0; switch2KeyDown = 0; switch3KeyUp = 0; switch3KeyDown = 0;
-        switchFrmUp = AUTOMAP_FRM_SWITCH_UP; switchFrmDown = AUTOMAP_FRM_SWITCH_DOWN;
+        scannerX = 111;
+        scannerY = 454;
+        scannerWidth = 15;
+        scannerHeight = 16;
+        scannerKey = KEY_ALT_S;
+        cancelX = 277;
+        cancelY = 454;
+        cancelWidth = 15;
+        cancelHeight = 16;
+        cancelKey = KEY_TAB;
+        switch1X = 457;
+        switch1Y = 340;
+        switch2X = 0;
+        switch2Y = 0;
+        switch3X = 0;
+        switch3Y = 0;
+        switchWidth = 42;
+        switchHeight = 74;
+        switch1KeyUp = KEY_ALT_L;
+        switch1KeyDown = KEY_ALT_H;
+        switch2KeyUp = 0;
+        switch2KeyDown = 0;
+        switch3KeyUp = 0;
+        switch3KeyDown = 0;
+        switchFrmUp = AUTOMAP_FRM_SWITCH_UP;
+        switchFrmDown = AUTOMAP_FRM_SWITCH_DOWN;
     } else {
-        scannerX = 23; scannerY = 217; scannerWidth = 15; scannerHeight = 16; scannerKey = KEY_ALT_S;
-        cancelX = 141; cancelY = 217; cancelWidth = 15; cancelHeight = 16; cancelKey = KEY_TAB;
-        switch1X = 195; switch1Y = 30;
-        switch2X = 195; switch2Y = 93;
-        switch3X = 195; switch3Y = 156;
-        switchWidth = 42; switchHeight = 63;
-        switch1KeyUp = KEY_ALT_L; switch1KeyDown = KEY_ALT_H;
-        switch2KeyUp = KEY_ALT_I; switch2KeyDown = KEY_ALT_O;
-        switch3KeyUp = KEY_ALT_D; switch3KeyDown = KEY_ALT_T;
-        switchFrmUp = AUTOMAP_FRM_MINIMAP_SWITCH_UP; switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
+        scannerX = 23;
+        scannerY = 217;
+        scannerWidth = 15;
+        scannerHeight = 16;
+        scannerKey = KEY_ALT_S;
+        cancelX = 141;
+        cancelY = 217;
+        cancelWidth = 15;
+        cancelHeight = 16;
+        cancelKey = KEY_TAB;
+        switch1X = 195;
+        switch1Y = 30;
+        switch2X = 195;
+        switch2Y = 93;
+        switch3X = 195;
+        switch3Y = 156;
+        switchWidth = 42;
+        switchHeight = 63;
+        switch1KeyUp = KEY_ALT_L;
+        switch1KeyDown = KEY_ALT_H;
+        switch2KeyUp = KEY_ALT_I;
+        switch2KeyDown = KEY_ALT_O;
+        switch3KeyUp = KEY_ALT_D;
+        switch3KeyDown = KEY_ALT_T;
+        switchFrmUp = AUTOMAP_FRM_MINIMAP_SWITCH_UP;
+        switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
     }
 
     scannerBtn = buttonCreate(window, scannerX, scannerY, scannerWidth, scannerHeight,
@@ -774,8 +809,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
     // Initial render
     int bgFrm = strictVanilla ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
     automapRenderInMapWindow(window, gElevation,
-                             gAutomapFrmImages[bgFrm].getData(),
-                             (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0));
+        gAutomapFrmImages[bgFrm].getData(),
+        (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0));
 
     // Set cursor
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
@@ -786,7 +821,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
         bool isoWasEnabled = isoDisable();
         gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-        
+
         // Ensure cursor is visible
         if (cursorIsHidden()) {
             mouseShowCursor();
@@ -837,7 +872,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
                 if ((localFlags & AUTOMAP_WITH_SCANNER) == 0) {
                     Object* scanner = nullptr;
                     Object* item1 = critterGetItem1(gDude);
-                    if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR) scanner = item1;
+                    if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR)
+                        scanner = item1;
                     else {
                         Object* item2 = critterGetItem2(gDude);
                         if (item2 && item2->pid == PROTO_ID_MOTION_SENSOR) scanner = item2;
@@ -872,8 +908,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
             if (needsRefresh) {
                 automapRenderInMapWindow(window, localElevation,
-                                         gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(),
-                                         localFlags);
+                    gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(),
+                    localFlags);
             }
 
             if (_game_user_wants_to_quit) break;
@@ -1874,7 +1910,8 @@ bool automapHandleKey(int keyCode)
         if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
             Object* scanner = nullptr;
             Object* item1 = critterGetItem1(gDude);
-            if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR) scanner = item1;
+            if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR)
+                scanner = item1;
             else {
                 Object* item2 = critterGetItem2(gDude);
                 if (item2 && item2->pid == PROTO_ID_MOTION_SENSOR) scanner = item2;
@@ -1892,50 +1929,46 @@ bool automapHandleKey(int keyCode)
         }
         break;
     case -2: // Mouse event
-        {
-            int mouseState = mouseGetEvent();
-            int mouseX, mouseY;
-            mouseGetPosition(&mouseX, &mouseY);
-            Rect winRect;
-            if (windowGetRect(gAutomapWindow, &winRect) == 0) {
-                if (mouseX >= winRect.left && mouseX < winRect.right &&
-                    mouseY >= winRect.top && mouseY < winRect.bottom) {
-                    // Inside automap window – consume event
-                    int winW = winRect.right - winRect.left;
-                    int winH = winRect.bottom - winRect.top;
-                    int relX = mouseX - winRect.left;
-                    int relY = mouseY - winRect.top;
-                    if (!strictVanilla &&
-                        relX >= gAutomapMapLeft && relX <= gAutomapMapRight &&
-                        relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
-                        // Inside map area – handle click‑to‑move
-                        if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
-                            int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
-                            if (targetTile != -1 && targetTile != gDude->tile) {
-                                reg_anim_clear(gDude);
-                                int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
-                                bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
-                                bool run = settings.preferences.running;
-                                bool shouldRun = (run && !shift) || (!run && shift);
-                                reg_anim_begin(ANIMATION_REQUEST_RESERVED);
-                                if (shouldRun)
-                                    animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
-                                else
-                                    animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
-                                reg_anim_end();
-                                gAutomapNeedsRefresh = true;
-                            }
+    {
+        int mouseState = mouseGetEvent();
+        int mouseX, mouseY;
+        mouseGetPosition(&mouseX, &mouseY);
+        Rect winRect;
+        if (windowGetRect(gAutomapWindow, &winRect) == 0) {
+            if (mouseX >= winRect.left && mouseX < winRect.right && mouseY >= winRect.top && mouseY < winRect.bottom) {
+                // Inside automap window – consume event
+                int winW = winRect.right - winRect.left;
+                int winH = winRect.bottom - winRect.top;
+                int relX = mouseX - winRect.left;
+                int relY = mouseY - winRect.top;
+                if (!strictVanilla && relX >= gAutomapMapLeft && relX <= gAutomapMapRight && relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
+                    // Inside map area – handle click‑to‑move
+                    if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                        int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
+                        if (targetTile != -1 && targetTile != gDude->tile) {
+                            reg_anim_clear(gDude);
+                            int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+                            bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                            bool run = settings.preferences.running;
+                            bool shouldRun = (run && !shift) || (!run && shift);
+                            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+                            if (shouldRun)
+                                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                            else
+                                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                            reg_anim_end();
+                            gAutomapNeedsRefresh = true;
                         }
                     }
-                    handled = true; // consume any mouse event on the automap window
-                } else {
-                    handled = false; // outside window, let game handle
                 }
+                handled = true; // consume any mouse event on the automap window
             } else {
-                handled = false;
+                handled = false; // outside window, let game handle
             }
+        } else {
+            handled = false;
         }
-        break;
+    } break;
     default:
         handled = false;
         break;
