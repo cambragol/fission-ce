@@ -135,9 +135,8 @@ static int _script_engine_game_mode = 0;
 // Game time in ticks (1/10 second).
 //
 // 0x51C720
-//static unsigned int gGameTime = 302400;
+// static unsigned int gGameTime = 302400;
 static uint64_t gGameTime = 302400;
-
 
 // 0x51C724
 static const int gGameTimeDaysPerMonth[12] = {
