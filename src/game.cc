@@ -229,7 +229,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     queueInit();
     critterInit();
     aiInit();
-    _inven_reset_dude();
+    inventoryResetDude();
 
     if (gameSoundInit() != 0) {
         debugPrint("Sound initialization failed.\n");
@@ -415,7 +415,7 @@ void gameReset()
     lsgInit();
     critterReset();
     aiReset();
-    _inven_reset_dude();
+    inventoryResetDude();
     gameSoundReset();
     _movieStop();
     movieEffectsReset();
@@ -1060,7 +1060,7 @@ static int gameLoadGlobalVars()
 // 0x443CE8
 int globalVarsRead(const char* path, const char* section, int* variablesListLengthPtr, int** variablesListPtr)
 {
-    _inven_reset_dude();
+    inventoryResetDude();
 
     File* stream = fileOpen(path, "rt");
     if (stream == nullptr) {
