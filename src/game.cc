@@ -1020,7 +1020,7 @@ int gameSetGlobalVar(int var, int value)
     if (var == GVAR_PLAYER_REPUTATION) {
         bool shouldDisplayKarmaChanges = false;
         configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_KARMA_CHANGES_KEY, &shouldDisplayKarmaChanges);
-        if (shouldDisplayKarmaChanges) {
+        if (shouldDisplayKarmaChanges && !gStrictVanillaEnabled) {
             int diff = value - gGameGlobalVars[var];
             if (diff != 0) {
                 char formattedMessage[80];

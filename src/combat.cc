@@ -6689,7 +6689,11 @@ bool damageModGetBonusHthDamageFix()
 
 bool damageModGetDisplayBonusDamage()
 {
-    return gDisplayBonusDamage;
+    if (!gStrictVanillaEnabled){
+        return gDisplayBonusDamage;
+    } else {
+        return false;
+    }
 }
 
 static void damageModCalculateGlovz(DamageCalculationContext* context)
