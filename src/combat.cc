@@ -6689,7 +6689,7 @@ bool damageModGetBonusHthDamageFix()
 
 bool damageModGetDisplayBonusDamage()
 {
-    if (!gStrictVanillaEnabled){
+    if (!gStrictVanillaEnabled) {
         return gDisplayBonusDamage;
     } else {
         return false;
