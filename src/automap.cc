@@ -868,19 +868,22 @@ void automapShow(bool isInGame, bool isUsingScanner)
             case KEY_TAB:
                 done = true;
                 break;
-            case KEY_ALT_H:
+            case KEY_UPPERCASE_H:
+            case KEY_LOWERCASE_H:
                 if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
                     localFlags |= AUTOMAP_WTH_HIGH_DETAILS;
                     needsRefresh = true;
                 }
                 break;
-            case KEY_ALT_L:
+            case KEY_UPPERCASE_L:
+            case KEY_LOWERCASE_L:
                 if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
                     localFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
                     needsRefresh = true;
                 }
                 break;
-            case KEY_ALT_S:
+            case KEY_UPPERCASE_S:
+            case KEY_LOWERCASE_S:
                 if (localElevation != gElevation) {
                     localElevation = gElevation;
                     needsRefresh = true;
