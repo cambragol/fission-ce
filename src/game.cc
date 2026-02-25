@@ -180,7 +180,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">init_options_menu\n");
 
-    if (!gIsMapper && skipOpeningMovies < 2) {
+    if ((!gIsMapper && skipOpeningMovies < 2) || gStrictVanillaEnabled) {
 
         if (gameIsWidescreen()) {
             resizeContent(800, 500);
