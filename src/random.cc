@@ -111,8 +111,7 @@ static int randomTranslateRoll(int delta, int criticalSuccessModifier)
     // Determine if critical rolls are allowed:
     // Always allowed after the first day (gameTime >= 1 day).
     // Before the frist day, allowed only if the flag is enabled AND strict vanilla is OFF.
-    bool criticalsAllowed = (gameTime / GAME_TIME_TICKS_PER_DAY >= 1) ||
-                            (!gStrictVanillaEnabled && criticalsTimeLimitsRemoved);
+    bool criticalsAllowed = (gameTime / GAME_TIME_TICKS_PER_DAY >= 1) || (!gStrictVanillaEnabled && criticalsTimeLimitsRemoved);
 
     if (delta < 0) {
         roll = ROLL_FAILURE;
