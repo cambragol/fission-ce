@@ -6367,7 +6367,7 @@ static int _barter_compute_value_enhanced(Object* dude, Object* npc)
 // Unified entry point
 int _barter_compute_value(Object* dude, Object* npc)
 {
-    return enhancedBarter
+    return (enhancedBarter && !gStrictVanillaEnabled)
         ? _barter_compute_value_enhanced(dude, npc)
         : _barter_compute_value_original(dude, npc);
 }
@@ -6557,7 +6557,7 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
 
 int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
 {
-    return enhancedBarter
+    return (enhancedBarter && !gStrictVanillaEnabled)
         ? _barter_attempt_transaction_enhanced(dude, offerTable, npc, barterTable)
         : _barter_attempt_transaction_original(dude, offerTable, npc, barterTable);
 }
