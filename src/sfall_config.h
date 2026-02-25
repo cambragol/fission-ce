@@ -5,14 +5,14 @@
 
 namespace fallout {
 
-#define SFALL_CONFIG_FILE_NAME "fallout2.cfg"
+#define SFALL_CONFIG_FILE_NAME "fallout2.cfg" // set this to mod 'configuration' file, kept in dat - one level down - new name "fission.cfg"?
 
 // Changed category headers for better crouping in .cfg file
 #define SFALL_CONFIG_MAIN_KEY "sfall-main"
 #define SFALL_CONFIG_MISC_KEY "sfall-misc"
 #define SFALL_CONFIG_SCRIPTS_KEY "sfall-scripts"
 
-// user set gameplay improvements
+// user set gameplay improvements - move these settings to regular settings?
 #define SFALL_CONFIG_STRICT_VANILLA "StrictVanilla"
 #define SFALL_CONFIG_AUTO_QUICK_SAVE "AutoQuickSave"
 #define SFALL_CONFIG_AUTO_OPEN_DOORS "AutoOpenDoors"
@@ -68,13 +68,13 @@ namespace fallout {
 #define SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY "FemaleStartModel"
 #define SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY "DialogGenderWords"
 
-// game fixes
+// game fixes - hide, but turn off with strictVanilla?
 #define SFALL_CONFIG_USE_WALK_DISTANCE "UseWalkDistance"
 #define SFALL_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY "TownMapHotkeysFix"
 #define SFALL_CONFIG_GAME_DIALOG_FIX_KEY "DialogueFix"
 #define SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY "BonusHtHDamageFix"
 
-// files and paths
+// files and paths - add to mod settings
 #define SFALL_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
 #define SFALL_CONFIG_GLOBAL_SCRIPT_PATHS "GlobalScriptPaths"
 #define SFALL_CONFIG_CONFIG_FILE "ConfigFile"
@@ -87,7 +87,7 @@ namespace fallout {
 #define SFALL_CONFIG_ELEVATORS_FILE_KEY "ElevatorsFile"
 #define SFALL_CONFIG_CONSOLE_OUTPUT_FILE_KEY "ConsoleOutputPath"
 
-// mods
+// mods - add to mod settings?
 #define SFALL_CONFIG_BURST_MOD_ENABLED_KEY "ComputeSprayMod"
 #define SFALL_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY "ComputeSpray_CenterMult"
 #define SFALL_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY "ComputeSpray_CenterDiv"
@@ -98,7 +98,7 @@ namespace fallout {
 #define SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER 1
 #define SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR 2
 
-// others
+// others - scrap or add to mod settings?
 #define SFALL_CONFIG_IFACE_BAR_MODE "IFACE_BAR_MODE"
 #define SFALL_CONFIG_IFACE_BAR_WIDTH "IFACE_BAR_WIDTH"
 #define SFALL_CONFIG_IFACE_BAR_SIDE_ART "IFACE_BAR_SIDE_ART"

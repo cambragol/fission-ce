@@ -7,8 +7,6 @@
 
 namespace fallout {
 
-#define SFALL_CONFIG_FILE_NAME "fallout2.cfg"
-
 bool gSfallConfigInitialized = false;
 Config gSfallConfig;
 
@@ -98,7 +96,7 @@ bool sfallConfigInit(int argc, char** argv)
         strcpy(path, SFALL_CONFIG_FILE_NAME);
     }
 
-    auto configChecker = ConfigChecker(gSfallConfig, "fallout2.cfg");
+    auto configChecker = ConfigChecker(gSfallConfig, SFALL_CONFIG_FILE_NAME);
 
     configRead(&gSfallConfig, path, false);
 
