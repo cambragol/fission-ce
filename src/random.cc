@@ -6,8 +6,8 @@
 #include <random>
 
 #include "debug.h"
-#include "game_config.h"
 #include "game.h"
+#include "game_config.h"
 #include "platform_compat.h"
 #include "scripts.h"
 #include "sfall_config.h"
