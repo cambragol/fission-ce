@@ -4215,12 +4215,13 @@ static int attackComputeCriticalFailure(Attack* attack)
     }
 
     if (attack->attacker == gDude) {
-        // SFALL: Remove criticals time limits.
         bool criticalsTimeLimitsRemoved = false;
         configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
-
         unsigned int gameTime = gameTimeGetTime();
-        if (!criticalsTimeLimitsRemoved && gameTime / GAME_TIME_TICKS_PER_DAY < 6) {
+
+        // In strict vanilla mode, ignore the config and always enforce the 6‑day limit.
+        // Otherwise, only enforce if the removal feature is not enabled.
+        if ((gStrictVanillaEnabled || !criticalsTimeLimitsRemoved) && (gameTime / GAME_TIME_TICKS_PER_DAY < 6)) {
             return 0;
         }
     }
@@ -6689,7 +6690,11 @@ bool damageModGetBonusHthDamageFix()
 
 bool damageModGetDisplayBonusDamage()
 {
-    return gDisplayBonusDamage;
+    if (!gStrictVanillaEnabled) {
+        return gDisplayBonusDamage;
+    } else {
+        return false;
+    }
 }
 
 static void damageModCalculateGlovz(DamageCalculationContext* context)

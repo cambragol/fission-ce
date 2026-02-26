@@ -2105,7 +2105,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
     int autoOpenDoors = 0;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
 
-    if (autoOpenDoors) {
+    if (autoOpenDoors && !gStrictVanillaEnabled) {
         if (!isInCombat()) {
             if (proto->scenery.type == SCENERY_TYPE_DOOR) // Door
             {

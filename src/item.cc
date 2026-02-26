@@ -3428,7 +3428,11 @@ static void explosionsExit()
 
 bool explosionEmitsLight()
 {
-    return gExplosionEmitsLight;
+    if (gStrictVanillaEnabled) {
+        return false;
+    } else {
+        return gExplosionEmitsLight;
+    }
 }
 
 void weaponSetGrenadeExplosionRadius(int value)

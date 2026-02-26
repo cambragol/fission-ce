@@ -6367,7 +6367,7 @@ static int _barter_compute_value_enhanced(Object* dude, Object* npc)
 // Unified entry point
 int _barter_compute_value(Object* dude, Object* npc)
 {
-    return enhancedBarter
+    return (enhancedBarter && !gStrictVanillaEnabled)
         ? _barter_compute_value_enhanced(dude, npc)
         : _barter_compute_value_original(dude, npc);
 }
@@ -6557,13 +6557,23 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
 
 int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
 {
-    return enhancedBarter
+    return (enhancedBarter && !gStrictVanillaEnabled)
         ? _barter_attempt_transaction_enhanced(dude, offerTable, npc, barterTable)
         : _barter_attempt_transaction_original(dude, offerTable, npc, barterTable);
 }
 
 static int _barter_get_quantity_moved_items(Object* item, int maxQuantity, bool fromPlayer, bool fromInventory, bool immediate)
 {
+    // StrictVanilla override: use original simple selection
+    if (gStrictVanillaEnabled) {
+        if (maxQuantity <= 1) {
+            return maxQuantity;
+        }
+        // Original behavior
+        return inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, maxQuantity);
+    }
+
+    // Eenhanced logic
     if (maxQuantity <= 1) {
         return maxQuantity;
     }
