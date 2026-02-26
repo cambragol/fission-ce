@@ -9,6 +9,7 @@
 #include "audio_file.h"
 #include "combat.h"
 #include "debug.h"
+#include "game.h"
 #include "game_config.h"
 #include "input.h"
 #include "item.h"
@@ -776,7 +777,7 @@ int _gsound_background_play_level_music(const char* fileName, int a2)
 {
     int gaplessMusic = 0;
     configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
-    if (backgoundSoundIsPlaying() && gaplessMusic) {
+    if (backgoundSoundIsPlaying() && gaplessMusic && !gStrictVanillaEnabled) {
         if (!strcmp(fileName, gBackgroundSoundFileName)) {
             return 0;
         }

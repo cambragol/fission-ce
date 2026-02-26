@@ -1305,7 +1305,7 @@ int gameDialogAddTextOption(int messageListId, const char* text, int reaction)
     optionEntry->btn = -1;
 
     // SFALL
-    if (gNumberOptions) {
+    if (gNumberOptions && !gStrictVanillaEnabled) {
         snprintf(optionEntry->text, sizeof(optionEntry->text), "%d. %s", gGameDialogOptionEntriesLength + 1, text);
     } else {
         snprintf(optionEntry->text, sizeof(optionEntry->text), "%c %s", '\x95', text);
@@ -2302,7 +2302,7 @@ static void _gdProcessOptionsUpdate()
                 exit(1);
             }
             // SFALL
-            if (gNumberOptions) {
+            if (gNumberOptions && !gStrictVanillaEnabled) {
                 snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, text);
             } else {
                 snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%c %s", '\x95', text);
@@ -2312,7 +2312,7 @@ static void _gdProcessOptionsUpdate()
                 MessageListItem msg;
                 msg.num = 655; // Uhh... (No intelligence tests can be passed)
                 if (messageListGetItem(&gProtoMessageList, &msg)) {
-                    if (gNumberOptions) {
+                    if (gNumberOptions && !gStrictVanillaEnabled) {
                         snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, msg.text);
                     } else {
                         snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%s", msg.text);
@@ -2324,7 +2324,7 @@ static void _gdProcessOptionsUpdate()
             } else {
                 // TODO: Why only space?
                 // SFALL
-                if (gNumberOptions) {
+                if (gNumberOptions && !gStrictVanillaEnabled) {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, " ");
                 } else {
                     strcpy(dialogOptionEntry->text, " ");
@@ -2334,7 +2334,7 @@ static void _gdProcessOptionsUpdate()
             MessageListItem messageListItem;
             messageListItem.num = 650;
             if (messageListGetItem(&gProtoMessageList, &messageListItem)) {
-                if (gNumberOptions) {
+                if (gNumberOptions && !gStrictVanillaEnabled) {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, messageListItem.text);
                 } else {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%c %s", '\x95', messageListItem.text);

@@ -2105,7 +2105,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
     int autoOpenDoors = 0;
     configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
 
-    if (autoOpenDoors) {
+    if (autoOpenDoors && !gStrictVanillaEnabled) {
         if (!isInCombat()) {
             if (proto->scenery.type == SCENERY_TYPE_DOOR) // Door
             {
