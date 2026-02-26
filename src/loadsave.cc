@@ -198,7 +198,7 @@ static const int gLoadSaveFrmIds[LOAD_SAVE_FRM_COUNT] = {
 const int saveLoadPages = 10;
 constexpr int slotsPerPage = 10;
 const int saveLoadTotalSlots = saveLoadPages * slotsPerPage;
-static int gEffectiveSaveLoadPages = saveLoadPages;   // default to full capacity
+static int gEffectiveSaveLoadPages = saveLoadPages; // default to full capacity
 static int gEffectiveSaveLoadSlots = saveLoadTotalSlots; // for precomputing effective save slots
 
 // Global variable to track the current slot page
@@ -474,14 +474,13 @@ void _InitLoadSave()
 
     // Save pages limit - controlled by StrictVanilla
     if (gStrictVanillaEnabled) {
-        gEffectiveSaveLoadPages = 1;  // StrictVanilla is 1 page
+        gEffectiveSaveLoadPages = 1; // StrictVanilla is 1 page
     } else {
-        gEffectiveSaveLoadPages = saveLoadPages;  // Normal is 10 pages
+        gEffectiveSaveLoadPages = saveLoadPages; // Normal is 10 pages
     }
 
     // Precompute effective slots
     gEffectiveSaveLoadSlots = gEffectiveSaveLoadPages * slotsPerPage;
-
 }
 
 // 0x47B85C
