@@ -218,7 +218,6 @@ static void settingsFromConfig()
     settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, settings.sfall_misc.iface_bar_width);
     settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, settings.sfall_misc.iface_bar_side_art);
     settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, settings.sfall_misc.iface_bar_sides_ori);
-
 }
 
 static void settingsToConfig()
@@ -398,7 +397,6 @@ static void settingsToConfig()
     settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, settings.sfall_misc.iface_bar_width);
     settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, settings.sfall_misc.iface_bar_side_art);
     settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, settings.sfall_misc.iface_bar_sides_ori);
-
 }
 
 static void settingsRead(const char* section, const char* key, std::string& value)
