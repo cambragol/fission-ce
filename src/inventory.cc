@@ -22,6 +22,7 @@
 #include "game_dialog.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_config.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -808,7 +809,7 @@ static bool _setup_inventory(int inventoryWindowType)
     _stack[0] = _inven_dude;
 
     // turn enhanced barter on or off from conifg
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ENHANCED_BARTER, &enhancedBarter);
+    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_ENHANCED_BARTER, &enhancedBarter);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);

@@ -20,6 +20,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_config.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -655,7 +656,7 @@ int gameDialogInit()
 
     // SFALL: Use numbers for replies (instead of default knobs).
     gNumberOptions = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_NUMBERS_IS_DIALOG_KEY, &gNumberOptions);
+    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NUMBERS_IS_DIALOG_KEY, &gNumberOptions);
 
     return 0;
 }

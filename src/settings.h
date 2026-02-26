@@ -108,6 +108,20 @@ struct GraphicSettings {
     std::string widescreen_variant_suffix = "_800";
 };
 
+struct EnhancementSettings {
+    bool strict_vanilla = false;
+    int auto_quick_save = 0;
+    int auto_open_doors = 0;
+    int gapless_music = 0;
+    bool enhanced_barter = false;
+    bool numbers_is_dialog = false;
+    bool display_bonus_damage = false;
+    bool explosion_emits_light = false;
+    bool remove_criticals_time_limits = false;
+    bool display_karma_changes = false;
+    int skip_opening_movies = 0;
+};
+
 // May need to revist defaults on some of these
 struct SfallMainSettings {
     // none for now
@@ -127,14 +141,11 @@ struct SfallMiscSettings {
     int main_menu_font_color = 0;
     int main_menu_offset_x = 0;
     int main_menu_offset_y = 0;
-    int skip_opening_movies = 0;
     std::string starting_map = "";
     std::string karma_frms = "";
     std::string karma_points = "";
-    bool display_karma_changes = false;
     int override_criticals_mode = 2;
     std::string override_criticals_file = "";
-    bool remove_criticals_time_limits = false;
     std::string books_file = "";
     std::string elevators_file = "";
     std::string console_output_file = "";
@@ -149,7 +160,6 @@ struct SfallMiscSettings {
     int dynamite_max_damage = 50;
     int plastic_explosive_min_damage = 40;
     int plastic_explosive_max_damage = 80;
-    bool explosion_emits_light = false;
     int movie_timer_artimer1 = 90;
     int movie_timer_artimer2 = 180;
     int movie_timer_artimer3 = 270;
@@ -158,7 +168,6 @@ struct SfallMiscSettings {
     std::string unarmed_file = "";
     int damage_mod_formula = 0;
     bool bonus_hth_damage_fix = true;
-    bool display_bonus_damage = false;
     int use_lockpick_frm = 293;
     int use_steal_frm = 293;
     int use_traps_frm = 293;
@@ -172,22 +181,16 @@ struct SfallMiscSettings {
     bool game_dialog_gender_words = false;
     bool town_map_hotkeys_fix = true;
     std::string extra_message_lists = "";
-    bool numbers_is_dialog = false;
-    int auto_quick_save = 0;
     std::string version_string = "";
     std::string config_file = "";
     std::string patch_file = "";
     int pipboy_available_at_gamestart = 0;
     int use_walk_distance = 5;
-    int auto_open_doors = 0;
-    int gapless_music = 0;
-    int worldmap_trail_markers = 0;
-    bool enhanced_barter = false;
-    bool strict_vanilla = false;
     bool iface_bar_mode = true;
     int iface_bar_width = 800;
     int iface_bar_side_art = 0;
     bool iface_bar_sides_ori = false;
+    int worldmap_trail_markers = 0;
 };
 
 struct SfallScriptsSettings {
@@ -202,6 +205,7 @@ struct Settings {
     DebugSettings debug;
     MapperSettings mapper;
     GraphicSettings graphics;
+    EnhancementSettings enhancements;
     SfallMainSettings sfall_main; // [sfall_main] section
     SfallMiscSettings sfall_misc; // [sfall_misc] section
     SfallScriptsSettings sfall_scripts; // [sfall_scripts] section

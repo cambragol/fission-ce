@@ -4217,7 +4217,7 @@ static int attackComputeCriticalFailure(Attack* attack)
     if (attack->attacker == gDude) {
         // SFALL: Remove criticals time limits.
         bool criticalsTimeLimitsRemoved = false;
-        configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
+        configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
 
         unsigned int gameTime = gameTimeGetTime();
         if (!criticalsTimeLimitsRemoved && gameTime / GAME_TIME_TICKS_PER_DAY < 6) {
@@ -6679,7 +6679,7 @@ static void damageModInit()
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
 
     gDisplayBonusDamage = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_BONUS_DAMAGE_KEY, &gDisplayBonusDamage);
+    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_BONUS_DAMAGE_KEY, &gDisplayBonusDamage);
 }
 
 bool damageModGetBonusHthDamageFix()

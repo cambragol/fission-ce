@@ -2103,7 +2103,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
     }
 
     int autoOpenDoors = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
+    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
 
     if (autoOpenDoors) {
         if (!isInCombat()) {

@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "display_monitor.h"
 #include "game.h"
+#include "game_config.h"
 #include "interface.h"
 #include "inventory.h"
 #include "light.h"
@@ -3385,7 +3386,7 @@ bool booksGetInfo(int bookPid, int* messageIdPtr, int* skillPtr)
 static void explosionsInit()
 {
     gExplosionEmitsLight = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXPLOSION_EMITS_LIGHT_KEY, &gExplosionEmitsLight);
+    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_EXPLOSION_EMITS_LIGHT_KEY, &gExplosionEmitsLight);
 
     explosionsReset();
 }

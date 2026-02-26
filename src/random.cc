@@ -6,6 +6,7 @@
 #include <random>
 
 #include "debug.h"
+#include "game_config.h"
 #include "platform_compat.h"
 #include "scripts.h"
 #include "sfall_config.h"
@@ -104,7 +105,7 @@ static int randomTranslateRoll(int delta, int criticalSuccessModifier)
 
     // SFALL: Remove criticals time limits.
     bool criticalsTimeLimitsRemoved = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
+    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
 
     int roll;
     if (delta < 0) {

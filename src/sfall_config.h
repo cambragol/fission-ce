@@ -13,18 +13,17 @@ namespace fallout {
 #define SFALL_CONFIG_SCRIPTS_KEY "sfall-scripts"
 
 // user set gameplay improvements - move these settings to regular settings?
-#define SFALL_CONFIG_STRICT_VANILLA "StrictVanilla"
+/*#define SFALL_CONFIG_STRICT_VANILLA "StrictVanilla"
 #define SFALL_CONFIG_AUTO_QUICK_SAVE "AutoQuickSave"
 #define SFALL_CONFIG_AUTO_OPEN_DOORS "AutoOpenDoors"
 #define SFALL_CONFIG_GAPLESS_MUSIC "GaplessMusic" // note: this isn't an sfall config
-#define SFALL_CONFIG_WORLDMAP_TRAIL_MARKERS "WorldMapTravelMarkers"
 #define SFALL_CONFIG_ENHANCED_BARTER "EnhancedBarter"
 #define SFALL_CONFIG_NUMBERS_IS_DIALOG_KEY "NumbersInDialogue"
 #define SFALL_CONFIG_DISPLAY_BONUS_DAMAGE_KEY "DisplayBonusDamage"
 #define SFALL_CONFIG_EXPLOSION_EMITS_LIGHT_KEY "ExplosionsEmitLight"
 #define SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY "RemoveCriticalTimelimits"
 #define SFALL_CONFIG_DISPLAY_KARMA_CHANGES_KEY "DisplayKarmaChanges"
-#define SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY "SkipOpeningMovies"
+#define SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY "SkipOpeningMovies"*/
 
 // mod settings
 #define SFALL_CONFIG_VERSION_STRING "VersionString"
@@ -67,6 +66,7 @@ namespace fallout {
 #define SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY "MaleStartModel"
 #define SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY "FemaleStartModel"
 #define SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY "DialogGenderWords"
+#define SFALL_CONFIG_WORLDMAP_TRAIL_MARKERS "WorldMapTravelMarkers"
 
 // game fixes - hide, but turn off with strictVanilla?
 #define SFALL_CONFIG_USE_WALK_DISTANCE "UseWalkDistance"

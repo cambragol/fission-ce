@@ -775,7 +775,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
 int _gsound_background_play_level_music(const char* fileName, int a2)
 {
     int gaplessMusic = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
+    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
     if (backgoundSoundIsPlaying() && gaplessMusic) {
         if (!strcmp(fileName, gBackgroundSoundFileName)) {
             return 0;

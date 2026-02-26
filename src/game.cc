@@ -140,7 +140,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     settingsInit(isMapper, argc, argv);
 
-    gStrictVanillaEnabled = settings.sfall_misc.strict_vanilla;
+    gStrictVanillaEnabled = settings.enhancements.strict_vanilla;
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
@@ -170,7 +170,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     // SFALL: Allow to skip splash screen
     int skipOpeningMovies = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
+    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
 
     // load preferences before Splash screen to get proper brightness
     if (_init_options_menu() != 0) {
@@ -1019,7 +1019,7 @@ int gameSetGlobalVar(int var, int value)
     // SFALL: Display karma changes.
     if (var == GVAR_PLAYER_REPUTATION) {
         bool shouldDisplayKarmaChanges = false;
-        configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_KARMA_CHANGES_KEY, &shouldDisplayKarmaChanges);
+        configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_KARMA_CHANGES_KEY, &shouldDisplayKarmaChanges);
         if (shouldDisplayKarmaChanges) {
             int diff = value - gGameGlobalVars[var];
             if (diff != 0) {
