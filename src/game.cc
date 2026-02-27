@@ -108,9 +108,6 @@ int* gGameGlobalVars = nullptr;
 // 0x5186C4
 int gGameGlobalVarsLength = 0;
 
-// global for all strictVanilla controls
-bool gStrictVanillaEnabled = false;
-
 // 0x5186C8
 const char* asc_5186C8 = _aGame_0;
 
@@ -140,7 +137,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     settingsInit(isMapper, argc, argv);
 
-    gStrictVanillaEnabled = settings.enhancements.strict_vanilla;
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
@@ -168,10 +164,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         keyboardSetLayout(KEYBOARD_LAYOUT_SPANISH);
     }
 
-    // SFALL: Allow to skip splash screen
-    int skipOpeningMovies = 0;
-    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
-
     // load preferences before Splash screen to get proper brightness
     if (_init_options_menu() != 0) {
         debugPrint("Failed on init_options_menu\n");
@@ -180,7 +172,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">init_options_menu\n");
 
-    if ((!gIsMapper && skipOpeningMovies < 2) || gStrictVanillaEnabled) {
+    if ((!gIsMapper && settings.enhancements.skip_opening_movies < 2) || settings.enhancements.strict_vanilla) {
 
         if (gameIsWidescreen()) {
             resizeContent(800, 500);
@@ -1018,9 +1010,7 @@ int gameSetGlobalVar(int var, int value)
 
     // SFALL: Display karma changes.
     if (var == GVAR_PLAYER_REPUTATION) {
-        bool shouldDisplayKarmaChanges = false;
-        configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_KARMA_CHANGES_KEY, &shouldDisplayKarmaChanges);
-        if (shouldDisplayKarmaChanges && !gStrictVanillaEnabled) {
+        if (settings.enhancements.display_karma_changes && !settings.enhancements.strict_vanilla) {
             int diff = value - gGameGlobalVars[var];
             if (diff != 0) {
                 char formattedMessage[80];

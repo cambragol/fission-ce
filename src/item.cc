@@ -28,6 +28,7 @@
 #include "proto_instance.h"
 #include "queue.h"
 #include "random.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
@@ -172,7 +173,6 @@ static Object* _wd_obj;
 static int _wd_gvar;
 
 static std::vector<BookDescription> gBooks;
-static bool gExplosionEmitsLight;
 static int gGrenadeExplosionRadius;
 static int gRocketExplosionRadius;
 static int gDynamiteMinDamage;
@@ -3385,9 +3385,6 @@ bool booksGetInfo(int bookPid, int* messageIdPtr, int* skillPtr)
 
 static void explosionsInit()
 {
-    gExplosionEmitsLight = false;
-    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_EXPLOSION_EMITS_LIGHT_KEY, &gExplosionEmitsLight);
-
     explosionsReset();
 }
 
@@ -3429,10 +3426,10 @@ static void explosionsExit()
 
 bool explosionEmitsLight()
 {
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla) {
         return false;
     } else {
-        return gExplosionEmitsLight;
+        return settings.enhancements.explosion_emits_light;
     }
 }
 

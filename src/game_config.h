@@ -110,6 +110,8 @@ namespace fallout {
 #define GAME_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY "RemoveCriticalTimelimits"
 #define GAME_CONFIG_DISPLAY_KARMA_CHANGES_KEY "DisplayKarmaChanges"
 #define GAME_CONFIG_SKIP_OPENING_MOVIES_KEY "SkipOpeningMovies"
+#define GAME_CONFIG_MASS_HIGHLIGHT "MassHighlight"
+#define GAME_CONFIG_GAME_SPEED "GameSpeed"
 
 #define ENGLISH "english"
 #define FRENCH "french"

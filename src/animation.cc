@@ -3320,7 +3320,7 @@ static unsigned int animationComputeTicksPerFrame(Object* object, int fid)
 
     int animType = FID_ANIM_TYPE(fid);
 
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.game_speed) {
         // Original behaviour: only speed up walking animations in combat,
         // and only for the player if player_speedup is false.
         if (isInCombat() && animType == ANIM_WALK) {

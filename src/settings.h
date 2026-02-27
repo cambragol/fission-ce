@@ -120,6 +120,8 @@ struct EnhancementSettings {
     bool remove_criticals_time_limits = false;
     bool display_karma_changes = false;
     int skip_opening_movies = 0;
+    bool mass_highlight = true;
+    bool game_speed = true;
 };
 
 // May need to revist defaults on some of these

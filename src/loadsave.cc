@@ -345,7 +345,6 @@ static int gLoadSaveWindowOldFont;
 
 static FrmImage _loadsaveFrmImages[LOAD_SAVE_FRM_COUNT];
 
-static int quickSaveSlots = 0;
 static bool autoQuickSaveSlots = false;
 
 static LoadSaveOffsets gOffsets;
@@ -464,15 +463,14 @@ void _InitLoadSave()
     MapDirErase(PROTO_DIR_NAME "\\" CRITTERS_DIR_NAME "\\", PROTO_FILE_EXT);
     MapDirErase(PROTO_DIR_NAME "\\" ITEMS_DIR_NAME "\\", PROTO_FILE_EXT);
 
-    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_QUICK_SAVE, &quickSaveSlots);
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla) {
         autoQuickSaveSlots = false;
     } else {
-        autoQuickSaveSlots = (quickSaveSlots > 0 && quickSaveSlots <= gEffectiveSaveLoadSlots);
+        autoQuickSaveSlots = (settings.enhancements.auto_quick_save > 0 && settings.enhancements.auto_quick_save <= gEffectiveSaveLoadSlots);
     }
 
     // Save pages limit - controlled by StrictVanilla
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla) {
         gEffectiveSaveLoadPages = 1; // StrictVanilla is 1 page
     } else {
         gEffectiveSaveLoadPages = saveLoadPages; // Normal is 10 pages
@@ -509,7 +507,7 @@ int lsgSaveGame(int mode)
     if (mode == LOAD_SAVE_MODE_QUICK && _quick_done) {
         // SFALL: cycle through first N slots for quicksaving
         if (autoQuickSaveSlots) {
-            if (++_slot_cursor >= quickSaveSlots) {
+            if (++_slot_cursor >= settings.enhancements.auto_quick_save) {
                 _slot_cursor = 0;
             }
         }

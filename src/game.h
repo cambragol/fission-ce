@@ -20,7 +20,6 @@ extern int* gGameGlobalVars;
 extern int gGameGlobalVarsLength;
 extern const char* asc_5186C8;
 extern int _game_user_wants_to_quit;
-extern bool gStrictVanillaEnabled; // global for enforcing strict Vanilla gameplay
 
 extern MessageList gMiscMessageList;
 

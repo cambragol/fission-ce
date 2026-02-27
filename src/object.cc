@@ -2102,10 +2102,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
         return false;
     }
 
-    int autoOpenDoors = 0;
-    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
-
-    if (autoOpenDoors && !gStrictVanillaEnabled) {
+    if (settings.enhancements.auto_open_doors && !settings.enhancements.strict_vanilla) {
         if (!isInCombat()) {
             if (proto->scenery.type == SCENERY_TYPE_DOOR) // Door
             {

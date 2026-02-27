@@ -740,7 +740,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!gStrictVanillaEnabled && gGameMouseItemHighlightEnabled) {
+    if (!settings.enhancements.strict_vanilla && gGameMouseItemHighlightEnabled && settings.enhancements.mass_highlight) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 

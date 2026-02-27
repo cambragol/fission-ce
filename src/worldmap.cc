@@ -7139,7 +7139,7 @@ static int wmDrawCursorStopped()
 
     // Dotted Trail logic
 
-    if (worldmapTrailMarkers && !gStrictVanillaEnabled) {
+    if (worldmapTrailMarkers && !settings.enhancements.strict_vanilla) {
         static bool wasWalking = false;
         static uint32_t lastTrailDropTick = 0;
         const int baseCooldown = 25; // base time between potential dot drops

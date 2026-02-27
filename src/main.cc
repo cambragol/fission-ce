@@ -81,10 +81,8 @@ int falloutMain(int argc, char** argv)
         return 1;
     }
 
-    // SFALL: Allow to skip intro movies
-    int skipOpeningMovies;
-    configGetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
-    if (skipOpeningMovies < 1 || gStrictVanillaEnabled) {
+    // skip opening movies form settings
+    if (settings.enhancements.skip_opening_movies < 1 || settings.enhancements.strict_vanilla) {
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);

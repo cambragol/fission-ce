@@ -1985,7 +1985,6 @@ static int gBurstModTargetDivisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISO
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
 static bool gBonusHthDamageFix;
-static bool gDisplayBonusDamage;
 
 // combat_init
 // 0x420CC0
@@ -4215,14 +4214,11 @@ static int attackComputeCriticalFailure(Attack* attack)
     }
 
     if (attack->attacker == gDude) {
-        bool criticalsTimeLimitsRemoved = false;
-        configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
-
         unsigned int gameTime = gameTimeGetTime();
 
         // In strict vanilla mode, ignore the config and always enforce the 6‑day limit.
         // Otherwise, only enforce if the removal feature is not enabled.
-        if ((gStrictVanillaEnabled || !criticalsTimeLimitsRemoved) && (gameTime / GAME_TIME_TICKS_PER_DAY < 6)) {
+        if ((settings.enhancements.strict_vanilla || !settings.enhancements.remove_criticals_time_limits) && (gameTime / GAME_TIME_TICKS_PER_DAY < 6)) {
             return 0;
         }
     }
@@ -6679,9 +6675,6 @@ static void damageModInit()
 
     gBonusHthDamageFix = true;
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
-
-    gDisplayBonusDamage = false;
-    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_BONUS_DAMAGE_KEY, &gDisplayBonusDamage);
 }
 
 bool damageModGetBonusHthDamageFix()
@@ -6691,8 +6684,8 @@ bool damageModGetBonusHthDamageFix()
 
 bool damageModGetDisplayBonusDamage()
 {
-    if (!gStrictVanillaEnabled) {
-        return gDisplayBonusDamage;
+    if (!settings.enhancements.strict_vanilla) {
+        return settings.enhancements.display_bonus_damage;
     } else {
         return false;
     }

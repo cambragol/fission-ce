@@ -40,6 +40,7 @@
 #include "random.h"
 #include "reaction.h"
 #include "scripts.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
@@ -562,9 +563,6 @@ static bool _inven_redrawing_after_sort_menu = false;
 // Tracks insult-based price increases
 static int gBarterInsultIncrease = 0;
 
-// used to switch enhancedBarter on/off from config
-static bool enhancedBarter = false;
-
 // Rotation tracking for quick-click sort
 static Object* _last_quick_sorted_object;
 static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
@@ -807,9 +805,6 @@ static bool _setup_inventory(int inventoryWindowType)
     gInventorySlotsCount = 6;
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
-
-    // turn enhanced barter on or off from conifg
-    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_ENHANCED_BARTER, &enhancedBarter);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);
@@ -5921,7 +5916,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 int newInventoryWeight = objectGetInventoryWeight(target);
                 if (newInventoryWeight <= maxCarryWeight - currentWeight) {
                     itemMoveAll(target, looter); // items moved
-                    if (!gStrictVanillaEnabled) {
+                    if (!settings.enhancements.strict_vanilla) {
                         soundPlayFile("ib1p1xx1");
                         break; // Exit loop early and close window for convenience
                     }
@@ -6368,7 +6363,7 @@ static int _barter_compute_value_enhanced(Object* dude, Object* npc)
 // Unified entry point
 int _barter_compute_value(Object* dude, Object* npc)
 {
-    return (enhancedBarter && !gStrictVanillaEnabled)
+    return (settings.enhancements.enhanced_barter && !settings.enhancements.strict_vanilla)
         ? _barter_compute_value_enhanced(dude, npc)
         : _barter_compute_value_original(dude, npc);
 }
@@ -6558,7 +6553,7 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
 
 int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, Object* barterTable)
 {
-    return (enhancedBarter && !gStrictVanillaEnabled)
+    return (settings.enhancements.enhanced_barter && !settings.enhancements.strict_vanilla)
         ? _barter_attempt_transaction_enhanced(dude, offerTable, npc, barterTable)
         : _barter_attempt_transaction_original(dude, offerTable, npc, barterTable);
 }
@@ -6566,7 +6561,7 @@ int _barter_attempt_transaction(Object* dude, Object* offerTable, Object* npc, O
 static int _barter_get_quantity_moved_items(Object* item, int maxQuantity, bool fromPlayer, bool fromInventory, bool immediate)
 {
     // StrictVanilla override: use original simple selection
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla) {
         if (maxQuantity <= 1) {
             return maxQuantity;
         }
@@ -7483,7 +7478,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             value = max;
             _draw_amount(value, inventoryWindowType);
 
-            if (!gStrictVanillaEnabled) {
+            if (!settings.enhancements.strict_vanilla) {
                 // For move items, treat "All" as immediate confirmation
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
                     break; // Exit loop to return the value

@@ -34,6 +34,7 @@
 #include "proto.h"
 #include "random.h"
 #include "scripts.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
@@ -644,7 +645,6 @@ static void _options_scroll_down(int btn, int keyCode);
 static void _gdProcessOptionsUpdate();
 
 static bool gGameDialogFix;
-static bool gNumberOptions;
 
 // gdialog_init
 // 0x444D1C
@@ -653,10 +653,6 @@ int gameDialogInit()
     // SFALL: Prevents from using 0 to escape from dialogue at any time.
     gGameDialogFix = true;
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_FIX_KEY, &gGameDialogFix);
-
-    // SFALL: Use numbers for replies (instead of default knobs).
-    gNumberOptions = false;
-    configGetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NUMBERS_IS_DIALOG_KEY, &gNumberOptions);
 
     return 0;
 }
@@ -1305,7 +1301,7 @@ int gameDialogAddTextOption(int messageListId, const char* text, int reaction)
     optionEntry->btn = -1;
 
     // SFALL
-    if (gNumberOptions && !gStrictVanillaEnabled) {
+    if (settings.enhancements.numbers_is_dialog && !settings.enhancements.strict_vanilla) {
         snprintf(optionEntry->text, sizeof(optionEntry->text), "%d. %s", gGameDialogOptionEntriesLength + 1, text);
     } else {
         snprintf(optionEntry->text, sizeof(optionEntry->text), "%c %s", '\x95', text);
@@ -2302,7 +2298,7 @@ static void _gdProcessOptionsUpdate()
                 exit(1);
             }
             // SFALL
-            if (gNumberOptions && !gStrictVanillaEnabled) {
+            if (settings.enhancements.numbers_is_dialog && !settings.enhancements.strict_vanilla) {
                 snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, text);
             } else {
                 snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%c %s", '\x95', text);
@@ -2312,7 +2308,7 @@ static void _gdProcessOptionsUpdate()
                 MessageListItem msg;
                 msg.num = 655; // Uhh... (No intelligence tests can be passed)
                 if (messageListGetItem(&gProtoMessageList, &msg)) {
-                    if (gNumberOptions && !gStrictVanillaEnabled) {
+                    if (settings.enhancements.numbers_is_dialog && !settings.enhancements.strict_vanilla) {
                         snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, msg.text);
                     } else {
                         snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%s", msg.text);
@@ -2324,7 +2320,7 @@ static void _gdProcessOptionsUpdate()
             } else {
                 // TODO: Why only space?
                 // SFALL
-                if (gNumberOptions && !gStrictVanillaEnabled) {
+                if (settings.enhancements.numbers_is_dialog && !settings.enhancements.strict_vanilla) {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, " ");
                 } else {
                     strcpy(dialogOptionEntry->text, " ");
@@ -2334,7 +2330,7 @@ static void _gdProcessOptionsUpdate()
             MessageListItem messageListItem;
             messageListItem.num = 650;
             if (messageListGetItem(&gProtoMessageList, &messageListItem)) {
-                if (gNumberOptions && !gStrictVanillaEnabled) {
+                if (settings.enhancements.numbers_is_dialog && !settings.enhancements.strict_vanilla) {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%d. %s", index + 1, messageListItem.text);
                 } else {
                     snprintf(dialogOptionEntry->text, sizeof(dialogOptionEntry->text), "%c %s", '\x95', messageListItem.text);
