@@ -1289,7 +1289,7 @@ static void _pip_init_()
     // bypassed. CE implements only the latter approach, as it does not have any
     // side effects.
     int value = 0;
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, &value)) {
+    if (configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, &value)) {
         pipboy_available_at_game_start = value == 1 || value == 2;
     }
 }

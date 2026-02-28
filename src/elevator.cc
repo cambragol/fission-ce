@@ -650,7 +650,7 @@ static int elevatorGetLevelFromKeyCode(int elevator, int keyCode)
 void elevatorsInit()
 {
     char* elevatorsFileName;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ELEVATORS_FILE_KEY, &elevatorsFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_ELEVATORS_FILE_KEY, &elevatorsFileName);
     if (elevatorsFileName != nullptr && *elevatorsFileName == '\0') {
         elevatorsFileName = nullptr;
     }

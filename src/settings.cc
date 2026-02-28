@@ -145,81 +145,79 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MASS_HIGHLIGHT, settings.enhancements.mass_highlight);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, settings.enhancements.game_speed);
 
-    // sfall settings
     // Mod Settings
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.sfall_misc.dude_native_look_jumpsuit_male);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, settings.sfall_misc.dude_native_look_jumpsuit_female);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, settings.sfall_misc.dude_native_look_tribal_male);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, settings.sfall_misc.dude_native_look_tribal_female);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_YEAR, settings.sfall_misc.start_year);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_MONTH, settings.sfall_misc.start_month);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_DAY, settings.sfall_misc.start_day);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, settings.sfall_misc.main_menu_big_font_color);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, settings.sfall_misc.main_menu_credits_offset_x);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, settings.sfall_misc.main_menu_credits_offset_y);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_FONT_COLOR_KEY, settings.sfall_misc.main_menu_font_color);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_X_KEY, settings.sfall_misc.main_menu_offset_x);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_Y_KEY, settings.sfall_misc.main_menu_offset_y);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, settings.sfall_misc.starting_map);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_FRMS_KEY, settings.sfall_misc.karma_frms);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_POINTS_KEY, settings.sfall_misc.karma_points);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, settings.sfall_misc.override_criticals_mode);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, settings.sfall_misc.override_criticals_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, settings.sfall_misc.premade_characters_file_names);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, settings.sfall_misc.premade_characters_face_fids);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, settings.sfall_misc.dynamite_min_damage);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, settings.sfall_misc.dynamite_max_damage);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, settings.sfall_misc.plastic_explosive_min_damage);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, settings.sfall_misc.plastic_explosive_max_damage);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER1, settings.sfall_misc.movie_timer_artimer1);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER2, settings.sfall_misc.movie_timer_artimer2);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER3, settings.sfall_misc.movie_timer_artimer3);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER4, settings.sfall_misc.movie_timer_artimer4);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, settings.sfall_misc.pipboy_available_at_gamestart);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DAMAGE_MOD_FORMULA_KEY, settings.sfall_misc.damage_mod_formula);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_LOCKPICK_FRM_KEY, settings.sfall_misc.use_lockpick_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_STEAL_FRM_KEY, settings.sfall_misc.use_steal_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_TRAPS_FRM_KEY, settings.sfall_misc.use_traps_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_FIRST_AID_FRM_KEY, settings.sfall_misc.use_first_aid_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_DOCTOR_FRM_KEY, settings.sfall_misc.use_doctor_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_SCIENCE_FRM_KEY, settings.sfall_misc.use_science_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_REPAIR_FRM_KEY, settings.sfall_misc.use_repair_frm);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.sfall_misc.science_repair_target_type);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.sfall_misc.game_dialog_gender_words);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.sfall_misc.worldmap_trail_markers);
+    /*settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_female);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, settings.mod_settings.dude_native_look_tribal_male);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, settings.mod_settings.dude_native_look_tribal_female);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, settings.mod_settings.start_year);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, settings.mod_settings.start_month);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, settings.mod_settings.start_day);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, settings.mod_settings.main_menu_big_font_color);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, settings.mod_settings.main_menu_credits_offset_x);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, settings.mod_settings.main_menu_credits_offset_y);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_FONT_COLOR_KEY, settings.mod_settings.main_menu_font_color);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_X_KEY, settings.mod_settings.main_menu_offset_x);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_Y_KEY, settings.mod_settings.main_menu_offset_y);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_STARTING_MAP_KEY, settings.mod_settings.starting_map);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_FRMS_KEY, settings.mod_settings.karma_frms);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_POINTS_KEY, settings.mod_settings.karma_points);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, settings.mod_settings.override_criticals_mode);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, settings.mod_settings.override_criticals_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, settings.mod_settings.premade_characters_file_names);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, settings.mod_settings.premade_characters_face_fids);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, settings.mod_settings.dynamite_min_damage);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, settings.mod_settings.dynamite_max_damage);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, settings.mod_settings.plastic_explosive_min_damage);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, settings.mod_settings.plastic_explosive_max_damage);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER1, settings.mod_settings.movie_timer_artimer1);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER2, settings.mod_settings.movie_timer_artimer2);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER3, settings.mod_settings.movie_timer_artimer3);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER4, settings.mod_settings.movie_timer_artimer4);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, settings.mod_settings.pipboy_available_at_gamestart);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, settings.mod_settings.damage_mod_formula);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_LOCKPICK_FRM_KEY, settings.mod_settings.use_lockpick_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_STEAL_FRM_KEY, settings.mod_settings.use_steal_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_TRAPS_FRM_KEY, settings.mod_settings.use_traps_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_FIRST_AID_FRM_KEY, settings.mod_settings.use_first_aid_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_DOCTOR_FRM_KEY, settings.mod_settings.use_doctor_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_SCIENCE_FRM_KEY, settings.mod_settings.use_science_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_REPAIR_FRM_KEY, settings.mod_settings.use_repair_frm);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.mod_settings.science_repair_target_type);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
 
     // Game Fixes
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_WALK_DISTANCE, settings.sfall_misc.use_walk_distance);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, settings.sfall_misc.town_map_hotkeys_fix);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_FIX_KEY, settings.sfall_misc.game_dialog_fix);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, settings.sfall_misc.bonus_hth_damage_fix);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, settings.mod_settings.town_map_hotkeys_fix);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, settings.mod_settings.game_dialog_fix);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, settings.mod_settings.bonus_hth_damage_fix);
 
     // Files and Paths
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BOOKS_FILE_KEY, settings.sfall_misc.books_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ELEVATORS_FILE_KEY, settings.sfall_misc.elevators_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONSOLE_OUTPUT_FILE_KEY, settings.sfall_misc.console_output_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CITY_REPUTATION_LIST_KEY, settings.sfall_misc.city_reputation_list);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_UNARMED_FILE_KEY, settings.sfall_misc.unarmed_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TWEAKS_FILE_KEY, settings.sfall_misc.tweaks_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXTRA_MESSAGE_LISTS_KEY, settings.sfall_misc.extra_message_lists);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONFIG_FILE, settings.sfall_misc.config_file);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PATCH_FILE, settings.sfall_misc.patch_file);
-    settingsRead(SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, settings.sfall_scripts.ini_config_folder);
-    settingsRead(SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_GLOBAL_SCRIPT_PATHS, settings.sfall_scripts.global_script_paths);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BOOKS_FILE_KEY, settings.mod_settings.books_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_ELEVATORS_FILE_KEY, settings.mod_settings.elevators_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, settings.mod_settings.console_output_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CITY_REPUTATION_LIST_KEY, settings.mod_settings.city_reputation_list);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, settings.mod_settings.unarmed_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TWEAKS_FILE_KEY, settings.mod_settings.tweaks_file);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY, settings.mod_settings.extra_message_lists);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, settings.mod_settings.patch_file);
+    settingsRead(MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, settings.mod_scripts.ini_config_folder);
+    settingsRead(MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_GLOBAL_SCRIPT_PATHS, settings.mod_scripts.global_script_paths);
 
     // Mods (Burst)
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_ENABLED_KEY, settings.sfall_misc.burst_mod_enabled);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, settings.sfall_misc.burst_mod_center_multiplier);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, settings.sfall_misc.burst_mod_center_divisor);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, settings.sfall_misc.burst_mod_target_multiplier);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, settings.sfall_misc.burst_mod_target_divisor);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, settings.mod_settings.burst_mod_enabled);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, settings.mod_settings.burst_mod_center_multiplier);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, settings.mod_settings.burst_mod_center_divisor);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, settings.mod_settings.burst_mod_target_multiplier);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, settings.mod_settings.burst_mod_target_divisor);
 
     // Others
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_VERSION_STRING, settings.sfall_misc.version_string);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_MODE, settings.sfall_misc.iface_bar_mode);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, settings.sfall_misc.iface_bar_width);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, settings.sfall_misc.iface_bar_side_art);
-    settingsRead(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, settings.sfall_misc.iface_bar_sides_ori);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, settings.mod_settings.version_string);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_MODE, settings.mod_settings.iface_bar_mode);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, settings.mod_settings.iface_bar_width);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, settings.mod_settings.iface_bar_side_art);
+    settingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, settings.mod_settings.iface_bar_sides_ori);*/
 }
 
 static void settingsToConfig()
@@ -326,81 +324,79 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MASS_HIGHLIGHT, settings.enhancements.mass_highlight);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, settings.enhancements.game_speed);
 
-    // sfall settings
     // Mod Settings
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.sfall_misc.dude_native_look_jumpsuit_male);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, settings.sfall_misc.dude_native_look_jumpsuit_female);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, settings.sfall_misc.dude_native_look_tribal_male);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, settings.sfall_misc.dude_native_look_tribal_female);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_YEAR, settings.sfall_misc.start_year);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_MONTH, settings.sfall_misc.start_month);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_DAY, settings.sfall_misc.start_day);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, settings.sfall_misc.main_menu_big_font_color);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, settings.sfall_misc.main_menu_credits_offset_x);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, settings.sfall_misc.main_menu_credits_offset_y);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_FONT_COLOR_KEY, settings.sfall_misc.main_menu_font_color);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_X_KEY, settings.sfall_misc.main_menu_offset_x);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_Y_KEY, settings.sfall_misc.main_menu_offset_y);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, settings.sfall_misc.starting_map);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_FRMS_KEY, settings.sfall_misc.karma_frms);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_POINTS_KEY, settings.sfall_misc.karma_points);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, settings.sfall_misc.override_criticals_mode);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, settings.sfall_misc.override_criticals_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, settings.sfall_misc.premade_characters_file_names);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, settings.sfall_misc.premade_characters_face_fids);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, settings.sfall_misc.dynamite_min_damage);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, settings.sfall_misc.dynamite_max_damage);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, settings.sfall_misc.plastic_explosive_min_damage);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, settings.sfall_misc.plastic_explosive_max_damage);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER1, settings.sfall_misc.movie_timer_artimer1);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER2, settings.sfall_misc.movie_timer_artimer2);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER3, settings.sfall_misc.movie_timer_artimer3);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER4, settings.sfall_misc.movie_timer_artimer4);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, settings.sfall_misc.pipboy_available_at_gamestart);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DAMAGE_MOD_FORMULA_KEY, settings.sfall_misc.damage_mod_formula);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_LOCKPICK_FRM_KEY, settings.sfall_misc.use_lockpick_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_STEAL_FRM_KEY, settings.sfall_misc.use_steal_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_TRAPS_FRM_KEY, settings.sfall_misc.use_traps_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_FIRST_AID_FRM_KEY, settings.sfall_misc.use_first_aid_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_DOCTOR_FRM_KEY, settings.sfall_misc.use_doctor_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_SCIENCE_FRM_KEY, settings.sfall_misc.use_science_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_REPAIR_FRM_KEY, settings.sfall_misc.use_repair_frm);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.sfall_misc.science_repair_target_type);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.sfall_misc.game_dialog_gender_words);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.sfall_misc.worldmap_trail_markers);
+    /*settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_female);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, settings.mod_settings.dude_native_look_tribal_male);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, settings.mod_settings.dude_native_look_tribal_female);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, settings.mod_settings.start_year);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, settings.mod_settings.start_month);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, settings.mod_settings.start_day);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, settings.mod_settings.main_menu_big_font_color);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, settings.mod_settings.main_menu_credits_offset_x);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, settings.mod_settings.main_menu_credits_offset_y);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_FONT_COLOR_KEY, settings.mod_settings.main_menu_font_color);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_X_KEY, settings.mod_settings.main_menu_offset_x);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_Y_KEY, settings.mod_settings.main_menu_offset_y);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_STARTING_MAP_KEY, settings.mod_settings.starting_map);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_FRMS_KEY, settings.mod_settings.karma_frms);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_POINTS_KEY, settings.mod_settings.karma_points);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, settings.mod_settings.override_criticals_mode);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, settings.mod_settings.override_criticals_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, settings.mod_settings.premade_characters_file_names);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, settings.mod_settings.premade_characters_face_fids);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, settings.mod_settings.dynamite_min_damage);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, settings.mod_settings.dynamite_max_damage);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, settings.mod_settings.plastic_explosive_min_damage);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, settings.mod_settings.plastic_explosive_max_damage);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER1, settings.mod_settings.movie_timer_artimer1);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER2, settings.mod_settings.movie_timer_artimer2);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER3, settings.mod_settings.movie_timer_artimer3);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER4, settings.mod_settings.movie_timer_artimer4);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, settings.mod_settings.pipboy_available_at_gamestart);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, settings.mod_settings.damage_mod_formula);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_LOCKPICK_FRM_KEY, settings.mod_settings.use_lockpick_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_STEAL_FRM_KEY, settings.mod_settings.use_steal_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_TRAPS_FRM_KEY, settings.mod_settings.use_traps_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_FIRST_AID_FRM_KEY, settings.mod_settings.use_first_aid_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_DOCTOR_FRM_KEY, settings.mod_settings.use_doctor_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_SCIENCE_FRM_KEY, settings.mod_settings.use_science_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_REPAIR_FRM_KEY, settings.mod_settings.use_repair_frm);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.mod_settings.science_repair_target_type);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
 
     // Game Fixes
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_WALK_DISTANCE, settings.sfall_misc.use_walk_distance);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, settings.sfall_misc.town_map_hotkeys_fix);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_FIX_KEY, settings.sfall_misc.game_dialog_fix);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, settings.sfall_misc.bonus_hth_damage_fix);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, settings.mod_settings.town_map_hotkeys_fix);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, settings.mod_settings.game_dialog_fix);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, settings.mod_settings.bonus_hth_damage_fix);
 
     // Files and Paths
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BOOKS_FILE_KEY, settings.sfall_misc.books_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ELEVATORS_FILE_KEY, settings.sfall_misc.elevators_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONSOLE_OUTPUT_FILE_KEY, settings.sfall_misc.console_output_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CITY_REPUTATION_LIST_KEY, settings.sfall_misc.city_reputation_list);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_UNARMED_FILE_KEY, settings.sfall_misc.unarmed_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TWEAKS_FILE_KEY, settings.sfall_misc.tweaks_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXTRA_MESSAGE_LISTS_KEY, settings.sfall_misc.extra_message_lists);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONFIG_FILE, settings.sfall_misc.config_file);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PATCH_FILE, settings.sfall_misc.patch_file);
-    settingsWrite(SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, settings.sfall_scripts.ini_config_folder);
-    settingsWrite(SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_GLOBAL_SCRIPT_PATHS, settings.sfall_scripts.global_script_paths);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BOOKS_FILE_KEY, settings.mod_settings.books_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_ELEVATORS_FILE_KEY, settings.mod_settings.elevators_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, settings.mod_settings.console_output_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CITY_REPUTATION_LIST_KEY, settings.mod_settings.city_reputation_list);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, settings.mod_settings.unarmed_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TWEAKS_FILE_KEY, settings.mod_settings.tweaks_file);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY, settings.mod_settings.extra_message_lists);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, settings.mod_settings.patch_file);
+    settingsWrite(MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, settings.mod_scripts.ini_config_folder);
+    settingsWrite(MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_GLOBAL_SCRIPT_PATHS, settings.mod_scripts.global_script_paths);
 
     // Mods (Burst)
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_ENABLED_KEY, settings.sfall_misc.burst_mod_enabled);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, settings.sfall_misc.burst_mod_center_multiplier);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, settings.sfall_misc.burst_mod_center_divisor);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, settings.sfall_misc.burst_mod_target_multiplier);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, settings.sfall_misc.burst_mod_target_divisor);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, settings.mod_settings.burst_mod_enabled);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, settings.mod_settings.burst_mod_center_multiplier);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, settings.mod_settings.burst_mod_center_divisor);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, settings.mod_settings.burst_mod_target_multiplier);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, settings.mod_settings.burst_mod_target_divisor);
 
     // Others
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_VERSION_STRING, settings.sfall_misc.version_string);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_MODE, settings.sfall_misc.iface_bar_mode);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, settings.sfall_misc.iface_bar_width);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, settings.sfall_misc.iface_bar_side_art);
-    settingsWrite(SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, settings.sfall_misc.iface_bar_sides_ori);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, settings.mod_settings.version_string);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_MODE, settings.mod_settings.iface_bar_mode);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, settings.mod_settings.iface_bar_width);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, settings.mod_settings.iface_bar_side_art);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, settings.mod_settings.iface_bar_sides_ori);*/
 }
 
 static void settingsRead(const char* section, const char* key, std::string& value)

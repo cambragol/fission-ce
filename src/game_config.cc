@@ -190,13 +190,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
         fileNameListFree(&acms, 0);
     }
 
-    // SFALL: Custom config file name.
-    char* customConfigFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONFIG_FILE, &customConfigFileName);
-
-    const char* configFileName = customConfigFileName != nullptr && *customConfigFileName != '\0'
-        ? customConfigFileName
-        : DEFAULT_GAME_CONFIG_FILE_NAME;
+    const char* configFileName = DEFAULT_GAME_CONFIG_FILE_NAME;
 
     // Make `fallout2.cfg` file path.
     char* executable = argv[0];

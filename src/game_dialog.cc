@@ -652,7 +652,7 @@ int gameDialogInit()
 {
     // SFALL: Prevents from using 0 to escape from dialogue at any time.
     gGameDialogFix = true;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_FIX_KEY, &gGameDialogFix);
+    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, &gGameDialogFix);
 
     return 0;
 }

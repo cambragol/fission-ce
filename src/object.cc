@@ -2701,7 +2701,7 @@ int objectGetDistanceBetweenTiles(Object* object1, int tile1, Object* object2, i
 bool objectWithinWalkDistance(Object* critter, Object* target)
 {
     int walkDistance = 5;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_WALK_DISTANCE, &walkDistance);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, &walkDistance);
     if (objectGetDistanceBetween(critter, target) >= walkDistance) {
         return false;
     }

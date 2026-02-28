@@ -37,7 +37,7 @@ bool sfall_gl_scr_init()
     }
 
     char* paths;
-    configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_GLOBAL_SCRIPT_PATHS, &paths);
+    configGetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_GLOBAL_SCRIPT_PATHS, &paths);
 
     char* curr = paths;
     while (curr != nullptr && *curr != '\0') {

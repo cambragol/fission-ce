@@ -1978,10 +1978,10 @@ static const char* gCritDataMemberKeys[CRIT_DATA_MEMBER_COUNT] = {
 };
 
 static bool gBurstModEnabled = false;
-static int gBurstModCenterMultiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-static int gBurstModCenterDivisor = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-static int gBurstModTargetMultiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-static int gBurstModTargetDivisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+static int gBurstModCenterMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
+static int gBurstModCenterDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
+static int gBurstModTargetMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
+static int gBurstModTargetDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
 static bool gBonusHthDamageFix;
@@ -6059,7 +6059,7 @@ int combatGetTargetHighlight()
 static void criticalsInit()
 {
     int mode = 2;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, &mode);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, &mode);
     if (mode < 0 || mode > 3) {
         mode = 0;
     }
@@ -6201,7 +6201,7 @@ static void criticalsInit()
         Config criticalsConfig;
         if (configInit(&criticalsConfig)) {
             char* criticalsConfigFilePath;
-            configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, &criticalsConfigFilePath);
+            configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, &criticalsConfigFilePath);
             if (criticalsConfigFilePath != nullptr && *criticalsConfigFilePath == '\0') {
                 criticalsConfigFilePath = nullptr;
             }
@@ -6318,10 +6318,10 @@ void criticalsResetValue(int killType, int hitLocation, int effect, int dataMemb
 
 static void burstModInit()
 {
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_ENABLED_KEY, &gBurstModEnabled);
+    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, &gBurstModEnabled);
 
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, &gBurstModCenterMultiplier);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, &gBurstModCenterDivisor);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, &gBurstModCenterMultiplier);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, &gBurstModCenterDivisor);
     if (gBurstModCenterDivisor < 1) {
         gBurstModCenterDivisor = 1;
     }
@@ -6329,8 +6329,8 @@ static void burstModInit()
         gBurstModCenterMultiplier = gBurstModCenterDivisor;
     }
 
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, &gBurstModTargetMultiplier);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, &gBurstModTargetDivisor);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, &gBurstModTargetMultiplier);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, &gBurstModTargetDivisor);
     if (gBurstModTargetDivisor < 1) {
         gBurstModTargetDivisor = 1;
     }
@@ -6538,7 +6538,7 @@ static void unarmedInitVanilla()
 static void unarmedInitCustom()
 {
     char* unarmedFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_UNARMED_FILE_KEY, &unarmedFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, &unarmedFileName);
     if (unarmedFileName != nullptr && *unarmedFileName == '\0') {
         unarmedFileName = nullptr;
     }
@@ -6671,10 +6671,10 @@ static int unarmedGetHitModeInRange(int firstHitMode, int lastHitMode, bool isSe
 static void damageModInit()
 {
     gDamageCalculationType = DAMAGE_CALCULATION_TYPE_VANILLA;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DAMAGE_MOD_FORMULA_KEY, &gDamageCalculationType);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, &gDamageCalculationType);
 
     gBonusHthDamageFix = true;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
+    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
 }
 
 bool damageModGetBonusHthDamageFix()

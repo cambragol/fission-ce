@@ -413,7 +413,7 @@ void displayMonitorEnable()
 static void consoleFileInit()
 {
     char* consoleFilePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONSOLE_OUTPUT_FILE_KEY, &consoleFilePath);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, &consoleFilePath);
     if (consoleFilePath != nullptr && *consoleFilePath == '\0') {
         consoleFilePath = nullptr;
     }

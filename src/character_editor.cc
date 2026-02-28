@@ -7695,7 +7695,7 @@ static int genericReputationCompare(const void* a1, const void* a2)
 static void customKarmaFolderInit()
 {
     char* karmaFrms = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_FRMS_KEY, &karmaFrms);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_FRMS_KEY, &karmaFrms);
     if (karmaFrms != nullptr && karmaFrms[0] == '\0') {
         karmaFrms = nullptr;
     }
@@ -7705,7 +7705,7 @@ static void customKarmaFolderInit()
     }
 
     char* karmaPoints = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_POINTS_KEY, &karmaPoints);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_POINTS_KEY, &karmaPoints);
     if (karmaPoints != nullptr && karmaPoints[0] == '\0') {
         karmaPoints = nullptr;
     }
@@ -7784,7 +7784,7 @@ static int customKarmaFolderGetFrmId()
 static void customTownReputationInit()
 {
     char* reputationList = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CITY_REPUTATION_LIST_KEY, &reputationList);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CITY_REPUTATION_LIST_KEY, &reputationList);
     if (reputationList != nullptr && *reputationList == '\0') {
         reputationList = nullptr;
     }

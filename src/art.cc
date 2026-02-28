@@ -947,25 +947,25 @@ static int artInitCritterData()
 
     // SFALL: Modify player model settings.
     char* jumpsuitMaleFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, &jumpsuitMaleFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, &jumpsuitMaleFileName);
     if (jumpsuitMaleFileName == nullptr || jumpsuitMaleFileName[0] == '\0') {
         jumpsuitMaleFileName = gDefaultJumpsuitMaleFileName;
     }
 
     char* jumpsuitFemaleFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, &jumpsuitFemaleFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, &jumpsuitFemaleFileName);
     if (jumpsuitFemaleFileName == nullptr || jumpsuitFemaleFileName[0] == '\0') {
         jumpsuitFemaleFileName = gDefaultJumpsuitFemaleFileName;
     }
 
     char* tribalMaleFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, &tribalMaleFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, &tribalMaleFileName);
     if (tribalMaleFileName == nullptr || tribalMaleFileName[0] == '\0') {
         tribalMaleFileName = gDefaultTribalMaleFileName;
     }
 
     char* tribalFemaleFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, &tribalFemaleFileName);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, &tribalFemaleFileName);
     if (tribalFemaleFileName == nullptr || tribalFemaleFileName[0] == '\0') {
         tribalFemaleFileName = gDefaultTribalFemaleFileName;
     }

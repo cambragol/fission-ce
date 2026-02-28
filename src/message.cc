@@ -613,7 +613,7 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
     }
 
     bool enabled = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, &enabled);
+    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, &enabled);
     if (!enabled) {
         return;
     }
@@ -1060,7 +1060,7 @@ bool messageListRepositoryInit()
     }
 
     char* fileList;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXTRA_MESSAGE_LISTS_KEY, &fileList);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY, &fileList);
     if (fileList != nullptr && *fileList == '\0') {
         fileList = nullptr;
     }

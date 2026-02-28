@@ -116,7 +116,7 @@ int falloutMain(int argc, char** argv)
 
                     // SFALL: Override starting map.
                     char* mapName = nullptr;
-                    if (configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, &mapName)) {
+                    if (configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_STARTING_MAP_KEY, &mapName)) {
                         if (*mapName == '\0') {
                             mapName = nullptr;
                         }

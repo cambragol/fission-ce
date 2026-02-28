@@ -137,13 +137,13 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     if (gameDbInit() == -1) {
         settingsExit(false);
-        // sfallConfigExit();
+        // modConfigExit();
         return -1;
     }
 
     // put after gameDbInit, because we are loading from dat or data folder
     // sfall config file override no longers works - remove
-    sfallConfigInit(argc, argv);
+    modConfigInit(argc, argv);
 
     // Message list repository is considered a specialized file manager, so
     // it should be initialized early in the process.
@@ -383,7 +383,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     }
 
     char* customConfigBasePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
+    configGetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
     sfall_ini_set_base_path(customConfigBasePath);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MISC, &gMiscMessageList);
@@ -487,7 +487,7 @@ void gameExit()
     messageListRepositoryExit();
     dbExit();
     settingsExit(true);
-    sfallConfigExit();
+    modConfigExit();
 }
 
 // 0x442D44
@@ -1442,7 +1442,7 @@ static int gameDbInit()
 
     // SFALL: custom patch file name.
     char* path_file_name_template = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PATCH_FILE, &path_file_name_template);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, &path_file_name_template);
     if (path_file_name_template == nullptr || *path_file_name_template == '\0') {
         path_file_name_template = (char*)"patch%03d.dat";
     }

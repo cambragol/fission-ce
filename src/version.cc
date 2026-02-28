@@ -10,7 +10,7 @@ void versionGetVersion(char* dest, size_t size)
 {
     // SFALL: custom version string.
     char* versionString = nullptr;
-    if (configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_VERSION_STRING, &versionString)) {
+    if (configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, &versionString)) {
         if (*versionString == '\0') {
             versionString = nullptr;
         }

@@ -1014,13 +1014,13 @@ static bool characterSelectorWindowFatalError(bool result)
 void premadeCharactersInit()
 {
     char* fileNamesString;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, &fileNamesString);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, &fileNamesString);
     if (fileNamesString != nullptr && *fileNamesString == '\0') {
         fileNamesString = nullptr;
     }
 
     char* faceFidsString;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, &faceFidsString);
+    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, &faceFidsString);
     if (faceFidsString != nullptr && *faceFidsString == '\0') {
         faceFidsString = nullptr;
     }

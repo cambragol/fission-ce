@@ -205,14 +205,14 @@ int mainMenuWindowInit()
     //        0x020000 - underline text (only for the version string)
     //        0x040000 - monospace font (only for the version string)
     int fontSettings = _colorTable[21091], fontSettingsSFall = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_FONT_COLOR_KEY, &fontSettingsSFall);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_FONT_COLOR_KEY, &fontSettingsSFall);
     if (fontSettingsSFall && !(fontSettingsSFall & 0x010000))
         fontSettings = fontSettingsSFall & 0xFF;
 
     // SFALL: Allow to move copyright text
     int offsetX = 0, offsetY = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, &offsetX);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, &offsetY);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, &offsetX);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, &offsetY);
 
     // Copyright.
     msg.num = 20;
@@ -282,8 +282,8 @@ int mainMenuWindowInit()
 
     // SFALL: Allow to move menu buttons via offsetX and offsetY
     offsetX = offsetY = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_X_KEY, &offsetX);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_Y_KEY, &offsetY);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_X_KEY, &offsetX);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_Y_KEY, &offsetY);
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         gMainMenuButtons[index] = buttonCreate(gMainMenuWindow,
@@ -312,7 +312,7 @@ int mainMenuWindowInit()
     // SFALL: Allow to change font color of buttons
     fontSettings = _colorTable[21091];
     fontSettingsSFall = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, &fontSettingsSFall);
+    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, &fontSettingsSFall);
     if (fontSettingsSFall)
         fontSettings = fontSettingsSFall & 0xFF;
 

@@ -124,12 +124,7 @@ struct EnhancementSettings {
     bool game_speed = true;
 };
 
-// May need to revist defaults on some of these
-struct SfallMainSettings {
-    // none for now
-};
-
-struct SfallMiscSettings {
+/*struct ModSettings {
     std::string dude_native_look_jumpsuit_male = "";
     std::string dude_native_look_jumpsuit_female = "";
     std::string dude_native_look_tribal_male = "";
@@ -154,10 +149,10 @@ struct SfallMiscSettings {
     std::string premade_characters_file_names = "";
     std::string premade_characters_face_fids = "";
     bool burst_mod_enabled = false;
-    int burst_mod_center_multiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-    int burst_mod_center_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-    int burst_mod_target_multiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-    int burst_mod_target_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+    int burst_mod_center_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
+    int burst_mod_center_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
+    int burst_mod_target_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
+    int burst_mod_target_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
     int dynamite_min_damage = 30;
     int dynamite_max_damage = 50;
     int plastic_explosive_min_damage = 40;
@@ -195,10 +190,10 @@ struct SfallMiscSettings {
     int worldmap_trail_markers = 0;
 };
 
-struct SfallScriptsSettings {
+struct ModScriptsSettings {
     std::string ini_config_folder = "";
     std::string global_script_paths = "";
-};
+};*/
 
 struct Settings {
     SystemSettings system;
@@ -208,9 +203,8 @@ struct Settings {
     MapperSettings mapper;
     GraphicSettings graphics;
     EnhancementSettings enhancements;
-    SfallMainSettings sfall_main; // [sfall_main] section
-    SfallMiscSettings sfall_misc; // [sfall_misc] section
-    SfallScriptsSettings sfall_scripts; // [sfall_scripts] section
+    //ModSettings mod_settings; // [sfall_misc] section
+    //ModScriptsSettings mod_scripts; // [sfall_scripts] section
 };
 
 extern Settings settings;
