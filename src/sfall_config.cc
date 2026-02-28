@@ -4,8 +4,11 @@
 #include "scan_unimplemented.h"
 #include <stdio.h>
 #include <string.h>
+#include "db.h"
 
 namespace fallout {
+
+#define DIR_SEPARATOR '/'
 
 bool gSfallConfigInitialized = false;
 Config gSfallConfig;
@@ -21,16 +24,6 @@ bool sfallConfigInit(int argc, char** argv)
     }
 
     // Initialize defaults – grouped by category
-
-    // User Gameplay Enhancements
-    /*configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, 0);
-    configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_QUICK_SAVE, 0);
-    configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_OPEN_DOORS, 0);
-    configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAPLESS_MUSIC, 0);
-    configSetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ENHANCED_BARTER, 0);
-    configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, 0);
-    configSetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_KARMA_CHANGES_KEY, false);
-    configSetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, false);*/
 
     // Mod Settings
     configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_YEAR, 2241);
@@ -86,24 +79,37 @@ bool sfallConfigInit(int argc, char** argv)
     configSetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, false);
 
     char path[COMPAT_MAX_PATH];
-    char* executable = argv[0];
-    char* ch = strrchr(executable, '\\');
-    if (ch != nullptr) {
-        *ch = '\0';
-        snprintf(path, sizeof(path), "%s\\%s", executable, SFALL_CONFIG_FILE_NAME);
-        *ch = '\\';
-    } else {
-        strcpy(path, SFALL_CONFIG_FILE_NAME);
-    }
+    snprintf(path, sizeof(path), "data%c%s",
+             DIR_SEPARATOR, SFALL_CONFIG_FILE_NAME);
 
     auto configChecker = ConfigChecker(gSfallConfig, SFALL_CONFIG_FILE_NAME);
 
-    configRead(&gSfallConfig, path, false);
+    configRead(&gSfallConfig, path, true);   // true = is Database (dat)
+
+    // Load any mod override files (mod_*.cfg) from the same directory
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%c%s",
+             DIR_SEPARATOR, "mod_*.cfg");
+
+    char** modFiles = nullptr;
+    int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        // fileNameListInit returns alphabetically sorted list - can't determine priority of 'mods' for now
+        for (int i = 0; i < modFileCount; i++) {
+            char modPath[COMPAT_MAX_PATH];
+            snprintf(modPath, sizeof(modPath), "data%c%s",
+                    DIR_SEPARATOR, modFiles[i]);
+
+            // Additive reading of config settings from the mod override file
+            configRead(&gSfallConfig, modPath, true);
+        }
+
+        fileNameListFree(&modFiles, modFileCount);
+    }
 
     configParseCommandLineArguments(&gSfallConfig, argc, argv);
-
     configChecker.check(gSfallConfig);
-
     gSfallConfigInitialized = true;
 
     return true;

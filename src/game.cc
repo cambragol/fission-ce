@@ -131,19 +131,19 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
-    // Sfall config should be initialized before game config, since it can
-    // override it's file name.
-    sfallConfigInit(argc, argv);
-
     settingsInit(isMapper, argc, argv);
 
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
         settingsExit(false);
-        sfallConfigExit();
+        //sfallConfigExit();
         return -1;
     }
+
+    // put after gameDbInit, because we are loading from dat or data folder
+    // sfall config file override no longers works - remove
+    sfallConfigInit(argc, argv);
 
     // Message list repository is considered a specialized file manager, so
     // it should be initialized early in the process.
