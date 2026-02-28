@@ -1,10 +1,10 @@
 #include "sfall_config.h"
 
+#include "db.h"
 #include "platform_compat.h"
 #include "scan_unimplemented.h"
 #include <stdio.h>
 #include <string.h>
-#include "db.h"
 
 namespace fallout {
 
@@ -80,16 +80,16 @@ bool sfallConfigInit(int argc, char** argv)
 
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "data%c%s",
-             DIR_SEPARATOR, SFALL_CONFIG_FILE_NAME);
+        DIR_SEPARATOR, SFALL_CONFIG_FILE_NAME);
 
     auto configChecker = ConfigChecker(gSfallConfig, SFALL_CONFIG_FILE_NAME);
 
-    configRead(&gSfallConfig, path, true);   // true = is Database (dat)
+    configRead(&gSfallConfig, path, true); // true = is Database (dat)
 
     // Load any mod override files (mod_*.cfg) from the same directory
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "data%c%s",
-             DIR_SEPARATOR, "mod_*.cfg");
+        DIR_SEPARATOR, "mod_*.cfg");
 
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
@@ -99,7 +99,7 @@ bool sfallConfigInit(int argc, char** argv)
         for (int i = 0; i < modFileCount; i++) {
             char modPath[COMPAT_MAX_PATH];
             snprintf(modPath, sizeof(modPath), "data%c%s",
-                    DIR_SEPARATOR, modFiles[i]);
+                DIR_SEPARATOR, modFiles[i]);
 
             // Additive reading of config settings from the mod override file
             configRead(&gSfallConfig, modPath, true);

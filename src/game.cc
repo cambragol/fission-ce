@@ -137,7 +137,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     if (gameDbInit() == -1) {
         settingsExit(false);
-        //sfallConfigExit();
+        // sfallConfigExit();
         return -1;
     }
 
