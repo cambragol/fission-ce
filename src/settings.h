@@ -203,8 +203,8 @@ struct Settings {
     MapperSettings mapper;
     GraphicSettings graphics;
     EnhancementSettings enhancements;
-    //ModSettings mod_settings; // [sfall_misc] section
-    //ModScriptsSettings mod_scripts; // [sfall_scripts] section
+    // ModSettings mod_settings; // [sfall_misc] section
+    // ModScriptsSettings mod_scripts; // [sfall_scripts] section
 };
 
 extern Settings settings;
