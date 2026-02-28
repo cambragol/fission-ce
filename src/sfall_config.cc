@@ -3,9 +3,9 @@
 #include "db.h"
 #include "platform_compat.h"
 #include "scan_unimplemented.h"
+#include "settings.h"
 #include <stdio.h>
 #include <string.h>
-#include "settings.h"
 
 namespace fallout {
 
@@ -135,38 +135,38 @@ bool modConfigInit(int argc, char** argv)
     configParseCommandLineArguments(&gModConfig, argc, argv);
     configChecker.check(gModConfig);
 
-    // Helper macros for copying values
-    #define COPY_INT(key, field) \
-        do { \
-            int val; \
-            if (configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
-                settings.mod_settings.field = val; \
-            } \
-        } while (0)
+// Helper macros for copying values
+#define COPY_INT(key, field)                                                 \
+    do {                                                                     \
+        int val;                                                             \
+        if (configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
+            settings.mod_settings.field = val;                               \
+        }                                                                    \
+    } while (0)
 
-    #define COPY_BOOL(key, field) \
-        do { \
-            bool val; \
-            if (configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
-                settings.mod_settings.field = val; \
-            } \
-        } while (0)
+#define COPY_BOOL(key, field)                                                 \
+    do {                                                                      \
+        bool val;                                                             \
+        if (configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
+            settings.mod_settings.field = val;                                \
+        }                                                                     \
+    } while (0)
 
-    #define COPY_STRING(key, field) \
-        do { \
-            char* val = nullptr; \
-            if (configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
-                settings.mod_settings.field = val; \
-            } \
-        } while (0)
+#define COPY_STRING(key, field)                                                 \
+    do {                                                                        \
+        char* val = nullptr;                                                    \
+        if (configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, key, &val)) { \
+            settings.mod_settings.field = val;                                  \
+        }                                                                       \
+    } while (0)
 
-    #define COPY_STRING_SCRIPTS(key, field) \
-        do { \
-            char* val = nullptr; \
-            if (configGetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, key, &val)) { \
-                settings.mod_scripts.field = val; \
-            } \
-        } while (0)
+#define COPY_STRING_SCRIPTS(key, field)                                        \
+    do {                                                                       \
+        char* val = nullptr;                                                   \
+        if (configGetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, key, &val)) { \
+            settings.mod_scripts.field = val;                                  \
+        }                                                                      \
+    } while (0)
 
     // --- Copy all ModSettings fields into settings ---
     COPY_INT(MOD_CONFIG_START_YEAR, start_year);
@@ -241,10 +241,10 @@ bool modConfigInit(int argc, char** argv)
     COPY_INT(MOD_CONFIG_IFACE_BAR_SIDE_ART, iface_bar_side_art);
     COPY_BOOL(MOD_CONFIG_IFACE_BAR_SIDES_ORI, iface_bar_sides_ori);
 
-    #undef COPY_INT
-    #undef COPY_BOOL
-    #undef COPY_STRING
-    #undef COPY_STRING_SCRIPTS
+#undef COPY_INT
+#undef COPY_BOOL
+#undef COPY_STRING
+#undef COPY_STRING_SCRIPTS
 
     gModConfigInitialized = true;
 
