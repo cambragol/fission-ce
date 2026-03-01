@@ -30,6 +30,7 @@
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
+#include "string_parsers.h"
 #include "svga.h"
 #include "text_font.h"
 #include "trait.h"
@@ -1013,67 +1014,26 @@ static bool characterSelectorWindowFatalError(bool result)
 
 void premadeCharactersInit()
 {
-    char* fileNamesString;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, &fileNamesString);
-    if (fileNamesString != nullptr && *fileNamesString == '\0') {
-        fileNamesString = nullptr;
-    }
+    const std::string& fileNamesStr = settings.mod_settings.premade_characters_file_names;
+    const std::string& faceFidsStr = settings.mod_settings.premade_characters_face_fids;
 
-    char* faceFidsString;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, &faceFidsString);
-    if (faceFidsString != nullptr && *faceFidsString == '\0') {
-        faceFidsString = nullptr;
-    }
+    if (!fileNamesStr.empty() && !faceFidsStr.empty()) {
+        std::vector<std::string> fileNames = splitString(fileNamesStr);
+        std::vector<std::string> faceFids = splitString(faceFidsStr);
 
-    if (fileNamesString != nullptr && faceFidsString != nullptr) {
-        int fileNamesLength = 0;
-        for (char* pch = fileNamesString; pch != nullptr; pch = strchr(pch + 1, ',')) {
-            fileNamesLength++;
-        }
+        size_t count = std::min(fileNames.size(), faceFids.size());
+        gCustomPremadeCharacterDescriptions.resize(count);
 
-        int faceFidsLength = 0;
-        for (char* pch = faceFidsString; pch != nullptr; pch = strchr(pch + 1, ',')) {
-            faceFidsLength++;
-        }
+        for (size_t i = 0; i < count; ++i) {
+            const std::string& fname = fileNames[i];
+            if (fname.length() > 11) continue; // original skip
 
-        int premadeCharactersCount = std::min(fileNamesLength, faceFidsLength);
-        gCustomPremadeCharacterDescriptions.resize(premadeCharactersCount);
+            snprintf(gCustomPremadeCharacterDescriptions[i].fileName,
+                     sizeof(gCustomPremadeCharacterDescriptions[i].fileName),
+                     "premade\\%s", fname.c_str());
 
-        for (int index = 0; index < premadeCharactersCount; index++) {
-            char* pch;
-
-            pch = strchr(fileNamesString, ',');
-            if (pch != nullptr) {
-                *pch = '\0';
-            }
-
-            if (strlen(fileNamesString) > 11) {
-                // Sfall fails here.
-                continue;
-            }
-
-            snprintf(gCustomPremadeCharacterDescriptions[index].fileName, sizeof(gCustomPremadeCharacterDescriptions[index].fileName), "premade\\%s", fileNamesString);
-
-            if (pch != nullptr) {
-                *pch = ',';
-            }
-
-            fileNamesString = pch + 1;
-
-            pch = strchr(faceFidsString, ',');
-            if (pch != nullptr) {
-                *pch = '\0';
-            }
-
-            gCustomPremadeCharacterDescriptions[index].face = atoi(faceFidsString);
-
-            if (pch != nullptr) {
-                *pch = ',';
-            }
-
-            faceFidsString = pch + 1;
-
-            gCustomPremadeCharacterDescriptions[index].field_18[0] = '\0';
+            gCustomPremadeCharacterDescriptions[i].face = std::atoi(faceFids[i].c_str());
+            gCustomPremadeCharacterDescriptions[i].field_18[0] = '\0';
         }
     }
 

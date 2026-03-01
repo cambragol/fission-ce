@@ -212,6 +212,7 @@ extern Settings settings;
 bool settingsInit(bool isMapper, int argc, char** argv);
 bool settingsSave();
 bool settingsExit(bool shouldSave);
+void settingsFromModConfig();
 
 } // namespace fallout
 
