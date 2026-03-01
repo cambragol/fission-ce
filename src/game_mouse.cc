@@ -2594,12 +2594,12 @@ int objectIsDoor(Object* object)
 static void customMouseModeFrmsInit()
 {
     gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_FIRST_AID] = settings.mod_settings.use_first_aid_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_DOCTOR]    = settings.mod_settings.use_doctor_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_LOCKPICK]  = settings.mod_settings.use_lockpick_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_STEAL]     = settings.mod_settings.use_steal_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_TRAPS]     = settings.mod_settings.use_traps_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_SCIENCE]   = settings.mod_settings.use_science_frm;
-    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_REPAIR]    = settings.mod_settings.use_repair_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_DOCTOR] = settings.mod_settings.use_doctor_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_LOCKPICK] = settings.mod_settings.use_lockpick_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_STEAL] = settings.mod_settings.use_steal_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_TRAPS] = settings.mod_settings.use_traps_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_SCIENCE] = settings.mod_settings.use_science_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_REPAIR] = settings.mod_settings.use_repair_frm;
 }
 
 void gameMouseRefreshImmediately()
