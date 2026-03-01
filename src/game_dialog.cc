@@ -644,16 +644,10 @@ static void _options_scroll_down(int btn, int keyCode);
 
 static void _gdProcessOptionsUpdate();
 
-static bool gGameDialogFix;
-
 // gdialog_init
 // 0x444D1C
 int gameDialogInit()
 {
-    // SFALL: Prevents from using 0 to escape from dialogue at any time.
-    gGameDialogFix = true;
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, &gGameDialogFix);
-
     return 0;
 }
 
@@ -2021,8 +2015,8 @@ int _gdProcess()
             } else if (keyCode >= 1300 && keyCode <= 1330) {
                 gameDialogOptionOnMouseExit(keyCode - 1300);
             } else if (keyCode >= 48 && keyCode <= 57) {
-                // SFALL: Prevents from using 0 to escape from dialogue at any time.
-                if (keyCode == KEY_0 && gGameDialogFix) {
+                // modConfig: Prevents from using 0 to escape from dialogue at any time.
+                if (keyCode == KEY_0 && settings.mod_settings.game_dialog_fix) {
                     continue;
                 }
 

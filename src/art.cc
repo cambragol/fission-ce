@@ -945,30 +945,11 @@ static int artInitCritterData()
         return -1;
     }
 
-    // SFALL: Modify player model settings.
-    char* jumpsuitMaleFileName = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, &jumpsuitMaleFileName);
-    if (jumpsuitMaleFileName == nullptr || jumpsuitMaleFileName[0] == '\0') {
-        jumpsuitMaleFileName = gDefaultJumpsuitMaleFileName;
-    }
-
-    char* jumpsuitFemaleFileName = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, &jumpsuitFemaleFileName);
-    if (jumpsuitFemaleFileName == nullptr || jumpsuitFemaleFileName[0] == '\0') {
-        jumpsuitFemaleFileName = gDefaultJumpsuitFemaleFileName;
-    }
-
-    char* tribalMaleFileName = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, &tribalMaleFileName);
-    if (tribalMaleFileName == nullptr || tribalMaleFileName[0] == '\0') {
-        tribalMaleFileName = gDefaultTribalMaleFileName;
-    }
-
-    char* tribalFemaleFileName = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, &tribalFemaleFileName);
-    if (tribalFemaleFileName == nullptr || tribalFemaleFileName[0] == '\0') {
-        tribalFemaleFileName = gDefaultTribalFemaleFileName;
-    }
+    // modConfig: Modify player model settings.
+    const char* jumpsuitMaleFileName = settings.mod_settings.dude_native_look_jumpsuit_male.empty() ? gDefaultJumpsuitMaleFileName : settings.mod_settings.dude_native_look_jumpsuit_male.c_str();
+    const char* jumpsuitFemaleFileName = settings.mod_settings.dude_native_look_jumpsuit_female.empty() ? gDefaultJumpsuitFemaleFileName : settings.mod_settings.dude_native_look_jumpsuit_female.c_str();
+    const char* tribalMaleFileName = settings.mod_settings.dude_native_look_tribal_male.empty() ? gDefaultTribalMaleFileName : settings.mod_settings.dude_native_look_tribal_male.c_str();
+    const char* tribalFemaleFileName = settings.mod_settings.dude_native_look_tribal_female.empty() ? gDefaultTribalFemaleFileName : settings.mod_settings.dude_native_look_tribal_female.c_str();
 
     char* critterFileNames = gArtListDescriptions[OBJ_TYPE_CRITTER].fileNames;
     for (int critterIndex = 0; critterIndex < gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength; critterIndex++) {

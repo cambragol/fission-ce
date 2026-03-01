@@ -382,8 +382,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
-    char* customConfigBasePath;
-    configGetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
+    const char* customConfigBasePath = settings.mod_scripts.ini_config_folder.empty() ? nullptr : settings.mod_scripts.ini_config_folder.c_str();
     sfall_ini_set_base_path(customConfigBasePath);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MISC, &gMiscMessageList);
@@ -1440,23 +1439,17 @@ static int gameDbInit()
         return -1;
     }
 
-    // SFALL: custom patch file name.
-    char* path_file_name_template = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, &path_file_name_template);
-    if (path_file_name_template == nullptr || *path_file_name_template == '\0') {
-        path_file_name_template = (char*)"patch%03d.dat";
-    }
+    // modConfig: custom patch file name.
+    const char* path_file_name_template = settings.mod_settings.patch_file.empty() ? "patch%03d.dat" : settings.mod_settings.patch_file.c_str();
 
     for (patch_index = 0; patch_index < 1000; patch_index++) {
         snprintf(filename, sizeof(filename), path_file_name_template, patch_index);
-
         if (compat_access(filename, 0) == 0) {
             dbOpen(filename, 0, nullptr, 1);
         }
     }
 
     createListsFolder();
-
     sfallLoadMods();
 
     return 0;

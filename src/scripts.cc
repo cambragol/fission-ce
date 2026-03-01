@@ -275,15 +275,6 @@ static bool _set;
 // 0x667750
 static char _tempStr1[20];
 
-static int gStartYear;
-static int gStartMonth;
-static int gStartDay;
-
-static int gMovieTimerArtimer1;
-static int gMovieTimerArtimer2;
-static int gMovieTimerArtimer3;
-static int gMovieTimerArtimer4;
-
 // Returns game time in ticks (1/10 second).
 //
 // 0x4A3330
@@ -295,9 +286,9 @@ unsigned int gameTimeGetTime()
 // 0x4A3338
 void gameTimeGetDate(int* monthPtr, int* dayPtr, int* yearPtr)
 {
-    int year = (gGameTime / GAME_TIME_TICKS_PER_DAY + gStartDay) / 365 + gStartYear;
-    int month = gStartMonth;
-    int day = (gGameTime / GAME_TIME_TICKS_PER_DAY + gStartDay) % 365;
+    int year = (gGameTime / GAME_TIME_TICKS_PER_DAY + settings.mod_settings.start_day) / 365 + settings.mod_settings.start_year;
+    int month = settings.mod_settings.start_month;
+    int day = (gGameTime / GAME_TIME_TICKS_PER_DAY + settings.mod_settings.start_day) % 365;
 
     while (1) {
         int daysInMonth = gGameTimeDaysPerMonth[month];
@@ -456,7 +447,7 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
         movieFlags = GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC;
         endgame = true;
     } else {
-        if (day >= gMovieTimerArtimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
+        if (day >= settings.mod_settings.movie_timer_artimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
             movie = MOVIE_ARTIMER4;
             if (!gameMovieIsSeen(MOVIE_ARTIMER4)) {
                 adjustRep = true;
@@ -464,13 +455,13 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
                 wmAreaSetVisibleState(CITY_DESTROYED_ARROYO, 1, 1);
                 wmAreaMarkVisitedState(CITY_DESTROYED_ARROYO, 2);
             }
-        } else if (day >= gMovieTimerArtimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER3;
-        } else if (day >= gMovieTimerArtimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER2;
-        } else if (day >= gMovieTimerArtimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER1;
         }
@@ -1929,15 +1920,6 @@ int scriptsInit()
     }
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_SCRIPT, &gScrMessageList);
-
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, &gStartYear);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, &gStartMonth);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, &gStartDay);
-
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER1, &gMovieTimerArtimer1);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER2, &gMovieTimerArtimer2);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER3, &gMovieTimerArtimer3);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER4, &gMovieTimerArtimer4);
 
     checkScriptsOpcodes();
 

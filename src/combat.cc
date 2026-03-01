@@ -1984,7 +1984,6 @@ static int gBurstModTargetMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTI
 static int gBurstModTargetDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
-static bool gBonusHthDamageFix;
 
 // combat_init
 // 0x420CC0
@@ -6058,8 +6057,7 @@ int combatGetTargetHighlight()
 
 static void criticalsInit()
 {
-    int mode = 2;
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, &mode);
+    int mode = settings.mod_settings.override_criticals_mode;
     if (mode < 0 || mode > 3) {
         mode = 0;
     }
@@ -6200,8 +6198,7 @@ static void criticalsInit()
     if (mode == 1 || mode == 3) {
         Config criticalsConfig;
         if (configInit(&criticalsConfig)) {
-            char* criticalsConfigFilePath;
-            configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, &criticalsConfigFilePath);
+            const char* criticalsConfigFilePath = settings.mod_settings.override_criticals_file.empty() ? nullptr : settings.mod_settings.override_criticals_file.c_str();
             if (criticalsConfigFilePath != nullptr && *criticalsConfigFilePath == '\0') {
                 criticalsConfigFilePath = nullptr;
             }
@@ -6318,10 +6315,10 @@ void criticalsResetValue(int killType, int hitLocation, int effect, int dataMemb
 
 static void burstModInit()
 {
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, &gBurstModEnabled);
+    gBurstModEnabled = settings.mod_settings.burst_mod_enabled;
 
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, &gBurstModCenterMultiplier);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, &gBurstModCenterDivisor);
+    gBurstModCenterMultiplier = settings.mod_settings.burst_mod_center_multiplier;
+    gBurstModCenterDivisor = settings.mod_settings.burst_mod_center_divisor;
     if (gBurstModCenterDivisor < 1) {
         gBurstModCenterDivisor = 1;
     }
@@ -6329,8 +6326,8 @@ static void burstModInit()
         gBurstModCenterMultiplier = gBurstModCenterDivisor;
     }
 
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, &gBurstModTargetMultiplier);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, &gBurstModTargetDivisor);
+    gBurstModTargetMultiplier = settings.mod_settings.burst_mod_target_multiplier;
+    gBurstModTargetDivisor = settings.mod_settings.burst_mod_target_divisor;
     if (gBurstModTargetDivisor < 1) {
         gBurstModTargetDivisor = 1;
     }
@@ -6537,12 +6534,7 @@ static void unarmedInitVanilla()
 
 static void unarmedInitCustom()
 {
-    char* unarmedFileName = nullptr;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, &unarmedFileName);
-    if (unarmedFileName != nullptr && *unarmedFileName == '\0') {
-        unarmedFileName = nullptr;
-    }
-
+    const char* unarmedFileName = settings.mod_settings.unarmed_file.empty() ? nullptr : settings.mod_settings.unarmed_file.c_str();
     if (unarmedFileName == nullptr) {
         return;
     }
@@ -6670,16 +6662,12 @@ static int unarmedGetHitModeInRange(int firstHitMode, int lastHitMode, bool isSe
 
 static void damageModInit()
 {
-    gDamageCalculationType = DAMAGE_CALCULATION_TYPE_VANILLA;
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, &gDamageCalculationType);
-
-    gBonusHthDamageFix = true;
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
+    gDamageCalculationType = settings.mod_settings.damage_mod_formula;
 }
 
 bool damageModGetBonusHthDamageFix()
 {
-    return gBonusHthDamageFix;
+    return settings.mod_settings.bonus_hth_damage_fix;
 }
 
 bool damageModGetDisplayBonusDamage()

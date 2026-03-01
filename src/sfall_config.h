@@ -33,14 +33,14 @@ namespace fallout {
 #define MOD_CONFIG_DYNAMITE_MAX_DAMAGE_KEY "Dynamite_DmgMax"
 #define MOD_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY "PlasticExplosive_DmgMin"
 #define MOD_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY "PlasticExplosive_DmgMax"
-#define MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY "PremadePaths"
-#define MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY "PremadeFIDs"
+#define MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY "PremadePaths" // requires parsing/modification
+#define MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY "PremadeFIDs" // requires parsing/modification
 #define MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY "OverrideCriticalTable"
 #define MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY "OverrideCriticalFile"
 #define MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY "DamageFormula"
 #define MOD_CONFIG_STARTING_MAP_KEY "StartingMap"
-#define MOD_CONFIG_KARMA_FRMS_KEY "KarmaFRMs"
-#define MOD_CONFIG_KARMA_POINTS_KEY "KarmaPoints"
+#define MOD_CONFIG_KARMA_FRMS_KEY "KarmaFRMs" // requires parsing/modification
+#define MOD_CONFIG_KARMA_POINTS_KEY "KarmaPoints" // requires parsing/modification
 #define MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY "MainMenuBigFontColour"
 #define MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY "MainMenuCreditsOffsetX"
 #define MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY "MainMenuCreditsOffsetY"
@@ -62,11 +62,11 @@ namespace fallout {
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
-#define MOD_CONFIG_GLOBAL_SCRIPT_PATHS "GlobalScriptPaths"
+#define MOD_CONFIG_GLOBAL_SCRIPT_PATHS "GlobalScriptPaths" // requires parsing/modification
 #define MOD_CONFIG_PATCH_FILE "PatchFile"
-#define MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY "ExtraGameMsgFileList"
+#define MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY "ExtraGameMsgFileList" // requires parsing/modification
 #define MOD_CONFIG_TWEAKS_FILE_KEY "TweaksFile"
-#define MOD_CONFIG_CITY_REPUTATION_LIST_KEY "CityRepsList"
+#define MOD_CONFIG_CITY_REPUTATION_LIST_KEY "CityRepsList" // requires parsing/modification
 #define MOD_CONFIG_UNARMED_FILE_KEY "UnarmedFile"
 #define MOD_CONFIG_BOOKS_FILE_KEY "BooksFile"
 #define MOD_CONFIG_ELEVATORS_FILE_KEY "ElevatorsFile"

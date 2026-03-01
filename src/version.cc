@@ -1,5 +1,6 @@
 #include "version.h"
 #include "sfall_config.h"
+#include "settings.h"
 
 #include <stdio.h>
 
@@ -8,14 +9,12 @@ namespace fallout {
 // 0x4B4580
 void versionGetVersion(char* dest, size_t size)
 {
-    // SFALL: custom version string.
-    char* versionString = nullptr;
-    if (configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, &versionString)) {
-        if (*versionString == '\0') {
-            versionString = nullptr;
-        }
+    // modConfig custom version string.
+    const char* versionString = nullptr;
+    if (!settings.mod_settings.version_string.empty()) {
+        versionString = settings.mod_settings.version_string.c_str();
     }
-    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
+    snprintf(dest, size, (versionString ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
 }
 
 } // namespace fallout

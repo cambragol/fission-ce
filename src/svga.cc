@@ -170,10 +170,8 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
         gWidescreen = true; // set here to prevent mid game widescreen setting changes (from preferences)
     }
 
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_MODE, &gInterfaceBarMode);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, &gInterfaceBarWidth);
-    configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, &gInterfaceSidePanelsImageId);
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, &gInterfaceSidePanelsExtendFromScreenEdge);
+    // Assign as a runtime global, because user preference may need to be overridden
+    gInterfaceBarWidth = settings.mod_settings.iface_bar_width;
 
     // setting for stretching - later
     gStretchEnabled = settings.graphics.stretch_enabled;
@@ -405,7 +403,7 @@ int screenGetVisibleHeight()
 {
     int windowBottomMargin = 0;
 
-    if (!gInterfaceBarMode) {
+    if (!settings.mod_settings.iface_bar_mode) {
         windowBottomMargin = INTERFACE_BAR_HEIGHT;
     }
     return screenGetHeight() - windowBottomMargin;

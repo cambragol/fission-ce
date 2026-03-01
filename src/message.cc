@@ -612,9 +612,8 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
         return;
     }
 
-    bool enabled = false;
-    configGetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, &enabled);
-    if (!enabled) {
+    // modConfig: bool for gender words
+    if (!settings.mod_settings.game_dialog_gender_words) {
         return;
     }
 

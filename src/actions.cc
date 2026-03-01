@@ -1395,17 +1395,9 @@ int actionUseSkill(Object* user, Object* target, int skill)
             break;
         }
 
-        // SFALL: Science on critters patch.
-        if (1) {
-            int targetType = SCIENCE_REPAIR_TARGET_TYPE_DEFAULT;
-            configGetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, &targetType);
-            if (targetType == SCIENCE_REPAIR_TARGET_TYPE_DUDE) {
-                if (target == gDude) {
-                    break;
-                }
-            } else if (targetType == SCIENCE_REPAIR_TARGET_TYPE_ANYONE) {
-                break;
-            }
+        // modConfig: Science on critters patch.
+        if (settings.mod_settings.science_repair_target_type) {
+            break;
         }
 
         return -1;

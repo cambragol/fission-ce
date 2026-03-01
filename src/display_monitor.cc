@@ -14,6 +14,7 @@
 #include "input.h"
 #include "interface.h"
 #include "memory.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "svga.h"
 #include "text_font.h"
@@ -412,14 +413,8 @@ void displayMonitorEnable()
 
 static void consoleFileInit()
 {
-    char* consoleFilePath;
-    configGetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, &consoleFilePath);
-    if (consoleFilePath != nullptr && *consoleFilePath == '\0') {
-        consoleFilePath = nullptr;
-    }
-
-    if (consoleFilePath != nullptr) {
-        gConsoleFileStream.open(consoleFilePath);
+    if (!settings.mod_settings.console_output_file.empty()) {
+        gConsoleFileStream.open(settings.mod_settings.console_output_file.c_str());
     }
 }
 
