@@ -9,8 +9,8 @@
 #include "input.h"
 #include "platform_compat.h"
 #include "scripts.h"
-#include "sfall_config.h"
 #include "settings.h"
+#include "sfall_config.h"
 #include "string_parsers.h"
 
 namespace fallout {

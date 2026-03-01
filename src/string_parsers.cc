@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <cctype>
 
-static std::string trim(const std::string& s) {
+static std::string trim(const std::string& s)
+{
     auto start = std::find_if_not(s.begin(), s.end(), [](unsigned char ch) { return std::isspace(ch); });
     auto end = std::find_if_not(s.rbegin(), s.rend(), [](unsigned char ch) { return std::isspace(ch); }).base();
     return (start < end) ? std::string(start, end) : std::string();
@@ -16,7 +17,8 @@ static std::string trim(const std::string& s) {
 
 namespace fallout {
 
-std::vector<std::string> splitString(const std::string& str, char delimiter) {
+std::vector<std::string> splitString(const std::string& str, char delimiter)
+{
     std::vector<std::string> tokens;
     size_t start = 0;
     size_t end = str.find(delimiter);

@@ -1029,8 +1029,8 @@ void premadeCharactersInit()
             if (fname.length() > 11) continue; // original skip
 
             snprintf(gCustomPremadeCharacterDescriptions[i].fileName,
-                     sizeof(gCustomPremadeCharacterDescriptions[i].fileName),
-                     "premade\\%s", fname.c_str());
+                sizeof(gCustomPremadeCharacterDescriptions[i].fileName),
+                "premade\\%s", fname.c_str());
 
             gCustomPremadeCharacterDescriptions[i].face = std::atoi(faceFids[i].c_str());
             gCustomPremadeCharacterDescriptions[i].field_18[0] = '\0';
