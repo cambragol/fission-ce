@@ -179,7 +179,6 @@ struct ModSettings {
     bool town_map_hotkeys_fix = MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX;
     std::string extra_message_lists = MOD_CONFIG_DEFAULT_EXTRA_MESSAGE_LISTS;
     std::string version_string = MOD_CONFIG_DEFAULT_VERSION_STRING;
-    std::string config_file = MOD_CONFIG_DEFAULT_CONFIG_FILE;
     std::string patch_file = MOD_CONFIG_DEFAULT_PATCH_FILE;
     int pipboy_available_at_gamestart = MOD_CONFIG_DEFAULT_PIPBOY_AVAILABLE_AT_GAMESTART;
     int use_walk_distance = MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE;

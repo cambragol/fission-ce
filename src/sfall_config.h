@@ -160,9 +160,6 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_TWEAKS_FILE ""
 #define MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX 1
 
-// Config file (not a key, but used in struct)
-#define MOD_CONFIG_DEFAULT_CONFIG_FILE ""
-
 extern bool gModConfigInitialized;
 extern Config gModConfig;
 
