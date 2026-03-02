@@ -149,7 +149,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, settings.enhancements.game_speed);
 }
 
-// read in mod settings (do write them back)
+// read in modConfig setting (no writing back, just reading)
 void settingsFromModConfig()
 {
     // Mod Settings
