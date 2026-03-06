@@ -51,6 +51,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define RENDER_ALL_STATS 7
 
 #define EDITOR_WINDOW_WIDTH 640
@@ -304,6 +306,9 @@ static int customKarmaFolderGetFrmId();
 
 static void customTownReputationInit();
 static void customTownReputationFree();
+
+static int parseKarmaFile(const char* path, const char* sourceName);
+static void generateKarmaReport();
 
 // 0x431C40
 static int gCharacterEditorFrmIds[EDITOR_GRAPHIC_COUNT] = {
@@ -7503,81 +7508,141 @@ static bool characterEditorFolderViewDrawKillsEntry(const char* name, int kills)
 }
 
 // 0x43E5C4
-static int karmaInit()
-{
-    const char* delim = " \t,";
-
-    if (gKarmaEntries != nullptr) {
+static int karmaInit() {
+    // Free any previously loaded entries
+    if (gKarmaEntries) {
         internal_free(gKarmaEntries);
         gKarmaEntries = nullptr;
+        gKarmaEntriesLength = 0;
     }
 
-    gKarmaEntriesLength = 0;
+    // Load vanilla karma file
+    parseKarmaFile("data\\karmavar.txt", "vanilla");
 
-    File* stream = fileOpen("data\\karmavar.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    // Find and laod mod karma files (karmavar_*.txt)
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+             "%sdata%ckarmavar_*.txt",
+             _cd_path_base, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount > 0) {
+        // Sort alphabetically for consistent load order... but will it matter?
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                    char* temp = foundFiles[i];
+                    foundFiles[i] = foundFiles[j];
+                    foundFiles[j] = temp;
+                }
+            }
+        }
+
+        // Process each file
+        for (int i = 0; i < fileCount; i++) {
+            // Skip the vanilla file (just in case...)
+            if (strcmp(foundFiles[i], "karmavar.txt") == 0)
+                continue;
+
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                     _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+
+            parseKarmaFile(filePath, foundFiles[i]);
+        }
+        fileNameListFree(&foundFiles, fileCount);
     }
 
-    char string[256];
-    while (fileReadString(string, 256, stream)) {
-        KarmaEntry entry;
-
-        char* pch = string;
-        while (isspace(*pch & 0xFF)) {
-            pch++;
-        }
-
-        if (*pch == '#') {
-            continue;
-        }
-
-        char* tok = strtok(pch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.art_num = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.name = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.description = atoi(tok);
-
-        KarmaEntry* entries = (KarmaEntry*)internal_realloc(gKarmaEntries, sizeof(*entries) * (gKarmaEntriesLength + 1));
-        if (entries == nullptr) {
-            fileClose(stream);
-
-            return -1;
-        }
-
-        memcpy(&(entries[gKarmaEntriesLength]), &entry, sizeof(entry));
-
-        gKarmaEntries = entries;
-        gKarmaEntriesLength++;
-    }
-
+    // Sort all entries by gvar (same as original)
     qsort(gKarmaEntries, gKarmaEntriesLength, sizeof(*gKarmaEntries), karmaEntryCompare);
+        showMesageBox("Made it here!");
 
-    fileClose(stream);
+    // Generate a report (optional but helpful... cut later maybe)
+    generateKarmaReport();
 
     return 0;
+}
+
+static int parseKarmaFile(const char* path, const char* sourceName) {
+    const char* delim = " \t,";
+    File* stream = fileOpen(path, "rt");
+    if (!stream) return -1;
+
+    char string[256];
+    int localCount = 0;
+    while (fileReadString(string, sizeof(string), stream)) {
+        // Skip comments and empty lines (same as original)
+        char* pch = string;
+        while (isspace(*pch & 0xFF)) pch++;
+        if (*pch == '#' || *pch == '\0') continue;
+
+        char* tok = strtok(pch, delim);
+        if (!tok) continue;
+        int gvar = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int art_num = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int name = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int description = atoi(tok);
+
+        // Allocate space for one more entry
+        KarmaEntry* entries = (KarmaEntry*)internal_realloc(gKarmaEntries,
+                                    sizeof(*entries) * (gKarmaEntriesLength + 1));
+        if (!entries) {
+            fileClose(stream);
+            return -1;
+        }
+        gKarmaEntries = entries;
+
+        // Fill the new entry
+        KarmaEntry* entry = &gKarmaEntries[gKarmaEntriesLength];
+        entry->gvar = gvar;
+        entry->art_num = art_num;
+        entry->name = name;
+        entry->description = description;
+
+        gKarmaEntriesLength++;
+        localCount++;
+    }
+    fileClose(stream);
+    debugPrint("Loaded %d karma entries from %s\n", localCount, sourceName);
+    return 0;
+}
+
+// More basic report than before - not much detail needed
+static void generateKarmaReport() {
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%ckarma_list.txt",
+             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) return;
+
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "Karma Entries Report\n");
+    fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(report, "Total entries: %d\n\n", gKarmaEntriesLength);
+
+    fprintf(report, "%-6s %-8s %-8s %-8s %-8s\n",
+            "Index", "GVAR", "Art", "Name", "Desc");
+    for (int i = 0; i < gKarmaEntriesLength; i++) {
+        KarmaEntry* e = &gKarmaEntries[i];
+        fprintf(report, "%-6d %-8d %-8d %-8d %-8d\n",
+                i, e->gvar, e->art_num, e->name, e->description);
+    }
+    fclose(report);
+    debugPrint("Karma report written to %s\n", reportPath);
 }
 
 // NOTE: Inlined.
