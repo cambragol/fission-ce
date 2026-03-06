@@ -2098,6 +2098,18 @@ static int lsgPerformSaveGame()
         fileClose(_flptr);
     }
 
+    // Save mod global varaibles
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    strcat(_gmpath, "modgvars.dat");
+
+    _flptr = fileOpen(_gmpath, "wb");
+    if (_flptr != nullptr) {
+        if (saveModGlobalVars(_flptr) != 0) {
+            debugPrint("LOADSAVE: ** Error saving mod global vars **\n");
+        }
+        fileClose(_flptr);
+    }
+
     snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
     MapDirErase(_gmpath, "BAK");
 
@@ -2193,6 +2205,28 @@ static int lsgLoadGameInSlot(int slot)
         } while (0);
 
         fileClose(_flptr);
+    }
+
+    // After all main load handlers, ensure the GVAR array is large enough for mod GVARs.
+    // (The array might have been resized by the vanilla load handler to vanilla count.)
+    int neededLength = MOD_GVAR_MAX + 1;
+    if (gGameGlobalVarsLength < neededLength) {
+        resizeGlobalVars(neededLength);
+    }
+
+    // Now load mod GVARs from modgvars.dat if it exists.
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    strcat(_gmpath, "modgvars.dat");
+
+    _flptr = fileOpen(_gmpath, "rb");
+    if (_flptr != nullptr) {
+        if (loadModGlobalVarsFromSave(_flptr) != 0) {
+            debugPrint("LOADSAVE: ** Error loading mod global vars **\n");
+        }
+        fileClose(_flptr);
+    } else {
+        // No modgvars.dat - this is an old save. Mod GVARs will keep their defaults.
+        debugPrint("LOADSAVE: No modgvars.dat found using default mod GVAR values.\n");
     }
 
     snprintf(_str, sizeof(_str), "%s\\", "MAPS");

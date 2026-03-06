@@ -2118,13 +2118,14 @@ void _scr_disable_critters()
 // 0x4A5400
 int scriptsSaveGameGlobalVars(File* stream)
 {
-    return fileWriteInt32List(stream, gGameGlobalVars, gGameGlobalVarsLength);
+    // Save only the vanilla GVARs
+    return fileWriteInt32List(stream, gGameGlobalVars, gGameGlobalVarsVanillaCount);
 }
 
-// 0x4A5424
 int scriptsLoadGameGlobalVars(File* stream)
 {
-    return fileReadInt32List(stream, gGameGlobalVars, gGameGlobalVarsLength);
+    // Load only the vanilla GVARs (the array must already be large enough)
+    return fileReadInt32List(stream, gGameGlobalVars, gGameGlobalVarsVanillaCount);
 }
 
 // NOTE: For unknown reason save game files contains two identical sets of game

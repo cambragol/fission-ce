@@ -72,6 +72,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define HELP_SCREEN_WIDTH (640)
 #define HELP_SCREEN_HEIGHT (480)
 
@@ -85,6 +87,8 @@ static void gameFreeGlobalVars();
 static void showHelp();
 static int gameDbInit();
 static void showSplash();
+static int loadModGlobalVars();
+static void generateGVarReport();
 
 // 0x501C9C
 static char _aGame_0[] = "game\\";
@@ -116,6 +120,21 @@ const char* asc_5186C8 = _aGame_0;
 
 // 0x5186CC
 int _game_user_wants_to_quit = 0;
+
+int gGameGlobalVarsVanillaCount = 0;
+
+typedef struct {
+    char modName[64];
+    char symbol[128];
+    int index;
+    int defaultValue;
+} ModGVarInfo;
+
+static ModGVarInfo gModGVarInfos[MOD_GVAR_COUNT];
+static int gModGVarInfoCount = 0;
+static bool gGVarCollisionOccurred = false;
+static char gGVarCollisionDetails[MOD_GVAR_COUNT][256] = { { 0 } };
+static char gModGVarSlotOwners[MOD_GVAR_COUNT][128]; // for collision messages
 
 // misc.msg
 //
@@ -289,6 +308,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         debugPrint("Failed on game_load_info\n");
         return -1;
     }
+    loadModGlobalVars();
 
     debugPrint(">game_load_info\t");
 
@@ -962,6 +982,92 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
     return 0;
 }
 
+// same as proto_hash_string - later try to consolidate to single hash function
+static uint32_t gvar_hash_string(const char* str) {
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+// Combine mod name and symbol into a stable hash, with normalization
+static uint32_t hashModString(const char* modName, const char* symbol) {
+    char combined[256];
+    char normalized[256];
+    char* dst = normalized;
+
+    // Combine with a colon separator
+    snprintf(combined, sizeof(combined), "%s:%s", modName, symbol);
+
+    // Normalize: lowercase letters, keep digits, underscore, and colon
+    for (const char* src = combined; *src && dst < normalized + sizeof(normalized) - 1; src++) {
+        char c = *src;
+        if (c == ':') {
+            *dst++ = ':';
+        } else if (isalnum((unsigned char)c) || c == '_') {
+            *dst++ = tolower(c);
+        }
+        // else skip (shouldn't occur with safe inputs)
+    }
+    *dst = '\0';
+
+    return gvar_hash_string(normalized);
+}
+
+// Parse a line from a gvar definition file (vault13.gam format - handles vanilla and mod (gvar_xxx.txt) formats)
+// Returns 1 if a valid GVAR definition was found, 0 otherwise.
+static int parseGVarLine(char* line, char* symbol, int* defaultValue) {
+    // Skip leading whitespace
+    char* p = line;
+    while (isspace((unsigned char)*p)) p++;
+    if (*p == '\0' || *p == '#') return 0;
+    // Skip C++ style comment "//"
+    if (p[0] == '/' && p[1] == '/') return 0;
+
+    // Find '='
+    char* eq = strchr(p, '=');
+    if (!eq) return 0;
+
+    // Extract symbol (trim trailing spaces before '=')
+    char* symEnd = eq;
+    while (symEnd > p && isspace((unsigned char)symEnd[-1]))
+        symEnd--;
+    size_t symLen = symEnd - p;
+    if (symLen == 0 || symLen >= 128) return 0;
+    strncpy(symbol, p, symLen);
+    symbol[symLen] = '\0';
+
+    // Find value after '='
+    char* valStart = eq + 1;
+    while (isspace((unsigned char)*valStart)) valStart++;
+
+    // Strip trailing semicolon and anything after it
+    char* semicolon = strchr(valStart, ';');
+    if (semicolon) *semicolon = '\0';
+
+    *defaultValue = atoi(valStart);
+    return 1;
+}
+
+// Consolidate all mod nam extractions into single helper function eventually
+// Extract mod name from a filename like "gvar_MyMod.txt"
+static const char* extractModNameFromGVarFile(const char* filename) {
+    static char modName[64];
+    modName[0] = '\0';
+    if (strncmp(filename, "gvar_", 5) != 0)
+        return modName;
+    const char* start = filename + 5;
+    const char* dot = strchr(start, '.');
+    if (!dot) return modName;
+    size_t len = dot - start;
+    if (len >= sizeof(modName)) len = sizeof(modName) - 1;
+    strncpy(modName, start, len);
+    modName[len] = '\0';
+    return modName;
+}
+
 // game_ui_disable
 // 0x443BFC
 // pass allowScrolling = 1 to allow scrolling
@@ -1054,6 +1160,193 @@ static int gameLoadGlobalVars()
 
     memset(gGameGlobalPointers, 0, sizeof(*gGameGlobalPointers) * gGameGlobalVarsLength);
 
+    // Store the number of vanilla GVARs for save compatibility
+    gGameGlobalVarsVanillaCount = gGameGlobalVarsLength;
+
+    return 0;
+}
+
+// Resize the global GVAR arrays to at least newLength.
+// Returns 0 on success, -1 on failure.
+int resizeGlobalVars(int newLength)
+{
+    if (newLength <= gGameGlobalVarsLength) {
+        return 0; // Already big enough (we don't shrink)
+    }
+
+    // Reallocate the integer values array
+    int* newVars = (int*)internal_realloc(gGameGlobalVars, sizeof(int) * newLength);
+    if (newVars == nullptr) {
+        return -1;
+    }
+    gGameGlobalVars = newVars;
+
+    // Zero the newly added slots
+    for (int i = gGameGlobalVarsLength; i < newLength; i++) {
+        gGameGlobalVars[i] = 0;
+    }
+
+    // Reallocate the pointer array
+    void** newPointers = (void**)internal_realloc(gGameGlobalPointers, sizeof(void*) * newLength);
+    if (newPointers == nullptr) {
+        // If realloc fails, we cannot proceed; revert? For simplicity, we'll just return -1.
+        // In practice, failure is extremely rare. We'll leave the vars resized but pointers old.
+        // To avoid inconsistency, we could free the newVars? But internal_realloc already freed the old.
+        // Safer to just return -1 and rely on the caller handling it.
+        return -1;
+    }
+    gGameGlobalPointers = newPointers;
+
+    // Zero the new pointer slots
+    for (int i = gGameGlobalVarsLength; i < newLength; i++) {
+        gGameGlobalPointers[i] = nullptr;
+    }
+
+    gGameGlobalVarsLength = newLength;
+    return 0;
+}
+
+static int loadModGlobalVars() {
+    // Reset mod GVAR info and collision tracking
+    gModGVarInfoCount = 0;
+    gGVarCollisionOccurred = false;
+    memset(gModGVarSlotOwners, 0, sizeof(gModGVarSlotOwners));
+    memset(gGVarCollisionDetails, 0, sizeof(gGVarCollisionDetails));
+
+    // Build search pattern: data\gvar_*.txt
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+             "%sdata%cgvar_*.txt",
+             _cd_path_base, DIR_SEPARATOR);
+
+    // Find all matching files
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount <= 0) {
+        // No mod GVAR files - still generate an empty report...
+        generateGVarReport();
+        return 0;
+    }
+
+    // Sort files alphabetically for consistent load order
+    for (int i = 0; i < fileCount - 1; i++) {
+        for (int j = i + 1; j < fileCount; j++) {
+            if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                char* temp = foundFiles[i];
+                foundFiles[i] = foundFiles[j];
+                foundFiles[j] = temp;
+            }
+        }
+    }
+
+    // Bitmap to track used slots in the mod range
+    bool usedSlots[MOD_GVAR_COUNT] = { false };
+
+    // Process each file
+    for (int i = 0; i < fileCount; i++) {
+        const char* filename = foundFiles[i];
+
+        // Skip the base vault13.gam (handled separately)
+        if (strcmp(filename, "vault13.gam") == 0)
+            continue;
+
+        // Build full path
+        char filePath[COMPAT_MAX_PATH];
+        snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                 _cd_path_base, DIR_SEPARATOR, filename);
+
+        File* stream = fileOpen(filePath, "rt");
+        if (!stream) {
+            debugPrint("Warning: Could not open mod GVAR file: %s\n", filePath);
+            continue;
+        }
+
+        // Extract mod name from filename
+        const char* modName = extractModNameFromGVarFile(filename);
+        if (modName[0] == '\0') {
+            debugPrint("Warning: Invalid mod GVAR filename (expected gvar_*.txt): %s\n", filename);
+            fileClose(stream);
+            continue;
+        }
+
+        debugPrint("Loading mod GVARs from %s (mod: %s)\n", filename, modName);
+
+        char line[256];
+        int lineNum = 0;
+        while (fileReadString(line, sizeof(line), stream)) {
+            lineNum++;
+            char symbol[128];
+            int defaultValue;
+            if (!parseGVarLine(line, symbol, &defaultValue))
+                continue;   // empty or comment
+
+            // Compute stable hash: modName + ":" + symbol
+            uint32_t hash = hashModString(modName, symbol);
+            int index = MOD_GVAR_BASE + (int)(hash % MOD_GVAR_COUNT);
+            int slot = index - MOD_GVAR_BASE;
+
+            // Check for collision
+            if (usedSlots[slot]) {
+                gGVarCollisionOccurred = true;
+                snprintf(gGVarCollisionDetails[slot], sizeof(gGVarCollisionDetails[slot]),
+                        "COLLISION: mod '%s' symbol '%s' (index %d) conflicts with %s",
+                        modName, symbol, index, gModGVarSlotOwners[slot]);
+
+                // Show popup (like art system)
+                char errorMsg[512];
+                snprintf(errorMsg, sizeof(errorMsg),
+                    "GVAR SLOT COLLISION DETECTED!\n\n"
+                    "Mod: %s\n"
+                    "Symbol: %s\n"
+                    "Target slot: %d\n"
+                    "Conflicts with: %s\n\n"
+                    "To resolve: Rename your symbol or mod to change its hash.\n\n"
+                    "The GVAR '%s' will NOT be loaded.",
+                    modName, symbol, index, gModGVarSlotOwners[slot], symbol);
+                showMesageBox(errorMsg);
+
+                debugPrint("  Collision: skipping %s:%s -> index %d\n", modName, symbol, index);
+                continue;
+            }
+            usedSlots[slot] = true;
+
+            snprintf(gModGVarSlotOwners[slot], sizeof(gModGVarSlotOwners[slot]), "%s:%s", modName, symbol);
+
+            // Ensure the global arrays are large enough to hold this index
+            if (index >= gGameGlobalVarsLength) {
+                if (resizeGlobalVars(index + 1) != 0) {
+                    debugPrint("ERROR: Failed to expand GVAR array to index %d for mod '%s'\n",
+                               index, modName);
+                    usedSlots[slot] = false;   // free the slot
+                    continue;
+                }
+            }
+
+            // Set the default value
+            gGameGlobalVars[index] = defaultValue;
+
+            // Record mod GVAR info for the report
+            if (gModGVarInfoCount < MOD_GVAR_COUNT) {
+                ModGVarInfo* info = &gModGVarInfos[gModGVarInfoCount++];
+                strncpy(info->modName, modName, sizeof(info->modName) - 1);
+                info->modName[sizeof(info->modName) - 1] = '\0';
+                strncpy(info->symbol, symbol, sizeof(info->symbol) - 1);
+                info->symbol[sizeof(info->symbol) - 1] = '\0';
+                info->index = index;
+                info->defaultValue = defaultValue;
+            }
+
+            debugPrint("  Assigned %s:%s -> index %d (default %d)\n",
+                       modName, symbol, index, defaultValue);
+        }
+        fileClose(stream);
+    }
+
+    fileNameListFree(&foundFiles, fileCount);
+
+    // Generate the report
+    generateGVarReport();
+
     return 0;
 }
 
@@ -1113,6 +1406,144 @@ int globalVarsRead(const char* path, const char* section, int* variablesListLeng
 
     fileClose(stream);
 
+    return 0;
+}
+
+static void generateGVarReport() {
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cgvars_list.txt",
+             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) return;
+
+    // Header
+    const char* header =
+        "==============================================================================\n"
+        "Fallout 2 Fission - Global Variables (GVAR) Report\n"
+        "==============================================================================\n"
+        "This report shows all global variables known to the engine.\n"
+        "Vanilla GVARs are loaded from data\\vault13.gam (indices 0..N-1).\n"
+        "Mod GVARs are loaded from data\\gvar_*.txt and assigned stable indices\n"
+        "in the range %d..%d.\n\n"
+        "Use these indices in scripts, karma definitions, and other game data.\n"
+        "==============================================================================\n\n";
+
+    fprintf(report, header, MOD_GVAR_BASE, MOD_GVAR_MAX);
+
+    // Timestamp
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Statistics
+    int vanillaCount = gGameGlobalVarsVanillaCount;
+    int totalIndices = gGameGlobalVarsLength;
+
+    fprintf(report, "Vanilla GVAR count: %d (indices 0..%d)\n", vanillaCount, vanillaCount-1);
+    fprintf(report, "GVAR array size: %d entries (0..%d)\n", totalIndices, totalIndices-1);
+    fprintf(report, "Mod GVAR range: %d..%d\n\n", MOD_GVAR_BASE, MOD_GVAR_MAX);
+
+    // List vanilla GVARs (only indices and current values)
+    fprintf(report, "VANILLA GLOBAL VARIABLES:\n");
+    fprintf(report, "Index\tValue\n");
+    for (int i = 0; i < vanillaCount && i < totalIndices; i++) {
+        fprintf(report, "%d\t%d\n", i, gGameGlobalVars[i]);
+    }
+    fprintf(report, "\n");
+
+    // List mod GVARs with names and default values
+    fprintf(report, "MOD GLOBAL VARIABLES:\n");
+    if (gModGVarInfoCount > 0) {
+        fprintf(report, "Index\tMod\tSymbol\tDefault\n");
+        for (int i = 0; i < gModGVarInfoCount; i++) {
+            ModGVarInfo* info = &gModGVarInfos[i];
+            fprintf(report, "%d\t%s\t%s\t%d\n",
+                    info->index, info->modName, info->symbol, info->defaultValue);
+        }
+    } else {
+        fprintf(report, "(no mod GVARs defined)\n");
+    }
+    fprintf(report, "\n");
+
+    // Collision details
+    if (gGVarCollisionOccurred) {
+        fprintf(report, "--- COLLISION DETAILS ---\n");
+        for (int i = 0; i < MOD_GVAR_COUNT; i++) {
+            if (gGVarCollisionDetails[i][0] != '\0') {
+                fprintf(report, "Slot %d: %s\n", i + MOD_GVAR_BASE, gGVarCollisionDetails[i]);
+            }
+        }
+        fprintf(report, "\n");
+    }
+
+    // Important notes
+    fprintf(report,
+        "=== IMPORTANT NOTES ===\n"
+        "- Mod GVAR indices are STABLE and will not change between game sessions.\n"
+        "- If a collision occurred, the conflicting GVAR was NOT loaded.\n"
+        "- Mod GVARs are saved in a separate file (modgvars.dat) per save slot.\n"
+        "- Old saves remain compatible; missing mod GVARs are initialized to defaults.\n"
+        "- To reference a mod GVAR in scripts, use the index shown above.\n"
+        "- To define your own mod GVARs, create a file named gvar_YourMod.txt\n"
+        "  in the data directory, using the same format as vault13.gam.\n"
+        "  Example line: MY_GVAR_NAME :=42;  // optional comment\n"
+        );
+
+    fclose(report);
+    debugPrint("GVAR report written to %s\n", reportPath);
+}
+
+// Save all mod-range GVARs (indices MOD_GVAR_BASE .. gGameGlobalVarsLength-1) to a binary file.
+// Returns 0 on success, -1 on failure.
+int saveModGlobalVars(File* stream) {
+    // Count how many mod GVARs exist (all indices from MOD_GVAR_BASE up to current max)
+    int count = 0;
+    for (int i = MOD_GVAR_BASE; i < gGameGlobalVarsLength; i++) {
+        count++;
+    }
+    // Write count
+    if (fileWrite(&count, sizeof(count), 1, stream) != 1)
+        return -1;
+
+    // Write each index and value
+    for (int i = MOD_GVAR_BASE; i < gGameGlobalVarsLength; i++) {
+        int idx = i;
+        int val = gGameGlobalVars[i];
+        if (fileWrite(&idx, sizeof(idx), 1, stream) != 1)
+            return -1;
+        if (fileWrite(&val, sizeof(val), 1, stream) != 1)
+            return -1;
+    }
+    return 0;
+}
+
+// Load mod-range GVARs from a binary file and apply them.
+// Assumes the GVAR array has already been expanded to at least MOD_GVAR_MAX.
+// Returns 0 on success, -1 on failure.
+int loadModGlobalVarsFromSave(File* stream) {
+    int count;
+    if (fileRead(&count, sizeof(count), 1, stream) != 1)
+        return -1;
+
+    for (int i = 0; i < count; i++) {
+        int idx, val;
+        if (fileRead(&idx, sizeof(idx), 1, stream) != 1)
+            return -1;
+        if (fileRead(&val, sizeof(val), 1, stream) != 1)
+            return -1;
+
+        // Only restore if the index is within the current mod range
+        if (idx >= MOD_GVAR_BASE && idx < gGameGlobalVarsLength) {
+            gGameGlobalVars[idx] = val;
+        } else {
+            // Index out of range – perhaps a mod was removed; ignore.
+            debugPrint("Warning: mod GVAR index %d out of range - skipping.\n",
+                       idx, gGameGlobalVarsLength - 1);
+        }
+    }
     return 0;
 }
 

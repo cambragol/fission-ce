@@ -1,11 +1,17 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include "db.h"
 #include "game_vars.h"
 #include "message.h"
 #include "touch.h"
 
 namespace fallout {
+
+// Mod GVAR range: indices reserved for mod-defined global variables
+#define MOD_GVAR_BASE    4096   // Start of mod GVAR range
+#define MOD_GVAR_COUNT   4096   // Number of mod GVAR slots
+#define MOD_GVAR_MAX     (MOD_GVAR_BASE + MOD_GVAR_COUNT - 1)
 
 typedef enum GameState {
     GAME_STATE_0,
@@ -21,6 +27,7 @@ extern int gGameGlobalVarsLength;
 extern const char* asc_5186C8;
 extern int _game_user_wants_to_quit;
 extern bool gStrictVanillaEnabled; // global for enforcing strict Vanilla gameplay
+extern int gGameGlobalVarsVanillaCount;
 
 extern MessageList gMiscMessageList;
 
@@ -42,6 +49,10 @@ int showQuitConfirmationDialog();
 int gameShowDeathDialog(const char* message);
 void* gameGetGlobalPointer(int var);
 int gameSetGlobalPointer(int var, void* value);
+
+int loadModGlobalVarsFromSave(File* stream);
+int saveModGlobalVars(File* stream);
+int resizeGlobalVars(int newLength);
 
 class GameMode {
 public:
