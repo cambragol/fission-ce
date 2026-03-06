@@ -44,6 +44,7 @@
 #include "stat.h"
 #include "svga.h"
 #include "text_font.h"
+#include "time.h"
 #include "trait.h"
 #include "window_manager.h"
 #include "word_wrap.h"
