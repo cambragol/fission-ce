@@ -9,9 +9,9 @@
 namespace fallout {
 
 // Mod GVAR range: indices reserved for mod-defined global variables
-#define MOD_GVAR_BASE    4096   // Start of mod GVAR range
-#define MOD_GVAR_COUNT   4096   // Number of mod GVAR slots
-#define MOD_GVAR_MAX     (MOD_GVAR_BASE + MOD_GVAR_COUNT - 1)
+#define MOD_GVAR_BASE 4096 // Start of mod GVAR range
+#define MOD_GVAR_COUNT 4096 // Number of mod GVAR slots
+#define MOD_GVAR_MAX (MOD_GVAR_BASE + MOD_GVAR_COUNT - 1)
 
 typedef enum GameState {
     GAME_STATE_0,
