@@ -7508,7 +7508,8 @@ static bool characterEditorFolderViewDrawKillsEntry(const char* name, int kills)
 }
 
 // 0x43E5C4
-static int karmaInit() {
+static int karmaInit()
+{
     // Free any previously loaded entries
     if (gKarmaEntries) {
         internal_free(gKarmaEntries);
@@ -7522,8 +7523,8 @@ static int karmaInit() {
     // Find and laod mod karma files (karmavar_*.txt)
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern),
-             "%sdata%ckarmavar_*.txt",
-             _cd_path_base, DIR_SEPARATOR);
+        "%sdata%ckarmavar_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
     int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
@@ -7547,7 +7548,7 @@ static int karmaInit() {
 
             char filePath[COMPAT_MAX_PATH];
             snprintf(filePath, sizeof(filePath), "%sdata%c%s",
-                     _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
 
             parseKarmaFile(filePath, foundFiles[i]);
         }
@@ -7556,7 +7557,7 @@ static int karmaInit() {
 
     // Sort all entries by gvar (same as original)
     qsort(gKarmaEntries, gKarmaEntriesLength, sizeof(*gKarmaEntries), karmaEntryCompare);
-        showMesageBox("Made it here!");
+    showMesageBox("Made it here!");
 
     // Generate a report (optional but helpful... cut later maybe)
     generateKarmaReport();
@@ -7564,7 +7565,8 @@ static int karmaInit() {
     return 0;
 }
 
-static int parseKarmaFile(const char* path, const char* sourceName) {
+static int parseKarmaFile(const char* path, const char* sourceName)
+{
     const char* delim = " \t,";
     File* stream = fileOpen(path, "rt");
     if (!stream) return -1;
@@ -7574,7 +7576,8 @@ static int parseKarmaFile(const char* path, const char* sourceName) {
     while (fileReadString(string, sizeof(string), stream)) {
         // Skip comments and empty lines (same as original)
         char* pch = string;
-        while (isspace(*pch & 0xFF)) pch++;
+        while (isspace(*pch & 0xFF))
+            pch++;
         if (*pch == '#' || *pch == '\0') continue;
 
         char* tok = strtok(pch, delim);
@@ -7595,7 +7598,7 @@ static int parseKarmaFile(const char* path, const char* sourceName) {
 
         // Allocate space for one more entry
         KarmaEntry* entries = (KarmaEntry*)internal_realloc(gKarmaEntries,
-                                    sizeof(*entries) * (gKarmaEntriesLength + 1));
+            sizeof(*entries) * (gKarmaEntriesLength + 1));
         if (!entries) {
             fileClose(stream);
             return -1;
@@ -7618,10 +7621,11 @@ static int parseKarmaFile(const char* path, const char* sourceName) {
 }
 
 // More basic report than before - not much detail needed
-static void generateKarmaReport() {
+static void generateKarmaReport()
+{
     char reportPath[COMPAT_MAX_PATH];
     snprintf(reportPath, sizeof(reportPath), "%sdata%clists%ckarma_list.txt",
-             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
 
     FILE* report = compat_fopen(reportPath, "wt");
     if (!report) return;
@@ -7630,16 +7634,16 @@ static void generateKarmaReport() {
     struct tm* t = localtime(&now);
     fprintf(report, "Karma Entries Report\n");
     fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
     fprintf(report, "Total entries: %d\n\n", gKarmaEntriesLength);
 
     fprintf(report, "%-6s %-8s %-8s %-8s %-8s\n",
-            "Index", "GVAR", "Art", "Name", "Desc");
+        "Index", "GVAR", "Art", "Name", "Desc");
     for (int i = 0; i < gKarmaEntriesLength; i++) {
         KarmaEntry* e = &gKarmaEntries[i];
         fprintf(report, "%-6d %-8d %-8d %-8d %-8d\n",
-                i, e->gvar, e->art_num, e->name, e->description);
+            i, e->gvar, e->art_num, e->name, e->description);
     }
     fclose(report);
     debugPrint("Karma report written to %s\n", reportPath);
