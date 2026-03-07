@@ -707,8 +707,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     // Preserve high-details flag, update in?game and scanner flags
     gAutomapFlags = (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS)
-              | (isInGame ? AUTOMAP_IN_GAME : 0)
-              | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
+        | (isInGame ? AUTOMAP_IN_GAME : 0)
+        | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
 
     // Create window based on mode
     int window;
@@ -815,9 +815,9 @@ void automapShow(bool isInGame, bool isUsingScanner)
         gAutomapFrmImages[switchFrmDown].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
     if (switchBtn1 != -1) {
-            buttonSetCallbacks(switchBtn1, 0, 0);
-            gDetailsButton = switchBtn1;
-        }
+        buttonSetCallbacks(switchBtn1, 0, 0);
+        gDetailsButton = switchBtn1;
+    }
 
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
         switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
@@ -839,7 +839,6 @@ void automapShow(bool isInGame, bool isUsingScanner)
             buttonSetCallbacks(switchBtn3, 0, 0);
             gProjectionButton = switchBtn3;
         }
-
     }
 
     // Synchronise button visuals with current flag/zoom/projection
