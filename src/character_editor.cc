@@ -7559,7 +7559,6 @@ static int karmaInit()
 
     // Sort all entries by gvar (same as original)
     qsort(gKarmaEntries, gKarmaEntriesLength, sizeof(*gKarmaEntries), karmaEntryCompare);
-    showMesageBox("Made it here!");
 
     // Generate a report (optional but helpful... cut later maybe)
     generateKarmaReport();
