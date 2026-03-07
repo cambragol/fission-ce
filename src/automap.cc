@@ -271,7 +271,6 @@ static AutomapHeader gAutomapHeader;
 
 static int zoom = 2;
 static bool gUseNewAutomapProjection = false;
-static bool strictVanilla = false; // temporary
 static double original_scale = 0.5;
 
 // minimap persistent state globals
@@ -657,8 +656,8 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
 
 /**
  * Displays the automap interface.
- * In strictVanilla mode, runs a modal loop (original behaviour).
- * In minimap mode, creates a non‑modal window and returns immediately,
+ * In settings.enhancements.strict_vanilla mode, runs a modal loop (original behaviour).
+ * In minimap mode, creates a non-modal window and returns immediately,
  * leaving the main loop to handle updates and input.
  *
  * @param isInGame True if called from in-game, false if from pipboy (is this ever called?)
@@ -666,8 +665,8 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
  */
 void automapShow(bool isInGame, bool isUsingScanner)
 {
-    if (!strictVanilla && gAutomapWindowOpen) {
-        // Minimap already open – optionally bring to front
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && gAutomapWindowOpen) {
+        // Minimap already open - optionally bring to front
         return;
     }
 
@@ -697,7 +696,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     // Create window based on mode
     int window;
-    if (strictVanilla) {
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
         int x = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
         int y = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
         window = windowCreate(x, y, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT,
@@ -724,12 +723,12 @@ void automapShow(bool isInGame, bool isUsingScanner)
     int switch1KeyUp, switch1KeyDown, switch2KeyUp, switch2KeyDown, switch3KeyUp, switch3KeyDown;
     int switchFrmUp, switchFrmDown;
 
-    if (strictVanilla) {
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
         scannerX = 111;
         scannerY = 454;
         scannerWidth = 15;
         scannerHeight = 16;
-        scannerKey = KEY_ALT_S;
+        scannerKey = KEY_LOWERCASE_S;
         cancelX = 277;
         cancelY = 454;
         cancelWidth = 15;
@@ -743,8 +742,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
         switch3Y = 0;
         switchWidth = 42;
         switchHeight = 74;
-        switch1KeyUp = KEY_ALT_L;
-        switch1KeyDown = KEY_ALT_H;
+        switch1KeyUp = KEY_LOWERCASE_L;
+        switch1KeyDown = KEY_LOWERCASE_H;
         switch2KeyUp = 0;
         switch2KeyDown = 0;
         switch3KeyUp = 0;
@@ -804,7 +803,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
     if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0)
         _win_set_button_rest_state(switchBtn1, 1, 0);
 
-    if (!strictVanilla) {
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
         switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
             -1, -1, switch2KeyUp, switch2KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
@@ -823,7 +822,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
     }
 
     // Initial render
-    int bgFrm = strictVanilla ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
+    int bgFrm = (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
     automapRenderInMapWindow(window, gElevation,
         gAutomapFrmImages[bgFrm].getData(),
         (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0));
@@ -831,9 +830,9 @@ void automapShow(bool isInGame, bool isUsingScanner)
     // Set cursor
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
 
-    if (strictVanilla) {
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
         // AUTOMAP (original behaviour)
-        ScopedGameMode gm(GameMode::kAutomap); // keep for strictVanilla
+        ScopedGameMode gm(GameMode::kAutomap); // keep for settings.enhancements.strict_vanilla
 
         bool isoWasEnabled = isoDisable();
         gameMouseSetCursor(MOUSE_CURSOR_ARROW);
@@ -986,8 +985,8 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     unsigned char* windowBuffer = windowGetBuffer(window);
     blitBufferToBuffer(backgroundData, winWidth, winHeight, winWidth, windowBuffer, winWidth);
 
-    // ===== VANILLA MODE � use original fixed rendering =====
-    if (strictVanilla) {
+    // ===== VANILLA MODE - use original fixed rendering =====
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
         for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
             if (obj->tile == -1) continue;
 
@@ -1201,7 +1200,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     if (mapGetCurrentMap() != -1) {
         char* areaName = mapGetCityName(mapGetCurrentMap());
         char* mapName = mapGetName(mapGetCurrentMap(), elevation);
-        if (strictVanilla) {
+        if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
             windowDrawText(window, areaName, 240, 150, 380, textColor | 0x2000000);
             windowDrawText(window, mapName, 240, 150, 396, textColor | 0x2000000);
         } else {
@@ -1864,7 +1863,7 @@ void automapSetDisplayMap(int map, bool available)
 }
 
 /**
- * Checks if the minimap (non‑modal automap) is currently open.
+ * Checks if the minimap (nonmodal automap) is currently open.
  *
  * @return true if minimap is open, false otherwise
  */
@@ -1960,8 +1959,8 @@ bool automapHandleKey(int keyCode)
                 int winH = winRect.bottom - winRect.top;
                 int relX = mouseX - winRect.left;
                 int relY = mouseY - winRect.top;
-                if (!strictVanilla && relX >= gAutomapMapLeft && relX <= gAutomapMapRight && relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
-                    // Inside map area – handle click‑to‑move
+                if ((!settings.enhancements.strict_vanilla && settings.enhancements.minimap) && relX >= gAutomapMapLeft && relX <= gAutomapMapRight && relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
+                    // Inside map area handle clicktomove
                     if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
                         int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
                         if (targetTile != -1 && targetTile != gDude->tile) {
@@ -2016,7 +2015,7 @@ void automapUpdate()
 
     unsigned int now = getTicks();
     if (now - gAutomapLastRenderTime >= 50 || gAutomapNeedsRefresh) {
-        if (strictVanilla) {
+        if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
             automapRenderInMapWindow(gAutomapWindow, gAutomapElevation,
                 gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(), gAutomapFlags);
         } else {
@@ -2042,7 +2041,7 @@ void automapClose()
     }
     fontSetCurrent(gOldFont);
     touch_set_touchscreen_mode(false);
-    if (strictVanilla && gIsoWasEnabled) {
+    if ((settings.enhancements.strict_vanilla || !settings.enhancements.minimap) && gIsoWasEnabled) {
         isoEnable();
     }
     gAutomapWindowOpen = false;

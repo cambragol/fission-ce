@@ -122,6 +122,7 @@ struct EnhancementSettings {
     int skip_opening_movies = 0;
     bool mass_highlight = true;
     bool game_speed = true;
+    bool minimap = false;
 };
 
 struct ModSettings {
