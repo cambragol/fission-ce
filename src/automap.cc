@@ -55,6 +55,7 @@ static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
 static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
+static void automapUpdateButtonStates();
 
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
@@ -291,6 +292,11 @@ static bool gIsoWasEnabled = false;
 
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
+
+// Button IDs for minimap toggles
+static int gDetailsButton = -1;
+static int gZoomButton = -1;
+static int gProjectionButton = -1;
 
 static int automapUpdateEntry(int map, int elevation, const char* tempPath)
 {
@@ -694,6 +700,16 @@ void automapShow(bool isInGame, bool isUsingScanner)
     fontSetCurrent(101);
     touch_set_touchscreen_mode(true);
 
+    // Reset button globals (they will be set again if minimap is created)
+    gDetailsButton = -1;
+    gZoomButton = -1;
+    gProjectionButton = -1;
+
+    // Preserve high-details flag, update in?game and scanner flags
+    gAutomapFlags = (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS)
+              | (isInGame ? AUTOMAP_IN_GAME : 0)
+              | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
+
     // Create window based on mode
     int window;
     if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
@@ -798,10 +814,10 @@ void automapShow(bool isInGame, bool isUsingScanner)
         gAutomapFrmImages[switchFrmUp].getData(),
         gAutomapFrmImages[switchFrmDown].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-    if (switchBtn1 != -1) buttonSetCallbacks(switchBtn1, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-    // Initial button state for details
-    if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0)
-        _win_set_button_rest_state(switchBtn1, 1, 0);
+    if (switchBtn1 != -1) {
+            buttonSetCallbacks(switchBtn1, 0, 0);
+            gDetailsButton = switchBtn1;
+        }
 
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
         switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
@@ -809,17 +825,25 @@ void automapShow(bool isInGame, bool isUsingScanner)
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-        if (switchBtn2 != -1) buttonSetCallbacks(switchBtn2, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-        if (zoom == 2) _win_set_button_rest_state(switchBtn2, 1, 0);
+        if (switchBtn2 != -1) {
+            buttonSetCallbacks(switchBtn2, 0, 0);
+            gZoomButton = switchBtn2;
+        }
 
         switchBtn3 = buttonCreate(window, switch3X, switch3Y, switchWidth, switchHeight,
             -1, -1, switch3KeyUp, switch3KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
-        if (switchBtn3 != -1) buttonSetCallbacks(switchBtn3, _gsound_toggle_butt_press_, _gsound_toggle_butt_press_);
-        if (gUseNewAutomapProjection) _win_set_button_rest_state(switchBtn3, 1, 0);
+        if (switchBtn3 != -1) {
+            buttonSetCallbacks(switchBtn3, 0, 0);
+            gProjectionButton = switchBtn3;
+        }
+
     }
+
+    // Synchronise button visuals with current flag/zoom/projection
+    automapUpdateButtonStates();
 
     // Initial render
     int bgFrm = (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
@@ -843,8 +867,6 @@ void automapShow(bool isInGame, bool isUsingScanner)
         }
 
         bool done = false;
-        int localFlags = (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
-        int localElevation = gElevation;
         unsigned int lastUpdateTime = getTicks();
         const unsigned int UPDATE_INTERVAL_MS = 50;
 
@@ -869,25 +891,24 @@ void automapShow(bool isInGame, bool isUsingScanner)
                 break;
             case KEY_UPPERCASE_H:
             case KEY_LOWERCASE_H:
-                if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
-                    localFlags |= AUTOMAP_WTH_HIGH_DETAILS;
-                    needsRefresh = true;
+                if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
+                    gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
+                    automapUpdateButtonStates();
+                    gAutomapNeedsRefresh = true;
                 }
                 break;
             case KEY_UPPERCASE_L:
             case KEY_LOWERCASE_L:
-                if ((localFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
-                    localFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
-                    needsRefresh = true;
+                if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
+                    gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
+                    automapUpdateButtonStates();
+                    gAutomapNeedsRefresh = true;
                 }
                 break;
             case KEY_UPPERCASE_S:
             case KEY_LOWERCASE_S:
-                if (localElevation != gElevation) {
-                    localElevation = gElevation;
-                    needsRefresh = true;
-                }
-                if ((localFlags & AUTOMAP_WITH_SCANNER) == 0) {
+
+                if ((gAutomapFlags & AUTOMAP_WITH_SCANNER) == 0) {
                     Object* scanner = nullptr;
                     Object* item1 = critterGetItem1(gDude);
                     if (item1 && item1->pid == PROTO_ID_MOTION_SENSOR)
@@ -897,7 +918,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
                         if (item2 && item2->pid == PROTO_ID_MOTION_SENSOR) scanner = item2;
                     }
                     if (scanner && miscItemGetCharges(scanner) > 0) {
-                        localFlags |= AUTOMAP_WITH_SCANNER;
+                        gAutomapFlags |= AUTOMAP_WITH_SCANNER;
                         miscItemConsumeCharge(scanner);
                         needsRefresh = true;
                     } else {
@@ -925,9 +946,9 @@ void automapShow(bool isInGame, bool isUsingScanner)
             }
 
             if (needsRefresh) {
-                automapRenderInMapWindow(window, localElevation,
+                automapRenderInMapWindow(window, gElevation,
                     gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(),
-                    localFlags);
+                    gAutomapFlags);
             }
 
             if (_game_user_wants_to_quit) break;
@@ -945,12 +966,12 @@ void automapShow(bool isInGame, bool isUsingScanner)
         }
         fontSetCurrent(gOldFont);
         touch_set_touchscreen_mode(false);
+
     } else {
         // MINIMAP persistant non-modal behaviour
         gAutomapWindow = window;
         gAutomapWindowOpen = true;
         gAutomapElevation = gElevation;
-        gAutomapFlags = (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
         gAutomapNeedsRefresh = true;
         gAutomapLastRenderTime = getTicks();
 
@@ -1895,29 +1916,35 @@ bool automapHandleKey(int keyCode)
         if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
             gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
+            automapUpdateButtonStates();
         }
         break;
     case KEY_ALT_L:
         if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
             gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
+            automapUpdateButtonStates();
         }
         break;
     case KEY_ALT_I:
         zoom = 2;
         gAutomapNeedsRefresh = true;
+        automapUpdateButtonStates();
         break;
     case KEY_ALT_O:
         zoom = 1;
         gAutomapNeedsRefresh = true;
+        automapUpdateButtonStates();
         break;
     case KEY_ALT_D:
         gUseNewAutomapProjection = true;
         gAutomapNeedsRefresh = true;
+        automapUpdateButtonStates();
         break;
     case KEY_ALT_T:
         gUseNewAutomapProjection = false;
         gAutomapNeedsRefresh = true;
+        automapUpdateButtonStates();
         break;
     case KEY_ALT_S:
         // Scanner
@@ -2046,6 +2073,31 @@ void automapClose()
     }
     gAutomapWindowOpen = false;
     gAutomapWindow = -1;
+
+    // Invalidate button IDs
+    gDetailsButton = -1;
+    gZoomButton = -1;
+    gProjectionButton = -1;
+}
+
+static void automapUpdateButtonStates()
+{
+    if (gDetailsButton != -1) {
+        // Down state = 1 when high details OFF (flag cleared)
+        _win_set_button_rest_state(gDetailsButton,
+            (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
+        soundPlayFile("toggle");
+    }
+    if (gZoomButton != -1) {
+        // Down state = 1 when zoom == 2
+        _win_set_button_rest_state(gZoomButton, (zoom == 2) ? 1 : 0, 0);
+        soundPlayFile("toggle");
+    }
+    if (gProjectionButton != -1) {
+        // Down state = 1 when new projection ON
+        _win_set_button_rest_state(gProjectionButton, gUseNewAutomapProjection ? 1 : 0, 0);
+        soundPlayFile("toggle");
+    }
 }
 
 } // namespace fallout
