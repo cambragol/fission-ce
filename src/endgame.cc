@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "art.h"
 #include "color.h"
@@ -26,6 +27,7 @@
 #include "palette.h"
 #include "pipboy.h"
 #include "platform_compat.h"
+#include "proto.h"
 #include "random.h"
 #include "settings.h"
 #include "stat.h"
@@ -36,6 +38,8 @@
 #include "worldmap.h"
 
 namespace fallout {
+
+#define DIR_SEPARATOR '/'
 
 // The maximum number of subtitle lines per slide.
 #define ENDGAME_ENDING_MAX_SUBTITLES (50)
@@ -84,6 +88,9 @@ static int endgameEndingInit();
 static void endgameEndingFree();
 static int endgameDeathEndingValidate(int* percentage);
 static void endgameEndingUpdateOverlay();
+
+static void generateEndgameReport();
+static void generateEnddeathReport();
 
 // The number of lines in current subtitles file.
 //
@@ -941,99 +948,124 @@ static void _endgame_movie_bk_process()
     }
 }
 
+static int parseEndgameFile(const char* path, const char* sourceName)
+{
+    const char* delim = " \t,";
+    File* stream = fileOpen(path, "rt");
+    if (!stream) return -1;
+
+    char str[256];
+    int localCount = 0;
+    while (fileReadString(str, sizeof(str), stream)) {
+        char* ch = str;
+        while (isspace(*ch))
+            ch++;
+        if (*ch == '#' || *ch == '\0') continue;
+
+        char* tok = strtok(ch, delim);
+        if (!tok) continue;
+        int gvar = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int value = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int art_num = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        char voiceOverBaseName[64]; // adjust size as needed
+        strncpy(voiceOverBaseName, tok, sizeof(voiceOverBaseName) - 1);
+        voiceOverBaseName[sizeof(voiceOverBaseName) - 1] = '\0';
+        // Trim trailing whitespace (like original)
+        size_t len = strlen(voiceOverBaseName);
+        while (len > 0 && isspace((unsigned char)voiceOverBaseName[len - 1])) {
+            voiceOverBaseName[--len] = '\0';
+        }
+
+        int direction = 0;
+        tok = strtok(nullptr, delim);
+        if (tok) {
+            direction = atoi(tok);
+        }
+
+        // Reallocate global array
+        EndgameEnding* entries = (EndgameEnding*)internal_realloc(gEndgameEndings,
+            sizeof(*entries) * (gEndgameEndingsLength + 1));
+        if (!entries) {
+            fileClose(stream);
+            return -1;
+        }
+        gEndgameEndings = entries;
+
+        EndgameEnding* entry = &gEndgameEndings[gEndgameEndingsLength];
+        entry->gvar = gvar;
+        entry->value = value;
+        entry->art_num = art_num;
+        strcpy(entry->voiceOverBaseName, voiceOverBaseName);
+        entry->direction = direction;
+
+        gEndgameEndingsLength++;
+        localCount++;
+    }
+    fileClose(stream);
+    debugPrint("Loaded %d endgame entries from %s\n", localCount, sourceName);
+    return 0;
+}
+
 // 0x440770
 static int endgameEndingInit()
 {
-    File* stream;
-    char str[256];
-    char *ch, *tok;
-    const char* delim = " \t,";
-    EndgameEnding entry;
-    EndgameEnding* entries;
-    size_t narratorFileNameLength;
-
-    if (gEndgameEndings != nullptr) {
+    // Free any previously loaded entries
+    if (gEndgameEndings) {
         internal_free(gEndgameEndings);
         gEndgameEndings = nullptr;
+        gEndgameEndingsLength = 0;
     }
 
-    gEndgameEndingsLength = 0;
+    // Load vanilla (TC) endgame.txt
+    parseEndgameFile("data\\endgame.txt", "vanilla");
 
-    stream = fileOpen("data\\endgame.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    // Find and load endgame mod files (endgame_*.txt)
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sdata%cendgame_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount > 0) {
+        // Sort alphabetically for consistent load order
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                    char* temp = foundFiles[i];
+                    foundFiles[i] = foundFiles[j];
+                    foundFiles[j] = temp;
+                }
+            }
+        }
+
+        for (int i = 0; i < fileCount; i++) {
+            // Skip the vanilla file (just in case...)
+            if (strcmp(foundFiles[i], "endgame.txt") == 0)
+                continue;
+
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+
+            parseEndgameFile(filePath, foundFiles[i]);
+        }
+        fileNameListFree(&foundFiles, fileCount);
     }
 
-    while (fileReadString(str, sizeof(str), stream)) {
-        ch = str;
-        while (isspace(*ch)) {
-            ch++;
-        }
-
-        if (*ch == '#') {
-            continue;
-        }
-
-        tok = strtok(ch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.value = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.art_num = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        strcpy(entry.voiceOverBaseName, tok);
-
-        narratorFileNameLength = strlen(entry.voiceOverBaseName);
-        if (isspace(entry.voiceOverBaseName[narratorFileNameLength - 1])) {
-            entry.voiceOverBaseName[narratorFileNameLength - 1] = '\0';
-        }
-
-        tok = strtok(nullptr, delim);
-        if (tok != nullptr) {
-            entry.direction = atoi(tok);
-        } else {
-            entry.direction = 0;
-        }
-
-        entries = (EndgameEnding*)internal_realloc(gEndgameEndings, sizeof(*entries) * (gEndgameEndingsLength + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gEndgameEndingsLength]), &entry, sizeof(entry));
-
-        gEndgameEndings = entries;
-        gEndgameEndingsLength++;
-    }
-
-    fileClose(stream);
+    // Not really needed, but keep for now
+    generateEndgameReport();
 
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // NOTE: There are no references to this function. It was inlined.
@@ -1049,113 +1081,138 @@ static void endgameEndingFree()
     gEndgameEndingsLength = 0;
 }
 
+static int parseEnddeathFile(const char* path, const char* sourceName)
+{
+    const char* delim = " \t,";
+    File* stream = fileOpen(path, "rt");
+    if (!stream) return -1;
+
+    char str[256];
+    int localCount = 0;
+    while (fileReadString(str, sizeof(str), stream)) {
+        char* ch = str;
+        while (isspace(*ch))
+            ch++;
+        if (*ch == '#' || *ch == '\0') continue;
+
+        char* tok = strtok(ch, delim);
+        if (!tok) continue;
+        int gvar = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int value = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int worldAreaKnown = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int worldAreaNotKnown = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int min_level = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int percentage = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+
+        // voiceOverBaseName
+        char voiceOverBaseName[64]; // adjust size as needed
+        strncpy(voiceOverBaseName, tok, sizeof(voiceOverBaseName) - 1);
+        voiceOverBaseName[sizeof(voiceOverBaseName) - 1] = '\0';
+        // Trim trailing whitespace (like original code)
+        size_t len = strlen(voiceOverBaseName);
+        while (len > 0 && isspace((unsigned char)voiceOverBaseName[len - 1])) {
+            voiceOverBaseName[--len] = '\0';
+        }
+
+        // Reallocate global array
+        EndgameDeathEnding* entries = (EndgameDeathEnding*)internal_realloc(gEndgameDeathEndings,
+            sizeof(*entries) * (gEndgameDeathEndingsLength + 1));
+        if (!entries) {
+            fileClose(stream);
+            return -1;
+        }
+        gEndgameDeathEndings = entries;
+
+        EndgameDeathEnding* entry = &gEndgameDeathEndings[gEndgameDeathEndingsLength];
+        entry->gvar = gvar;
+        entry->value = value;
+        entry->worldAreaKnown = worldAreaKnown;
+        entry->worldAreaNotKnown = worldAreaNotKnown;
+        entry->min_level = min_level;
+        entry->percentage = percentage;
+        strcpy(entry->voiceOverBaseName, voiceOverBaseName);
+        entry->enabled = false; // matches original init
+
+        gEndgameDeathEndingsLength++;
+        localCount++;
+    }
+    fileClose(stream);
+    debugPrint("Loaded %d death endings from %s\n", localCount, sourceName);
+    return 0;
+}
+
 // endgameDeathEndingInit
 // 0x440984
 int endgameDeathEndingInit()
 {
-    File* stream;
-    char str[256];
-    char* ch;
-    const char* delim = " \t,";
-    char* tok;
-    EndgameDeathEnding entry;
-    EndgameDeathEnding* entries;
-    size_t narratorFileNameLength;
-
     strcpy(gEndgameDeathEndingFileName, "narrator\\nar_5");
 
-    stream = fileOpen("data\\enddeath.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    // Free any previously loaded entries
+    if (gEndgameDeathEndings) {
+        internal_free(gEndgameDeathEndings);
+        gEndgameDeathEndings = nullptr;
+        gEndgameDeathEndingsLength = 0;
     }
 
-    while (fileReadString(str, 256, stream)) {
-        ch = str;
-        while (isspace(*ch)) {
-            ch++;
+    // Load vanilla enddeath.txt
+    parseEnddeathFile("data\\enddeath.txt", "vanilla");
+
+    // Find and load enddeath mod files (enddeath_*.txt etc.)
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sdata%cenddeath_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount > 0) {
+        // Sort alphabetically for consistent load order
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                    char* temp = foundFiles[i];
+                    foundFiles[i] = foundFiles[j];
+                    foundFiles[j] = temp;
+                }
+            }
         }
 
-        if (*ch == '#') {
-            continue;
+        for (int i = 0; i < fileCount; i++) {
+            // Skip the vanilla file
+            if (strcmp(foundFiles[i], "enddeath.txt") == 0)
+                continue;
+
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+
+            parseEnddeathFile(filePath, foundFiles[i]);
         }
-
-        tok = strtok(ch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.value = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.worldAreaKnown = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.worldAreaNotKnown = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.min_level = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.percentage = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        // this code is slightly different from the original, but does the same thing
-        narratorFileNameLength = strlen(tok);
-        strncpy(entry.voiceOverBaseName, tok, narratorFileNameLength);
-
-        entry.enabled = false;
-
-        if (isspace(entry.voiceOverBaseName[narratorFileNameLength - 1])) {
-            entry.voiceOverBaseName[narratorFileNameLength - 1] = '\0';
-        }
-
-        entries = (EndgameDeathEnding*)internal_realloc(gEndgameDeathEndings, sizeof(*entries) * (gEndgameDeathEndingsLength + 1));
-        if (entries == nullptr) {
-            goto err;
-        }
-
-        memcpy(&(entries[gEndgameDeathEndingsLength]), &entry, sizeof(entry));
-
-        gEndgameDeathEndings = entries;
-        gEndgameDeathEndingsLength++;
+        fileNameListFree(&foundFiles, fileCount);
     }
 
-    fileClose(stream);
+    // Generate a report
+    generateEnddeathReport();
 
     return 0;
-
-err:
-
-    fileClose(stream);
-
-    return -1;
 }
 
 // 0x440BA8
@@ -1305,6 +1362,79 @@ void endgameEndingUpdateOverlay()
         windowGetWidth(gEndgameEndingOverlay),
         intensityColorTable[_colorTable[0]][0]);
     windowRefresh(gEndgameEndingOverlay);
+}
+
+static void generateEnddeathReport()
+{
+    char dirPath[COMPAT_MAX_PATH];
+    snprintf(dirPath, sizeof(dirPath), "%sdata%clists", _cd_path_base, DIR_SEPARATOR);
+    compat_mkdir(dirPath);
+
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cenddeath_list.txt",
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) {
+        debugPrint("Failed to create enddeath report\n");
+        return;
+    }
+
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "Death Endings Report\n");
+    fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(report, "Total entries: %d\n\n", gEndgameDeathEndingsLength);
+
+    fprintf(report, "%-6s %-8s %-8s %-8s %-8s %-8s %-6s %-20s\n",
+        "Index", "GVAR", "Value", "Known", "NotKnown", "MinLvl", "Pct", "VoiceOver");
+    for (int i = 0; i < gEndgameDeathEndingsLength; i++) {
+        EndgameDeathEnding* e = &gEndgameDeathEndings[i];
+        fprintf(report, "%-6d %-8d %-8d %-8d %-8d %-8d %-6d %-20s\n",
+            i, e->gvar, e->value, e->worldAreaKnown, e->worldAreaNotKnown,
+            e->min_level, e->percentage, e->voiceOverBaseName);
+    }
+    fclose(report);
+    debugPrint("Death endings report written to %s\n", reportPath);
+}
+
+// Just mimic karma report, but this could be cut - only runs at end game.
+static void generateEndgameReport()
+{
+    char dirPath[COMPAT_MAX_PATH];
+    snprintf(dirPath, sizeof(dirPath), "%sdata%clists", _cd_path_base, DIR_SEPARATOR);
+    compat_mkdir(dirPath);
+
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cendgame_list.txt",
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) {
+        debugPrint("Failed to create endgame report\n");
+        return;
+    }
+
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "Endgame Slides Report\n");
+    fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(report, "Total entries: %d\n\n", gEndgameEndingsLength);
+
+    fprintf(report, "%-6s %-8s %-8s %-8s %-20s %-8s\n",
+        "Index", "GVAR", "Value", "Art", "VoiceOverBase", "Direction");
+    for (int i = 0; i < gEndgameEndingsLength; i++) {
+        EndgameEnding* e = &gEndgameEndings[i];
+        fprintf(report, "%-6d %-8d %-8d %-8d %-20s %-8d\n",
+            i, e->gvar, e->value, e->art_num,
+            e->voiceOverBaseName, e->direction);
+    }
+    fclose(report);
+    debugPrint("Endgame report written to %s\n", reportPath);
 }
 
 } // namespace fallout
