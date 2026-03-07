@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "actions.h"
 #include "animation.h"
@@ -64,7 +65,6 @@
 #include "svga.h"
 #include "text_font.h"
 #include "tile.h"
-#include "time.h"
 #include "trait.h"
 #include "version.h"
 #include "window_manager.h"

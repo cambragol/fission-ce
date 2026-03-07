@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "art.h"
 #include "color.h"
@@ -32,7 +33,6 @@
 #include "stat.h"
 #include "svga.h"
 #include "text_font.h"
-#include "time.h"
 #include "window_manager.h"
 #include "word_wrap.h"
 #include "worldmap.h"
