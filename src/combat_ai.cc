@@ -45,19 +45,19 @@ namespace fallout {
 #define AI_MESSAGE_SIZE 260
 
 // Mod AI packet range
-#define MOD_PACKET_BASE    4096
-#define MOD_PACKET_COUNT   4096
+#define MOD_PACKET_BASE 4096
+#define MOD_PACKET_COUNT 4096
 
-#define MAX_PACKET_NUM 8192  // covers vanilla (0-4095) and mod range (4096-8191)
+#define MAX_PACKET_NUM 8192 // covers vanilla (0-4095) and mod range (4096-8191)
 
 // Disposition mapping structures
 typedef struct PacketInfo {
-    int basePacketNum;      // -1 if not a variant or not processed
-    int disposition;        // -1 if none
+    int basePacketNum; // -1 if not a variant or not processed
+    int disposition; // -1 if none
 } PacketInfo;
 
-static PacketInfo* gPacketInfo = NULL;               // array size MAX_PACKET_NUM
-static int gDispositionMap[MAX_PACKET_NUM][6];       // [base][disp+1] = target packet num, -1 if invalid
+static PacketInfo* gPacketInfo = NULL; // array size MAX_PACKET_NUM
+static int gDispositionMap[MAX_PACKET_NUM][6]; // [base][disp+1] = target packet num, -1 if invalid
 static int gForwardMapInitialized = 0;
 
 static constexpr int kChemUseStimsWhenHurtLittleHpRatio = 60;
@@ -325,7 +325,8 @@ static bool gAiCollisionOccurred = false;
 static char gAiCollisionDetails[MAX_PACKET_NUM][256] = { { 0 } };
 
 // djb2 hash (same as other hashes)
-static uint32_t ai_hash_string(const char* str) {
+static uint32_t ai_hash_string(const char* str)
+{
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
@@ -335,7 +336,8 @@ static uint32_t ai_hash_string(const char* str) {
 }
 
 // Combine mod name and section name into a stable hash, with normalization
-static uint32_t hashModAiString(const char* modName, const char* sectionName) {
+static uint32_t hashModAiString(const char* modName, const char* sectionName)
+{
     char combined[256];
     char normalized[256];
     char* dst = normalized;
@@ -357,7 +359,8 @@ static uint32_t hashModAiString(const char* modName, const char* sectionName) {
 }
 
 // Extract mod name from filename like "ai_MyMod.txt"
-static const char* extractModNameFromAiFile(const char* filename) {
+static const char* extractModNameFromAiFile(const char* filename)
+{
     static char modName[64];
     modName[0] = '\0';
     if (strncmp(filename, "ai_", 3) != 0) return modName;
@@ -407,15 +410,17 @@ static void _parse_hurt_str(char* str, int* valuePtr)
 }
 
 // Return the disposition key string for a given disposition value (-1..4)
-static const char* getDispositionKey(int disposition) {
-    if (disposition < 0 || disposition >= DISPOSITION_COUNT-1) return NULL;
+static const char* getDispositionKey(int disposition)
+{
+    if (disposition < 0 || disposition >= DISPOSITION_COUNT - 1) return NULL;
     // gDispositionKeys[0]="none", [1]="custom", [2]="coward", etc.
     return gDispositionKeys[disposition + 1];
 }
 
 // Extract base name from a packet's full name, given its disposition.
 // Returns a newly allocated string (must be freed by caller) or NULL on failure.
-static char* extractBaseName(const char* fullName, int disposition) {
+static char* extractBaseName(const char* fullName, int disposition)
+{
     const char* suffix = getDispositionKey(disposition);
     if (!suffix) return NULL;
 
@@ -436,7 +441,8 @@ static char* extractBaseName(const char* fullName, int disposition) {
 
     // Trim trailing space (the space before the disposition word)
     int len = strlen(base);
-    while (len > 0 && base[len-1] == ' ') base[--len] = '\0';
+    while (len > 0 && base[len - 1] == ' ')
+        base[--len] = '\0';
     return base;
 }
 
@@ -444,7 +450,8 @@ static char* extractBaseName(const char* fullName, int disposition) {
 // Each variant is identified by its name: a base name + disposition keyword.
 // This allows disposition switching without requiring consecutive packet numbers
 // If naming convention not followed, falls back to vanilla consecutive offset arithmetic
-static void buildDispositionMaps() {
+static void buildDispositionMaps()
+{
     // Allocate and initialise gPacketInfo
     if (gPacketInfo) internal_free(gPacketInfo);
     gPacketInfo = (PacketInfo*)internal_malloc(sizeof(PacketInfo) * MAX_PACKET_NUM);
@@ -479,7 +486,7 @@ static void buildDispositionMaps() {
                 base = internal_strdup(p->name);
             }
             if (base) {
-                customEntries = (CustomEntry*)internal_realloc(customEntries, sizeof(CustomEntry) * (customCount + 1));                
+                customEntries = (CustomEntry*)internal_realloc(customEntries, sizeof(CustomEntry) * (customCount + 1));
                 customEntries[customCount].baseName = base;
                 customEntries[customCount].packetNum = p->packet_num;
                 customCount++;
@@ -491,12 +498,12 @@ static void buildDispositionMaps() {
     for (int i = 0; i < gAiPacketsLength; i++) {
         AiPacket* p = &gAiPackets[i];
         int disp = p->disposition;
-        if (disp < 0) continue;   // skip "none"
+        if (disp < 0) continue; // skip "none"
 
         char* baseName = extractBaseName(p->name, disp);
         if (!baseName) {
             debugPrint("Warning: Could not extract base name for packet %s (disposition %d)\n",
-                       p->name, disp);
+                p->name, disp);
             continue;
         }
 
@@ -512,7 +519,7 @@ static void buildDispositionMaps() {
 
         if (basePacketNum == -1) {
             debugPrint("Warning: No custom base found for packet %s (disposition %d)\n",
-                       p->name, disp);
+                p->name, disp);
             continue;
         }
 
@@ -526,7 +533,7 @@ static void buildDispositionMaps() {
     for (int i = 0; i < gAiPacketsLength; i++) {
         AiPacket* p = &gAiPackets[i];
         if (p->disposition == 0) {
-            gPacketInfo[p->packet_num].basePacketNum = p->packet_num;   // self
+            gPacketInfo[p->packet_num].basePacketNum = p->packet_num; // self
             gPacketInfo[p->packet_num].disposition = 0;
             gDispositionMap[p->packet_num][0 + 1] = p->packet_num;
         }
@@ -576,7 +583,8 @@ static void aiPacketInit(AiPacket* ai)
 }
 
 // Unified parsing for ai.txt and ai_xxx.txt
-static int processAiConfig(Config* config, const char* sourceName, const char* modName) {
+static int processAiConfig(Config* config, const char* sourceName, const char* modName)
+{
     int added = 0;
     for (int i = 0; i < config->entriesLength; i++) {
         DictionaryEntry* sectionEntry = &(config->entries[i]);
@@ -603,17 +611,17 @@ static int processAiConfig(Config* config, const char* sourceName, const char* m
         if (gUsedPacketNum[packet_num]) {
             gAiCollisionOccurred = true;
             snprintf(gAiCollisionDetails[packet_num], sizeof(gAiCollisionDetails[packet_num]),
-                     "COLLISION: packet_num %d from %s (section %s) conflicts with existing",
-                     packet_num, sourceName, sectionEntry->key);
+                "COLLISION: packet_num %d from %s (section %s) conflicts with existing",
+                packet_num, sourceName, sectionEntry->key);
             debugPrint("  Skipping AI packet %s (packet_num %d) from %s collision\n",
-                       sectionEntry->key, packet_num, sourceName);
+                sectionEntry->key, packet_num, sourceName);
             continue;
         }
         gUsedPacketNum[packet_num] = true;
 
         // Allocate space for one more packet
         AiPacket* newPackets = (AiPacket*)internal_realloc(gAiPackets,
-                                    sizeof(AiPacket) * (gAiPacketsLength + 1));
+            sizeof(AiPacket) * (gAiPacketsLength + 1));
         if (!newPackets) {
             debugPrint("Failed to realloc gAiPackets for %s\n", sourceName);
             return -1;
@@ -767,8 +775,8 @@ int aiInit()
     // Find and load mod ai files (ai_*.txt)
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern),
-             "%sdata%cai_*.txt",
-             _cd_path_base, DIR_SEPARATOR);
+        "%sdata%cai_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
     int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
@@ -795,7 +803,7 @@ int aiInit()
 
             char filePath[COMPAT_MAX_PATH];
             snprintf(filePath, sizeof(filePath), "%sdata%c%s",
-                     _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
 
             Config modConfig;
             if (!configInit(&modConfig)) continue;
@@ -826,14 +834,15 @@ int aiInit()
 }
 
 // Simple report for now - should be enough
-static void generateAiReport() {
+static void generateAiReport()
+{
     char dirPath[COMPAT_MAX_PATH];
     snprintf(dirPath, sizeof(dirPath), "%sdata%clists", _cd_path_base, DIR_SEPARATOR);
     compat_mkdir(dirPath);
 
     char reportPath[COMPAT_MAX_PATH];
     snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cai_list.txt",
-             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
 
     FILE* report = compat_fopen(reportPath, "wt");
     if (!report) {
@@ -845,8 +854,8 @@ static void generateAiReport() {
     struct tm* t = localtime(&now);
     fprintf(report, "AI Packets Report\n");
     fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
     fprintf(report, "Total packets: %d\n\n", gAiPacketsLength);
 
     fprintf(report, "%-6s %-8s %-30s\n", "Index", "PacketNum", "Name");
@@ -1139,7 +1148,7 @@ static AiPacket* aiGetPacketByNum(int aiPacketId)
 {
     if (gAiPackets == nullptr || gAiPacketsLength == 0) {
         debugPrint("aiGetPacketByNum: called with no AI packets loaded\n");
-        return nullptr;   // or return a dummy static packet; original returns first packet.
+        return nullptr; // or return a dummy static packet; original returns first packet.
     }
 
     for (int index = 0; index < gAiPacketsLength; index++) {
@@ -1323,7 +1332,7 @@ int aiSetDisposition(Object* obj, int disposition)
     if (gForwardMapInitialized && currPacket >= 0 && currPacket < MAX_PACKET_NUM) {
         int base = gPacketInfo[currPacket].basePacketNum;
         if (base != -1) {
-            int target = gDispositionMap[base][disposition + 1];   // +1 because disposition -1 is not used
+            int target = gDispositionMap[base][disposition + 1]; // +1 because disposition -1 is not used
             if (target != -1) {
                 obj->data.critter.combat.aiPacket = target;
                 return 0;
