@@ -42,6 +42,7 @@
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
+#include "string_parsers.h"
 #include "svga.h"
 #include "text_font.h"
 #include "trait.h"
@@ -7694,69 +7695,25 @@ static int genericReputationCompare(const void* a1, const void* a2)
 
 static void customKarmaFolderInit()
 {
-    char* karmaFrms = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_FRMS_KEY, &karmaFrms);
-    if (karmaFrms != nullptr && karmaFrms[0] == '\0') {
-        karmaFrms = nullptr;
-    }
+    const std::string& karmaFrmsStr = settings.mod_settings.karma_frms;
+    const std::string& karmaPointsStr = settings.mod_settings.karma_points;
 
-    if (karmaFrms == nullptr) {
+    if (karmaFrmsStr.empty() || karmaPointsStr.empty()) {
         return;
     }
 
-    char* karmaPoints = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_POINTS_KEY, &karmaPoints);
-    if (karmaPoints != nullptr && karmaPoints[0] == '\0') {
-        karmaPoints = nullptr;
-    }
+    std::vector<std::string> frms = splitString(karmaFrmsStr);
+    std::vector<std::string> points = splitString(karmaPointsStr);
 
-    if (karmaPoints == nullptr) {
-        return;
-    }
+    gCustomKarmaFolderDescriptions.resize(frms.size());
 
-    int karmaFrmsCount = 0;
-    for (char* pch = karmaFrms; pch != nullptr; pch = strchr(pch + 1, ',')) {
-        karmaFrmsCount++;
-    }
+    for (size_t i = 0; i < frms.size(); ++i) {
+        gCustomKarmaFolderDescriptions[i].frmId = std::atoi(frms[i].c_str());
 
-    int karmaPointsCount = 0;
-    for (char* pch = karmaPoints; pch != nullptr; pch = strchr(pch + 1, ',')) {
-        karmaPointsCount++;
-    }
-
-    gCustomKarmaFolderDescriptions.resize(karmaFrmsCount);
-
-    for (int index = 0; index < karmaFrmsCount; index++) {
-        char* pch;
-
-        pch = strchr(karmaFrms, ',');
-        if (pch != nullptr) {
-            *pch = '\0';
-        }
-
-        gCustomKarmaFolderDescriptions[index].frmId = atoi(karmaFrms);
-
-        if (pch != nullptr) {
-            *pch = ',';
-        }
-
-        karmaFrms = pch + 1;
-
-        if (index < karmaPointsCount) {
-            pch = strchr(karmaPoints, ',');
-            if (pch != nullptr) {
-                *pch = '\0';
-            }
-
-            gCustomKarmaFolderDescriptions[index].threshold = atoi(karmaPoints);
-
-            if (pch != nullptr) {
-                *pch = ',';
-            }
-
-            karmaPoints = pch + 1;
+        if (i < points.size()) {
+            gCustomKarmaFolderDescriptions[i].threshold = std::atoi(points[i].c_str());
         } else {
-            gCustomKarmaFolderDescriptions[index].threshold = INT_MAX;
+            gCustomKarmaFolderDescriptions[i].threshold = INT_MAX;
         }
     }
 }
@@ -7783,43 +7740,42 @@ static int customKarmaFolderGetFrmId()
 
 static void customTownReputationInit()
 {
-    char* reputationList = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CITY_REPUTATION_LIST_KEY, &reputationList);
-    if (reputationList != nullptr && *reputationList == '\0') {
-        reputationList = nullptr;
+    const std::string& repList = settings.mod_settings.city_reputation_list;
+
+    if (repList.empty()) {
+        // Fallback to defaults
+        if (gCustomTownReputationEntries.empty()) {
+            gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
+            for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
+                gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
+                gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
+            }
+        }
+        return;
     }
 
-    char* curr = reputationList;
-    while (curr != nullptr) {
-        char* next = strchr(curr, ',');
-        if (next != nullptr) {
-            *next = '\0';
+    std::vector<std::string> tokens = splitString(repList); // split by comma
+
+    for (const std::string& token : tokens) {
+        size_t colonPos = token.find(':');
+        if (colonPos == std::string::npos) {
+            // Malformed entry – skip (original would ignore)
+            continue;
         }
 
-        char* sep = strchr(curr, ':');
-        if (sep != nullptr) {
-            *sep = '\0';
+        std::string cityStr = token.substr(0, colonPos);
+        std::string gvarStr = token.substr(colonPos + 1);
 
-            TownReputationEntry entry;
-            entry.city = atoi(curr);
-            entry.gvar = atoi(sep + 1);
-            gCustomTownReputationEntries.push_back(std::move(entry));
-
-            *sep = ':';
-        }
-
-        if (next != nullptr) {
-            *next = ',';
-            curr = next + 1;
-        } else {
-            curr = nullptr;
-        }
+        TownReputationEntry entry;
+        entry.city = std::atoi(cityStr.c_str());
+        entry.gvar = std::atoi(gvarStr.c_str());
+        gCustomTownReputationEntries.push_back(std::move(entry));
     }
 
     if (gCustomTownReputationEntries.empty()) {
+        // No valid entries loaded; fallback to defaults
         gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
-
-        for (int index = 0; index < TOWN_REPUTATION_COUNT; index++) {
+        for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
             gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
             gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
         }

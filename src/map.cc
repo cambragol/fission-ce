@@ -940,9 +940,7 @@ static int mapLoad(File* stream)
     ScopedGameMode gm(GameMode::kMap);
 
     _map_save_in_game(true);
-    int gaplessMusic = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
-    if (backgoundSoundIsPlaying() && (gStrictVanillaEnabled || !gaplessMusic)) {
+    if (backgoundSoundIsPlaying() && (settings.enhancements.strict_vanilla || !settings.enhancements.gapless_music)) {
         // playing the loading sound might interrupt continuous music playback
         backgroundSoundLoad("wind2", 12, 13, 16);
     }

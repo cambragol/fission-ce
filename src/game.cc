@@ -108,9 +108,6 @@ int* gGameGlobalVars = nullptr;
 // 0x5186C4
 int gGameGlobalVarsLength = 0;
 
-// global for all strictVanilla controls
-bool gStrictVanillaEnabled = false;
-
 // 0x5186C8
 const char* asc_5186C8 = _aGame_0;
 
@@ -134,20 +131,19 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
-    // Sfall config should be initialized before game config, since it can
-    // override it's file name.
-    sfallConfigInit(argc, argv);
-
     settingsInit(isMapper, argc, argv);
 
-    gStrictVanillaEnabled = settings.sfall_misc.strict_vanilla;
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
         settingsExit(false);
-        sfallConfigExit();
+        // modConfigExit();
         return -1;
     }
+
+    // put after gameDbInit, because we are loading from dat or data folder
+    // sfall config file override no longers works - remove
+    modConfigInit(argc, argv);
 
     // Message list repository is considered a specialized file manager, so
     // it should be initialized early in the process.
@@ -168,10 +164,6 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         keyboardSetLayout(KEYBOARD_LAYOUT_SPANISH);
     }
 
-    // SFALL: Allow to skip splash screen
-    int skipOpeningMovies = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
-
     // load preferences before Splash screen to get proper brightness
     if (_init_options_menu() != 0) {
         debugPrint("Failed on init_options_menu\n");
@@ -180,7 +172,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">init_options_menu\n");
 
-    if ((!gIsMapper && skipOpeningMovies < 2) || gStrictVanillaEnabled) {
+    if ((!gIsMapper && settings.enhancements.skip_opening_movies < 2) || settings.enhancements.strict_vanilla) {
 
         if (gameIsWidescreen()) {
             resizeContent(800, 500);
@@ -390,8 +382,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
-    char* customConfigBasePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
+    const char* customConfigBasePath = settings.mod_scripts.ini_config_folder.empty() ? nullptr : settings.mod_scripts.ini_config_folder.c_str();
     sfall_ini_set_base_path(customConfigBasePath);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MISC, &gMiscMessageList);
@@ -495,7 +486,7 @@ void gameExit()
     messageListRepositoryExit();
     dbExit();
     settingsExit(true);
-    sfallConfigExit();
+    modConfigExit();
 }
 
 // 0x442D44
@@ -1018,9 +1009,7 @@ int gameSetGlobalVar(int var, int value)
 
     // SFALL: Display karma changes.
     if (var == GVAR_PLAYER_REPUTATION) {
-        bool shouldDisplayKarmaChanges = false;
-        configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_KARMA_CHANGES_KEY, &shouldDisplayKarmaChanges);
-        if (shouldDisplayKarmaChanges && !gStrictVanillaEnabled) {
+        if (settings.enhancements.display_karma_changes && !settings.enhancements.strict_vanilla) {
             int diff = value - gGameGlobalVars[var];
             if (diff != 0) {
                 char formattedMessage[80];
@@ -1450,23 +1439,17 @@ static int gameDbInit()
         return -1;
     }
 
-    // SFALL: custom patch file name.
-    char* path_file_name_template = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PATCH_FILE, &path_file_name_template);
-    if (path_file_name_template == nullptr || *path_file_name_template == '\0') {
-        path_file_name_template = (char*)"patch%03d.dat";
-    }
+    // modConfig: custom patch file name.
+    const char* path_file_name_template = settings.mod_settings.patch_file.empty() ? "patch%03d.dat" : settings.mod_settings.patch_file.c_str();
 
     for (patch_index = 0; patch_index < 1000; patch_index++) {
         snprintf(filename, sizeof(filename), path_file_name_template, patch_index);
-
         if (compat_access(filename, 0) == 0) {
             dbOpen(filename, 0, nullptr, 1);
         }
     }
 
     createListsFolder();
-
     sfallLoadMods();
 
     return 0;

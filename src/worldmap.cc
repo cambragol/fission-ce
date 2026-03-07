@@ -864,14 +864,12 @@ static int wmMaxEncounterInfoTables;
 static char gBaseMapOverrides[BASE_MAP_MAX][COMPAT_MAX_PATH] = { 0 };
 static char gBaseAreaOverrides[BASE_AREA_MAX][COMPAT_MAX_PATH] = { 0 };
 
-static bool gTownMapHotkeysFix;
 static double gGameTimeIncRemainder = 0.0;
 static FrmImage _townFrmImage;
 static FrmImage _townBackgroundFrmImage;
 static bool wmFaded = false;
 static int wmForceEncounterMapId = -1;
 static unsigned int wmForceEncounterFlags = 0;
-static int worldmapTrailMarkers;
 
 static FrmImage _backgroundFrmImage;
 static WorldmapOffsets gOffsets;
@@ -1098,12 +1096,6 @@ int wmWorldMap_init()
 
     wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
-
-    // SFALL
-    gTownMapHotkeysFix = true;
-    worldmapTrailMarkers = 0;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, &gTownMapHotkeysFix);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_WORLDMAP_TRAIL_MARKERS, &worldmapTrailMarkers);
 
     // CE: City size fids should be initialized during startup. They are used
     // during |wmTeleportToArea| to calculate worldmap position when jumping
@@ -7139,7 +7131,7 @@ static int wmDrawCursorStopped()
 
     // Dotted Trail logic
 
-    if (worldmapTrailMarkers && !gStrictVanillaEnabled) {
+    if (settings.mod_settings.worldmap_trail_markers && !settings.enhancements.strict_vanilla) {
         static bool wasWalking = false;
         static uint32_t lastTrailDropTick = 0;
         const int baseCooldown = 25; // base time between potential dot drops
@@ -7484,9 +7476,9 @@ static int wmTownMapFunc(int* mapIdxPtr)
             if (keyCode >= KEY_1 && keyCode < KEY_1 + city->entrancesLength) {
                 EntranceInfo* entrance = &(city->entrances[keyCode - KEY_1]);
 
-                // SFALL: Prevent using number keys to enter unvisited areas on
+                // modConfig: Prevent using number keys to enter unvisited areas on
                 // a town map.
-                if (gTownMapHotkeysFix) {
+                if (settings.mod_settings.town_map_hotkeys_fix) {
                     if (entrance->state == 0 || entrance->x == -1 || entrance->y == -1) {
                         continue;
                     }

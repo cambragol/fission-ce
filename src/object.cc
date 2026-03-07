@@ -2102,10 +2102,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
         return false;
     }
 
-    int autoOpenDoors = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
-
-    if (autoOpenDoors && !gStrictVanillaEnabled) {
+    if (settings.enhancements.auto_open_doors && !settings.enhancements.strict_vanilla) {
         if (!isInCombat()) {
             if (proto->scenery.type == SCENERY_TYPE_DOOR) // Door
             {
@@ -2703,8 +2700,7 @@ int objectGetDistanceBetweenTiles(Object* object1, int tile1, Object* object2, i
 
 bool objectWithinWalkDistance(Object* critter, Object* target)
 {
-    int walkDistance = 5;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_WALK_DISTANCE, &walkDistance);
+    int walkDistance = settings.mod_settings.use_walk_distance;
     if (objectGetDistanceBetween(critter, target) >= walkDistance) {
         return false;
     }

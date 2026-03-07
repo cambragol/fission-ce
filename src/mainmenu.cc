@@ -199,20 +199,19 @@ int mainMenuWindowInit()
     int oldFont = fontGetCurrent();
     fontSetCurrent(100);
 
-    // SFALL: Allow to change font color/flags of copyright/version text
+    // modConfig: Allow to change font color/flags of copyright/version text
     //        It's the last byte ('3C' by default) that picks the colour used. The first byte supplies additional flags for this option
     //        0x010000 - change the color for version string only
     //        0x020000 - underline text (only for the version string)
     //        0x040000 - monospace font (only for the version string)
-    int fontSettings = _colorTable[21091], fontSettingsSFall = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_FONT_COLOR_KEY, &fontSettingsSFall);
+    int fontSettings = _colorTable[21091];
+    int fontSettingsSFall = settings.mod_settings.main_menu_font_color;
     if (fontSettingsSFall && !(fontSettingsSFall & 0x010000))
         fontSettings = fontSettingsSFall & 0xFF;
 
-    // SFALL: Allow to move copyright text
-    int offsetX = 0, offsetY = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, &offsetX);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, &offsetY);
+    // modConfig: Allow to move copyright text
+    int offsetX = settings.mod_settings.main_menu_credits_offset_x;
+    int offsetY = settings.mod_settings.main_menu_credits_offset_y;
 
     // Copyright.
     msg.num = 20;
@@ -280,10 +279,9 @@ int mainMenuWindowInit()
         gMainMenuButtons[index] = -1;
     }
 
-    // SFALL: Allow to move menu buttons via offsetX and offsetY
-    offsetX = offsetY = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_X_KEY, &offsetX);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_OFFSET_Y_KEY, &offsetY);
+    // modConfig: Allow to move menu buttons via offsetX and offsetY
+    offsetX = settings.mod_settings.main_menu_offset_x;
+    offsetY = settings.mod_settings.main_menu_offset_y;
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         gMainMenuButtons[index] = buttonCreate(gMainMenuWindow,
@@ -309,12 +307,12 @@ int mainMenuWindowInit()
 
     fontSetCurrent(104);
 
-    // SFALL: Allow to change font color of buttons
+    // modConfig: Allow to change font color of buttons
     fontSettings = _colorTable[21091];
-    fontSettingsSFall = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, &fontSettingsSFall);
-    if (fontSettingsSFall)
+    fontSettingsSFall = settings.mod_settings.main_menu_big_font_color;
+    if (fontSettingsSFall) {
         fontSettings = fontSettingsSFall & 0xFF;
+    }
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         msg.num = 9 + index;
