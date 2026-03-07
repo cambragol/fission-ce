@@ -1560,10 +1560,10 @@ static int preferencesWindowInit()
 
     // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise
     fontSetCurrent(101);
-    if (gStrictVanillaEnabled) {
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
-    } else {
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.game_speed) {
         messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, 110);
+    } else {
+        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
     }
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.speedLabelX + gOffsets.speedLabelY, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 

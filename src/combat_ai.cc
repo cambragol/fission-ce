@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "actions.h"
 #include "animation.h"
@@ -37,9 +38,27 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define AI_PACKET_CHEM_PRIMARY_DESIRE_COUNT (3)
 
 #define AI_MESSAGE_SIZE 260
+
+// Mod AI packet range
+#define MOD_PACKET_BASE 4096
+#define MOD_PACKET_COUNT 4096
+
+#define MAX_PACKET_NUM 8192 // covers vanilla (0-4095) and mod range (4096-8191)
+
+// Disposition mapping structures
+typedef struct PacketInfo {
+    int basePacketNum; // -1 if not a variant or not processed
+    int disposition; // -1 if none
+} PacketInfo;
+
+static PacketInfo* gPacketInfo = NULL; // array size MAX_PACKET_NUM
+static int gDispositionMap[MAX_PACKET_NUM][6]; // [base][disp+1] = target packet num, -1 if invalid
+static int gForwardMapInitialized = 0;
 
 static constexpr int kChemUseStimsWhenHurtLittleHpRatio = 60;
 static constexpr int kChemUseStimsWhenHurtLotsHpRatio = 30;
@@ -145,6 +164,9 @@ static int _ai_print_msg(Object* critter, int type);
 static int _combatai_rating(Object* obj);
 static int aiMessageListInit();
 static int aiMessageListFree();
+
+static void generateAiReport();
+static int processAiConfig(Config* config, const char* sourceName);
 
 // 0x51805C
 static Object* _combat_obj = nullptr;
@@ -298,6 +320,60 @@ static Object** _curr_crit_list;
 // 0x56D624
 static char _attack_str[AI_MESSAGE_SIZE];
 
+static bool gUsedPacketNum[MAX_PACKET_NUM] = { false };
+static bool gAiCollisionOccurred = false;
+static char gAiCollisionDetails[MAX_PACKET_NUM][256] = { { 0 } };
+
+// djb2 hash (same as other hashes)
+static uint32_t ai_hash_string(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
+// Combine mod name and section name into a stable hash, with normalization
+static uint32_t hashModAiString(const char* modName, const char* sectionName)
+{
+    char combined[256];
+    char normalized[256];
+    char* dst = normalized;
+
+    snprintf(combined, sizeof(combined), "%s:%s", modName, sectionName);
+
+    for (const char* src = combined; *src && dst < normalized + sizeof(normalized) - 1; src++) {
+        char c = *src;
+        if (c == ':') {
+            *dst++ = ':';
+        } else if (isalnum((unsigned char)c) || c == '_') {
+            *dst++ = tolower(c);
+        }
+        // else skip (shouldn't occur...)
+    }
+    *dst = '\0';
+
+    return ai_hash_string(normalized);
+}
+
+// Extract mod name from filename like "ai_MyMod.txt"
+static const char* extractModNameFromAiFile(const char* filename)
+{
+    static char modName[64];
+    modName[0] = '\0';
+    if (strncmp(filename, "ai_", 3) != 0) return modName;
+    const char* start = filename + 3;
+    const char* dot = strchr(start, '.');
+    if (!dot) return modName;
+    size_t len = dot - start;
+    if (len >= sizeof(modName)) len = sizeof(modName) - 1;
+    strncpy(modName, start, len);
+    modName[len] = '\0';
+    return modName;
+}
+
 // parse hurt_too_much
 static void _parse_hurt_str(char* str, int* valuePtr)
 {
@@ -333,6 +409,145 @@ static void _parse_hurt_str(char* str, int* valuePtr)
     }
 }
 
+// Return the disposition key string for a given disposition value (-1..4)
+static const char* getDispositionKey(int disposition)
+{
+    if (disposition < 0 || disposition >= DISPOSITION_COUNT - 1) return NULL;
+    // gDispositionKeys[0]="none", [1]="custom", [2]="coward", etc.
+    return gDispositionKeys[disposition + 1];
+}
+
+// Extract base name from a packet's full name, given its disposition.
+// Returns a newly allocated string (must be freed by caller) or NULL on failure.
+static char* extractBaseName(const char* fullName, int disposition)
+{
+    const char* suffix = getDispositionKey(disposition);
+    if (!suffix) return NULL;
+
+    int suffixLen = strlen(suffix);
+    int fullLen = strlen(fullName);
+    if (fullLen < suffixLen + 1) return NULL; // need at least space + suffix
+
+    // Check if fullName ends with suffix (case?insensitive)
+    if (compat_strnicmp(fullName + fullLen - suffixLen, suffix, suffixLen) != 0)
+        return NULL;
+
+    // Allocate space for base (without suffix)
+    char* base = (char*)internal_malloc(fullLen - suffixLen + 1);
+    if (!base) return NULL;
+
+    strncpy(base, fullName, fullLen - suffixLen);
+    base[fullLen - suffixLen] = '\0';
+
+    // Trim trailing space (the space before the disposition word)
+    int len = strlen(base);
+    while (len > 0 && base[len - 1] == ' ')
+        base[--len] = '\0';
+    return base;
+}
+
+// Builds a mapping from base (custom) AI packets to their disposition variants.
+// Each variant is identified by its name: a base name + disposition keyword.
+// This allows disposition switching without requiring consecutive packet numbers
+// If naming convention not followed, falls back to vanilla consecutive offset arithmetic
+static void buildDispositionMaps()
+{
+    // Allocate and initialise gPacketInfo
+    if (gPacketInfo) internal_free(gPacketInfo);
+    gPacketInfo = (PacketInfo*)internal_malloc(sizeof(PacketInfo) * MAX_PACKET_NUM);
+    if (!gPacketInfo) return;
+    for (int i = 0; i < MAX_PACKET_NUM; i++) {
+        gPacketInfo[i].basePacketNum = -1;
+        gPacketInfo[i].disposition = -1;
+    }
+
+    // Initialise forward map to -1
+    for (int i = 0; i < MAX_PACKET_NUM; i++) {
+        for (int d = 0; d < 6; d++) {
+            gDispositionMap[i][d] = -1;
+        }
+    }
+
+    // Temporary list of custom packets (disposition 0) with their base names
+    typedef struct {
+        char* baseName;
+        int packetNum;
+    } CustomEntry;
+    CustomEntry* customEntries = NULL;
+    int customCount = 0;
+
+    // First pass: collect all packets with disposition == 0 (custom)
+    for (int i = 0; i < gAiPacketsLength; i++) {
+        AiPacket* p = &gAiPackets[i];
+        if (p->disposition == 0) {
+            char* base = extractBaseName(p->name, p->disposition);
+            if (!base) {
+                // Could not extract base; fallback to whole name
+                base = internal_strdup(p->name);
+            }
+            if (base) {
+                customEntries = (CustomEntry*)internal_realloc(customEntries, sizeof(CustomEntry) * (customCount + 1));
+                customEntries[customCount].baseName = base;
+                customEntries[customCount].packetNum = p->packet_num;
+                customCount++;
+            }
+        }
+    }
+
+    // Second pass: process all packets with disposition >= 0
+    for (int i = 0; i < gAiPacketsLength; i++) {
+        AiPacket* p = &gAiPackets[i];
+        int disp = p->disposition;
+        if (disp < 0) continue; // skip "none"
+
+        char* baseName = extractBaseName(p->name, disp);
+        if (!baseName) {
+            debugPrint("Warning: Could not extract base name for packet %s (disposition %d)\n",
+                p->name, disp);
+            continue;
+        }
+
+        // Find custom packet with same base name
+        int basePacketNum = -1;
+        for (int j = 0; j < customCount; j++) {
+            if (strcmp(customEntries[j].baseName, baseName) == 0) {
+                basePacketNum = customEntries[j].packetNum;
+                break;
+            }
+        }
+        internal_free(baseName);
+
+        if (basePacketNum == -1) {
+            debugPrint("Warning: No custom base found for packet %s (disposition %d)\n",
+                p->name, disp);
+            continue;
+        }
+
+        // Record info for this variant packet
+        gPacketInfo[p->packet_num].basePacketNum = basePacketNum;
+        gPacketInfo[p->packet_num].disposition = disp;
+        gDispositionMap[basePacketNum][disp + 1] = p->packet_num;
+    }
+
+    // Ensure custom packets themselves are recorded
+    for (int i = 0; i < gAiPacketsLength; i++) {
+        AiPacket* p = &gAiPackets[i];
+        if (p->disposition == 0) {
+            gPacketInfo[p->packet_num].basePacketNum = p->packet_num; // self
+            gPacketInfo[p->packet_num].disposition = 0;
+            gDispositionMap[p->packet_num][0 + 1] = p->packet_num;
+        }
+    }
+
+    // Clean up temporary list
+    for (int i = 0; i < customCount; i++) {
+        internal_free(customEntries[i].baseName);
+    }
+    if (customEntries) internal_free(customEntries);
+
+    gForwardMapInitialized = 1;
+}
+
 // parse behaviour entry
 static int _cai_match_str_to_list(const char* str, const char** list, int count, int* valuePtr)
 {
@@ -350,6 +565,8 @@ static int _cai_match_str_to_list(const char* str, const char** list, int count,
 static void aiPacketInit(AiPacket* ai)
 {
     ai->name = nullptr;
+    ai->body_type = nullptr;
+    ai->general_type = nullptr;
 
     ai->area_attack_mode = -1;
     ai->run_away_mode = -1;
@@ -365,203 +582,299 @@ static void aiPacketInit(AiPacket* ai)
     ai->disposition = -1;
 }
 
-// ai_init
-// 0x42703C
-int aiInit()
+// Unified parsing for ai.txt and ai_xxx.txt
+static int processAiConfig(Config* config, const char* sourceName, const char* modName)
 {
-    int index;
-
-    if (aiMessageListInit() == -1) {
-        return -1;
-    }
-
-    gAiPacketsLength = 0;
-
-    Config config;
-    if (!configInit(&config)) {
-        return -1;
-    }
-
-    if (!configRead(&config, "data\\ai.txt", true)) {
-        return -1;
-    }
-
-    gAiPackets = (AiPacket*)internal_malloc(sizeof(*gAiPackets) * config.entriesLength);
-    if (gAiPackets == nullptr) {
-        goto err;
-    }
-
-    for (index = 0; index < config.entriesLength; index++) {
-        aiPacketInit(&(gAiPackets[index]));
-    }
-
-    for (index = 0; index < config.entriesLength; index++) {
-        DictionaryEntry* sectionEntry = &(config.entries[index]);
-        AiPacket* ai = &(gAiPackets[index]);
+    int added = 0;
+    for (int i = 0; i < config->entriesLength; i++) {
+        DictionaryEntry* sectionEntry = &(config->entries[i]);
         char* stringValue;
 
+        int packet_num;
+        if (modName == NULL) {
+            // Vanilla: read packet_num from file
+            if (!configGetInt(config, sectionEntry->key, "packet_num", &packet_num)) {
+                debugPrint("Error: missing packet_num in section %s of %s\n", sectionEntry->key, sourceName);
+                continue;
+            }
+        } else {
+            // Mod: compute packet_num from mod name and section name - overkill but stick sith the pattern
+            uint32_t hash = hashModAiString(modName, sectionEntry->key);
+            packet_num = MOD_PACKET_BASE + (int)(hash % MOD_PACKET_COUNT);
+        }
+
+        if (packet_num < 0 || packet_num >= MAX_PACKET_NUM) {
+            debugPrint("Error: packet_num %d out of range in %s\n", packet_num, sourceName);
+            continue;
+        }
+
+        if (gUsedPacketNum[packet_num]) {
+            gAiCollisionOccurred = true;
+            snprintf(gAiCollisionDetails[packet_num], sizeof(gAiCollisionDetails[packet_num]),
+                "COLLISION: packet_num %d from %s (section %s) conflicts with existing",
+                packet_num, sourceName, sectionEntry->key);
+            debugPrint("  Skipping AI packet %s (packet_num %d) from %s collision\n",
+                sectionEntry->key, packet_num, sourceName);
+            continue;
+        }
+        gUsedPacketNum[packet_num] = true;
+
+        // Allocate space for one more packet
+        AiPacket* newPackets = (AiPacket*)internal_realloc(gAiPackets,
+            sizeof(AiPacket) * (gAiPacketsLength + 1));
+        if (!newPackets) {
+            debugPrint("Failed to realloc gAiPackets for %s\n", sourceName);
+            return -1;
+        }
+        gAiPackets = newPackets;
+
+        AiPacket* ai = &gAiPackets[gAiPacketsLength];
+        aiPacketInit(ai);
+
         ai->name = internal_strdup(sectionEntry->key);
+        ai->packet_num = packet_num;
 
-        if (!configGetInt(&config, sectionEntry->key, "packet_num", &(ai->packet_num)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "max_dist", &(ai->max_dist)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "min_to_hit", &(ai->min_to_hit)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "min_hp", &(ai->min_hp)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "aggression", &(ai->aggression)))
-            goto err;
+        // Read all other fields (same as original)
+        if (!configGetInt(config, sectionEntry->key, "max_dist", &(ai->max_dist))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "min_to_hit", &(ai->min_to_hit))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "min_hp", &(ai->min_hp))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "aggression", &(ai->aggression))) goto err;
 
-        if (configGetString(&config, sectionEntry->key, "hurt_too_much", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "hurt_too_much", &stringValue)) {
             _parse_hurt_str(stringValue, &(ai->hurt_too_much));
         }
 
-        if (!configGetInt(&config, sectionEntry->key, "secondary_freq", &(ai->secondary_freq)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "called_freq", &(ai->called_freq)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "font", &(ai->font)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "color", &(ai->color)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "outline_color", &(ai->outline_color)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "chance", &(ai->chance)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "run_start", &(ai->run.start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "run_end", &(ai->run.end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "move_start", &(ai->move.start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "move_end", &(ai->move.end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "attack_start", &(ai->attack.start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "attack_end", &(ai->attack.end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "miss_start", &(ai->miss.start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "miss_end", &(ai->miss.end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_head_start", &(ai->hit[HIT_LOCATION_HEAD].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_head_end", &(ai->hit[HIT_LOCATION_HEAD].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_start", &(ai->hit[HIT_LOCATION_LEFT_ARM].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_arm_end", &(ai->hit[HIT_LOCATION_LEFT_ARM].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_start", &(ai->hit[HIT_LOCATION_RIGHT_ARM].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_arm_end", &(ai->hit[HIT_LOCATION_RIGHT_ARM].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_torso_start", &(ai->hit[HIT_LOCATION_TORSO].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_torso_end", &(ai->hit[HIT_LOCATION_TORSO].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_start", &(ai->hit[HIT_LOCATION_RIGHT_LEG].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_right_leg_end", &(ai->hit[HIT_LOCATION_RIGHT_LEG].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_start", &(ai->hit[HIT_LOCATION_LEFT_LEG].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_left_leg_end", &(ai->hit[HIT_LOCATION_LEFT_LEG].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_start", &(ai->hit[HIT_LOCATION_EYES].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_eyes_end", &(ai->hit[HIT_LOCATION_EYES].end)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_groin_start", &(ai->hit[HIT_LOCATION_GROIN].start)))
-            goto err;
-        if (!configGetInt(&config, sectionEntry->key, "hit_groin_end", &(ai->hit[HIT_LOCATION_GROIN].end)))
-            goto err;
+        if (!configGetInt(config, sectionEntry->key, "secondary_freq", &(ai->secondary_freq))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "called_freq", &(ai->called_freq))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "font", &(ai->font))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "color", &(ai->color))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "outline_color", &(ai->outline_color))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "chance", &(ai->chance))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "run_start", &(ai->run.start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "run_end", &(ai->run.end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "move_start", &(ai->move.start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "move_end", &(ai->move.end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "attack_start", &(ai->attack.start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "attack_end", &(ai->attack.end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "miss_start", &(ai->miss.start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "miss_end", &(ai->miss.end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_head_start", &(ai->hit[HIT_LOCATION_HEAD].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_head_end", &(ai->hit[HIT_LOCATION_HEAD].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_left_arm_start", &(ai->hit[HIT_LOCATION_LEFT_ARM].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_left_arm_end", &(ai->hit[HIT_LOCATION_LEFT_ARM].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_right_arm_start", &(ai->hit[HIT_LOCATION_RIGHT_ARM].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_right_arm_end", &(ai->hit[HIT_LOCATION_RIGHT_ARM].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_torso_start", &(ai->hit[HIT_LOCATION_TORSO].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_torso_end", &(ai->hit[HIT_LOCATION_TORSO].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_right_leg_start", &(ai->hit[HIT_LOCATION_RIGHT_LEG].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_right_leg_end", &(ai->hit[HIT_LOCATION_RIGHT_LEG].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_left_leg_start", &(ai->hit[HIT_LOCATION_LEFT_LEG].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_left_leg_end", &(ai->hit[HIT_LOCATION_LEFT_LEG].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_eyes_start", &(ai->hit[HIT_LOCATION_EYES].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_eyes_end", &(ai->hit[HIT_LOCATION_EYES].end))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_groin_start", &(ai->hit[HIT_LOCATION_GROIN].start))) goto err;
+        if (!configGetInt(config, sectionEntry->key, "hit_groin_end", &(ai->hit[HIT_LOCATION_GROIN].end))) goto err;
 
         ai->hit[HIT_LOCATION_GROIN].end++;
 
-        if (configGetString(&config, sectionEntry->key, "area_attack_mode", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "area_attack_mode", &stringValue)) {
             _cai_match_str_to_list(stringValue, gAreaAttackModeKeys, AREA_ATTACK_MODE_COUNT, &(ai->area_attack_mode));
         } else {
             ai->area_attack_mode = -1;
         }
 
-        if (configGetString(&config, sectionEntry->key, "run_away_mode", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "run_away_mode", &stringValue)) {
             _cai_match_str_to_list(stringValue, gRunAwayModeKeys, RUN_AWAY_MODE_COUNT, &(ai->run_away_mode));
-
-            if (ai->run_away_mode >= 0) {
-                ai->run_away_mode--;
-            }
+            if (ai->run_away_mode >= 0) ai->run_away_mode--;
         }
 
-        if (configGetString(&config, sectionEntry->key, "best_weapon", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "best_weapon", &stringValue)) {
             _cai_match_str_to_list(stringValue, gBestWeaponKeys, BEST_WEAPON_COUNT, &(ai->best_weapon));
         }
 
-        if (configGetString(&config, sectionEntry->key, "distance", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "distance", &stringValue)) {
             _cai_match_str_to_list(stringValue, gDistanceModeKeys, DISTANCE_COUNT, &(ai->distance));
         }
 
-        if (configGetString(&config, sectionEntry->key, "attack_who", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "attack_who", &stringValue)) {
             _cai_match_str_to_list(stringValue, gAttackWhoKeys, ATTACK_WHO_COUNT, &(ai->attack_who));
         }
 
-        if (configGetString(&config, sectionEntry->key, "chem_use", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "chem_use", &stringValue)) {
             _cai_match_str_to_list(stringValue, gChemUseKeys, CHEM_USE_COUNT, &(ai->chem_use));
         }
 
-        configGetIntList(&config, sectionEntry->key, "chem_primary_desire", ai->chem_primary_desire, AI_PACKET_CHEM_PRIMARY_DESIRE_COUNT);
+        configGetIntList(config, sectionEntry->key, "chem_primary_desire", ai->chem_primary_desire, AI_PACKET_CHEM_PRIMARY_DESIRE_COUNT);
 
-        if (configGetString(&config, sectionEntry->key, "disposition", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "disposition", &stringValue)) {
             _cai_match_str_to_list(stringValue, gDispositionKeys, DISPOSITION_COUNT, &(ai->disposition));
             ai->disposition--;
         }
 
-        if (configGetString(&config, sectionEntry->key, "body_type", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "body_type", &stringValue)) {
             ai->body_type = internal_strdup(stringValue);
-        } else {
-            ai->body_type = nullptr;
         }
 
-        if (configGetString(&config, sectionEntry->key, "general_type", &stringValue)) {
+        if (configGetString(config, sectionEntry->key, "general_type", &stringValue)) {
             ai->general_type = internal_strdup(stringValue);
-        } else {
-            ai->general_type = nullptr;
         }
+
+        gAiPacketsLength++;
+        added++;
+        continue;
+
+    err:
+        debugPrint("Error processing section %s in %s\n", sectionEntry->key, sourceName);
+        // Clean up
+        gUsedPacketNum[packet_num] = false;
+        if (ai->name) {
+            internal_free(ai->name);
+            ai->name = nullptr;
+        }
+        continue;
+    }
+    return added;
+}
+
+// ai_init
+// 0x42703C
+int aiInit()
+{
+    if (aiMessageListInit() == -1) {
+        return -1;
     }
 
-    if (index < config.entriesLength) {
-        goto err;
-    }
-
-    gAiPacketsLength = config.entriesLength;
-
-    configFree(&config);
-
-    gAiInitialized = true;
-
-    return 0;
-
-err:
-
-    if (gAiPackets != nullptr) {
-        for (index = 0; index < config.entriesLength; index++) {
-            AiPacket* ai = &(gAiPackets[index]);
-            if (ai->name != nullptr) {
-                internal_free(ai->name);
-            }
-
-            // FIXME: leaking ai->body_type and ai->general_type, does not matter
-            // because it halts further processing
+    // Reset global arrays
+    if (gAiPackets) {
+        for (int i = 0; i < gAiPacketsLength; i++) {
+            AiPacket* ai = &gAiPackets[i];
+            if (ai->name) internal_free(ai->name);
+            if (ai->body_type) internal_free(ai->body_type);
+            if (ai->general_type) internal_free(ai->general_type);
         }
         internal_free(gAiPackets);
+        gAiPackets = nullptr;
+        gAiPacketsLength = 0;
     }
+    memset(gUsedPacketNum, 0, sizeof(gUsedPacketNum));
+    gAiCollisionOccurred = false;
+    memset(gAiCollisionDetails, 0, sizeof(gAiCollisionDetails));
 
-    debugPrint("Error processing ai.txt");
-
+    // Load vanilla ai.txt
+    Config config;
+    if (!configInit(&config)) {
+        return -1;
+    }
+    if (!configRead(&config, "data\\ai.txt", true)) {
+        configFree(&config);
+        return -1;
+    }
+    int vanillaAdded = processAiConfig(&config, "vanilla", NULL);
     configFree(&config);
 
-    return -1;
+    // Find and load mod ai files (ai_*.txt)
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sdata%cai_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount > 0) {
+        // Sort alphabetically
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                    char* temp = foundFiles[i];
+                    foundFiles[i] = foundFiles[j];
+                    foundFiles[j] = temp;
+                }
+            }
+        }
+
+        for (int i = 0; i < fileCount; i++) {
+            if (strcmp(foundFiles[i], "ai.txt") == 0) continue;
+
+            const char* modName = extractModNameFromAiFile(foundFiles[i]);
+            if (modName[0] == '\0') {
+                debugPrint("Warning: Invalid mod AI filename (expected ai_*.txt): %s\n", foundFiles[i]);
+                continue;
+            }
+
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+
+            Config modConfig;
+            if (!configInit(&modConfig)) continue;
+            if (!configRead(&modConfig, filePath, true)) {
+                configFree(&modConfig);
+                continue;
+            }
+            int modAdded = processAiConfig(&modConfig, foundFiles[i], modName);
+            configFree(&modConfig);
+            debugPrint("Loaded %d AI packets from %s\n", modAdded, foundFiles[i]);
+        }
+        fileNameListFree(&foundFiles, fileCount);
+    }
+
+    if (gAiPacketsLength == 0) {
+        debugPrint("No AI packets loaded!\n");
+        return -1;
+    }
+
+    // After all packets are loaded, build the disposition mapping
+    buildDispositionMaps();
+
+    // Generate report
+    generateAiReport();
+
+    gAiInitialized = true;
+    return 0;
+}
+
+// Simple report for now - should be enough
+static void generateAiReport()
+{
+    char dirPath[COMPAT_MAX_PATH];
+    snprintf(dirPath, sizeof(dirPath), "%sdata%clists", _cd_path_base, DIR_SEPARATOR);
+    compat_mkdir(dirPath);
+
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cai_list.txt",
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) {
+        debugPrint("Failed to create AI report\n");
+        return;
+    }
+
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "AI Packets Report\n");
+    fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(report, "Total packets: %d\n\n", gAiPacketsLength);
+
+    fprintf(report, "%-6s %-8s %-30s\n", "Index", "PacketNum", "Name");
+    for (int i = 0; i < gAiPacketsLength; i++) {
+        AiPacket* p = &gAiPackets[i];
+        fprintf(report, "%-6d %-8d %-30s\n", i, p->packet_num, p->name ? p->name : "(null)");
+    }
+
+    if (gAiCollisionOccurred) {
+        fprintf(report, "\n--- COLLISION DETAILS ---\n");
+        for (int i = 0; i < MAX_PACKET_NUM; i++) {
+            if (gAiCollisionDetails[i][0] != '\0') {
+                fprintf(report, "PacketNum %d: %s\n", i, gAiCollisionDetails[i]);
+            }
+        }
+    }
+
+    fclose(report);
+    debugPrint("AI report written to %s\n", reportPath);
 }
 
 // 0x4279F8
@@ -592,11 +905,11 @@ int aiExit()
     }
 
     internal_free(gAiPackets);
+    gAiPackets = nullptr;
     gAiPacketsLength = 0;
 
     gAiInitialized = false;
 
-    // NOTE: Uninline.
     if (aiMessageListFree() != 0) {
         return -1;
     }
@@ -833,6 +1146,11 @@ static AiPacket* aiGetPacket(Object* obj)
 // 0x42811C
 static AiPacket* aiGetPacketByNum(int aiPacketId)
 {
+    if (gAiPackets == nullptr || gAiPacketsLength == 0) {
+        debugPrint("aiGetPacketByNum: called with no AI packets loaded\n");
+        return nullptr; // or return a dummy static packet; original returns first packet.
+    }
+
     for (int index = 0; index < gAiPacketsLength; index++) {
         AiPacket* ai = &(gAiPackets[index]);
         if (aiPacketId == ai->packet_num) {
@@ -993,19 +1311,37 @@ int aiGetDisposition(Object* obj)
 }
 
 // 0x428354
+// Changes a critter's AI disposition using either the new name?based mapping
+// (if available) or the original sequential?number fallback. Returns 0 on success.
 int aiSetDisposition(Object* obj, int disposition)
 {
     if (obj == nullptr) {
         return -1;
     }
 
+    // disposition should be -1..4 (none..berserk)
     if (disposition == -1 || disposition >= 5) {
         return -1;
     }
 
-    AiPacket* ai = aiGetPacket(obj);
-    obj->data.critter.combat.aiPacket = ai->packet_num - (disposition - ai->disposition);
+    // Get current AI packet
+    int currPacket = obj->data.critter.combat.aiPacket;
+    AiPacket* currentAi = aiGetPacket(obj);
 
+    // Try to use disposition mapping if available
+    if (gForwardMapInitialized && currPacket >= 0 && currPacket < MAX_PACKET_NUM) {
+        int base = gPacketInfo[currPacket].basePacketNum;
+        if (base != -1) {
+            int target = gDispositionMap[base][disposition + 1]; // +1 because disposition -1 is not used
+            if (target != -1) {
+                obj->data.critter.combat.aiPacket = target;
+                return 0;
+            }
+        }
+    }
+
+    // Fall back to original offset method (sequential numbers assumption)
+    obj->data.critter.combat.aiPacket = currentAi->packet_num - (disposition - currentAi->disposition);
     return 0;
 }
 

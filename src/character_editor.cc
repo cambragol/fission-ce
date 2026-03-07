@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include <algorithm>
 #include <vector>
@@ -42,6 +43,7 @@
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
+#include "string_parsers.h"
 #include "svga.h"
 #include "text_font.h"
 #include "trait.h"
@@ -50,6 +52,8 @@
 #include "worldmap.h"
 
 namespace fallout {
+
+#define DIR_SEPARATOR '/'
 
 #define RENDER_ALL_STATS 7
 
@@ -304,6 +308,9 @@ static int customKarmaFolderGetFrmId();
 
 static void customTownReputationInit();
 static void customTownReputationFree();
+
+static int parseKarmaFile(const char* path, const char* sourceName);
+static void generateKarmaReport();
 
 // 0x431C40
 static int gCharacterEditorFrmIds[EDITOR_GRAPHIC_COUNT] = {
@@ -7505,79 +7512,143 @@ static bool characterEditorFolderViewDrawKillsEntry(const char* name, int kills)
 // 0x43E5C4
 static int karmaInit()
 {
-    const char* delim = " \t,";
-
-    if (gKarmaEntries != nullptr) {
+    // Free any previously loaded entries
+    if (gKarmaEntries) {
         internal_free(gKarmaEntries);
         gKarmaEntries = nullptr;
+        gKarmaEntriesLength = 0;
     }
 
-    gKarmaEntriesLength = 0;
+    // Load vanilla karma file
+    parseKarmaFile("data\\karmavar.txt", "vanilla");
 
-    File* stream = fileOpen("data\\karmavar.txt", "rt");
-    if (stream == nullptr) {
-        return -1;
+    // Find and laod mod karma files (karmavar_*.txt)
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sdata%ckarmavar_*.txt",
+        _cd_path_base, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount > 0) {
+        // Sort alphabetically for consistent load order... but will it matter?
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (strcmp(foundFiles[i], foundFiles[j]) > 0) {
+                    char* temp = foundFiles[i];
+                    foundFiles[i] = foundFiles[j];
+                    foundFiles[j] = temp;
+                }
+            }
+        }
+
+        // Process each file
+        for (int i = 0; i < fileCount; i++) {
+            // Skip the vanilla file (just in case...)
+            if (strcmp(foundFiles[i], "karmavar.txt") == 0)
+                continue;
+
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath), "%sdata%c%s",
+                _cd_path_base, DIR_SEPARATOR, foundFiles[i]);
+
+            parseKarmaFile(filePath, foundFiles[i]);
+        }
+        fileNameListFree(&foundFiles, fileCount);
     }
 
-    char string[256];
-    while (fileReadString(string, 256, stream)) {
-        KarmaEntry entry;
-
-        char* pch = string;
-        while (isspace(*pch & 0xFF)) {
-            pch++;
-        }
-
-        if (*pch == '#') {
-            continue;
-        }
-
-        char* tok = strtok(pch, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.gvar = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.art_num = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.name = atoi(tok);
-
-        tok = strtok(nullptr, delim);
-        if (tok == nullptr) {
-            continue;
-        }
-
-        entry.description = atoi(tok);
-
-        KarmaEntry* entries = (KarmaEntry*)internal_realloc(gKarmaEntries, sizeof(*entries) * (gKarmaEntriesLength + 1));
-        if (entries == nullptr) {
-            fileClose(stream);
-
-            return -1;
-        }
-
-        memcpy(&(entries[gKarmaEntriesLength]), &entry, sizeof(entry));
-
-        gKarmaEntries = entries;
-        gKarmaEntriesLength++;
-    }
-
+    // Sort all entries by gvar (same as original)
     qsort(gKarmaEntries, gKarmaEntriesLength, sizeof(*gKarmaEntries), karmaEntryCompare);
+    showMesageBox("Made it here!");
 
-    fileClose(stream);
+    // Generate a report (optional but helpful... cut later maybe)
+    generateKarmaReport();
 
     return 0;
+}
+
+static int parseKarmaFile(const char* path, const char* sourceName)
+{
+    const char* delim = " \t,";
+    File* stream = fileOpen(path, "rt");
+    if (!stream) return -1;
+
+    char string[256];
+    int localCount = 0;
+    while (fileReadString(string, sizeof(string), stream)) {
+        // Skip comments and empty lines (same as original)
+        char* pch = string;
+        while (isspace(*pch & 0xFF))
+            pch++;
+        if (*pch == '#' || *pch == '\0') continue;
+
+        char* tok = strtok(pch, delim);
+        if (!tok) continue;
+        int gvar = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int art_num = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int name = atoi(tok);
+
+        tok = strtok(nullptr, delim);
+        if (!tok) continue;
+        int description = atoi(tok);
+
+        // Allocate space for one more entry
+        KarmaEntry* entries = (KarmaEntry*)internal_realloc(gKarmaEntries,
+            sizeof(*entries) * (gKarmaEntriesLength + 1));
+        if (!entries) {
+            fileClose(stream);
+            return -1;
+        }
+        gKarmaEntries = entries;
+
+        // Fill the new entry
+        KarmaEntry* entry = &gKarmaEntries[gKarmaEntriesLength];
+        entry->gvar = gvar;
+        entry->art_num = art_num;
+        entry->name = name;
+        entry->description = description;
+
+        gKarmaEntriesLength++;
+        localCount++;
+    }
+    fileClose(stream);
+    debugPrint("Loaded %d karma entries from %s\n", localCount, sourceName);
+    return 0;
+}
+
+// More basic report than before - not much detail needed
+static void generateKarmaReport()
+{
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%ckarma_list.txt",
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* report = compat_fopen(reportPath, "wt");
+    if (!report) return;
+
+    time_t now = time(nullptr);
+    struct tm* t = localtime(&now);
+    fprintf(report, "Karma Entries Report\n");
+    fprintf(report, "Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+    fprintf(report, "Total entries: %d\n\n", gKarmaEntriesLength);
+
+    fprintf(report, "%-6s %-8s %-8s %-8s %-8s\n",
+        "Index", "GVAR", "Art", "Name", "Desc");
+    for (int i = 0; i < gKarmaEntriesLength; i++) {
+        KarmaEntry* e = &gKarmaEntries[i];
+        fprintf(report, "%-6d %-8d %-8d %-8d %-8d\n",
+            i, e->gvar, e->art_num, e->name, e->description);
+    }
+    fclose(report);
+    debugPrint("Karma report written to %s\n", reportPath);
 }
 
 // NOTE: Inlined.
@@ -7694,69 +7765,25 @@ static int genericReputationCompare(const void* a1, const void* a2)
 
 static void customKarmaFolderInit()
 {
-    char* karmaFrms = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_FRMS_KEY, &karmaFrms);
-    if (karmaFrms != nullptr && karmaFrms[0] == '\0') {
-        karmaFrms = nullptr;
-    }
+    const std::string& karmaFrmsStr = settings.mod_settings.karma_frms;
+    const std::string& karmaPointsStr = settings.mod_settings.karma_points;
 
-    if (karmaFrms == nullptr) {
+    if (karmaFrmsStr.empty() || karmaPointsStr.empty()) {
         return;
     }
 
-    char* karmaPoints = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_KARMA_POINTS_KEY, &karmaPoints);
-    if (karmaPoints != nullptr && karmaPoints[0] == '\0') {
-        karmaPoints = nullptr;
-    }
+    std::vector<std::string> frms = splitString(karmaFrmsStr);
+    std::vector<std::string> points = splitString(karmaPointsStr);
 
-    if (karmaPoints == nullptr) {
-        return;
-    }
+    gCustomKarmaFolderDescriptions.resize(frms.size());
 
-    int karmaFrmsCount = 0;
-    for (char* pch = karmaFrms; pch != nullptr; pch = strchr(pch + 1, ',')) {
-        karmaFrmsCount++;
-    }
+    for (size_t i = 0; i < frms.size(); ++i) {
+        gCustomKarmaFolderDescriptions[i].frmId = std::atoi(frms[i].c_str());
 
-    int karmaPointsCount = 0;
-    for (char* pch = karmaPoints; pch != nullptr; pch = strchr(pch + 1, ',')) {
-        karmaPointsCount++;
-    }
-
-    gCustomKarmaFolderDescriptions.resize(karmaFrmsCount);
-
-    for (int index = 0; index < karmaFrmsCount; index++) {
-        char* pch;
-
-        pch = strchr(karmaFrms, ',');
-        if (pch != nullptr) {
-            *pch = '\0';
-        }
-
-        gCustomKarmaFolderDescriptions[index].frmId = atoi(karmaFrms);
-
-        if (pch != nullptr) {
-            *pch = ',';
-        }
-
-        karmaFrms = pch + 1;
-
-        if (index < karmaPointsCount) {
-            pch = strchr(karmaPoints, ',');
-            if (pch != nullptr) {
-                *pch = '\0';
-            }
-
-            gCustomKarmaFolderDescriptions[index].threshold = atoi(karmaPoints);
-
-            if (pch != nullptr) {
-                *pch = ',';
-            }
-
-            karmaPoints = pch + 1;
+        if (i < points.size()) {
+            gCustomKarmaFolderDescriptions[i].threshold = std::atoi(points[i].c_str());
         } else {
-            gCustomKarmaFolderDescriptions[index].threshold = INT_MAX;
+            gCustomKarmaFolderDescriptions[i].threshold = INT_MAX;
         }
     }
 }
@@ -7783,43 +7810,42 @@ static int customKarmaFolderGetFrmId()
 
 static void customTownReputationInit()
 {
-    char* reputationList = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CITY_REPUTATION_LIST_KEY, &reputationList);
-    if (reputationList != nullptr && *reputationList == '\0') {
-        reputationList = nullptr;
+    const std::string& repList = settings.mod_settings.city_reputation_list;
+
+    if (repList.empty()) {
+        // Fallback to defaults
+        if (gCustomTownReputationEntries.empty()) {
+            gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
+            for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
+                gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
+                gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
+            }
+        }
+        return;
     }
 
-    char* curr = reputationList;
-    while (curr != nullptr) {
-        char* next = strchr(curr, ',');
-        if (next != nullptr) {
-            *next = '\0';
+    std::vector<std::string> tokens = splitString(repList); // split by comma
+
+    for (const std::string& token : tokens) {
+        size_t colonPos = token.find(':');
+        if (colonPos == std::string::npos) {
+            // Malformed entry – skip (original would ignore)
+            continue;
         }
 
-        char* sep = strchr(curr, ':');
-        if (sep != nullptr) {
-            *sep = '\0';
+        std::string cityStr = token.substr(0, colonPos);
+        std::string gvarStr = token.substr(colonPos + 1);
 
-            TownReputationEntry entry;
-            entry.city = atoi(curr);
-            entry.gvar = atoi(sep + 1);
-            gCustomTownReputationEntries.push_back(std::move(entry));
-
-            *sep = ':';
-        }
-
-        if (next != nullptr) {
-            *next = ',';
-            curr = next + 1;
-        } else {
-            curr = nullptr;
-        }
+        TownReputationEntry entry;
+        entry.city = std::atoi(cityStr.c_str());
+        entry.gvar = std::atoi(gvarStr.c_str());
+        gCustomTownReputationEntries.push_back(std::move(entry));
     }
 
     if (gCustomTownReputationEntries.empty()) {
+        // No valid entries loaded; fallback to defaults
         gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
-
-        for (int index = 0; index < TOWN_REPUTATION_COUNT; index++) {
+        for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
             gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
             gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
         }

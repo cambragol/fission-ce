@@ -82,14 +82,14 @@ int falloutMain(int argc, char** argv)
         return 1;
     }
 
-    // SFALL: Allow to skip intro movies
-    int skipOpeningMovies;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
-    if (skipOpeningMovies < 1) {
+    // skip opening movies form settings
+    if (settings.enhancements.skip_opening_movies < 1 || settings.enhancements.strict_vanilla) {
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);
     }
+    // restores black for fade to main menu when skipping movies (which do it)
+    paletteSetEntries(gPaletteBlack);
 
     if (mainMenuWindowInit() == 0) {
         bool done = false;
@@ -115,13 +115,8 @@ int falloutMain(int argc, char** argv)
                     gameMoviePlay(MOVIE_ELDER, GAME_MOVIE_STOP_MUSIC);
                     randomSeedPrerandom(-1);
 
-                    // SFALL: Override starting map.
-                    char* mapName = nullptr;
-                    if (configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, &mapName)) {
-                        if (*mapName == '\0') {
-                            mapName = nullptr;
-                        }
-                    }
+                    // modConfig: Override starting map.
+                    const char* mapName = settings.mod_settings.starting_map.empty() ? nullptr : settings.mod_settings.starting_map.c_str();
 
                     char* mapNameCopy = compat_strdup(mapName != nullptr ? mapName : _mainMap);
                     _main_load_new(mapNameCopy);
@@ -250,8 +245,8 @@ int falloutMain(int argc, char** argv)
 // 0x480CC0
 static bool falloutInit(int argc, char** argv)
 {
-    // set flag to 1 to initilize _screen_buffer for WINDOW_TRANSPARENT
-    if (gameInitWithOptions("FALLOUT II", false, 0, 1, argc, argv) == -1) {
+    // set flag to 1 to initialize _screen_buffer for WINDOW_TRANSPARENT
+    if (gameInitWithOptions("FALLOUT II", false, 0, WINDOW_MANAGER_INIT_FLAG_BUFFERED, argc, argv) == -1) {
         return false;
     }
 

@@ -9,6 +9,7 @@
 #include "audio_file.h"
 #include "combat.h"
 #include "debug.h"
+#include "game.h"
 #include "game_config.h"
 #include "input.h"
 #include "item.h"
@@ -774,9 +775,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
 // 0x450A08
 int _gsound_background_play_level_music(const char* fileName, int a2)
 {
-    int gaplessMusic = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAPLESS_MUSIC, &gaplessMusic);
-    if (backgoundSoundIsPlaying() && gaplessMusic) {
+    if (backgoundSoundIsPlaying() && settings.enhancements.gapless_music && !settings.enhancements.strict_vanilla) {
         if (!strcmp(fileName, gBackgroundSoundFileName)) {
             return 0;
         }

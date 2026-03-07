@@ -40,7 +40,7 @@ Rect gMouseClipRect = { 0, 0, 0, 0 }; // used for setting mouse clipping rectang
 Rect _scr_size;
 
 // 0x6ACA18
-void (*_scr_blit)(unsigned char* src, int src_pitch, int a3, int src_x, int src_y, int src_width, int src_height, int dest_x, int dest_y) = _GNW95_ShowRect;
+void (*_scr_blit)(unsigned char* src, int src_pitch, int unused, int src_x, int src_y, int src_width, int src_height, int dest_x, int dest_y) = _GNW95_ShowRect;
 
 // 0x6ACA1C
 void (*_zero_mem)() = nullptr;
@@ -170,10 +170,8 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
         gWidescreen = true; // set here to prevent mid game widescreen setting changes (from preferences)
     }
 
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_MODE, &gInterfaceBarMode);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_WIDTH, &gInterfaceBarWidth);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDE_ART, &gInterfaceSidePanelsImageId);
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_IFACE_BAR_SIDES_ORI, &gInterfaceSidePanelsExtendFromScreenEdge);
+    // Assign as a runtime global, because user preference may need to be overridden
+    gInterfaceBarWidth = settings.mod_settings.iface_bar_width;
 
     // setting for stretching - later
     gStretchEnabled = settings.graphics.stretch_enabled;
@@ -353,8 +351,10 @@ unsigned char* directDrawGetPalette()
 }
 
 // 0x4CB850
-void _GNW95_ShowRect(unsigned char* src, int srcPitch, int _, int srcX, int srcY, int srcWidth, int srcHeight, int destX, int destY)
+void _GNW95_ShowRect(unsigned char* src, int srcPitch, int unused, int srcX, int srcY, int srcWidth, int srcHeight, int destX, int destY)
 {
+    (void)unused;
+
     blitBufferToBuffer(src + srcPitch * srcY + srcX, srcWidth, srcHeight, srcPitch, (unsigned char*)gSdlSurface->pixels + gSdlSurface->pitch * destY + destX, gSdlSurface->pitch);
 
     SDL_Rect srcRect;
@@ -403,7 +403,7 @@ int screenGetVisibleHeight()
 {
     int windowBottomMargin = 0;
 
-    if (!gInterfaceBarMode) {
+    if (!settings.mod_settings.iface_bar_mode) {
         windowBottomMargin = INTERFACE_BAR_HEIGHT;
     }
     return screenGetHeight() - windowBottomMargin;
