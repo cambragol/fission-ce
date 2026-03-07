@@ -81,10 +81,8 @@ int falloutMain(int argc, char** argv)
         return 1;
     }
 
-    // SFALL: Allow to skip intro movies
-    int skipOpeningMovies;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
-    if (skipOpeningMovies < 1 || gStrictVanillaEnabled) {
+    // skip opening movies form settings
+    if (settings.enhancements.skip_opening_movies < 1 || settings.enhancements.strict_vanilla) {
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);
@@ -116,13 +114,8 @@ int falloutMain(int argc, char** argv)
                     gameMoviePlay(MOVIE_ELDER, GAME_MOVIE_STOP_MUSIC);
                     randomSeedPrerandom(-1);
 
-                    // SFALL: Override starting map.
-                    char* mapName = nullptr;
-                    if (configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, &mapName)) {
-                        if (*mapName == '\0') {
-                            mapName = nullptr;
-                        }
-                    }
+                    // modConfig: Override starting map.
+                    const char* mapName = settings.mod_settings.starting_map.empty() ? nullptr : settings.mod_settings.starting_map.c_str();
 
                     char* mapNameCopy = compat_strdup(mapName != nullptr ? mapName : _mainMap);
                     _main_load_new(mapNameCopy);

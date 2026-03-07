@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "display_monitor.h"
 #include "game.h"
+#include "game_config.h"
 #include "interface.h"
 #include "inventory.h"
 #include "light.h"
@@ -27,6 +28,7 @@
 #include "proto_instance.h"
 #include "queue.h"
 #include "random.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
@@ -171,7 +173,6 @@ static Object* _wd_obj;
 static int _wd_gvar;
 
 static std::vector<BookDescription> gBooks;
-static bool gExplosionEmitsLight;
 static int gGrenadeExplosionRadius;
 static int gRocketExplosionRadius;
 static int gDynamiteMinDamage;
@@ -3313,12 +3314,7 @@ static void booksInitVanilla()
 
 static void booksInitCustom()
 {
-    char* booksFilePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BOOKS_FILE_KEY, &booksFilePath);
-    if (booksFilePath != nullptr && *booksFilePath == '\0') {
-        booksFilePath = nullptr;
-    }
-
+    const char* booksFilePath = settings.mod_settings.books_file.empty() ? nullptr : settings.mod_settings.books_file.c_str();
     if (booksFilePath != nullptr) {
         Config booksConfig;
         if (configInit(&booksConfig)) {
@@ -3384,9 +3380,6 @@ bool booksGetInfo(int bookPid, int* messageIdPtr, int* skillPtr)
 
 static void explosionsInit()
 {
-    gExplosionEmitsLight = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXPLOSION_EMITS_LIGHT_KEY, &gExplosionEmitsLight);
-
     explosionsReset();
 }
 
@@ -3395,29 +3388,19 @@ static void explosionsReset()
     gGrenadeExplosionRadius = 2;
     gRocketExplosionRadius = 3;
 
-    gDynamiteMinDamage = 30;
-    gDynamiteMaxDamage = 50;
-    gPlasticExplosiveMinDamage = 40;
-    gPlasticExplosiveMaxDamage = 80;
+    // Use values from centralized settings
+    gDynamiteMinDamage = settings.mod_settings.dynamite_min_damage;
+    gDynamiteMaxDamage = settings.mod_settings.dynamite_max_damage;
+    gPlasticExplosiveMinDamage = settings.mod_settings.plastic_explosive_min_damage;
+    gPlasticExplosiveMaxDamage = settings.mod_settings.plastic_explosive_max_damage;
 
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, &gDynamiteMaxDamage)) {
-        gDynamiteMaxDamage = std::clamp(gDynamiteMaxDamage, 0, 9999);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, &gDynamiteMinDamage)) {
-        gDynamiteMinDamage = std::clamp(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, &gPlasticExplosiveMaxDamage)) {
-        gPlasticExplosiveMaxDamage = std::clamp(gPlasticExplosiveMaxDamage, 0, 9999);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, &gPlasticExplosiveMinDamage)) {
-        gPlasticExplosiveMinDamage = std::clamp(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
-    }
+    // Clamp to safe ranges (as original code did)
+    gDynamiteMaxDamage = std::clamp(gDynamiteMaxDamage, 0, 9999);
+    gDynamiteMinDamage = std::clamp(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
+    gPlasticExplosiveMaxDamage = std::clamp(gPlasticExplosiveMaxDamage, 0, 9999);
+    gPlasticExplosiveMinDamage = std::clamp(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
 
     gExplosives.clear();
-
     explosionSettingsReset();
 }
 
@@ -3428,10 +3411,10 @@ static void explosionsExit()
 
 bool explosionEmitsLight()
 {
-    if (gStrictVanillaEnabled) {
+    if (settings.enhancements.strict_vanilla) {
         return false;
     } else {
-        return gExplosionEmitsLight;
+        return settings.enhancements.explosion_emits_light;
     }
 }
 
@@ -3625,12 +3608,7 @@ static void healingItemsInitVanilla()
 
 static void healingItemsInitCustom()
 {
-    char* tweaksFilePath = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TWEAKS_FILE_KEY, &tweaksFilePath);
-    if (tweaksFilePath != nullptr && *tweaksFilePath == '\0') {
-        tweaksFilePath = nullptr;
-    }
-
+    const char* tweaksFilePath = settings.mod_settings.tweaks_file.empty() ? nullptr : settings.mod_settings.tweaks_file.c_str();
     if (tweaksFilePath == nullptr) {
         return;
     }
@@ -3638,9 +3616,9 @@ static void healingItemsInitCustom()
     Config tweaksConfig;
     if (configInit(&tweaksConfig)) {
         if (configRead(&tweaksConfig, tweaksFilePath, false)) {
-            configGetInt(&gSfallConfig, "Items", "STIMPAK", &(gHealingItemPids[HEALING_ITEM_STIMPACK]));
-            configGetInt(&gSfallConfig, "Items", "SUPER_STIMPAK", &(gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK]));
-            configGetInt(&gSfallConfig, "Items", "HEALING_POWDER", &(gHealingItemPids[HEALING_ITEM_HEALING_POWDER]));
+            configGetInt(&gModConfig, "Items", "STIMPAK", &(gHealingItemPids[HEALING_ITEM_STIMPACK]));
+            configGetInt(&gModConfig, "Items", "SUPER_STIMPAK", &(gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK]));
+            configGetInt(&gModConfig, "Items", "HEALING_POWDER", &(gHealingItemPids[HEALING_ITEM_HEALING_POWDER]));
         }
 
         configFree(&tweaksConfig);

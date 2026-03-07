@@ -9,7 +9,9 @@
 #include "input.h"
 #include "platform_compat.h"
 #include "scripts.h"
+#include "settings.h"
 #include "sfall_config.h"
+#include "string_parsers.h"
 
 namespace fallout {
 
@@ -36,43 +38,35 @@ bool sfall_gl_scr_init()
         return false;
     }
 
-    char* paths;
-    configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_GLOBAL_SCRIPT_PATHS, &paths);
+    const std::string& pathsStr = settings.mod_scripts.global_script_paths;
+    if (pathsStr.empty()) {
+        return true; // nothing to process, but state exists
+    }
 
-    char* curr = paths;
-    while (curr != nullptr && *curr != '\0') {
-        char* end = strchr(curr, ',');
-        if (end != nullptr) {
-            *end = '\0';
+    std::vector<std::string> tokens = splitString(pathsStr); // split by commas, trimmed
+
+    for (const std::string& token : tokens) {
+        if (token.empty()) {
+            continue; // skip empty tokens (though splitString shouldn't produce empty if trimmed)
         }
 
         char drive[COMPAT_MAX_DRIVE];
         char dir[COMPAT_MAX_DIR];
-        compat_splitpath(curr, drive, dir, nullptr, nullptr);
+        compat_splitpath(token.c_str(), drive, dir, nullptr, nullptr);
 
         char** files;
-        int filesLength = fileNameListInit(curr, &files, 0, 0);
+        int filesLength = fileNameListInit(token.c_str(), &files, 0, 0);
         if (filesLength != 0) {
-            for (int index = 0; index < filesLength; index++) {
+            for (int index = 0; index < filesLength; ++index) {
                 char path[COMPAT_MAX_PATH];
                 compat_makepath(path, drive, dir, files[index], nullptr);
-
-                state->paths.push_back(std::string { path });
+                state->paths.push_back(std::string(path));
             }
-
             fileNameListFree(&files, 0);
-        }
-
-        if (end != nullptr) {
-            *end = ',';
-            curr = end + 1;
-        } else {
-            curr = nullptr;
         }
     }
 
     std::sort(state->paths.begin(), state->paths.end());
-
     return true;
 }
 

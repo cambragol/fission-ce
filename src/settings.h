@@ -108,91 +108,90 @@ struct GraphicSettings {
     std::string widescreen_variant_suffix = "_800";
 };
 
-// May need to revist defaults on some of these
-struct SfallMainSettings {
-    // none for now
-};
-
-struct SfallMiscSettings {
-    std::string dude_native_look_jumpsuit_male = "";
-    std::string dude_native_look_jumpsuit_female = "";
-    std::string dude_native_look_tribal_male = "";
-    std::string dude_native_look_tribal_female = "";
-    int start_year = 2241;
-    int start_month = 6;
-    int start_day = 24;
-    int main_menu_big_font_color = 0;
-    int main_menu_credits_offset_x = 0;
-    int main_menu_credits_offset_y = 0;
-    int main_menu_font_color = 0;
-    int main_menu_offset_x = 0;
-    int main_menu_offset_y = 0;
-    int skip_opening_movies = 0;
-    std::string starting_map = "";
-    std::string karma_frms = "";
-    std::string karma_points = "";
-    bool display_karma_changes = false;
-    int override_criticals_mode = 2;
-    std::string override_criticals_file = "";
-    bool remove_criticals_time_limits = false;
-    std::string books_file = "";
-    std::string elevators_file = "";
-    std::string console_output_file = "";
-    std::string premade_characters_file_names = "";
-    std::string premade_characters_face_fids = "";
-    bool burst_mod_enabled = false;
-    int burst_mod_center_multiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-    int burst_mod_center_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-    int burst_mod_target_multiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-    int burst_mod_target_divisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
-    int dynamite_min_damage = 30;
-    int dynamite_max_damage = 50;
-    int plastic_explosive_min_damage = 40;
-    int plastic_explosive_max_damage = 80;
-    bool explosion_emits_light = false;
-    int movie_timer_artimer1 = 90;
-    int movie_timer_artimer2 = 180;
-    int movie_timer_artimer3 = 270;
-    int movie_timer_artimer4 = 360;
-    std::string city_reputation_list = "";
-    std::string unarmed_file = "";
-    int damage_mod_formula = 0;
-    bool bonus_hth_damage_fix = true;
-    bool display_bonus_damage = false;
-    int use_lockpick_frm = 293;
-    int use_steal_frm = 293;
-    int use_traps_frm = 293;
-    int use_first_aid_frm = 293;
-    int use_doctor_frm = 293;
-    int use_science_frm = 293;
-    int use_repair_frm = 293;
-    bool science_repair_target_type = false;
-    bool game_dialog_fix = true;
-    std::string tweaks_file = "";
-    bool game_dialog_gender_words = false;
-    bool town_map_hotkeys_fix = true;
-    std::string extra_message_lists = "";
-    bool numbers_is_dialog = false;
+struct EnhancementSettings {
+    bool strict_vanilla = false;
     int auto_quick_save = 0;
-    std::string version_string = "";
-    std::string config_file = "";
-    std::string patch_file = "";
-    int pipboy_available_at_gamestart = 0;
-    int use_walk_distance = 5;
     int auto_open_doors = 0;
     int gapless_music = 0;
-    int worldmap_trail_markers = 0;
     bool enhanced_barter = false;
-    bool strict_vanilla = false;
-    bool iface_bar_mode = true;
-    int iface_bar_width = 800;
-    int iface_bar_side_art = 0;
-    bool iface_bar_sides_ori = false;
+    bool numbers_is_dialog = false;
+    bool display_bonus_damage = false;
+    bool explosion_emits_light = false;
+    bool remove_criticals_time_limits = false;
+    bool display_karma_changes = false;
+    int skip_opening_movies = 0;
+    bool mass_highlight = true;
+    bool game_speed = true;
 };
 
-struct SfallScriptsSettings {
-    std::string ini_config_folder = "";
-    std::string global_script_paths = "";
+struct ModSettings {
+    std::string dude_native_look_jumpsuit_male = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_MALE;
+    std::string dude_native_look_jumpsuit_female = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE;
+    std::string dude_native_look_tribal_male = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_MALE;
+    std::string dude_native_look_tribal_female = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_FEMALE;
+    int start_year = MOD_CONFIG_DEFAULT_START_YEAR;
+    int start_month = MOD_CONFIG_DEFAULT_START_MONTH;
+    int start_day = MOD_CONFIG_DEFAULT_START_DAY;
+    int main_menu_big_font_color = MOD_CONFIG_DEFAULT_MAIN_MENU_BIG_FONT_COLOR;
+    int main_menu_credits_offset_x = MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_X;
+    int main_menu_credits_offset_y = MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_Y;
+    int main_menu_font_color = MOD_CONFIG_DEFAULT_MAIN_MENU_FONT_COLOR;
+    int main_menu_offset_x = MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_X;
+    int main_menu_offset_y = MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_Y;
+    std::string starting_map = MOD_CONFIG_DEFAULT_STARTING_MAP;
+    std::string karma_frms = MOD_CONFIG_DEFAULT_KARMA_FRMS;
+    std::string karma_points = MOD_CONFIG_DEFAULT_KARMA_POINTS;
+    int override_criticals_mode = MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_MODE;
+    std::string override_criticals_file = MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_FILE;
+    std::string books_file = MOD_CONFIG_DEFAULT_BOOKS_FILE;
+    std::string elevators_file = MOD_CONFIG_DEFAULT_ELEVATORS_FILE;
+    std::string console_output_file = MOD_CONFIG_DEFAULT_CONSOLE_OUTPUT_FILE;
+    std::string premade_characters_file_names = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FILE_NAMES;
+    std::string premade_characters_face_fids = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FACE_FIDS;
+    bool burst_mod_enabled = MOD_CONFIG_DEFAULT_BURST_MOD_ENABLED;
+    int burst_mod_center_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
+    int burst_mod_center_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
+    int burst_mod_target_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
+    int burst_mod_target_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+    int dynamite_min_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MIN_DAMAGE;
+    int dynamite_max_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MAX_DAMAGE;
+    int plastic_explosive_min_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MIN_DAMAGE;
+    int plastic_explosive_max_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MAX_DAMAGE;
+    int movie_timer_artimer1 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER1;
+    int movie_timer_artimer2 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER2;
+    int movie_timer_artimer3 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER3;
+    int movie_timer_artimer4 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER4;
+    std::string city_reputation_list = MOD_CONFIG_DEFAULT_CITY_REPUTATION_LIST;
+    std::string unarmed_file = MOD_CONFIG_DEFAULT_UNARMED_FILE;
+    int damage_mod_formula = MOD_CONFIG_DEFAULT_DAMAGE_MOD_FORMULA;
+    bool bonus_hth_damage_fix = MOD_CONFIG_DEFAULT_BONUS_HTH_DAMAGE_FIX;
+    int use_lockpick_frm = MOD_CONFIG_DEFAULT_USE_LOCKPICK_FRM;
+    int use_steal_frm = MOD_CONFIG_DEFAULT_USE_STEAL_FRM;
+    int use_traps_frm = MOD_CONFIG_DEFAULT_USE_TRAPS_FRM;
+    int use_first_aid_frm = MOD_CONFIG_DEFAULT_USE_FIRST_AID_FRM;
+    int use_doctor_frm = MOD_CONFIG_DEFAULT_USE_DOCTOR_FRM;
+    int use_science_frm = MOD_CONFIG_DEFAULT_USE_SCIENCE_FRM;
+    int use_repair_frm = MOD_CONFIG_DEFAULT_USE_REPAIR_FRM;
+    bool science_repair_target_type = MOD_CONFIG_DEFAULT_SCIENCE_REPAIR_TARGET_TYPE;
+    bool game_dialog_fix = MOD_CONFIG_DEFAULT_GAME_DIALOG_FIX;
+    std::string tweaks_file = MOD_CONFIG_DEFAULT_TWEAKS_FILE;
+    bool game_dialog_gender_words = MOD_CONFIG_DEFAULT_GAME_DIALOG_GENDER_WORDS;
+    bool town_map_hotkeys_fix = MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX;
+    std::string extra_message_lists = MOD_CONFIG_DEFAULT_EXTRA_MESSAGE_LISTS;
+    std::string version_string = MOD_CONFIG_DEFAULT_VERSION_STRING;
+    std::string patch_file = MOD_CONFIG_DEFAULT_PATCH_FILE;
+    int pipboy_available_at_gamestart = MOD_CONFIG_DEFAULT_PIPBOY_AVAILABLE_AT_GAMESTART;
+    int use_walk_distance = MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE;
+    bool iface_bar_mode = MOD_CONFIG_DEFAULT_IFACE_BAR_MODE;
+    int iface_bar_width = MOD_CONFIG_DEFAULT_IFACE_BAR_WIDTH;
+    int iface_bar_side_art = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART;
+    bool iface_bar_sides_ori = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI;
+    int worldmap_trail_markers = MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS;
+};
+
+struct ModScriptsSettings {
+    std::string ini_config_folder = MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER;
+    std::string global_script_paths = MOD_CONFIG_DEFAULT_GLOBAL_SCRIPT_PATHS;
 };
 
 struct Settings {
@@ -202,9 +201,9 @@ struct Settings {
     DebugSettings debug;
     MapperSettings mapper;
     GraphicSettings graphics;
-    SfallMainSettings sfall_main; // [sfall_main] section
-    SfallMiscSettings sfall_misc; // [sfall_misc] section
-    SfallScriptsSettings sfall_scripts; // [sfall_scripts] section
+    EnhancementSettings enhancements;
+    ModSettings mod_settings;
+    ModScriptsSettings mod_scripts;
 };
 
 extern Settings settings;
@@ -212,6 +211,7 @@ extern Settings settings;
 bool settingsInit(bool isMapper, int argc, char** argv);
 bool settingsSave();
 bool settingsExit(bool shouldSave);
+void settingsFromModConfig();
 
 } // namespace fallout
 

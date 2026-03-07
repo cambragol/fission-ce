@@ -7,8 +7,10 @@
 
 #include "debug.h"
 #include "game.h"
+#include "game_config.h"
 #include "platform_compat.h"
 #include "scripts.h"
+#include "settings.h"
 #include "sfall_config.h"
 
 namespace fallout {
@@ -103,15 +105,11 @@ static int randomTranslateRoll(int delta, int criticalSuccessModifier)
 {
     unsigned int gameTime = gameTimeGetTime();
 
-    // SFALL: Remove criticals time limits.
-    bool criticalsTimeLimitsRemoved = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
-
     int roll;
     // Determine if critical rolls are allowed:
     // Always allowed after the first day (gameTime >= 1 day).
     // Before the frist day, allowed only if the flag is enabled AND strict vanilla is OFF.
-    bool criticalsAllowed = (gameTime / GAME_TIME_TICKS_PER_DAY >= 1) || (!gStrictVanillaEnabled && criticalsTimeLimitsRemoved);
+    bool criticalsAllowed = (gameTime / GAME_TIME_TICKS_PER_DAY >= 1) || (!settings.enhancements.strict_vanilla && settings.enhancements.remove_criticals_time_limits);
 
     if (delta < 0) {
         roll = ROLL_FAILURE;
