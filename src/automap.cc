@@ -958,6 +958,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
         // Cleanup
         windowDestroy(gAutomapWindow);
+        gAutomapWindow = -1;
         for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
             gAutomapFrmImages[i].unlock();
         }
