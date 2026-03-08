@@ -17,3 +17,6 @@ SORTVALN.FRM        ; sort by value off
 SORTVALH.FRM        ; sort by value on
 SORTREVN.FRM        ; reverse sort off
 SORTREVH.FRM        ; reverse sort on
+MINIMAP.FRM         ; new minimap background
+AUTOUP_M.FRM        ; minimap toggle up
+AUTODN_M.FRM        ; minimap toggle down

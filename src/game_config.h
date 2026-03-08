@@ -112,6 +112,7 @@ namespace fallout {
 #define GAME_CONFIG_SKIP_OPENING_MOVIES_KEY "SkipOpeningMovies"
 #define GAME_CONFIG_MASS_HIGHLIGHT "MassHighlight"
 #define GAME_CONFIG_GAME_SPEED "GameSpeed"
+#define GAME_CONFIG_MINIMAP "Minimap"
 
 #define ENGLISH "english"
 #define FRENCH "french"

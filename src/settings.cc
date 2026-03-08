@@ -147,6 +147,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_SKIP_OPENING_MOVIES_KEY, settings.enhancements.skip_opening_movies);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MASS_HIGHLIGHT, settings.enhancements.mass_highlight);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, settings.enhancements.game_speed);
+    settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, settings.enhancements.minimap);
 }
 
 // read in modConfig setting (no writing back, just reading)
@@ -330,6 +331,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_SKIP_OPENING_MOVIES_KEY, settings.enhancements.skip_opening_movies);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MASS_HIGHLIGHT, settings.enhancements.mass_highlight);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, settings.enhancements.game_speed);
+    settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, settings.enhancements.minimap);
 
     // Mod Settings
     /*settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);

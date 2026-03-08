@@ -6,6 +6,7 @@
 
 #include "animation.h"
 #include "art.h"
+#include "automap.h"
 #include "color.h"
 #include "combat.h"
 #include "config.h"
@@ -128,6 +129,9 @@ static void sidePanelsExit();
 static void sidePanelsHide();
 static void sidePanelsShow();
 static void sidePanelsDraw(const char* path, int win, bool isLeading);
+
+static void minimapHide();
+static void minimapShow();
 
 // 0x518F08
 static bool gInterfaceBarInitialized = false;
@@ -777,6 +781,7 @@ void interfaceBarHide()
 
     // SFALL
     sidePanelsHide();
+    minimapHide();
 
     indicatorBarRefresh();
 }
@@ -791,6 +796,7 @@ void interfaceBarShow()
             interfaceRenderArmorClass(false);
             windowShow(gInterfaceBarWindow);
             sidePanelsShow();
+            minimapShow();
             gInterfaceBarHidden = false;
         }
     }
@@ -2543,6 +2549,21 @@ static void sidePanelsShow()
 
     if (gInterfaceSidePanelsTrailingWindow != -1) {
         windowShow(gInterfaceSidePanelsTrailingWindow);
+    }
+}
+
+// Hide show minimap with interface
+static void minimapHide()
+{
+    if (gAutomapWindow != -1) {
+        windowHide(gAutomapWindow);
+    }
+}
+
+static void minimapShow()
+{
+    if (gAutomapWindow != -1) {
+        windowShow(gAutomapWindow);
     }
 }
 
