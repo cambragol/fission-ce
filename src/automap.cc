@@ -55,7 +55,7 @@ static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
 static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
-static void automapUpdateButtonStates();
+static void automapUpdateButtonStates(bool playsound);
 
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
@@ -276,7 +276,7 @@ static double original_scale = 0.5;
 
 // minimap persistent state globals
 static bool gAutomapWindowOpen = false;
-static int gAutomapWindow = -1;
+int gAutomapWindow = -1;
 static int gAutomapElevation = 0;
 static int gAutomapMapLeft = 0;
 static int gAutomapMapTop = 0;
@@ -710,18 +710,16 @@ void automapShow(bool isInGame, bool isUsingScanner)
         | (isInGame ? AUTOMAP_IN_GAME : 0)
         | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
 
-    // Create window based on mode
-    int window;
     if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
         int x = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
         int y = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
-        window = windowCreate(x, y, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT,
+        gAutomapWindow = windowCreate(x, y, AUTOMAP_WINDOW_WIDTH, AUTOMAP_WINDOW_HEIGHT,
             color, WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
         // No click area
         gAutomapMapLeft = gAutomapMapTop = gAutomapMapRight = gAutomapMapBottom = 0;
     } else {
         int x = 20, y = 20;
-        window = windowCreate(x, y, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT,
+        gAutomapWindow = windowCreate(x, y, MINIMAP_WINDOW_WIDTH, MINIMAP_WINDOW_HEIGHT,
             color, WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT | WINDOW_DRAGGABLE_BY_BACKGROUND);
         // Set click area for minimap
         gAutomapMapLeft = 34;
@@ -795,21 +793,21 @@ void automapShow(bool isInGame, bool isUsingScanner)
         switchFrmDown = AUTOMAP_FRM_MINIMAP_SWITCH_DOWN;
     }
 
-    scannerBtn = buttonCreate(window, scannerX, scannerY, scannerWidth, scannerHeight,
+    scannerBtn = buttonCreate(gAutomapWindow, scannerX, scannerY, scannerWidth, scannerHeight,
         -1, -1, -1, scannerKey,
         gAutomapFrmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
         gAutomapFrmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT);
     if (scannerBtn != -1) buttonSetCallbacks(scannerBtn, _gsound_red_butt_press, _gsound_red_butt_release);
 
-    cancelBtn = buttonCreate(window, cancelX, cancelY, cancelWidth, cancelHeight,
+    cancelBtn = buttonCreate(gAutomapWindow, cancelX, cancelY, cancelWidth, cancelHeight,
         -1, -1, -1, cancelKey,
         gAutomapFrmImages[AUTOMAP_FRM_BUTTON_UP].getData(),
         gAutomapFrmImages[AUTOMAP_FRM_BUTTON_DOWN].getData(),
         nullptr, BUTTON_FLAG_TRANSPARENT);
     if (cancelBtn != -1) buttonSetCallbacks(cancelBtn, _gsound_red_butt_press, _gsound_red_butt_release);
 
-    switchBtn1 = buttonCreate(window, switch1X, switch1Y, switchWidth, switchHeight,
+    switchBtn1 = buttonCreate(gAutomapWindow, switch1X, switch1Y, switchWidth, switchHeight,
         -1, -1, switch1KeyUp, switch1KeyDown,
         gAutomapFrmImages[switchFrmUp].getData(),
         gAutomapFrmImages[switchFrmDown].getData(),
@@ -820,7 +818,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
     }
 
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
-        switchBtn2 = buttonCreate(window, switch2X, switch2Y, switchWidth, switchHeight,
+        switchBtn2 = buttonCreate(gAutomapWindow, switch2X, switch2Y, switchWidth, switchHeight,
             -1, -1, switch2KeyUp, switch2KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
@@ -830,7 +828,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             gZoomButton = switchBtn2;
         }
 
-        switchBtn3 = buttonCreate(window, switch3X, switch3Y, switchWidth, switchHeight,
+        switchBtn3 = buttonCreate(gAutomapWindow, switch3X, switch3Y, switchWidth, switchHeight,
             -1, -1, switch3KeyUp, switch3KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
@@ -842,11 +840,11 @@ void automapShow(bool isInGame, bool isUsingScanner)
     }
 
     // Synchronise button visuals with current flag/zoom/projection
-    automapUpdateButtonStates();
+    automapUpdateButtonStates(false);
 
     // Initial render
     int bgFrm = (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) ? AUTOMAP_FRM_BACKGROUND : AUTOMAP_FRM_MINIMAP;
-    automapRenderInMapWindow(window, gElevation,
+    automapRenderInMapWindow(gAutomapWindow, gElevation,
         gAutomapFrmImages[bgFrm].getData(),
         (isInGame ? AUTOMAP_IN_GAME : 0) | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0));
 
@@ -878,7 +876,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             if (mouseState != 0) {
                 int mouseX, mouseY;
                 mouseGetPosition(&mouseX, &mouseY);
-                if (windowGetAtPoint(mouseX, mouseY) != window) {
+                if (windowGetAtPoint(mouseX, mouseY) != gAutomapWindow) {
                     _gmouse_handle_event(mouseX, mouseY, mouseState);
                 }
             }
@@ -892,7 +890,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             case KEY_LOWERCASE_H:
                 if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
                     gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
-                    automapUpdateButtonStates();
+                    automapUpdateButtonStates(true);
                     gAutomapNeedsRefresh = true;
                 }
                 break;
@@ -900,7 +898,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             case KEY_LOWERCASE_L:
                 if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
                     gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
-                    automapUpdateButtonStates();
+                    automapUpdateButtonStates(true);
                     gAutomapNeedsRefresh = true;
                 }
                 break;
@@ -945,7 +943,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             }
 
             if (needsRefresh) {
-                automapRenderInMapWindow(window, gElevation,
+                automapRenderInMapWindow(gAutomapWindow, gElevation,
                     gAutomapFrmImages[AUTOMAP_FRM_BACKGROUND].getData(),
                     gAutomapFlags);
             }
@@ -959,7 +957,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
         if (isoWasEnabled) isoEnable();
 
         // Cleanup
-        windowDestroy(window);
+        windowDestroy(gAutomapWindow);
         for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
             gAutomapFrmImages[i].unlock();
         }
@@ -968,7 +966,6 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     } else {
         // MINIMAP persistant non-modal behaviour
-        gAutomapWindow = window;
         gAutomapWindowOpen = true;
         gAutomapElevation = gElevation;
         gAutomapNeedsRefresh = true;
@@ -977,7 +974,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
         // ISO remains enabled
         gIsoWasEnabled = false;
 
-        // Return immediately – main loop will handle updates
+        // Return immediately - main loop will handle updates
     }
 }
 
@@ -1086,7 +1083,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             }
         }
     }
-    // ===== MINIMAP MODE � player?centered projection with zoom & toggles =====
+    // ===== MINIMAP MODE - player-centered projection with zoom & toggles =====
     else {
         // Clipping rectangle (map display area)
         int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
@@ -1225,7 +1222,9 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             windowDrawText(window, mapName, 240, 150, 396, textColor | 0x2000000);
         } else {
             int areaWidth = fontGetStringWidth(areaName);
-            windowDrawText(window, areaName, areaWidth, (220 - areaWidth) / 2, 182, textColor | 0x2000000);
+            int mapWidth = fontGetStringWidth(mapName);
+            windowDrawText(window, areaName, areaWidth, (220 - areaWidth) / 2, 28, textColor | 0x2000000);
+            windowDrawText(window, mapName, mapWidth, (220 - mapWidth) / 2, 184, textColor | 0x2000000);
         }
     }
 
@@ -1685,7 +1684,7 @@ static int automapLoadHeader(File* stream)
     }
 
     if (gAutomapHeader.version == 1) {
-        // Version 1: Read 480 offsets (160 maps � 3 elevations)
+        // Version 1: Read 480 offsets (160 maps - 3 elevations)
         int oldOffsets[480];
         if (_db_freadIntCount(stream, oldOffsets, 480) == -1) {
             return -1;
@@ -1768,7 +1767,7 @@ static void _decode_map_data(int elevation)
 static int automapCreate()
 {
     gAutomapHeader.version = 2; // NEW FORMAT
-    gAutomapHeader.dataSize = 24005; // 1 + 4 + (2000�3�4)
+    gAutomapHeader.dataSize = 24005; // 1 + 4 + (2000*3*4)
 
     // Initialize ALL offsets to 0
     for (int i = 0; i < AUTOMAP_MAP_COUNT; i++) {
@@ -1915,35 +1914,35 @@ bool automapHandleKey(int keyCode)
         if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
             gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
-            automapUpdateButtonStates();
+            automapUpdateButtonStates(true);
         }
         break;
     case KEY_ALT_L:
         if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) != 0) {
             gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
-            automapUpdateButtonStates();
+            automapUpdateButtonStates(true);
         }
         break;
     case KEY_ALT_I:
         zoom = 2;
         gAutomapNeedsRefresh = true;
-        automapUpdateButtonStates();
+        automapUpdateButtonStates(true);
         break;
     case KEY_ALT_O:
         zoom = 1;
         gAutomapNeedsRefresh = true;
-        automapUpdateButtonStates();
+        automapUpdateButtonStates(true);
         break;
     case KEY_ALT_D:
         gUseNewAutomapProjection = true;
         gAutomapNeedsRefresh = true;
-        automapUpdateButtonStates();
+        automapUpdateButtonStates(true);
         break;
     case KEY_ALT_T:
         gUseNewAutomapProjection = false;
         gAutomapNeedsRefresh = true;
-        automapUpdateButtonStates();
+        automapUpdateButtonStates(true);
         break;
     case KEY_ALT_S:
         // Scanner
@@ -1980,7 +1979,7 @@ bool automapHandleKey(int keyCode)
         Rect winRect;
         if (windowGetRect(gAutomapWindow, &winRect) == 0) {
             if (mouseX >= winRect.left && mouseX < winRect.right && mouseY >= winRect.top && mouseY < winRect.bottom) {
-                // Inside automap window – consume event
+                // Inside automap window consume event
                 int winW = winRect.right - winRect.left;
                 int winH = winRect.bottom - winRect.top;
                 int relX = mouseX - winRect.left;
@@ -2030,7 +2029,7 @@ void automapUpdate()
 {
     if (!gAutomapWindowOpen) return;
 
-    // Update object visibility flags – this marks newly seen tiles
+    // Update object visibility flags - this marks newly seen tiles
     _obj_process_seen();
 
     // Refresh if elevation changed (e.g., player used stairs)
@@ -2079,23 +2078,23 @@ void automapClose()
     gProjectionButton = -1;
 }
 
-static void automapUpdateButtonStates()
+static void automapUpdateButtonStates(bool playsound)
 {
     if (gDetailsButton != -1) {
         // Down state = 1 when high details OFF (flag cleared)
         _win_set_button_rest_state(gDetailsButton,
             (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
-        soundPlayFile("toggle");
+        if (playsound) soundPlayFile("toggle");
     }
     if (gZoomButton != -1) {
         // Down state = 1 when zoom == 2
         _win_set_button_rest_state(gZoomButton, (zoom == 2) ? 1 : 0, 0);
-        soundPlayFile("toggle");
+        if (playsound) soundPlayFile("toggle");
     }
     if (gProjectionButton != -1) {
         // Down state = 1 when new projection ON
         _win_set_button_rest_state(gProjectionButton, gUseNewAutomapProjection ? 1 : 0, 0);
-        soundPlayFile("toggle");
+        if (playsound) soundPlayFile("toggle");
     }
 }
 

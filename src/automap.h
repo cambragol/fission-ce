@@ -43,6 +43,9 @@ typedef struct AutomapHeader {
     int offsets[AUTOMAP_MAP_COUNT][ELEVATION_COUNT];
 } AutomapHeader;
 
+// expose automap window to control visibility with interface
+extern int gAutomapWindow;
+
 int automapInit();
 int automapReset();
 void automapExit();
