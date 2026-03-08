@@ -43,6 +43,8 @@ namespace fallout {
 
 #define ANIMATION_SEQUENCE_FORCED 0x01
 
+#define MAX_PUSH_DEPTH 10
+
 typedef enum AnimationKind {
     ANIM_KIND_MOVE_TO_OBJECT = 0,
     ANIM_KIND_MOVE_TO_TILE = 1,
@@ -138,6 +140,11 @@ typedef enum AnimationSadFlags {
     // Specifies that the animation should never end.
     ANIM_SAD_FOREVER = 0x80,
 } AnimationSadFlags;
+
+struct PushMove {
+    Object* obj;
+    int toTile;
+};
 
 typedef struct AnimationDescription {
     int kind;
@@ -325,6 +332,67 @@ static PathNode gOpenPathNodeList[PATH_NODE_CAPACITY];
 
 // 0x56C7DC
 static int gAnimationDescriptionCurrentIndex;
+
+static bool isCritterMoving(Object* critter) {
+    for (int i = 0; i < gAnimationCurrentSad; i++) {
+        AnimationSad* sad = &gAnimationSads[i];
+        if (sad->obj == critter && sad->step != ANIM_COMPLETE && sad->length > 0)
+            return true;
+    }
+    return false;
+}
+
+static bool isCritterPushable(Object* pusher, Object* target) {
+    if (FID_TYPE(target->fid) != OBJ_TYPE_CRITTER) return false;
+    if (critterIsDead(target)) return false;
+    if (target == pusher) return false;
+    // Don't push if already in an animation
+    for (int i = 0; i < gAnimationCurrentSad; i++) {
+        if (gAnimationSads[i].obj == target && gAnimationSads[i].step != ANIM_COMPLETE)
+            return false;
+    }
+    return true;
+}
+
+// Recursively find a free tile for 'obj' and all critters it depends on.
+// 'moveDir' is the direction the player is moving (0-5).
+// Moves are stored in the order they must be applied (leaf first).
+static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int excludeTile,
+                                  PushMove* moves, int& numMoves) {
+    if (depth >= MAX_PUSH_DEPTH) return false;
+
+    // Try all directions except playerDir first
+    for (int attempt = 0; attempt < 2; attempt++) {
+        for (int rot = 0; rot < ROTATION_COUNT; rot++) {
+            if (attempt == 0 && rot == playerDir) continue;   // skip playerDir on first pass
+            if (attempt == 1 && rot != playerDir) continue;   // only playerDir on second pass
+
+            int tile = tileGetTileInDirection(obj->tile, rot, 1);
+            if (tile == excludeTile) continue;
+            if (tile < 0 || tile >= 40000) continue;
+
+            Object* occupant = _obj_blocking_at(obj, tile, obj->elevation);
+            if (occupant == nullptr) {
+                // Free tile found
+                moves[numMoves].obj = obj;
+                moves[numMoves].toTile = tile;
+                numMoves++;
+                return true;
+            } else if (occupant != obj && isCritterPushable(obj, occupant)) {
+                // Occupied by another pushable critter – try to move it first
+                if (findFreeTileRecursive(occupant, depth + 1, playerDir, obj->tile,
+                                          moves, numMoves)) {
+                    // After moving occupant, this tile is now free
+                    moves[numMoves].obj = obj;
+                    moves[numMoves].toTile = tile;
+                    numMoves++;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
 // anim_init
 // 0x413A20
@@ -1715,7 +1783,13 @@ static bool canUseDoor(Object* critter, Object* door)
 // 0x415EE8
 int _make_path(Object* object, int from, int to, unsigned char* rotations, int requireEmptyDest)
 {
-    return pathfinderFindPath(object, from, to, rotations, requireEmptyDest, _obj_blocking_at);
+    PathBuilderCallback* callback;
+    if (object == gDude && !isInCombat()) {
+        callback = _obj_blocking_at_for_path;
+    } else {
+        callback = _obj_blocking_at;
+    }
+    return pathfinderFindPath(object, from, to, rotations, requireEmptyDest, callback);
 }
 
 // TODO: move pathfinding into another unit
@@ -2566,7 +2640,36 @@ static void _object_move(int index)
 
         sad->step = 0;
     } else {
-        objectSetNextFrame(object, &dirtyRect);
+        // --- WAITING LOGIC START ---
+        // Get current rect for refresh
+        objectGetRect(object, &dirtyRect);
+
+        // Get rotation for this step
+        int rotation = sad->rotations[sad->step];
+        int nextTile = tileGetTileInDirection(object->tile, rotation, 1);
+        Object* obstacle = _obj_blocking_at(object, nextTile, object->elevation);
+
+        // Determine if we should wait (player blocked by moving critter)
+        bool waiting = false;
+        if (object == gDude && !isInCombat() &&
+            obstacle != nullptr &&
+            FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER &&
+            !critterIsDead(obstacle) &&
+            isCritterMoving(obstacle)) {
+            waiting = true;
+        }
+
+        if (!waiting) {
+            // Advance animation frame normally
+            objectSetNextFrame(object, &tempRect);
+            rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+        }
+
+        if (waiting) {
+            tileWindowRefreshRect(&dirtyRect, object->elevation);
+            return;
+        }
+        // --- WAITING LOGIC END ---
     }
 
     int frameX;
@@ -2596,22 +2699,53 @@ static void _object_move(int index)
         Object* obstacle = _obj_blocking_at(object, nextTile, object->elevation);
         if (obstacle != nullptr) {
             if (!canUseDoor(object, obstacle)) {
-                sad->length = _make_path(object, object->tile, sad->targetTile, sad->rotations, 1);
-                if (sad->length != 0) {
-                    objectSetLocation(object, object->tile, object->elevation, &tempRect);
-                    rectUnion(&dirtyRect, &tempRect, &dirtyRect);
-
-                    objectSetFrame(object, 0, &tempRect);
-                    rectUnion(&dirtyRect, &tempRect, &dirtyRect);
-
-                    objectSetRotation(object, sad->rotations[0], &tempRect);
-                    rectUnion(&dirtyRect, &tempRect, &dirtyRect);
-
-                    sad->step = 0;
+                // --- PUSH LOGIC START ---
+                if (object == gDude && !isInCombat() && FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obstacle)) {
+                    PushMove moves[MAX_PUSH_DEPTH];
+                    int numMoves = 0;
+                    if (findFreeTileRecursive(obstacle, 0, rotation, object->tile,
+                                              moves, numMoves)) {
+                        for (int i = 0; i < numMoves; i++) {
+                            PushMove* move = &moves[i];
+                            Rect rect;
+                            objectSetLocation(move->obj, move->toTile, move->obj->elevation, &rect);
+                            tileWindowRefreshRect(&rect, move->obj->elevation);
+                        }
+                        // Tile now free – proceed with movement
+                        obstacle = nullptr;
+                    } else {
+                        // No place to push – fall back to path recalculation
+                        sad->length = _make_path(object, object->tile, sad->targetTile, sad->rotations, 1);
+                        if (sad->length != 0) {
+                            objectSetLocation(object, object->tile, object->elevation, &tempRect);
+                            rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                            objectSetFrame(object, 0, &tempRect);
+                            rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                            objectSetRotation(object, sad->rotations[0], &tempRect);
+                            rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                            sad->step = 0;
+                        } else {
+                            sad->step = ANIM_COMPLETE;
+                        }
+                        nextTile = -1;
+                    }
                 } else {
-                    sad->step = ANIM_COMPLETE;
+                    // Non?pushable obstacle – fall back to path recalculation
+                    sad->length = _make_path(object, object->tile, sad->targetTile, sad->rotations, 1);
+                    if (sad->length != 0) {
+                        objectSetLocation(object, object->tile, object->elevation, &tempRect);
+                        rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                        objectSetFrame(object, 0, &tempRect);
+                        rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                        objectSetRotation(object, sad->rotations[0], &tempRect);
+                        rectUnion(&dirtyRect, &tempRect, &dirtyRect);
+                        sad->step = 0;
+                    } else {
+                        sad->step = ANIM_COMPLETE;
+                    }
+                    nextTile = -1;
                 }
-                nextTile = -1;
+                // --- PUSH LOGIC END ---
             } else {
                 objectUseDoor(object, obstacle, 0);
             }
