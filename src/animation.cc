@@ -379,6 +379,28 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
     reg_anim_end();
 }
 
+void animationUnhideGhosts() {
+    if (settings.enhancements.strict_vanilla) {
+        return;
+    }
+    if (!settings.enhancements.auto_push) {
+        return;
+    }
+
+    for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
+        Object* obj = objectFindFirstAtElevation(elevation);
+        while (obj != nullptr) {
+            if (obj->flags & OBJECT_GHOST_HIDDEN) {
+                obj->flags &= ~OBJECT_GHOST_HIDDEN;
+                Rect rect;
+                objectShow(obj, &rect);
+                tileWindowRefreshRect(&rect, obj->elevation);
+            }
+            obj = objectFindNextAtElevation();
+        }
+    }
+}
+
 static bool isCritterMoving(Object* critter) {
     for (int i = 0; i < gAnimationCurrentSad; i++) {
         AnimationSad* sad = &gAnimationSads[i];
@@ -1832,7 +1854,7 @@ static bool canUseDoor(Object* critter, Object* door)
 int _make_path(Object* object, int from, int to, unsigned char* rotations, int requireEmptyDest)
 {
     PathBuilderCallback* callback;
-    if (object == gDude && !isInCombat() && !settings.enhancements.strict_vanilla) {
+    if (object == gDude && !isInCombat() && !settings.enhancements.strict_vanilla && settings.enhancements.auto_push) {
         callback = _obj_blocking_at_for_path;
     } else {
         callback = _obj_blocking_at;
@@ -2755,7 +2777,7 @@ static void _object_move(int index)
         if (obstacle != nullptr) {
             if (!canUseDoor(object, obstacle)) {
                 // --- PUSH LOGIC START ---
-                if (object == gDude && !isInCombat() && FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obstacle)) {
+                if (object == gDude && !isInCombat() && !settings.enhancements.strict_vanilla && settings.enhancements.auto_push && FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obstacle)) {
                     PushMove moves[MAX_PUSH_DEPTH];
                     int numMoves = 0;
                     if (findFreeTileRecursive(obstacle, 0, rotation, object->tile, moves, numMoves)) {
