@@ -114,7 +114,6 @@ namespace fallout {
 #define GAME_CONFIG_GAME_SPEED "GameSpeed"
 #define GAME_CONFIG_AUTO_PUSH "AutoPush"
 
-
 #define ENGLISH "english"
 #define FRENCH "french"
 #define GERMAN "german"

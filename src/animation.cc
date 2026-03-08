@@ -334,7 +334,8 @@ static PathNode gOpenPathNodeList[PATH_NODE_CAPACITY];
 // 0x56C7DC
 static int gAnimationDescriptionCurrentIndex;
 
-static Object* getCritterAtTile(int tile, int elev, Object* exclude) {
+static Object* getCritterAtTile(int tile, int elev, Object* exclude)
+{
     Object* obj = objectFindFirstAtLocation(elev, tile);
     while (obj != nullptr) {
         if (obj != exclude && (obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0) {
@@ -347,7 +348,8 @@ static Object* getCritterAtTile(int tile, int elev, Object* exclude) {
     return nullptr;
 }
 
-static int showRealNPC(void* param1, void* param2) {
+static int showRealNPC(void* param1, void* param2)
+{
     Object* realNPC = (Object*)param2;
     realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
     Rect rect;
@@ -357,7 +359,8 @@ static int showRealNPC(void* param1, void* param2) {
     return 0;
 }
 
-static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int elevation) {
+static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int elevation)
+{
     Object* ghost;
     if (objectCreateWithFidPid(&ghost, realNPC->fid, -1) == -1) return;
     ghost->flags |= OBJECT_NO_BLOCK | OBJECT_NO_SAVE;
@@ -379,7 +382,8 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
     reg_anim_end();
 }
 
-void animationUnhideGhosts() {
+void animationUnhideGhosts()
+{
     if (settings.enhancements.strict_vanilla) {
         return;
     }
@@ -401,7 +405,8 @@ void animationUnhideGhosts() {
     }
 }
 
-static bool isCritterMoving(Object* critter) {
+static bool isCritterMoving(Object* critter)
+{
     for (int i = 0; i < gAnimationCurrentSad; i++) {
         AnimationSad* sad = &gAnimationSads[i];
         if (sad->obj == critter && sad->step != ANIM_COMPLETE && sad->length > 0)
@@ -410,7 +415,8 @@ static bool isCritterMoving(Object* critter) {
     return false;
 }
 
-static bool isCritterPushable(Object* pusher, Object* target) {
+static bool isCritterPushable(Object* pusher, Object* target)
+{
     if (FID_TYPE(target->fid) != OBJ_TYPE_CRITTER) return false;
     if (critterIsDead(target)) return false;
     if (target == pusher) return false;
@@ -426,7 +432,8 @@ static bool isCritterPushable(Object* pusher, Object* target) {
 // 'moveDir' is the direction the player is moving (0-5).
 // Moves are stored in the order they must be applied (leaf first).
 static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int excludeTile,
-                                  PushMove* moves, int& numMoves) {
+    PushMove* moves, int& numMoves)
+{
     if (depth >= MAX_PUSH_DEPTH) return false;
 
     // Try all directions except playerDir first
@@ -450,7 +457,7 @@ static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int exc
             } else if (occupant != obj && isCritterPushable(obj, occupant)) {
                 // Tile occupied by another pushable critter - try to move that one first
                 if (findFreeTileRecursive(occupant, depth + 1, playerDir, obj->tile,
-                                          moves, numMoves)) {
+                        moves, numMoves)) {
                     // After moving occupant, this tile is now free for current object
                     moves[numMoves].obj = obj;
                     moves[numMoves].fromTile = obj->tile;
@@ -2728,11 +2735,7 @@ static void _object_move(int index)
 
         // Determine if we should wait (player blocked by moving critter)
         bool waiting = false;
-        if (object == gDude && !isInCombat() &&
-            obstacle != nullptr &&
-            FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER &&
-            !critterIsDead(obstacle) &&
-            isCritterMoving(obstacle)) {
+        if (object == gDude && !isInCombat() && obstacle != nullptr && FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obstacle) && isCritterMoving(obstacle)) {
             waiting = true;
         }
 
