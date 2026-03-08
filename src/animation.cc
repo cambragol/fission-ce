@@ -143,6 +143,7 @@ typedef enum AnimationSadFlags {
 
 struct PushMove {
     Object* obj;
+    int fromTile;
     int toTile;
 };
 
@@ -333,6 +334,44 @@ static PathNode gOpenPathNodeList[PATH_NODE_CAPACITY];
 // 0x56C7DC
 static int gAnimationDescriptionCurrentIndex;
 
+static Object* getCritterAtTile(int tile, int elev, Object* exclude) {
+    Object* obj = objectFindFirstAtLocation(elev, tile);
+    while (obj != nullptr) {
+        if (obj != exclude && (obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0) {
+            if (FID_TYPE(obj->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obj)) {
+                return obj;
+            }
+        }
+        obj = objectFindNextAtLocation();
+    }
+    return nullptr;
+}
+
+static int showRealNPC(void* param1, void* param2) {
+    Object* realNPC = (Object*)param2;
+    Rect rect;
+    if (objectShow(realNPC, &rect) == 0) {
+        tileWindowRefreshRect(&rect, realNPC->elevation);
+    }
+    return 0;
+}
+
+static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int elevation) {
+    Object* ghost;
+    if (objectCreateWithFidPid(&ghost, realNPC->fid, -1) == -1) return;
+    ghost->flags |= OBJECT_NO_BLOCK | OBJECT_NO_SAVE;
+    ghost->rotation = realNPC->rotation;
+    objectSetLocation(ghost, fromTile, elevation, nullptr);
+    objectHide(ghost, nullptr);
+
+    reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT);
+    animationRegisterUnsetFlag(ghost, OBJECT_HIDDEN, 0);
+    animationRegisterMoveToTileStraight(ghost, toTile, elevation, ANIM_WALK, 0);
+    animationRegisterCallback(ghost, realNPC, showRealNPC, -1); // show real NPC at end
+    animationRegisterHideObjectForced(ghost);
+    reg_anim_end();
+}
+
 static bool isCritterMoving(Object* critter) {
     for (int i = 0; i < gAnimationCurrentSad; i++) {
         AnimationSad* sad = &gAnimationSads[i];
@@ -364,8 +403,8 @@ static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int exc
     // Try all directions except playerDir first
     for (int attempt = 0; attempt < 2; attempt++) {
         for (int rot = 0; rot < ROTATION_COUNT; rot++) {
-            if (attempt == 0 && rot == playerDir) continue;   // skip playerDir on first pass
-            if (attempt == 1 && rot != playerDir) continue;   // only playerDir on second pass
+            if (attempt == 0 && rot == playerDir) continue;
+            if (attempt == 1 && rot != playerDir) continue;
 
             int tile = tileGetTileInDirection(obj->tile, rot, 1);
             if (tile == excludeTile) continue;
@@ -373,17 +412,19 @@ static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int exc
 
             Object* occupant = _obj_blocking_at(obj, tile, obj->elevation);
             if (occupant == nullptr) {
-                // Free tile found
+                // Free tile found for this object
                 moves[numMoves].obj = obj;
+                moves[numMoves].fromTile = obj->tile;
                 moves[numMoves].toTile = tile;
                 numMoves++;
                 return true;
             } else if (occupant != obj && isCritterPushable(obj, occupant)) {
-                // Occupied by another pushable critter – try to move it first
+                // Tile occupied by another pushable critter - try to move that one first
                 if (findFreeTileRecursive(occupant, depth + 1, playerDir, obj->tile,
                                           moves, numMoves)) {
-                    // After moving occupant, this tile is now free
+                    // After moving occupant, this tile is now free for current object
                     moves[numMoves].obj = obj;
+                    moves[numMoves].fromTile = obj->tile;
                     moves[numMoves].toTile = tile;
                     numMoves++;
                     return true;
@@ -1940,6 +1981,13 @@ int pathfinderFindPath(Object* object, int from, int to, unsigned char* rotation
                     }
                 }
             }
+            // Add penalty for tiles occupied by pushable critters (player only, out of combat)
+            if (object == gDude && !isInCombat()) {
+                Object* critter = getCritterAtTile(tile, object->elevation, object);
+                if (critter != nullptr && isCritterPushable(object, critter)) {
+                    v27->cost += 150; // penalty - 150 seems good balance
+                }
+            }
         }
 
         if (openPathNodeListLength == 0) {
@@ -2703,18 +2751,27 @@ static void _object_move(int index)
                 if (object == gDude && !isInCombat() && FID_TYPE(obstacle->fid) == OBJ_TYPE_CRITTER && !critterIsDead(obstacle)) {
                     PushMove moves[MAX_PUSH_DEPTH];
                     int numMoves = 0;
-                    if (findFreeTileRecursive(obstacle, 0, rotation, object->tile,
-                                              moves, numMoves)) {
+                    if (findFreeTileRecursive(obstacle, 0, rotation, object->tile, moves, numMoves)) {
+                        // First, teleport all real objects to destinations and hide them
                         for (int i = 0; i < numMoves; i++) {
                             PushMove* move = &moves[i];
                             Rect rect;
+                            // Move real NPC to destination
                             objectSetLocation(move->obj, move->toTile, move->obj->elevation, &rect);
                             tileWindowRefreshRect(&rect, move->obj->elevation);
+                            // Hide it (so it's not visible at new location yet)
+                            objectHide(move->obj, &rect);
+                            tileWindowRefreshRect(&rect, move->obj->elevation);
                         }
-                        // Tile now free – proceed with movement
+                        // Then create ghosts at original locations to walk to destinations
+                        for (int i = 0; i < numMoves; i++) {
+                            PushMove* move = &moves[i];
+                            createGhostAnimation(move->obj, move->fromTile, move->toTile, move->obj->elevation);
+                        }
+                        // Tile now free - proceed with player movement
                         obstacle = nullptr;
                     } else {
-                        // No place to push – fall back to path recalculation
+                        // No place to push - fall back to path recalculation
                         sad->length = _make_path(object, object->tile, sad->targetTile, sad->rotations, 1);
                         if (sad->length != 0) {
                             objectSetLocation(object, object->tile, object->elevation, &tempRect);
@@ -2730,7 +2787,7 @@ static void _object_move(int index)
                         nextTile = -1;
                     }
                 } else {
-                    // Non?pushable obstacle – fall back to path recalculation
+                    // Non-pushable obstacle - fall back to path recalculation
                     sad->length = _make_path(object, object->tile, sad->targetTile, sad->rotations, 1);
                     if (sad->length != 0) {
                         objectSetLocation(object, object->tile, object->elevation, &tempRect);
