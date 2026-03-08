@@ -2592,6 +2592,21 @@ static void _combat_begin(Object* attacker)
 {
     _combat_turn_running = 0;
     animationStop();
+
+    // Unhide any real NPCs hidden by ghost animations
+    for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
+        Object* obj = objectFindFirstAtElevation(elevation);
+        while (obj != nullptr) {
+            if (obj->flags & OBJECT_GHOST_HIDDEN) {
+                obj->flags &= ~OBJECT_GHOST_HIDDEN;
+                Rect rect;
+                objectShow(obj, &rect);
+                tileWindowRefreshRect(&rect, obj->elevation);
+            }
+            obj = objectFindNextAtElevation();
+        }
+    }
+
     tickersRemove(_dude_fidget);
     _combat_elev = gElevation;
 

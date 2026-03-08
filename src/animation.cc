@@ -349,6 +349,7 @@ static Object* getCritterAtTile(int tile, int elev, Object* exclude) {
 
 static int showRealNPC(void* param1, void* param2) {
     Object* realNPC = (Object*)param2;
+    realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
     Rect rect;
     if (objectShow(realNPC, &rect) == 0) {
         tileWindowRefreshRect(&rect, realNPC->elevation);
@@ -363,6 +364,12 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
     ghost->rotation = realNPC->rotation;
     objectSetLocation(ghost, fromTile, elevation, nullptr);
     objectHide(ghost, nullptr);
+
+    // Hide the real NPC and set flag
+    Rect rect;
+    objectHide(realNPC, &rect);
+    tileWindowRefreshRect(&rect, realNPC->elevation);
+    realNPC->flags |= OBJECT_GHOST_HIDDEN;
 
     reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT);
     animationRegisterUnsetFlag(ghost, OBJECT_HIDDEN, 0);
@@ -1825,7 +1832,7 @@ static bool canUseDoor(Object* critter, Object* door)
 int _make_path(Object* object, int from, int to, unsigned char* rotations, int requireEmptyDest)
 {
     PathBuilderCallback* callback;
-    if (object == gDude && !isInCombat()) {
+    if (object == gDude && !isInCombat() && !settings.enhancements.strict_vanilla) {
         callback = _obj_blocking_at_for_path;
     } else {
         callback = _obj_blocking_at;
