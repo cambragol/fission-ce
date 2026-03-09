@@ -226,6 +226,7 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, settings.mod_settings.iface_bar_width);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, settings.mod_settings.iface_bar_side_art);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, settings.mod_settings.iface_bar_sides_ori);
+    modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_INVENTORY_COLUMNS_KEY, settings.mod_settings.inventory_columns);
 }
 
 static void settingsToConfig()

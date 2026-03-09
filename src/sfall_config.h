@@ -85,6 +85,9 @@ namespace fallout {
 #define MOD_CONFIG_IFACE_BAR_SIDE_ART "IFACE_BAR_SIDE_ART"
 #define MOD_CONFIG_IFACE_BAR_SIDES_ORI "IFACE_BAR_SIDES_ORI"
 
+// Inventory layout (1 = vanilla single column, 2 = two columns)
+#define MOD_CONFIG_INVENTORY_COLUMNS_KEY "InventoryColumns"
+
 // ---- mod.cfg settings default values ----
 #define MOD_CONFIG_DEFAULT_START_YEAR 2241
 #define MOD_CONFIG_DEFAULT_START_MONTH 6
@@ -159,6 +162,7 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_GAME_DIALOG_GENDER_WORDS 0
 #define MOD_CONFIG_DEFAULT_TWEAKS_FILE ""
 #define MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX 1
+#define MOD_CONFIG_DEFAULT_INVENTORY_COLUMNS 2
 
 extern bool gModConfigInitialized;
 extern Config gModConfig;

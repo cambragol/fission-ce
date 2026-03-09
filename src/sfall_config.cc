@@ -102,6 +102,9 @@ bool modConfigInit(int argc, char** argv)
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART);
     configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI);
 
+    // Inventory layout (1 = single column, 2 = two columns)
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_INVENTORY_COLUMNS_KEY, MOD_CONFIG_DEFAULT_INVENTORY_COLUMNS);
+
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "data%c%s",
         DIR_SEPARATOR, MOD_CONFIG_FILE_NAME);
