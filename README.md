@@ -148,14 +148,16 @@ Use the in-game 'preferences' screen for 'graphics' configuration.
 
 Other configuration can be done fia the fallout2.cfg file.
 
-For advanced tweaks, use the [sfall] sections in 'fallout2.cfg' (Sfall):
+For advanced tweaks, use the [enhancements] sections in 'fallout2.cfg' (Sfall):
 
 ```
-[sfall-misc]
+[enhancements]
 WorldMapTravelMarkers=1
 GaplessMusic=1
 EnhancedBarter=1
+Minimap=1
 ```
+For a vanilla Fallout2.exe experiecne (at widescreen) set StrictVanilla=1
 
 ---
 
