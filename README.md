@@ -5,9 +5,9 @@
 # Fallout: F.I.S.S.I.O.N.
 *Flexible Isometric Simulation System for Interactive Open‑world Nuclear‑roleplaying*
 
-Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 1 & 2 (Fallout2-CE) that preserves the original isometric, turn‑based gameplay while adding modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, Android, iOS—and even in browsers.
+Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 1 & 2, forked from [Fallout2-CE](https://github.com/alexbatalov/fallout2-ce) that preserves the original isometric, turn‑based gameplay while adding modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, Android, iOS—and even in browsers.
 
-> ⚛️ **Powered by the F.I.S.S.I.O.N. Engine**
+> **Powered by the F.I.S.S.I.O.N. Engine**
 > *Flexible. Isometric. Simulation. System. Interactive. Open‑world. Nuclear‑roleplay.*
 > **Split from the past, Powering the future**
 
@@ -15,16 +15,16 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 ## Key Features
 
-- 🔲 **Authentic isometric, turn‑based experience** (SPECIAL, original Fallout gameplay)
-- 💻 **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
-- 🖥️ **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
-- 🧩 **Modular, customizable systems**—community mods plug in seamlessly (working now)
-- 📦 **100% compatible** with original Fallout 1 & 2 assets  (can't run Fallout 1 yet... one day)
-- 🌎 **Future‑proof**: easily extended for new content and Fallout 2 integration (working now)
+- **Authentic isometric, turn‑based experience** (SPECIAL, original Fallout gameplay)
+- **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
+- **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
+- **Modular, customizable systems**—community mods plug in seamlessly (working now)
+- **100% compatible** with original Fallout 1 & 2 assets  (can't run Fallout 1 yet... one day)
+- **Future‑proof**: easily extended for new content and Fallout 2 integration (working now)
 
 ---
 
-## 🔠 F.I.S.S.I.O.N. Breakdown
+## F.I.S.S.I.O.N. Breakdown
 
 ```
 ╔═══════════════════════╦════════════════════════════════════════════╗
@@ -42,7 +42,7 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 ---
 
-## ⚠️ Mod/Game Compatibility
+## Mod/Game Compatibility
 
 **Fully supported**:
 - Fallout 2
@@ -61,7 +61,7 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 ---
 
-## 💾 Installation
+## Installation
 
 ### Prerequisites
 You must own **Fallout 2** (GOG, Steam, or Epic Games version) and have it fully installed. F.I.S.S.I.O.N. is a drop-in replacement for `Fallout2.exe` and requires the complete game data.
@@ -81,7 +81,7 @@ That's it! F.I.S.S.I.O.N. automatically loads all existing content and adds its 
 
 ### Platform-Specific Instructions
 
-#### 🪟 Windows
+#### Windows
 
 ```
 # Example: Installing into a Steam Fallout 2 installation
@@ -91,7 +91,7 @@ cd "C:\Program Files (x86)\Steam\steamapps\common\Fallout 2"
 # 3\. Run fallout-fission.exe
 ```
 
-#### 🍎 macOS
+#### macOS
 
 ```
 # Example: Using a GOG Fallout 2 installation
@@ -101,7 +101,7 @@ cd "C:\Program Files (x86)\Steam\steamapps\common\Fallout 2"
 # 4. Run fallout-fission.app
 ```
 
-#### 🐧 Linux
+#### Linux
 
 ```
 # Example: Using a Wine Fallout 2 installation
@@ -111,7 +111,7 @@ cd ~/.wine/drive_c/Program\ Files/Fallout\ 2/
 # 3. Run with: wine fallout-fission.exe
 ```
 
-### 📁 Expected Folder Structure
+### Expected Folder Structure
 
 After installation, your Fallout 2 folder should contain:
 
@@ -130,7 +130,7 @@ Fallout 2/
 └── data/lists/          # Auto-generated mod reports (created on first run)
 ```
 
-### ⚠️ Important Notes
+### Important Notes
 
 -   F.I.S.S.I.O.N. does NOT include game data - you must own Fallout 2
 
@@ -142,7 +142,7 @@ Fallout 2/
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Use the in-game 'preferences' screen for 'graphics' configuration.
 
@@ -159,12 +159,18 @@ EnhancedBarter=1
 
 ---
 
-## 🛠️ Contributing
+## Contributing
 
 Contributions are welcome! Please open issues or pull requests on GitHub.
 
 ---
 
-## 📜 License
+## Credits
+
+Thanks to Alex Batalov for all the initial work decompiling Fallout2.exe - without which FISSION does not exist
+
+---
+
+## License
 
 Released under the [Sustainable Use License](LICENSE.md).
