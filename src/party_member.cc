@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cstdint>
+#include <cctype>
+#include <unordered_map>
+#include <vector>
+
 #include "animation.h"
 #include "color.h"
 #include "combat.h"
@@ -34,6 +39,8 @@
 #include "window_manager.h"
 
 namespace fallout {
+
+#define DIR_SEPARATOR '/'
 
 // SFALL: Enable party members with level 6 protos to reach level 6.
 // CE: There are several party members who have 6 pids, but for unknown reason
@@ -118,11 +125,95 @@ static PartyMemberLevelUpInfo* _partyMemberLevelUpInfoList = nullptr;
 // 0x519DC0
 static int _curID = 20000;
 
+// Mod companion definition (includes level-up info)
+struct ModPartyMember {
+    uint32_t stableId;               // unique identifier (hash of modName:section)
+    int pid;
+    PartyMemberDescription desc;
+    PartyMemberLevelUpInfo levelInfo; // level, numLevelUps, isEarly
+};
+
+// All loaded mod companions
+static std::vector<ModPartyMember> gModPartyMembers;
+
+// Map stableId -> index in gModPartyMembers (for quick lookup)
+static std::unordered_map<uint32_t, int> gStableIdToModIndex;
+
+// Map PID -> stableId (to identify mod companions at join time)
+static std::unordered_map<int, uint32_t> gModPidToStableId;
+
+// Map object -> stableId (runtime mapping for level-ups and support functions)
+static std::unordered_map<Object*, uint32_t> gObjectToStableId;
+
+// Level-up info for mod companions (key = stableId)
+static std::unordered_map<uint32_t, PartyMemberLevelUpInfo> gModPartyMemberLevelUpInfo;
+
+// Marker for save game extension
+#define MOD_DATA_MARKER 0xDEADBEEF
+
+
+// djb2 hash (same as used elsewhere)
+static uint32_t party_hash_string(const char* str)
+{
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
+// Combine mod name and section name into a stable hash, with normalization
+static uint32_t hashModPartyString(const char* modName, const char* sectionName)
+{
+    char combined[256];
+    char normalized[256];
+    char* dst = normalized;
+
+    snprintf(combined, sizeof(combined), "%s:%s", modName, sectionName);
+
+    for (const char* src = combined; *src && dst < normalized + sizeof(normalized) - 1; src++) {
+        char c = *src;
+        if (c == ':') {
+            *dst++ = ':';
+        } else if (isalnum((unsigned char)c) || c == '_') {
+            *dst++ = tolower(c);
+        }
+        // else skip (shouldn't occur)
+    }
+    *dst = '\0';
+
+    return party_hash_string(normalized);
+}
+
+// Extract mod name from filename like "party_MyMod.txt"
+static const char* extractModNameFromPartyFile(const char* filename)
+{
+    static char modName[64];
+    modName[0] = '\0';
+    if (strncmp(filename, "party_", 6) != 0) return modName;
+    const char* start = filename + 6;
+    const char* dot = strchr(start, '.');
+    if (!dot) return modName;
+    size_t len = dot - start;
+    if (len >= sizeof(modName)) len = sizeof(modName) - 1;
+    strncpy(modName, start, len);
+    modName[len] = '\0';
+    return modName;
+}
+
 // partyMember_init
 // 0x493BC0
 int partyMembersInit()
 {
     Config config;
+    int partyMemberPid;
+    char section[50];
+    int baseCount = 0;
+    char searchPattern[COMPAT_MAX_PATH];
+    char** foundModFiles = nullptr;
+    int modFileCount = 0;
+    int modCount = 0;
 
     gPartyMemberDescriptionsLength = 0;
 
@@ -134,43 +225,30 @@ int partyMembersInit()
         goto err;
     }
 
-    char section[50];
+    // --- First pass: count base entries ---
     snprintf(section, sizeof(section), "Party Member %d", gPartyMemberDescriptionsLength);
-
-    int partyMemberPid;
     while (configGetInt(&config, section, "party_member_pid", &partyMemberPid)) {
         gPartyMemberDescriptionsLength++;
         snprintf(section, sizeof(section), "Party Member %d", gPartyMemberDescriptionsLength);
     }
 
-    gPartyMemberPids = (int*)internal_malloc(sizeof(*gPartyMemberPids) * gPartyMemberDescriptionsLength);
-    if (gPartyMemberPids == nullptr) {
-        goto err;
-    }
+    baseCount = gPartyMemberDescriptionsLength;   // remember for later
 
-    memset(gPartyMemberPids, 0, sizeof(*gPartyMemberPids) * gPartyMemberDescriptionsLength);
+    // --- Allocate base arrays ---
+    gPartyMemberPids = (int*)internal_malloc(sizeof(*gPartyMemberPids) * baseCount);
+    if (gPartyMemberPids == nullptr) goto err;
+    memset(gPartyMemberPids, 0, sizeof(*gPartyMemberPids) * baseCount);
 
-    gPartyMembers = (PartyMemberListItem*)internal_malloc(sizeof(*gPartyMembers) * (gPartyMemberDescriptionsLength + 20));
-    if (gPartyMembers == nullptr) {
-        goto err;
-    }
+    gPartyMemberDescriptions = (PartyMemberDescription*)internal_malloc(sizeof(*gPartyMemberDescriptions) * baseCount);
+    if (gPartyMemberDescriptions == nullptr) goto err;
+    memset(gPartyMemberDescriptions, 0, sizeof(*gPartyMemberDescriptions) * baseCount);
 
-    memset(gPartyMembers, 0, sizeof(*gPartyMembers) * (gPartyMemberDescriptionsLength + 20));
+    _partyMemberLevelUpInfoList = (PartyMemberLevelUpInfo*)internal_malloc(sizeof(*_partyMemberLevelUpInfoList) * baseCount);
+    if (_partyMemberLevelUpInfoList == nullptr) goto err;
+    memset(_partyMemberLevelUpInfoList, 0, sizeof(*_partyMemberLevelUpInfoList) * baseCount);
 
-    gPartyMemberDescriptions = (PartyMemberDescription*)internal_malloc(sizeof(*gPartyMemberDescriptions) * gPartyMemberDescriptionsLength);
-    if (gPartyMemberDescriptions == nullptr) {
-        goto err;
-    }
-
-    memset(gPartyMemberDescriptions, 0, sizeof(*gPartyMemberDescriptions) * gPartyMemberDescriptionsLength);
-
-    _partyMemberLevelUpInfoList = (PartyMemberLevelUpInfo*)internal_malloc(sizeof(*_partyMemberLevelUpInfoList) * gPartyMemberDescriptionsLength);
-    if (_partyMemberLevelUpInfoList == nullptr)
-        goto err;
-
-    memset(_partyMemberLevelUpInfoList, 0, sizeof(*_partyMemberLevelUpInfoList) * gPartyMemberDescriptionsLength);
-
-    for (int index = 0; index < gPartyMemberDescriptionsLength; index++) {
+    // --- Fill base descriptions (exactly as original) ---
+    for (int index = 0; index < baseCount; index++) {
         snprintf(section, sizeof(section), "Party Member %d", index);
 
         if (!configGetInt(&config, section, "party_member_pid", &partyMemberPid)) {
@@ -185,6 +263,7 @@ int partyMembersInit()
 
         char* string;
 
+        // ----- BEGIN ORIGINAL PARSING CODE -----
         if (configGetString(&config, section, "area_attack_mode", &string)) {
             while (*string != '\0') {
                 int areaAttackMode;
@@ -259,16 +338,220 @@ int partyMembersInit()
                 }
             }
         }
+        // ----- END ORIGINAL PARSING CODE -----
     }
 
     configFree(&config);
 
+    // --- Load mod companions from party_*.txt files ---
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sdata%cparty_*.txt",
+        _cd_path_base,
+        DIR_SEPARATOR);
+
+    modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+
+    if (modFileCount > 0) {
+        // Sort files alphabetically for consistent loading order
+        for (int i = 0; i < modFileCount - 1; i++) {
+            for (int j = i + 1; j < modFileCount; j++) {
+                if (strcmp(foundModFiles[i], foundModFiles[j]) > 0) {
+                    char* temp = foundModFiles[i];
+                    foundModFiles[i] = foundModFiles[j];
+                    foundModFiles[j] = temp;
+                }
+            }
+        }
+
+        for (int i = 0; i < modFileCount; i++) {
+            // Skip the base party.txt itself
+            if (strcmp(foundModFiles[i], "party.txt") == 0) continue;
+
+            const char* modName = extractModNameFromPartyFile(foundModFiles[i]);
+            if (modName[0] == '\0') continue;
+
+            // Build full path
+            char filePath[COMPAT_MAX_PATH];
+            snprintf(filePath, sizeof(filePath),
+                "%sdata%c%s",
+                _cd_path_base,
+                DIR_SEPARATOR,
+                foundModFiles[i]);
+
+            Config modConfig;
+            if (!configInit(&modConfig)) continue;
+            if (configRead(&modConfig, filePath, true)) {
+                // Parse all sections in this mod file
+                int memberIdx = 0;
+                snprintf(section, sizeof(section), "Party Member %d", memberIdx);
+                while (configGetInt(&modConfig, section, "party_member_pid", &partyMemberPid)) {
+                    // Check for duplicate PID with base companions
+                    bool duplicate = false;
+                    for (int b = 1; b < baseCount; b++) {   // base indices start at 1 (index 0 is dummy)
+                        if (gPartyMemberPids[b] == partyMemberPid) {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    // Check for duplicate PID with previously loaded mod companions
+                    if (!duplicate) {
+                        for (const auto& mod : gModPartyMembers) {
+                            if (mod.pid == partyMemberPid) {
+                                duplicate = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (duplicate) {
+                        debugPrint("Warning: PID %d in mod %s (section %s) already exists, skipping.\n",
+                                   partyMemberPid, modName, section);
+                    } else {
+                        // Generate stable ID
+                        uint32_t stableId = hashModPartyString(modName, section);
+
+                        // Check for stable ID collision with existing mods
+                        bool collision = false;
+                        for (const auto& mod : gModPartyMembers) {
+                            if (mod.stableId == stableId) {
+                                collision = true;
+                                break;
+                            }
+                        }
+                        if (collision) {
+                            char errorMsg[512];
+                            snprintf(errorMsg, sizeof(errorMsg),
+                                "PARTY MOD SLOT COLLISION DETECTED!\n\n"
+                                "Mod: %s, Section: %s\n"
+                                "Stable ID: %u\n"
+                                "This ID is already used by another mod companion.\n"
+                                "To resolve: Rename your mod file or section to change the hash.\n\n"
+                                "This companion will NOT be loaded.",
+                                modName, section, stableId);
+                            showMesageBox(errorMsg);
+                            debugPrint("\n  Collision: skipping mod companion '%s' (stableId %u)", section, stableId);
+                        } else {
+                            // Create new mod companion entry
+                            ModPartyMember newMod;
+                            memset(&newMod, 0, sizeof(newMod));
+                            newMod.stableId = stableId;
+                            newMod.pid = partyMemberPid;
+                            partyMemberDescriptionInit(&newMod.desc);
+
+                            char* string;
+
+                            // ----- PARSE MOD FIELDS (same as base) -----
+                            if (configGetString(&modConfig, section, "area_attack_mode", &string)) {
+                                while (*string != '\0') {
+                                    int mode;
+                                    strParseStrFromList(&string, &mode, gAreaAttackModeKeys, AREA_ATTACK_MODE_COUNT);
+                                    newMod.desc.areaAttackMode[mode] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "attack_who", &string)) {
+                                while (*string != '\0') {
+                                    int who;
+                                    strParseStrFromList(&string, &who, gAttackWhoKeys, ATTACK_WHO_COUNT);
+                                    newMod.desc.attackWho[who] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "best_weapon", &string)) {
+                                while (*string != '\0') {
+                                    int weapon;
+                                    strParseStrFromList(&string, &weapon, gBestWeaponKeys, BEST_WEAPON_COUNT);
+                                    newMod.desc.bestWeapon[weapon] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "chem_use", &string)) {
+                                while (*string != '\0') {
+                                    int chem;
+                                    strParseStrFromList(&string, &chem, gChemUseKeys, CHEM_USE_COUNT);
+                                    newMod.desc.chemUse[chem] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "distance", &string)) {
+                                while (*string != '\0') {
+                                    int dist;
+                                    strParseStrFromList(&string, &dist, gDistanceModeKeys, DISTANCE_COUNT);
+                                    newMod.desc.distanceMode[dist] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "run_away_mode", &string)) {
+                                while (*string != '\0') {
+                                    int mode;
+                                    strParseStrFromList(&string, &mode, gRunAwayModeKeys, RUN_AWAY_MODE_COUNT);
+                                    newMod.desc.runAwayMode[mode] = true;
+                                }
+                            }
+
+                            if (configGetString(&modConfig, section, "disposition", &string)) {
+                                while (*string != '\0') {
+                                    int disp;
+                                    strParseStrFromList(&string, &disp, gDispositionKeys, DISPOSITION_COUNT);
+                                    newMod.desc.disposition[disp] = true;
+                                }
+                            }
+
+                            int levelUpEvery;
+                            if (configGetInt(&modConfig, section, "level_up_every", &levelUpEvery)) {
+                                newMod.desc.level_up_every = levelUpEvery;
+
+                                int levelMinimum;
+                                if (configGetInt(&modConfig, section, "level_minimum", &levelMinimum)) {
+                                    newMod.desc.level_minimum = levelMinimum;
+                                }
+
+                                if (configGetString(&modConfig, section, "level_pids", &string)) {
+                                    while (*string != '\0' && newMod.desc.level_pids_num < PARTY_MEMBER_MAX_LEVEL) {
+                                        int levelPid;
+                                        strParseInt(&string, &levelPid);
+                                        newMod.desc.level_pids[newMod.desc.level_pids_num] = levelPid;
+                                        newMod.desc.level_pids_num++;
+                                    }
+                                }
+                            }
+                            // ----- END PARSE MOD FIELDS -----
+
+                            // Initialize levelInfo to zero
+                            newMod.levelInfo.level = 0;
+                            newMod.levelInfo.numLevelUps = 0;
+                            newMod.levelInfo.isEarly = 0;
+
+                            // Add to containers
+                            gModPartyMembers.push_back(newMod);
+                            int modIndex = gModPartyMembers.size() - 1;
+                            gStableIdToModIndex[stableId] = modIndex;
+                            gModPidToStableId[partyMemberPid] = stableId;
+                        }
+                    }
+
+                    memberIdx++;
+                    snprintf(section, sizeof(section), "Party Member %d", memberIdx);
+                }
+            }
+            configFree(&modConfig);
+        }
+        fileNameListFree(&foundModFiles, modFileCount);
+    }
+
+    modCount = (int)gModPartyMembers.size();
+
+    // --- Allocate gPartyMembers with enough space for base + mod + 20 ---
+    gPartyMembers = (PartyMemberListItem*)internal_malloc(sizeof(*gPartyMembers) * (baseCount + modCount + 20));
+    if (gPartyMembers == nullptr) goto err;
+    memset(gPartyMembers, 0, sizeof(*gPartyMembers) * (baseCount + modCount + 20));
+
+    // gPartyMembersLength remains 0 (no companions yet; they will be added via partyMemberAdd)
+
     return 0;
 
 err:
-
     configFree(&config);
-
     return -1;
 }
 
@@ -391,6 +674,21 @@ int partyMemberAdd(Object* object)
         return -1;
     }
 
+
+    // Determine if this is a mod companion
+    uint32_t stableId = 0;
+    bool isMod = false;
+    auto pidIt = gModPidToStableId.find(object->pid);
+    if (pidIt != gModPidToStableId.end()) {
+        isMod = true;
+        stableId = pidIt->second;
+    }
+
+    if (_partyStatePrepped) {
+        debugPrint("\npartyMemberAdd DENIED: %s\n", critterGetName(object));
+        return -1;
+    }
+
     PartyMemberListItem* partyMember = &(gPartyMembers[gPartyMembersLength]);
     partyMember->object = object;
     partyMember->script = nullptr;
@@ -400,6 +698,16 @@ int partyMemberAdd(Object* object)
     object->flags |= (OBJECT_NO_REMOVE | OBJECT_NO_SAVE);
 
     gPartyMembersLength++;
+
+    // If mod companion, store mapping
+    if (isMod) {
+        gObjectToStableId[object] = stableId;
+        // Ensure level-up info exists
+        if (gModPartyMemberLevelUpInfo.find(stableId) == gModPartyMemberLevelUpInfo.end()) {
+            PartyMemberLevelUpInfo info = {0, 0, 0};
+            gModPartyMemberLevelUpInfo[stableId] = info;
+        }
+    }
 
     Script* script;
     if (scriptGetScript(object->sid, &script) != -1) {
@@ -458,6 +766,12 @@ int partyMemberRemove(Object* object)
     object->flags &= ~(OBJECT_NO_REMOVE | OBJECT_NO_SAVE);
 
     gPartyMembersLength--;
+
+    // Remove from object->stableId map if present
+    auto mapIt = gObjectToStableId.find(object);
+    if (mapIt != gObjectToStableId.end()) {
+        gObjectToStableId.erase(mapIt);
+    }
 
     Script* script;
     if (scriptGetScript(object->sid, &script) != -1) {
@@ -872,13 +1186,17 @@ Object* partyMemberFindByPid(int pid)
 // 0x494F64
 bool _isPotentialPartyMember(Object* object)
 {
-    for (int index = 0; index < gPartyMembersLength; index++) {
-        PartyMemberListItem* partyMember = &(gPartyMembers[index]);
-        if (partyMember->object->pid == gPartyMemberPids[index]) {
+    for (int index = 1; index < gPartyMemberDescriptionsLength; index++) {
+        if (object->pid == gPartyMemberPids[index]) {
             return true;
         }
     }
-
+    // Check mod PIDs
+    for (const auto& mod : gModPartyMembers) {
+        if (object->pid == mod.pid) {
+            return true;
+        }
+    }
     return false;
 }
 
