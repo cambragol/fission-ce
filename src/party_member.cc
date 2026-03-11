@@ -610,6 +610,20 @@ static int partyMemberGetDescription(Object* object, PartyMemberDescription** pa
     return -1;
 }
 
+static const PartyMemberDescription* getModPartyMemberDescription(Object* obj)
+{
+    auto it = gObjectToStableId.find(obj);
+    if (it == gObjectToStableId.end()) return nullptr;
+
+    uint32_t stableId = it->second;
+    for (const auto& mod : gModPartyMembers) {
+        if (mod.stableId == stableId) {
+            return &mod.desc;
+        }
+    }
+    return nullptr;
+}
+
 // 0x49425C
 static void partyMemberDescriptionInit(PartyMemberDescription* partyMemberDescription)
 {
@@ -834,17 +848,20 @@ int _partyMemberUnPrepSave()
 // 0x4946CC
 int partyMembersSave(File* stream)
 {
+    // Write base party length and item count
     if (fileWriteInt32(stream, gPartyMembersLength) == -1)
         return -1;
     if (fileWriteInt32(stream, _partyMemberItemCount) == -1)
         return -1;
 
+    // Write object IDs for all party members (excluding player)
     for (int index = 1; index < gPartyMembersLength; index++) {
         PartyMemberListItem* partyMember = &(gPartyMembers[index]);
         if (fileWriteInt32(stream, partyMember->object->id) == -1)
             return -1;
     }
 
+    // Write base level-up info
     for (int index = 1; index < gPartyMemberDescriptionsLength; index++) {
         PartyMemberLevelUpInfo* ptr = &(_partyMemberLevelUpInfoList[index]);
         if (fileWriteInt32(stream, ptr->level) == -1)
@@ -853,6 +870,38 @@ int partyMembersSave(File* stream)
             return -1;
         if (fileWriteInt32(stream, ptr->isEarly) == -1)
             return -1;
+    }
+
+    // --- Mod data section ---
+    // Count how many mod companions have non-zero level-up info
+    int modCount = 0;
+    for (const auto& kv : gModPartyMemberLevelUpInfo) {
+        const auto& info = kv.second;
+        if (info.level != 0 || info.numLevelUps != 0 || info.isEarly != 0)
+            modCount++;
+    }
+
+    // Write marker
+    if (fileWriteInt32(stream, MOD_DATA_MARKER) == -1)
+        return -1;
+
+    // Write count
+    if (fileWriteInt32(stream, modCount) == -1)
+        return -1;
+
+    // Write each mod entry that has non-zero data
+    for (const auto& kv : gModPartyMemberLevelUpInfo) {
+        const auto& info = kv.second;
+        if (info.level != 0 || info.numLevelUps != 0 || info.isEarly != 0) {
+            if (fileWriteInt32(stream, (int32_t)kv.first) == -1)   // stableId
+                return -1;
+            if (fileWriteInt32(stream, info.level) == -1)
+                return -1;
+            if (fileWriteInt32(stream, info.numLevelUps) == -1)
+                return -1;
+            if (fileWriteInt32(stream, info.isEarly) == -1)
+                return -1;
+        }
     }
 
     return 0;
@@ -1038,21 +1087,28 @@ int partyMembersLoad(File* stream)
         return -1;
     }
 
-    // FIXME: partyMemberObjectIds is never free'd in this function, obviously memory leak.
-
-    if (fileReadInt32(stream, &gPartyMembersLength) == -1)
+    // Read base party length and item count
+    if (fileReadInt32(stream, &gPartyMembersLength) == -1) {
+        internal_free(partyMemberObjectIds);
         return -1;
-    if (fileReadInt32(stream, &_partyMemberItemCount) == -1)
+    }
+    if (fileReadInt32(stream, &_partyMemberItemCount) == -1) {
+        internal_free(partyMemberObjectIds);
         return -1;
+    }
 
     gPartyMembers->object = gDude;
 
     if (gPartyMembersLength != 0) {
+        // Read object IDs
         for (int index = 1; index < gPartyMembersLength; index++) {
-            if (fileReadInt32(stream, &(partyMemberObjectIds[index])) == -1)
+            if (fileReadInt32(stream, &(partyMemberObjectIds[index])) == -1) {
+                internal_free(partyMemberObjectIds);
                 return -1;
+            }
         }
 
+        // Match object IDs to actual objects
         for (int index = 1; index < gPartyMembersLength; index++) {
             int objectId = partyMemberObjectIds[index];
 
@@ -1068,35 +1124,117 @@ int partyMembersLoad(File* stream)
                 gPartyMembers[index].object = object;
             } else {
                 debugPrint("Couldn't find party member on map...trying to load anyway.\n");
+                // Remove this slot
                 if (index + 1 >= gPartyMembersLength) {
                     partyMemberObjectIds[index] = 0;
                 } else {
-                    memcpy(&(partyMemberObjectIds[index]), &(partyMemberObjectIds[index + 1]), sizeof(*partyMemberObjectIds) * (gPartyMembersLength - (index + 1)));
+                    memmove(&(partyMemberObjectIds[index]), &(partyMemberObjectIds[index + 1]), sizeof(*partyMemberObjectIds) * (gPartyMembersLength - (index + 1)));
                 }
-
                 index--;
                 gPartyMembersLength--;
             }
         }
 
         if (_partyMemberUnPrepSave() == -1) {
+            internal_free(partyMemberObjectIds);
             return -1;
         }
     }
 
     partyFixMultipleMembers();
 
+    // Rebuild object->stableId map for mod companions (if any)
+    for (int idx = 1; idx < gPartyMembersLength; idx++) {
+        Object* obj = gPartyMembers[idx].object;
+        auto it = gModPidToStableId.find(obj->pid);
+        if (it != gModPidToStableId.end()) {
+            gObjectToStableId[obj] = it->second;
+        }
+    }
+
+    // Read base level-up info
     for (int index = 1; index < gPartyMemberDescriptionsLength; index++) {
         PartyMemberLevelUpInfo* levelUpInfo = &(_partyMemberLevelUpInfoList[index]);
 
-        if (fileReadInt32(stream, &(levelUpInfo->level)) == -1)
+        if (fileReadInt32(stream, &(levelUpInfo->level)) == -1) {
+            internal_free(partyMemberObjectIds);
             return -1;
-        if (fileReadInt32(stream, &(levelUpInfo->numLevelUps)) == -1)
+        }
+        if (fileReadInt32(stream, &(levelUpInfo->numLevelUps)) == -1) {
+            internal_free(partyMemberObjectIds);
             return -1;
-        if (fileReadInt32(stream, &(levelUpInfo->isEarly)) == -1)
+        }
+        if (fileReadInt32(stream, &(levelUpInfo->isEarly)) == -1) {
+            internal_free(partyMemberObjectIds);
             return -1;
+        }
     }
 
+    // --- Mod data section ---
+    int marker;
+    if (fileReadInt32(stream, &marker) == -1) {
+        // EOF reached - old save without mod data
+        internal_free(partyMemberObjectIds);
+        return 0;
+    }
+
+    if (marker != MOD_DATA_MARKER) {
+        // Marker mismatch - this shouldn't happen in normal cases.
+        // We'll assume it's an old save and seek back.
+        // Use fileSeek to go back 4 bytes (the size of the marker we just read).
+        fileSeek(stream, -4, SEEK_CUR);
+        internal_free(partyMemberObjectIds);
+        return 0;
+    }
+
+    // Marker found - read mod count
+    int modCount;
+    if (fileReadInt32(stream, &modCount) == -1) {
+        internal_free(partyMemberObjectIds);
+        return -1;
+    }
+
+    for (int i = 0; i < modCount; i++) {
+        int32_t stableId;
+        int level, numLevelUps, isEarly;
+
+        if (fileReadInt32(stream, &stableId) == -1) {
+            internal_free(partyMemberObjectIds);
+            return -1;
+        }
+        if (fileReadInt32(stream, &level) == -1) {
+            internal_free(partyMemberObjectIds);
+            return -1;
+        }
+        if (fileReadInt32(stream, &numLevelUps) == -1) {
+            internal_free(partyMemberObjectIds);
+            return -1;
+        }
+        if (fileReadInt32(stream, &isEarly) == -1) {
+            internal_free(partyMemberObjectIds);
+            return -1;
+        }
+
+        // Verify that this stableId exists in current mod list
+        bool found = false;
+        for (const auto& mod : gModPartyMembers) {
+            if (mod.stableId == (uint32_t)stableId) {
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            PartyMemberLevelUpInfo info;
+            info.level = level;
+            info.numLevelUps = numLevelUps;
+            info.isEarly = isEarly;
+            gModPartyMemberLevelUpInfo[(uint32_t)stableId] = info;
+        } else {
+            debugPrint("Warning: Saved mod companion with stableId %u not found, discarding.\n", (uint32_t)stableId);
+        }
+    }
+
+    internal_free(partyMemberObjectIds);
     return 0;
 }
 
@@ -1634,9 +1772,16 @@ bool partyMemberSupportsDisposition(Object* critter, int disposition)
         return false;
     }
 
+    // Try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(critter, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(critter);
+    if (modDesc) {
+        return modDesc->disposition[disposition + 1];
     }
 
     return partyMemberDescription->disposition[disposition + 1];
@@ -1657,9 +1802,16 @@ bool partyMemberSupportsAreaAttackMode(Object* object, int areaAttackMode)
         return false;
     }
 
+    // Try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->areaAttackMode[areaAttackMode];
     }
 
     return partyMemberDescription->areaAttackMode[areaAttackMode];
@@ -1680,9 +1832,16 @@ bool partyMemberSupportsRunAwayMode(Object* object, int runAwayMode)
         return false;
     }
 
+    // Try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->runAwayMode[runAwayMode + 1];
     }
 
     return partyMemberDescription->runAwayMode[runAwayMode + 1];
@@ -1703,9 +1862,16 @@ bool partyMemberSupportsBestWeapon(Object* object, int bestWeapon)
         return false;
     }
 
+    // Try bae
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->bestWeapon[bestWeapon];
     }
 
     return partyMemberDescription->bestWeapon[bestWeapon];
@@ -1726,9 +1892,16 @@ bool partyMemberSupportsDistance(Object* object, int distanceMode)
         return false;
     }
 
+    // try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->distanceMode[distanceMode];
     }
 
     return partyMemberDescription->distanceMode[distanceMode];
@@ -1749,9 +1922,16 @@ bool partyMemberSupportsAttackWho(Object* object, int attackWho)
         return false;
     }
 
+    // try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->attackWho[attackWho];
     }
 
     return partyMemberDescription->attackWho[attackWho];
@@ -1772,15 +1952,23 @@ bool partyMemberSupportsChemUse(Object* object, int chemUse)
         return false;
     }
 
+    // try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
         return false;
+    }
+
+    // Try mod
+    const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
+    if (modDesc) {
+        return modDesc->chemUse[chemUse];
     }
 
     return partyMemberDescription->chemUse[chemUse];
 }
 
 // partyMemberIncLevels
+// 0x495B60
 // 0x495B60
 int _partyMemberIncLevels()
 {
@@ -1798,92 +1986,182 @@ int _partyMemberIncLevels()
     char str[260];
     Rect levelUpMessageRect;
 
-    memberIndex = -1;
     for (i = 1; i < gPartyMembersLength; i++) {
         listItem = &(gPartyMembers[i]);
         obj = listItem->object;
 
-        if (partyMemberGetDescription(obj, &memberDescription) == -1) {
-            // SFALL: NPC level fix.
-            continue;
-        }
-
-        if (PID_TYPE(obj->pid) != OBJ_TYPE_CRITTER) {
-            continue;
-        }
-
-        name = critterGetName(obj);
-        debugPrint("\npartyMemberIncLevels: %s", name);
-
-        if (memberDescription->level_up_every == 0) {
-            continue;
-        }
-
+        // --- Determine if this is a base companion ---
+        bool isBase = false;
+        int baseIdx = -1;
         for (j = 1; j < gPartyMemberDescriptionsLength; j++) {
             if (gPartyMemberPids[j] == obj->pid) {
-                memberIndex = j;
+                isBase = true;
+                baseIdx = j;
+                break;
             }
         }
 
-        if (memberIndex == -1) {
-            continue;
-        }
-
-        if (pcGetStat(PC_STAT_LEVEL) < memberDescription->level_minimum) {
-            continue;
-        }
-
-        levelUpInfo = &(_partyMemberLevelUpInfoList[memberIndex]);
-
-        if (levelUpInfo->level >= memberDescription->level_pids_num) {
-            continue;
-        }
-
-        levelUpInfo->numLevelUps++;
-
-        levelMod = levelUpInfo->numLevelUps % memberDescription->level_up_every;
-        debugPrint("pm: levelMod: %d, Lvl: %d, Early: %d, Every: %d", levelMod, levelUpInfo->numLevelUps, levelUpInfo->isEarly, memberDescription->level_up_every);
-
-        // Party member level up with a probability that depends on how "far" we are in the current "level_up_every" progression.
-        // For example, if level_up_every is 5 and NPC observed 7 level ups with the player, 5 % 7 = 2, 2 * 100 / 5 = 40 (40% probability).
-        // If levelMod is 0 (so we got 5, 10, etc. levels in the example above), probability is 100% (no roll).
-        // If previous level up occured "early" (due to probability roll), then we skip until we get to levelMod = 0, to begin the next cycle.
-
-        if (levelUpInfo->isEarly != 0) {
-            if (levelMod == 0) {
-                levelUpInfo->isEarly = 0;
+        if (isBase) {
+            // ===== ORIGINAL BASE COMPANION LOGIC (UNCHANGED) =====
+            if (partyMemberGetDescription(obj, &memberDescription) == -1) {
+                // SFALL: NPC level fix.
+                continue;
             }
-            continue;
-        }
 
-        if (levelMod != 0 && randomBetween(0, 100) > 100 * levelMod / memberDescription->level_up_every) {
-            continue;
-        }
+            if (PID_TYPE(obj->pid) != OBJ_TYPE_CRITTER) {
+                continue;
+            }
 
-        levelUpInfo->level++;
-        if (levelMod != 0) {
-            levelUpInfo->isEarly = 1;
-        }
-
-        if (_partyMemberCopyLevelInfo(obj, memberDescription->level_pids[levelUpInfo->level]) == -1) {
-            return -1;
-        }
-
-        name = critterGetName(obj);
-        // %s has gained in some abilities.
-        text = getmsg(&gMiscMessageList, &msg, 9000);
-        snprintf(str, sizeof(str), text, name);
-        displayMonitorAddMessage(str);
-
-        debugPrint(str);
-
-        // Individual message
-        msg.num = 9000 + 10 * memberIndex + levelUpInfo->level - 1;
-        if (messageListGetItem(&gMiscMessageList, &msg)) {
             name = critterGetName(obj);
-            snprintf(str, sizeof(str), msg.text, name);
-            textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[0], &levelUpMessageRect);
-            tileWindowRefreshRect(&levelUpMessageRect, obj->elevation);
+            debugPrint("\npartyMemberIncLevels: %s", name);
+
+            if (memberDescription->level_up_every == 0) {
+                continue;
+            }
+
+            // memberIndex already found above, but original code had a loop here.
+            // We'll use baseIdx directly.
+            memberIndex = baseIdx;
+
+            if (pcGetStat(PC_STAT_LEVEL) < memberDescription->level_minimum) {
+                continue;
+            }
+
+            levelUpInfo = &(_partyMemberLevelUpInfoList[memberIndex]);
+
+            if (levelUpInfo->level >= memberDescription->level_pids_num) {
+                continue;
+            }
+
+            levelUpInfo->numLevelUps++;
+
+            levelMod = levelUpInfo->numLevelUps % memberDescription->level_up_every;
+            debugPrint("pm: levelMod: %d, Lvl: %d, Early: %d, Every: %d", levelMod, levelUpInfo->numLevelUps, levelUpInfo->isEarly, memberDescription->level_up_every);
+
+            // Party member level up with a probability that depends on how "far" we are in the current "level_up_every" progression.
+            // For example, if level_up_every is 5 and NPC observed 7 level ups with the player, 5 % 7 = 2, 2 * 100 / 5 = 40 (40% probability).
+            // If levelMod is 0 (so we got 5, 10, etc. levels in the example above), probability is 100% (no roll).
+            // If previous level up occured "early" (due to probability roll), then we skip until we get to levelMod = 0, to begin the next cycle.
+
+            if (levelUpInfo->isEarly != 0) {
+                if (levelMod == 0) {
+                    levelUpInfo->isEarly = 0;
+                }
+                continue;
+            }
+
+            if (levelMod != 0 && randomBetween(0, 100) > 100 * levelMod / memberDescription->level_up_every) {
+                continue;
+            }
+
+            levelUpInfo->level++;
+            if (levelMod != 0) {
+                levelUpInfo->isEarly = 1;
+            }
+
+            if (_partyMemberCopyLevelInfo(obj, memberDescription->level_pids[levelUpInfo->level]) == -1) {
+                return -1;
+            }
+
+            name = critterGetName(obj);
+            // %s has gained in some abilities.
+            text = getmsg(&gMiscMessageList, &msg, 9000);
+            snprintf(str, sizeof(str), text, name);
+            displayMonitorAddMessage(str);
+
+            debugPrint(str);
+
+            // Individual message
+            msg.num = 9000 + 10 * memberIndex + levelUpInfo->level - 1;
+            if (messageListGetItem(&gMiscMessageList, &msg)) {
+                name = critterGetName(obj);
+                snprintf(str, sizeof(str), msg.text, name);
+                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[0], &levelUpMessageRect);
+                tileWindowRefreshRect(&levelUpMessageRect, obj->elevation);
+            }
+        } else {
+            // ===== MOD COMPANION LOGIC (mirrors base, using mod containers) =====
+            auto objIt = gObjectToStableId.find(obj);
+            if (objIt == gObjectToStableId.end()) continue; // not a mod companion
+
+            uint32_t stableId = objIt->second;
+
+            // Find mod description and its index (for message numbering)
+            const ModPartyMember* modMember = nullptr;
+            int modIndex = -1;
+            for (size_t idx = 0; idx < gModPartyMembers.size(); idx++) {
+                if (gModPartyMembers[idx].stableId == stableId) {
+                    modMember = &gModPartyMembers[idx];
+                    modIndex = idx;
+                    break;
+                }
+            }
+            if (!modMember) continue;
+
+            const PartyMemberDescription* modDesc = &modMember->desc;
+
+            if (PID_TYPE(obj->pid) != OBJ_TYPE_CRITTER) {
+                continue;
+            }
+
+            name = critterGetName(obj);
+            debugPrint("\npartyMemberIncLevels: %s", name);
+
+            if (modDesc->level_up_every == 0) {
+                continue;
+            }
+
+            if (pcGetStat(PC_STAT_LEVEL) < modDesc->level_minimum) {
+                continue;
+            }
+
+            auto& levelInfo = gModPartyMemberLevelUpInfo[stableId]; // creates if not exist
+
+            if (levelInfo.level >= modDesc->level_pids_num) {
+                continue;
+            }
+
+            levelInfo.numLevelUps++;
+
+            levelMod = levelInfo.numLevelUps % modDesc->level_up_every;
+            debugPrint("pm: levelMod: %d, Lvl: %d, Early: %d, Every: %d", levelMod, levelInfo.numLevelUps, levelInfo.isEarly, modDesc->level_up_every);
+
+            // Same early?skip logic
+            if (levelInfo.isEarly != 0) {
+                if (levelMod == 0) {
+                    levelInfo.isEarly = 0;
+                }
+                continue;
+            }
+
+            if (levelMod != 0 && randomBetween(0, 100) > 100 * levelMod / modDesc->level_up_every) {
+                continue;
+            }
+
+            levelInfo.level++;
+            if (levelMod != 0) {
+                levelInfo.isEarly = 1;
+            }
+
+            int stagePid = modDesc->level_pids[levelInfo.level];
+            if (_partyMemberCopyLevelInfo(obj, stagePid) == -1) {
+                return -1;
+            }
+
+            name = critterGetName(obj);
+            text = getmsg(&gMiscMessageList, &msg, 9000);
+            snprintf(str, sizeof(str), text, name);
+            displayMonitorAddMessage(str);
+            debugPrint(str);
+
+            // Individual message for mod companions (range 10000+)
+            msg.num = 10000 + modIndex * 10 + levelInfo.level - 1;
+            if (messageListGetItem(&gMiscMessageList, &msg)) {
+                name = critterGetName(obj);
+                snprintf(str, sizeof(str), msg.text, name);
+                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[0], &levelUpMessageRect);
+                tileWindowRefreshRect(&levelUpMessageRect, obj->elevation);
+            }
         }
     }
 
