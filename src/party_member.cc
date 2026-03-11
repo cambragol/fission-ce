@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cstdint>
 #include <cctype>
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 
@@ -127,7 +127,7 @@ static int _curID = 20000;
 
 // Mod companion definition (includes level-up info)
 struct ModPartyMember {
-    uint32_t stableId;               // unique identifier (hash of modName:section)
+    uint32_t stableId; // unique identifier (hash of modName:section)
     int pid;
     PartyMemberDescription desc;
     PartyMemberLevelUpInfo levelInfo; // level, numLevelUps, isEarly
@@ -150,7 +150,6 @@ static std::unordered_map<uint32_t, PartyMemberLevelUpInfo> gModPartyMemberLevel
 
 // Marker for save game extension
 #define MOD_DATA_MARKER 0xDEADBEEF
-
 
 // djb2 hash (same as used elsewhere)
 static uint32_t party_hash_string(const char* str)
@@ -232,7 +231,7 @@ int partyMembersInit()
         snprintf(section, sizeof(section), "Party Member %d", gPartyMemberDescriptionsLength);
     }
 
-    baseCount = gPartyMemberDescriptionsLength;   // remember for later
+    baseCount = gPartyMemberDescriptionsLength; // remember for later
 
     // --- Allocate base arrays ---
     gPartyMemberPids = (int*)internal_malloc(sizeof(*gPartyMemberPids) * baseCount);
@@ -387,7 +386,7 @@ int partyMembersInit()
                 while (configGetInt(&modConfig, section, "party_member_pid", &partyMemberPid)) {
                     // Check for duplicate PID with base companions
                     bool duplicate = false;
-                    for (int b = 1; b < baseCount; b++) {   // base indices start at 1 (index 0 is dummy)
+                    for (int b = 1; b < baseCount; b++) { // base indices start at 1 (index 0 is dummy)
                         if (gPartyMemberPids[b] == partyMemberPid) {
                             duplicate = true;
                             break;
@@ -405,7 +404,7 @@ int partyMembersInit()
 
                     if (duplicate) {
                         debugPrint("Warning: PID %d in mod %s (section %s) already exists, skipping.\n",
-                                   partyMemberPid, modName, section);
+                            partyMemberPid, modName, section);
                     } else {
                         // Generate stable ID
                         uint32_t stableId = hashModPartyString(modName, section);
@@ -688,7 +687,6 @@ int partyMemberAdd(Object* object)
         return -1;
     }
 
-
     // Determine if this is a mod companion
     uint32_t stableId = 0;
     bool isMod = false;
@@ -718,7 +716,7 @@ int partyMemberAdd(Object* object)
         gObjectToStableId[object] = stableId;
         // Ensure level-up info exists
         if (gModPartyMemberLevelUpInfo.find(stableId) == gModPartyMemberLevelUpInfo.end()) {
-            PartyMemberLevelUpInfo info = {0, 0, 0};
+            PartyMemberLevelUpInfo info = { 0, 0, 0 };
             gModPartyMemberLevelUpInfo[stableId] = info;
         }
     }
@@ -893,7 +891,7 @@ int partyMembersSave(File* stream)
     for (const auto& kv : gModPartyMemberLevelUpInfo) {
         const auto& info = kv.second;
         if (info.level != 0 || info.numLevelUps != 0 || info.isEarly != 0) {
-            if (fileWriteInt32(stream, (int32_t)kv.first) == -1)   // stableId
+            if (fileWriteInt32(stream, (int32_t)kv.first) == -1) // stableId
                 return -1;
             if (fileWriteInt32(stream, info.level) == -1)
                 return -1;
