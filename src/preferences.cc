@@ -727,9 +727,7 @@ static void _UpdateBrightnessSlider(void)
     Point pos = gOffsets.preferencePositions[preferenceIndex];
     int pitch = gOffsets.width;
 
-    int knobX = (int)((gPreferencesBrightness1 - meta->minValue) *
-                      (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))) +
-                gOffsets.rangeStartX;
+    int knobX = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))) + gOffsets.rangeStartX;
 
     if (knobX < gOffsets.rangeSliderMinX) knobX = gOffsets.rangeSliderMinX;
     if (knobX > gOffsets.rangeSliderMaxX) knobX = gOffsets.rangeSliderMaxX;
@@ -737,14 +735,14 @@ static void _UpdateBrightnessSlider(void)
     // Blit back the background
     int off = pitch * pos.y + gOffsets.rangeStartX;
     blitBufferToBuffer(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_BACKGROUND].getData() + off,
-                       gOffsets.rangeBlitWidth, 12, pitch,
-                       gPreferencesWindowBuffer + off, pitch);
+        gOffsets.rangeBlitWidth, 12, pitch,
+        gPreferencesWindowBuffer + off, pitch);
 
     // Draw the knob (use "off" image to match static display in _UpdateThing)
     blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                            21, 12, 21,
-                            gPreferencesWindowBuffer + pitch * pos.y + knobX,
-                            pitch);
+        21, 12, 21,
+        gPreferencesWindowBuffer + pitch * pos.y + knobX,
+        pitch);
 
     windowRefresh(gPreferencesWindow);
 }
@@ -1408,7 +1406,7 @@ err:
 // 0x4928E4
 void brightnessIncrease()
 {
-    //gPreferencesBrightness1 = settings.preferences.brightness;
+    // gPreferencesBrightness1 = settings.preferences.brightness;
 
     if (gPreferencesBrightness1 < dbl_50C168) {
         gPreferencesBrightness1 += dbl_50C170;
@@ -1433,7 +1431,7 @@ void brightnessIncrease()
 // 0x4929C8
 void brightnessDecrease()
 {
-    //gPreferencesBrightness1 = settings.preferences.brightness;
+    // gPreferencesBrightness1 = settings.preferences.brightness;
 
     if (gPreferencesBrightness1 > 1.0) {
         gPreferencesBrightness1 += dbl_50C178;
