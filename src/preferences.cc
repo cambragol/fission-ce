@@ -1406,8 +1406,6 @@ err:
 // 0x4928E4
 void brightnessIncrease()
 {
-    // gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 < dbl_50C168) {
         gPreferencesBrightness1 += dbl_50C170;
 
@@ -1420,7 +1418,6 @@ void brightnessIncrease()
         }
 
         colorSetBrightness(gPreferencesBrightness1);
-        _UpdateBrightnessSlider();
 
         settings.preferences.brightness = gPreferencesBrightness1;
 
@@ -1431,8 +1428,6 @@ void brightnessIncrease()
 // 0x4929C8
 void brightnessDecrease()
 {
-    // gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 > 1.0) {
         gPreferencesBrightness1 += dbl_50C178;
 
@@ -1445,7 +1440,6 @@ void brightnessDecrease()
         }
 
         colorSetBrightness(gPreferencesBrightness1);
-        _UpdateBrightnessSlider();
 
         settings.preferences.brightness = gPreferencesBrightness1;
 
@@ -1877,10 +1871,12 @@ int doPreferences(bool animated)
         case KEY_EQUAL:
         case KEY_PLUS:
             brightnessIncrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_MINUS:
         case KEY_UNDERSCORE:
             brightnessDecrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_F12:
             takeScreenshot();
