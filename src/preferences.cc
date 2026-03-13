@@ -722,9 +722,8 @@ void fillRectWithColor(unsigned char* buffer, int pitch, int x, int y, int width
 
 static void _UpdateBrightnessSlider(void)
 {
-    int preferenceIndex = PREF_BRIGHTNESS;
-    PreferenceDescription* meta = &(gPreferenceDescriptions[preferenceIndex]);
-    Point pos = gOffsets.preferencePositions[preferenceIndex];
+    PreferenceDescription* meta = &(gPreferenceDescriptions[PREF_BRIGHTNESS]);
+    Point pos = gOffsets.preferencePositions[PREF_BRIGHTNESS];
     int pitch = gOffsets.width;
 
     int knobX = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))) + gOffsets.rangeStartX;
@@ -738,7 +737,7 @@ static void _UpdateBrightnessSlider(void)
         gOffsets.rangeBlitWidth, 12, pitch,
         gPreferencesWindowBuffer + off, pitch);
 
-    // Draw the knob (use "off" image to match static display in _UpdateThing)
+    // Draw the knob (use "off" image - moving knob is 'on' though...)
     blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
         21, 12, 21,
         gPreferencesWindowBuffer + pitch * pos.y + knobX,
