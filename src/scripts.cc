@@ -729,7 +729,7 @@ static void _script_chk_critters()
             extent = extent->next;
         }
 
-        if (scriptsCount == 0) return;   // nothing to do
+        if (scriptsCount == 0) return; // nothing to do
 
         // Advance round?robin counter
         _count_ = (_count_ + 1) % scriptsCount;

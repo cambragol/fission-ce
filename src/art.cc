@@ -973,7 +973,8 @@ static void artLoadModCritterData()
         while (fileReadString(line, sizeof(line), stream)) {
             // Trim leading/trailing whitespace
             char* p = line;
-            while (*p && isspace((unsigned char)*p)) p++;
+            while (*p && isspace((unsigned char)*p))
+                p++;
             if (*p == '\0' || *p == '#')
                 continue; // skip empty lines and comments
 
@@ -1029,9 +1030,11 @@ static void artLoadModCritterData()
 
             // Trim each part (helper lambda)
             auto trim = [](char* s) -> char* {
-                while (*s && isspace((unsigned char)*s)) s++;
+                while (*s && isspace((unsigned char)*s))
+                    s++;
                 char* end = s + strlen(s) - 1;
-                while (end > s && isspace((unsigned char)*end)) end--;
+                while (end > s && isspace((unsigned char)*end))
+                    end--;
                 *(end + 1) = '\0';
                 return s;
             };
