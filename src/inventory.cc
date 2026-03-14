@@ -612,13 +612,13 @@ static int inventoryMessageListFree()
 }
 
 static void drawInventoryRangeToBuffer(int startOffset, unsigned char* destBuffer,
-                                       int destX, int slotWidth, int destPitch)
+    int destX, int slotWidth, int destPitch)
 {
     // destBuffer points to the top-left corner of the drawing area
     int y = 0;
     for (int slotIndex = 0; slotIndex < gInventorySlotsCount; slotIndex++) {
         int itemIndex = startOffset + slotIndex;
-        if (itemIndex >= _pud->length) break;  // no more items
+        if (itemIndex >= _pud->length) break; // no more items
 
         // Position inside the destination buffer (top-left of this slot)
         unsigned char* slotDest = destBuffer + y * destPitch + destX;
@@ -628,8 +628,8 @@ static void drawInventoryRangeToBuffer(int startOffset, unsigned char* destBuffe
 
         // Draw item picture
         artRender(inventoryFid, slotDest,
-                  INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD,
-                  destPitch);
+            INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD,
+            destPitch);
 
         // Draw quantity info (if any) - same as _display_inventory_info
         int oldFont = fontGetCurrent();
@@ -656,7 +656,8 @@ static void drawInventoryRangeToBuffer(int startOffset, unsigned char* destBuffe
     }
 }
 
-static void inventoryAnimateScroll(int direction) {
+static void inventoryAnimateScroll(int direction)
+{
     // direction: -1 for left (previous items), +1 for right (next items)
     int currentOffset = _stack_offset[_curr_stack];
     int newOffset = currentOffset + direction * gInventorySlotsCount;
@@ -676,8 +677,8 @@ static void inventoryAnimateScroll(int direction) {
     unsigned char* winBuf = windowGetBuffer(gInventoryWindow);
 
     // Animation parameters
-    static const int animOffsetsLeft[] = {32, 16, 8};   // for left direction
-    static const int animOffsetsRight[] = {8, 16, 32};  // for right direction
+    static const int animOffsetsLeft[] = { 32, 16, 8 }; // for left direction
+    static const int animOffsetsRight[] = { 8, 16, 32 }; // for right direction
     static const int animFrameCount = 3;
     static const int animFrameDuration = 35; // ms per frame
 
@@ -719,11 +720,11 @@ static void inventoryAnimateScroll(int direction) {
 
         // Blit the slice to the inventory area
         blitBufferToBuffer(composite + sliceX,
-                           INVENTORY_SLOT_WIDTH,
-                           compositeHeight,
-                           compositeWidth,
-                           winBuf + INVENTORY_SCROLLER_Y * INVENTORY_WINDOW_WIDTH + INVENTORY_SCROLLER_X,
-                           INVENTORY_WINDOW_WIDTH);
+            INVENTORY_SLOT_WIDTH,
+            compositeHeight,
+            compositeWidth,
+            winBuf + INVENTORY_SCROLLER_Y * INVENTORY_WINDOW_WIDTH + INVENTORY_SCROLLER_X,
+            INVENTORY_WINDOW_WIDTH);
         windowRefresh(gInventoryWindow);
         renderPresent();
         inputPauseForTocks(animFrameDuration);
@@ -890,7 +891,7 @@ void inventoryOpen()
                         }
                     } else if (wheelX > 0) {
                         inventoryAnimateScroll(1);
-                    } else if (wheelX < 0){
+                    } else if (wheelX < 0) {
                         inventoryAnimateScroll(-1);
                     }
                 }
