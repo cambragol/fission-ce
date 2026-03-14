@@ -888,6 +888,10 @@ void inventoryOpen()
                             _stack_offset[_curr_stack] += 1;
                             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
                         }
+                    } else if (wheelX > 0) {
+                        inventoryAnimateScroll(1);
+                    } else if (wheelX < 0){
+                        inventoryAnimateScroll(-1);
                     }
                 }
             }
