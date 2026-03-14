@@ -915,6 +915,157 @@ static void artGenerateReport()
     }
 }
 
+static void artLoadModCritterData()
+{
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_CRITTER];
+
+    // Build search pattern for all .lst files in the critters directory
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sart%c%s%c*.lst",
+        _cd_path_base,
+        DIR_SEPARATOR,
+        desc->name,
+        DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount <= 0)
+        return;
+
+    // Ensure fission.lst is processed first (same order as artLoadModAssets)
+    for (int i = 0; i < fileCount; i++) {
+        if (strcmp(foundFiles[i], "fission.lst") == 0) {
+            char* temp = foundFiles[0];
+            foundFiles[0] = foundFiles[i];
+            foundFiles[i] = temp;
+            break;
+        }
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* lstFilename = foundFiles[i];
+
+        // Skip the main vanilla list – it was already handled
+        char vanillaListName[64];
+        snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
+        if (compat_stricmp(lstFilename, vanillaListName) == 0)
+            continue;
+
+        // Build full path to the .lst file
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "%sart%c%s%c%s",
+            _cd_path_base,
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR,
+            lstFilename);
+
+        File* stream = fileOpen(fullPath, "rt");
+        if (!stream) {
+            debugPrint("Warning: Could not open mod list %s\n", fullPath);
+            continue;
+        }
+
+        debugPrint("Loading critter alias data from %s\n", lstFilename);
+
+        char line[256];
+        while (fileReadString(line, sizeof(line), stream)) {
+            // Trim leading/trailing whitespace
+            char* p = line;
+            while (*p && isspace((unsigned char)*p)) p++;
+            if (*p == '\0' || *p == '#')
+                continue; // skip empty lines and comments
+
+            char* filename = p;
+            char* comma1 = strchr(p, ',');
+            if (!comma1) {
+                // No comma – assume no extra data, default to 0,0
+                int alias = 0;
+                int runFlag = 0;
+
+                // Find the index of this filename
+                int index = -1;
+                for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                    const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                    if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                        index = idx;
+                        break;
+                    }
+                }
+                if (index != -1) {
+                    _anon_alias[index] = alias;
+                    gArtCritterFidShoudRunData[index] = runFlag;
+                }
+                continue;
+            }
+
+            *comma1 = '\0';
+            char* aliasStr = comma1 + 1;
+
+            char* comma2 = strchr(aliasStr, ',');
+            if (!comma2) {
+                // Only one comma: filename,alias (runFlag defaults to 0)
+                int alias = atoi(aliasStr);
+                int runFlag = 0;
+
+                int index = -1;
+                for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                    const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                    if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                        index = idx;
+                        break;
+                    }
+                }
+                if (index != -1) {
+                    _anon_alias[index] = alias;
+                    gArtCritterFidShoudRunData[index] = runFlag;
+                }
+                continue;
+            }
+
+            *comma2 = '\0';
+            char* runFlagStr = comma2 + 1;
+
+            // Trim each part (helper lambda)
+            auto trim = [](char* s) -> char* {
+                while (*s && isspace((unsigned char)*s)) s++;
+                char* end = s + strlen(s) - 1;
+                while (end > s && isspace((unsigned char)*end)) end--;
+                *(end + 1) = '\0';
+                return s;
+            };
+            filename = trim(filename);
+            aliasStr = trim(aliasStr);
+            runFlagStr = trim(runFlagStr);
+
+            int alias = atoi(aliasStr);
+            int runFlag = atoi(runFlagStr);
+
+            // Find the index
+            int index = -1;
+            for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                    index = idx;
+                    break;
+                }
+            }
+
+            if (index != -1) {
+                _anon_alias[index] = alias;
+                gArtCritterFidShoudRunData[index] = runFlag;
+            } else {
+                debugPrint("  Warning: Could not find critter filename '%s' from mod list\n", filename);
+            }
+        }
+
+        fileClose(stream);
+    }
+
+    fileNameListFree(&foundFiles, fileCount);
+}
+
 // Helper function to initialize critter data
 static int artInitCritterData()
 {
@@ -924,6 +1075,7 @@ static int artInitCritterData()
         debugPrint("Out of memory for anon_alias in art_init\n");
         return -1;
     }
+    memset(_anon_alias, 0, MAX_ART_INDICES * sizeof(int));
 
     gArtCritterFidShoudRunData = (int*)internal_malloc(MAX_ART_INDICES * sizeof(int));
     if (gArtCritterFidShoudRunData == nullptr) {
@@ -931,6 +1083,7 @@ static int artInitCritterData()
         debugPrint("Out of memory for artCritterFidShouldRunData in art_init\n");
         return -1;
     }
+    memset(gArtCritterFidShoudRunData, 0, MAX_ART_INDICES * sizeof(int));
 
     for (int critterIndex = 0; critterIndex < gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength; critterIndex++) {
         gArtCritterFidShoudRunData[critterIndex] = 0;
@@ -990,6 +1143,8 @@ static int artInitCritterData()
             gArtCritterFidShoudRunData[critterIndex] = 1;
         }
     }
+
+    artLoadModCritterData();
 
     fileClose(stream);
     return 0;

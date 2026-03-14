@@ -719,38 +719,38 @@ static void _doBkProcesses()
 static void _script_chk_critters()
 {
     if (!_gdialogActive() && !isInCombat()) {
-        ScriptList* scriptList;
-        ScriptListExtent* scriptListExtent;
+        ScriptList* scriptList = &(gScriptLists[SCRIPT_TYPE_CRITTER]);
 
+        // Count total critter scripts
         int scriptsCount = 0;
-
-        scriptList = &(gScriptLists[SCRIPT_TYPE_CRITTER]);
-        scriptListExtent = scriptList->head;
-        while (scriptListExtent != nullptr) {
-            scriptsCount += scriptListExtent->length;
-            scriptListExtent = scriptListExtent->next;
+        ScriptListExtent* extent = scriptList->head;
+        while (extent != nullptr) {
+            scriptsCount += extent->length;
+            extent = extent->next;
         }
 
-        _count_ += 1;
-        if (_count_ >= scriptsCount) {
-            _count_ = 0;
+        if (scriptsCount == 0) return;   // nothing to do
+
+        // Advance round?robin counter
+        _count_ = (_count_ + 1) % scriptsCount;
+
+        // Find the extent containing the chosen script
+        int remaining = _count_;
+        extent = scriptList->head;
+        while (extent != nullptr && remaining >= extent->length) {
+            remaining -= extent->length;
+            extent = extent->next;
         }
 
-        if (_count_ < scriptsCount) {
-            int proc = isInCombat() ? SCRIPT_PROC_COMBAT : SCRIPT_PROC_CRITTER;
-            int extentIndex = _count_ / SCRIPT_LIST_EXTENT_SIZE;
-            int scriptIndex = _count_ % SCRIPT_LIST_EXTENT_SIZE;
+        if (extent != nullptr) {
+            Script* script = &(extent->scripts[remaining]);
 
-            scriptList = &(gScriptLists[SCRIPT_TYPE_CRITTER]);
-            scriptListExtent = scriptList->head;
-            while (scriptListExtent != nullptr && extentIndex != 0) {
-                extentIndex -= 1;
-                scriptListExtent = scriptListExtent->next;
-            }
-
-            if (scriptListExtent != nullptr) {
-                Script* script = &(scriptListExtent->scripts[scriptIndex]);
+            // Optional - verify script is valid
+            if (script->program != nullptr || (script->flags & SCRIPT_FLAG_0x01) != 0) {
+                int proc = isInCombat() ? SCRIPT_PROC_COMBAT : SCRIPT_PROC_CRITTER;
                 scriptExecProc(script->sid, proc);
+            } else {
+                debugPrint("_script_chk_critters: skipping unloaded script sid=%d\n", script->sid);
             }
         }
     }
