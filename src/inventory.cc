@@ -120,7 +120,7 @@ namespace fallout {
 #define INVENTORY_LOOT_RIGHT_SCROLLER_MAX_X (INVENTORY_LOOT_RIGHT_SCROLLER_X + INVENTORY_SLOT_WIDTH)
 
 #define INVENTORY_SCROLLER_X 46
-#define INVENTORY_SCROLLER_Y 35
+#define INVENTORY_SCROLLER_Y 45
 #define INVENTORY_SCROLLER_MAX_X (INVENTORY_SCROLLER_X + INVENTORY_SLOT_WIDTH)
 
 #define INVENTORY_BODY_VIEW_WIDTH 60
@@ -611,6 +611,129 @@ static int inventoryMessageListFree()
     return 0;
 }
 
+static void drawInventoryRangeToBuffer(int startOffset, unsigned char* destBuffer,
+                                       int destX, int slotWidth, int destPitch)
+{
+    // destBuffer points to the top-left corner of the drawing area
+    int y = 0;
+    for (int slotIndex = 0; slotIndex < gInventorySlotsCount; slotIndex++) {
+        int itemIndex = startOffset + slotIndex;
+        if (itemIndex >= _pud->length) break;  // no more items
+
+        // Position inside the destination buffer (top-left of this slot)
+        unsigned char* slotDest = destBuffer + y * destPitch + destX;
+
+        InventoryItem* inventoryItem = &(_pud->items[_pud->length - (itemIndex + 1)]);
+        int inventoryFid = itemGetInventoryFid(inventoryItem->item);
+
+        // Draw item picture
+        artRender(inventoryFid, slotDest,
+                  INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD,
+                  destPitch);
+
+        // Draw quantity info (if any) - same as _display_inventory_info
+        int oldFont = fontGetCurrent();
+        fontSetCurrent(101);
+        if (itemGetType(inventoryItem->item) == ITEM_TYPE_AMMO) {
+            int ammoQuantity = ammoGetCapacity(inventoryItem->item) * (inventoryItem->quantity - 1);
+            ammoQuantity += ammoGetQuantity(inventoryItem->item);
+            if (ammoQuantity > 99999) ammoQuantity = 99999;
+            char text[12];
+            snprintf(text, sizeof(text), "x%d", ammoQuantity);
+            fontDrawText(slotDest, text, 80, destPitch, _colorTable[32767]);
+        } else {
+            if (inventoryItem->quantity > 1) {
+                int q = inventoryItem->quantity;
+                if (q > 99999) q = 99999;
+                char text[12];
+                snprintf(text, sizeof(text), "x%d", q);
+                fontDrawText(slotDest, text, 80, destPitch, _colorTable[32767]);
+            }
+        }
+        fontSetCurrent(oldFont);
+
+        y += INVENTORY_SLOT_HEIGHT;
+    }
+}
+
+static void inventoryAnimateScroll(int direction) {
+    // direction: -1 for left (previous items), +1 for right (next items)
+    int currentOffset = _stack_offset[_curr_stack];
+    int newOffset = currentOffset + direction * gInventorySlotsCount;
+
+    // Clamp new offset
+    if (newOffset < 0) newOffset = 0;
+    int maxOffset = _pud->length - gInventorySlotsCount;
+    if (maxOffset < 0) maxOffset = 0;
+    if (newOffset > maxOffset) newOffset = maxOffset;
+
+    // No movement? Just return.
+    if (newOffset == currentOffset) return;
+
+    int compositeWidth = INVENTORY_SLOT_WIDTH * 2;
+    int compositeHeight = gInventorySlotsCount * INVENTORY_SLOT_HEIGHT;
+    unsigned char* composite = (unsigned char*)alloca(compositeWidth * compositeHeight);
+    unsigned char* winBuf = windowGetBuffer(gInventoryWindow);
+
+    // Animation parameters
+    static const int animOffsetsLeft[] = {32, 16, 8};   // for left direction
+    static const int animOffsetsRight[] = {8, 16, 32};  // for right direction
+    static const int animFrameCount = 3;
+    static const int animFrameDuration = 35; // ms per frame
+
+    const int* offsets = (direction == -1) ? animOffsetsLeft : animOffsetsRight;
+
+    for (int i = 0; i < animFrameCount; i++) {
+        int sliceX = offsets[i];
+
+        // Fill composite with tiled background so that column sliceX maps to background column 0
+        FrmImage bgFrm;
+        int bgFid = buildFid(OBJ_TYPE_INTERFACE, 48, 0, 0, 0);
+        if (bgFrm.lock(bgFid)) {
+            unsigned char* bgData = bgFrm.getData();
+            int bgPitch = INVENTORY_WINDOW_WIDTH;
+            for (int row = 0; row < compositeHeight; row++) {
+                unsigned char* bgRow = bgData + (INVENTORY_SCROLLER_Y + row) * bgPitch + INVENTORY_SCROLLER_X;
+                unsigned char* compRow = composite + row * compositeWidth;
+                for (int col = 0; col < compositeWidth; col++) {
+                    int srcCol = (col - sliceX) % INVENTORY_SLOT_WIDTH;
+                    if (srcCol < 0) srcCol += INVENTORY_SLOT_WIDTH;
+                    compRow[col] = bgRow[srcCol];
+                }
+            }
+            bgFrm.unlock();
+        } else {
+            memset(composite, 0, compositeWidth * compositeHeight);
+        }
+
+        // Draw items according to direction
+        if (direction == -1) {
+            // Left: previous set on left half, current on right half
+            drawInventoryRangeToBuffer(newOffset, composite, 0, INVENTORY_SLOT_WIDTH, compositeWidth);
+            drawInventoryRangeToBuffer(currentOffset, composite, INVENTORY_SLOT_WIDTH, INVENTORY_SLOT_WIDTH, compositeWidth);
+        } else {
+            // Right: current on left half, next set on right half
+            drawInventoryRangeToBuffer(currentOffset, composite, 0, INVENTORY_SLOT_WIDTH, compositeWidth);
+            drawInventoryRangeToBuffer(newOffset, composite, INVENTORY_SLOT_WIDTH, INVENTORY_SLOT_WIDTH, compositeWidth);
+        }
+
+        // Blit the slice to the inventory area
+        blitBufferToBuffer(composite + sliceX,
+                           INVENTORY_SLOT_WIDTH,
+                           compositeHeight,
+                           compositeWidth,
+                           winBuf + INVENTORY_SCROLLER_Y * INVENTORY_WINDOW_WIDTH + INVENTORY_SCROLLER_X,
+                           INVENTORY_WINDOW_WIDTH);
+        windowRefresh(gInventoryWindow);
+        renderPresent();
+        inputPauseForTocks(animFrameDuration);
+    }
+
+    // Update the global offset and redraw final state
+    _stack_offset[_curr_stack] = newOffset;
+    _display_inventory(newOffset, -1, INVENTORY_WINDOW_TYPE_NORMAL);
+}
+
 // 0x46E7B0
 void inventoryOpen()
 {
@@ -708,6 +831,10 @@ void inventoryOpen()
                 _stack_offset[_curr_stack] += 1;
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
             }
+        } else if (keyCode == KEY_ARROW_LEFT) {
+            inventoryAnimateScroll(1);
+        } else if (keyCode == KEY_ARROW_RIGHT) {
+            inventoryAnimateScroll(-1);
         } else if (keyCode == KEY_PAGE_DOWN) {
             int v12 = gInventorySlotsCount + _stack_offset[_curr_stack];
             int v13 = v12 + gInventorySlotsCount;
