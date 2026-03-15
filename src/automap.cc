@@ -811,7 +811,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
         -1, -1, switch1KeyUp, switch1KeyDown,
         gAutomapFrmImages[switchFrmUp].getData(),
         gAutomapFrmImages[switchFrmDown].getData(),
-        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (switchBtn1 != -1) {
         buttonSetCallbacks(switchBtn1, 0, 0);
         gDetailsButton = switchBtn1;
@@ -822,7 +822,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             -1, -1, switch2KeyUp, switch2KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
-            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
         if (switchBtn2 != -1) {
             buttonSetCallbacks(switchBtn2, 0, 0);
             gZoomButton = switchBtn2;
@@ -832,7 +832,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             -1, -1, switch3KeyUp, switch3KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
-            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
         if (switchBtn3 != -1) {
             buttonSetCallbacks(switchBtn3, 0, 0);
             gProjectionButton = switchBtn3;
