@@ -410,9 +410,9 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationBuiltTile)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_4)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationMap)) == -1)
             return -1;
 
         return 0;
@@ -425,12 +425,12 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileReadInt32(stream, &(scenery_data->ladder.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->ladder.destinationMap)) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileReadInt32(stream, &(scenery_data->generic.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->generic.genericFlags)) == -1)
             return -1;
 
         return 0;
@@ -474,7 +474,7 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->item.inventoryFid)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->item.field_80)) == -1)
+        if (fileReadUInt8(stream, &(proto->item.soundId)) == -1)
             return -1;
         if (protoItemDataRead(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -515,9 +515,9 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->scenery.type)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(proto->scenery.field_2C)) == -1)
+        if (fileReadInt32(stream, &(proto->scenery.material)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->scenery.field_34)) == -1)
+        if (fileReadUInt8(stream, &(proto->scenery.soundId)) == -1)
             return -1;
         if (protoSceneryDataRead(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -698,9 +698,9 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileWriteInt32(stream, scenery_data->stairs.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationBuiltTile) == -1)
             return -1;
-        if (fileWriteInt32(stream, scenery_data->stairs.field_4) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationMap) == -1)
             return -1;
 
         return 0;
@@ -713,12 +713,12 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileWriteInt32(stream, scenery_data->ladder.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->ladder.destinationMap) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileWriteInt32(stream, scenery_data->generic.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->generic.genericFlags) == -1)
             return -1;
 
         return 0;
@@ -761,7 +761,7 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->item.inventoryFid) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->item.field_80) == -1)
+        if (fileWriteUInt8(stream, proto->item.soundId) == -1)
             return -1;
         if (protoItemDataWrite(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -801,9 +801,9 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->scenery.type) == -1)
             return -1;
-        if (fileWriteInt32(stream, proto->scenery.field_2C) == -1)
+        if (fileWriteInt32(stream, proto->scenery.material) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->scenery.field_34) == -1)
+        if (fileWriteUInt8(stream, proto->scenery.soundId) == -1)
             return -1;
         if (protoSceneryDataWrite(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -1069,8 +1069,8 @@ static int _proto_update_gen(Object* obj)
             data->scenery.door.openFlags = proto->scenery.data.door.openFlags;
             break;
         case SCENERY_TYPE_STAIRS:
-            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.field_0;
-            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.field_4;
+            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.destinationBuiltTile;
+            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.destinationMap;
             break;
         case SCENERY_TYPE_ELEVATOR:
             data->scenery.elevator.type = proto->scenery.data.elevator.type;
@@ -1078,7 +1078,7 @@ static int _proto_update_gen(Object* obj)
             break;
         case SCENERY_TYPE_LADDER_UP:
         case SCENERY_TYPE_LADDER_DOWN:
-            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.field_0;
+            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.destinationMap;
             break;
         }
         break;
@@ -1124,7 +1124,7 @@ int proto_item_init(Proto* proto, int a2)
     proto->item.weight = 10;
     proto->item.cost = 0;
     proto->item.inventoryFid = -1;
-    proto->item.field_80 = '0';
+    proto->item.soundId = '0';
 
     return 0;
 }
@@ -1265,8 +1265,8 @@ int proto_scenery_init(Proto* proto, int pid)
     proto->scenery.sid = -1;
     proto->scenery.type = SCENERY_TYPE_GENERIC;
     proto_scenery_subdata_init(proto, proto->scenery.type);
-    proto->scenery.field_2C = -1;
-    proto->scenery.field_34 = '0';
+    proto->scenery.material = -1;
+    proto->scenery.soundId = '0';
 
     return 0;
 }
@@ -1280,8 +1280,8 @@ int proto_scenery_subdata_init(Proto* proto, int type)
         proto->scenery.extendedFlags |= 0x800;
         break;
     case SCENERY_TYPE_STAIRS:
-        proto->scenery.data.stairs.field_0 = -1;
-        proto->scenery.data.stairs.field_4 = -1;
+        proto->scenery.data.stairs.destinationBuiltTile = -1;
+        proto->scenery.data.stairs.destinationMap = -1;
         proto->scenery.extendedFlags |= 0x800;
         break;
     case SCENERY_TYPE_ELEVATOR:
@@ -1290,11 +1290,11 @@ int proto_scenery_subdata_init(Proto* proto, int type)
         proto->scenery.extendedFlags |= 0x800;
         break;
     case SCENERY_TYPE_LADDER_UP:
-        proto->scenery.data.ladder.field_0 = -1;
+        proto->scenery.data.ladder.destinationMap = -1;
         proto->scenery.extendedFlags |= 0x800;
         break;
     case SCENERY_TYPE_LADDER_DOWN:
-        proto->scenery.data.ladder.field_0 = -1;
+        proto->scenery.data.ladder.destinationMap = -1;
         proto->scenery.extendedFlags |= 0x800;
         break;
     }
@@ -1552,7 +1552,7 @@ int protoGetDataMember(int pid, int member, ProtoDataMemberValue* value)
             value->integerValue = proto->scenery.type;
             break;
         case SCENERY_DATA_MEMBER_MATERIAL:
-            value->integerValue = proto->scenery.field_2C;
+            value->integerValue = proto->scenery.material;
             break;
         default:
             debugPrint("\n\tError: Unimp'd data member in member in proto_data_member!");
@@ -1668,7 +1668,7 @@ int objectDataRead(Object* obj, File* stream)
         return -1;
 
     if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
-        if (fileReadInt32(stream, &(obj->data.critter.field_0)) == -1)
+        if (fileReadInt32(stream, &(obj->data.critter.reaction)) == -1)
             return -1;
         if (objectCritterCombatDataRead(&(obj->data.critter.combat), stream) == -1)
             return -1;

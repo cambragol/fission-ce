@@ -78,7 +78,7 @@ static void healingItemsInitCustom();
 typedef struct DrugDescription {
     int drugPid;
     int gvar;
-    int field_8;
+    int maxActiveEffects;
 } DrugDescription;
 
 typedef struct BookDescription {
@@ -2757,7 +2757,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
         return true;
     }
 
-    if (drugDescription->field_8 == 0) {
+    if (drugDescription->maxActiveEffects == 0) {
         return true;
     }
 
@@ -2767,7 +2767,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
     while (drugEffectEvent != nullptr) {
         if (drugEffectEvent->drugPid == pid) {
             count++;
-            if (count >= drugDescription->field_8) {
+            if (count >= drugDescription->maxActiveEffects) {
                 return false;
             }
         }

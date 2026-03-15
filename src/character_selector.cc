@@ -80,7 +80,7 @@ typedef enum PremadeCharacter {
 typedef struct PremadeCharacterDescription {
     char fileName[20];
     int face;
-    char field_18[20];
+    char vid[20];
 } PremadeCharacterDescription;
 
 static bool characterSelectorWindowInit();
@@ -1033,7 +1033,7 @@ void premadeCharactersInit()
                 "premade\\%s", fname.c_str());
 
             gCustomPremadeCharacterDescriptions[i].face = std::atoi(faceFids[i].c_str());
-            gCustomPremadeCharacterDescriptions[i].field_18[0] = '\0';
+            gCustomPremadeCharacterDescriptions[i].vid[0] = '\0';
         }
     }
 
@@ -1043,7 +1043,7 @@ void premadeCharactersInit()
         for (int index = 0; index < PREMADE_CHARACTER_COUNT; index++) {
             strcpy(gCustomPremadeCharacterDescriptions[index].fileName, gPremadeCharacterDescriptions[index].fileName);
             gCustomPremadeCharacterDescriptions[index].face = gPremadeCharacterDescriptions[index].face;
-            strcpy(gCustomPremadeCharacterDescriptions[index].field_18, gPremadeCharacterDescriptions[index].field_18);
+            strcpy(gCustomPremadeCharacterDescriptions[index].vid, gPremadeCharacterDescriptions[index].vid);
         }
     }
 
