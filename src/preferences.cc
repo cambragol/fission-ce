@@ -717,6 +717,32 @@ void fillRectWithColor(unsigned char* buffer, int pitch, int x, int y, int width
     }
 }
 
+static void _UpdateBrightnessSlider(void)
+{
+    PreferenceDescription* meta = &(gPreferenceDescriptions[PREF_BRIGHTNESS]);
+    Point pos = gOffsets.preferencePositions[PREF_BRIGHTNESS];
+    int pitch = gOffsets.width;
+
+    int knobX = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))) + gOffsets.rangeStartX;
+
+    if (knobX < gOffsets.rangeSliderMinX) knobX = gOffsets.rangeSliderMinX;
+    if (knobX > gOffsets.rangeSliderMaxX) knobX = gOffsets.rangeSliderMaxX;
+
+    // Blit back the background
+    int off = pitch * pos.y + gOffsets.rangeStartX;
+    blitBufferToBuffer(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_BACKGROUND].getData() + off,
+        gOffsets.rangeBlitWidth, 12, pitch,
+        gPreferencesWindowBuffer + off, pitch);
+
+    // Draw the knob (use "off" image - moving knob is 'on' though...)
+    blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+        21, 12, 21,
+        gPreferencesWindowBuffer + pitch * pos.y + knobX,
+        pitch);
+
+    windowRefresh(gPreferencesWindow);
+}
+
 // 0x491A68
 static void _UpdateThing(int index)
 {
@@ -1376,8 +1402,6 @@ err:
 // 0x4928E4
 void brightnessIncrease()
 {
-    gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 < kBrightnessMax) {
         gPreferencesBrightness1 += kBrightnessStep;
 
@@ -1400,8 +1424,6 @@ void brightnessIncrease()
 // 0x4929C8
 void brightnessDecrease()
 {
-    gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 > 1.0) {
         gPreferencesBrightness1 += kBrightnessStepNegative;
 
@@ -1845,10 +1867,12 @@ int doPreferences(bool animated)
         case KEY_EQUAL:
         case KEY_PLUS:
             brightnessIncrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_MINUS:
         case KEY_UNDERSCORE:
             brightnessDecrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_F12:
             takeScreenshot();
