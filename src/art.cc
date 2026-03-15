@@ -1376,72 +1376,72 @@ int artCopyFileName(int objectType, int id, char* dest)
 }
 
 // 0x419314
-int _art_get_code(int animation, int weaponType, char* a3, char* a4)
+int _art_get_code(int animation, int weaponType, char* weaponCodePtr, char* animationCodePtr)
 {
     if (weaponType < 0 || weaponType >= WEAPON_ANIMATION_COUNT) {
         return -1;
     }
 
     if (animation >= ANIM_TAKE_OUT && animation <= ANIM_FIRE_CONTINUOUS) {
-        *a4 = 'c' + (animation - ANIM_TAKE_OUT);
+        *animationCodePtr = 'c' + (animation - ANIM_TAKE_OUT);
         if (weaponType == WEAPON_ANIMATION_NONE) {
             return -1;
         }
 
-        *a3 = 'd' + (weaponType - 1);
+        *weaponCodePtr = 'd' + (weaponType - 1);
         return 0;
     } else if (animation == ANIM_PRONE_TO_STANDING) {
-        *a4 = 'h';
-        *a3 = 'c';
+        *animationCodePtr = 'h';
+        *weaponCodePtr = 'c';
         return 0;
     } else if (animation == ANIM_BACK_TO_STANDING) {
-        *a4 = 'j';
-        *a3 = 'c';
+        *animationCodePtr = 'j';
+        *weaponCodePtr = 'c';
         return 0;
     } else if (animation == ANIM_CALLED_SHOT_PIC) {
-        *a4 = 'a';
-        *a3 = 'n';
+        *animationCodePtr = 'a';
+        *weaponCodePtr = 'n';
         return 0;
     } else if (animation >= FIRST_SF_DEATH_ANIM) {
-        *a4 = 'a' + (animation - FIRST_SF_DEATH_ANIM);
-        *a3 = 'r';
+        *animationCodePtr = 'a' + (animation - FIRST_SF_DEATH_ANIM);
+        *weaponCodePtr = 'r';
         return 0;
     } else if (animation >= FIRST_KNOCKDOWN_AND_DEATH_ANIM) {
-        *a4 = 'a' + (animation - FIRST_KNOCKDOWN_AND_DEATH_ANIM);
-        *a3 = 'b';
+        *animationCodePtr = 'a' + (animation - FIRST_KNOCKDOWN_AND_DEATH_ANIM);
+        *weaponCodePtr = 'b';
         return 0;
     } else if (animation == ANIM_THROW_ANIM) {
         if (weaponType == WEAPON_ANIMATION_KNIFE) {
             // knife
-            *a3 = 'd';
-            *a4 = 'm';
+            *weaponCodePtr = 'd';
+            *animationCodePtr = 'm';
         } else if (weaponType == WEAPON_ANIMATION_SPEAR) {
             // spear
-            *a3 = 'g';
-            *a4 = 'm';
+            *weaponCodePtr = 'g';
+            *animationCodePtr = 'm';
         } else {
             // other -> probably rock or grenade
-            *a3 = 'a';
-            *a4 = 's';
+            *weaponCodePtr = 'a';
+            *animationCodePtr = 's';
         }
         return 0;
     } else if (animation == ANIM_DODGE_ANIM) {
         if (weaponType <= 0) {
-            *a3 = 'a';
-            *a4 = 'n';
+            *weaponCodePtr = 'a';
+            *animationCodePtr = 'n';
         } else {
-            *a3 = 'd' + (weaponType - 1);
-            *a4 = 'e';
+            *weaponCodePtr = 'd' + (weaponType - 1);
+            *animationCodePtr = 'e';
         }
         return 0;
     }
 
-    *a4 = 'a' + animation;
+    *animationCodePtr = 'a' + animation;
     if (animation <= ANIM_WALK && weaponType > 0) {
-        *a3 = 'd' + (weaponType - 1);
+        *weaponCodePtr = 'd' + (weaponType - 1);
         return 0;
     }
-    *a3 = 'a';
+    *weaponCodePtr = 'a';
 
     return 0;
 }

@@ -942,7 +942,7 @@ static int mapLoad(File* stream)
     _map_save_in_game(true);
     if (backgoundSoundIsPlaying() && (settings.enhancements.strict_vanilla || !settings.enhancements.gapless_music)) {
         // playing the loading sound might interrupt continuous music playback
-        backgroundSoundLoad("wind2", 12, 13, 16);
+        backgroundSoundLoad("wind2", GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_LOOP);
     }
     isoDisable();
     _partyMemberPrepLoad();
