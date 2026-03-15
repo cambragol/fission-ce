@@ -2291,7 +2291,7 @@ static void _DoThing(int eventCode)
                 break;
             }
 
-            if (v52) {
+            if (redrawLabels) {
                 // Volume sliders - restore background including labels
                 int off = gOffsets.width * (pos.y - 12) + gOffsets.rangeStartX; // Use direct Y position
                 blitBufferToBuffer(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_BACKGROUND].getData() + off,
