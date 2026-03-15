@@ -148,7 +148,7 @@ Use the in-game 'preferences' screen for 'graphics' configuration.
 
 Other configuration can be done fia the fallout2.cfg file.
 
-For advanced tweaks, use the [enhancements] sections in 'fallout2.cfg' (Sfall):
+For advanced tweaks, use the [enhancements] sections in 'fallout2.cfg':
 
 ```
 [enhancements]
