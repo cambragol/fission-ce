@@ -4318,7 +4318,7 @@ static int characterEditorShowOptions()
                 strcat(string4, "TXT");
 
                 char** fileList;
-                int fileListLength = fileNameListInit(string4, &fileList, 0, 0);
+                int fileListLength = fileNameListInit(string4, &fileList);
                 if (fileListLength != -1) {
                     // PRINT
                     strcpy(string1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 616));
@@ -4390,7 +4390,7 @@ static int characterEditorShowOptions()
                 strcat(string4, "GCD");
 
                 char** fileNameList;
-                int fileNameListLength = fileNameListInit(string4, &fileNameList, 0, 0);
+                int fileNameListLength = fileNameListInit(string4, &fileNameList);
                 if (fileNameListLength != -1) {
                     // NOTE: This value is not copied as in save dialog.
                     char* title = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 601);
@@ -4483,7 +4483,7 @@ static int characterEditorShowOptions()
                 strcat(string4, "GCD");
 
                 char** fileNameList;
-                int fileNameListLength = fileNameListInit(string4, &fileNameList, 0, 0);
+                int fileNameListLength = fileNameListInit(string4, &fileNameList);
                 if (fileNameListLength != -1) {
                     strcpy(string1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 617));
                     strcpy(string4, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 600));
@@ -4570,7 +4570,7 @@ static int characterEditorShowOptions()
     strcpy(pattern, "*.TXT");
 
     char** fileNames;
-    int filesCount = fileNameListInit(pattern, &fileNames, 0, 0);
+    int filesCount = fileNameListInit(pattern, &fileNames);
     if (filesCount == -1) {
         soundPlayFile("iisxxxx1");
 
@@ -7529,7 +7529,7 @@ static int karmaInit()
         _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount > 0) {
         // Sort alphabetically for consistent load order... but will it matter?
         for (int i = 0; i < fileCount - 1; i++) {

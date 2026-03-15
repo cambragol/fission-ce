@@ -4452,7 +4452,7 @@ static void questLoadModFiles()
     snprintf(searchPattern, sizeof(searchPattern), "data%cquests_*.txt", DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {
@@ -4768,7 +4768,7 @@ static int holodiskInit()
     snprintf(searchPattern, sizeof(searchPattern), "data%cholodisk_*.txt", DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {

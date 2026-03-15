@@ -2755,7 +2755,7 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
         path, DIR_SEPARATOR, proto_type_name);
 
     char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
         // Extract mod name from filename: {type}_{modname}.lst -> {modname}
@@ -2981,7 +2981,7 @@ void load_mod_proto_messages()
         DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
         // Build full path (same pattern as messageListLoad)
@@ -3000,7 +3000,7 @@ void load_mod_proto_messages()
         snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
-        file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+        file_count = fileNameListInit(search_pattern, &mod_files);
 
         for (int i = 0; i < file_count; i++) {
             char full_path[COMPAT_MAX_PATH];

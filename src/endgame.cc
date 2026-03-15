@@ -1035,7 +1035,7 @@ static int endgameEndingInit()
         _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount > 0) {
         // Sort alphabetically for consistent load order
         for (int i = 0; i < fileCount - 1; i++) {
@@ -1182,7 +1182,7 @@ int endgameDeathEndingInit()
         _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount > 0) {
         // Sort alphabetically for consistent load order
         for (int i = 0; i < fileCount - 1; i++) {

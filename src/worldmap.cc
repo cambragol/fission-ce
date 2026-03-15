@@ -3062,7 +3062,7 @@ static void wmAreaLoadModFiles()
     snprintf(searchPattern, sizeof(searchPattern), "data%ccity_*.txt", DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {
@@ -3778,7 +3778,7 @@ static void wmMapLoadModFiles()
     snprintf(searchPattern, sizeof(searchPattern), "data%cmaps_*.txt", DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {

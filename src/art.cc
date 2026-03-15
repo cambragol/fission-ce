@@ -337,7 +337,7 @@ static void artProcessVariants(ArtListDescription* desc)
 
     // Find all matching variant files in this category
     char** foundFiles = NULL;
-    int fileCount = fileNameListInit(pattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(pattern, &foundFiles);
 
     // Create a set to track which base assets already have variants
     bool* hasVariant = nullptr;
@@ -478,7 +478,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
     // Find all .lst files in this category directory
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
 
     // Initialize mod tracking
     desc->modCount = 0;

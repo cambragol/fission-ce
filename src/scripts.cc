@@ -703,7 +703,7 @@ static void _doBkProcesses()
         }
     }
 
-    windowUpdateAll();
+    scriptWindowUpdateAll();
 
     if (gScriptsEnabled && _script_engine_run_critters) {
         // SFALL: Fix to prevent the execution of critter_p_proc and game events
@@ -1654,7 +1654,7 @@ static int scriptsLoadScriptsList()
         DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         // Sort files alphabetically for consistent loading order

@@ -116,7 +116,7 @@ bool modConfigInit(int argc, char** argv)
         DIR_SEPARATOR, "mod_*.cfg");
 
     char** modFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &modFiles);
 
     if (modFileCount > 0) {
         // fileNameListInit returns alphabetically sorted list - can't determine priority of 'mods' for now
