@@ -470,22 +470,20 @@ Program* programCreateByPath(const char* path)
 {
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {
-        char err[260];
-        snprintf(err, sizeof(err), "Couldn't open %s for read\n", path);
-        programFatalError(err);
+        // Return nullptr silently; caller will handle it
         return nullptr;
     }
 
     int fileSize = fileGetSize(stream);
-    unsigned char* data = (unsigned char*)internal_malloc_safe(fileSize, __FILE__, __LINE__); // ..\\int\\INTRPRET.C, 458
+    unsigned char* data = (unsigned char*)internal_malloc_safe(fileSize, __FILE__, __LINE__);
 
     fileRead(data, 1, fileSize, stream);
     fileClose(stream);
 
-    Program* program = (Program*)internal_malloc_safe(sizeof(Program), __FILE__, __LINE__); // ..\\int\\INTRPRET.C, 463
+    Program* program = (Program*)internal_malloc_safe(sizeof(Program), __FILE__, __LINE__);
     memset(program, 0, sizeof(Program));
 
-    program->name = (char*)internal_malloc_safe(strlen(path) + 1, __FILE__, __LINE__); // ..\\int\\INTRPRET.C, 466
+    program->name = (char*)internal_malloc_safe(strlen(path) + 1, __FILE__, __LINE__);
     strcpy(program->name, path);
 
     program->child = nullptr;
