@@ -649,7 +649,8 @@ int _action_melee(Attack* attack, int anim)
             animationRegisterPlaySoundEffect(attack->attacker, sfx_name_temp, -1);
             animationRegisterAnimate(attack->attacker, anim, 0);
         } else {
-            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->defender->fid), ANIM_DODGE_ANIM, (attack->defender->fid & 0xF000) >> 12, attack->defender->rotation + 1);              art = artLock(fid, &cache_entry);
+            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->defender->fid), ANIM_DODGE_ANIM, (attack->defender->fid & 0xF000) >> 12, attack->defender->rotation + 1);
+            art = artLock(fid, &cache_entry);
             if (art != nullptr) {
                 int dodgeDelay = artGetActionFrame(art);
                 artUnlock(cache_entry);

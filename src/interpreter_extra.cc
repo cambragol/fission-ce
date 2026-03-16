@@ -3393,7 +3393,7 @@ static void opAnim(Program* program)
         if (frame == 0) { // ANIMATE_FORWARD
             animationRegisterAnimate(obj, anim, 0);
             if (anim >= ANIM_FALL_BACK && anim <= ANIM_FALL_FRONT_BLOOD) {
-                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid ), anim + 28, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), anim + 28, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
                 animationRegisterSetFid(obj, fid, -1);
             }
 
@@ -3401,13 +3401,13 @@ static void opAnim(Program* program)
                 combatData->results &= ~DAM_KNOCKED_DOWN;
             }
         } else { // ANIMATE_REVERSE == 1
-            int fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), anim, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+            int fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             animationRegisterAnimateReversed(obj, anim, 0);
 
             if (anim == ANIM_PRONE_TO_STANDING) {
-                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), ANIM_FALL_FRONT_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), ANIM_FALL_FRONT_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             } else if (anim == ANIM_BACK_TO_STANDING) {
-                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), ANIM_FALL_BACK_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), ANIM_FALL_BACK_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             }
 
             if (combatData != nullptr) {
@@ -4236,7 +4236,7 @@ static void _op_anim_action_frame(Program* program)
     int actionFrame = 0;
 
     if (object != nullptr) {
-        int fid = buildFid(FID_TYPE(object->fid), artGetIndex(object->fid ), anim, 0, object->rotation);
+        int fid = buildFid(FID_TYPE(object->fid), artGetIndex(object->fid), anim, 0, object->rotation);
         CacheEntry* frmHandle;
         Art* frm = artLock(fid, &frmHandle);
         if (frm != nullptr) {

@@ -2015,7 +2015,8 @@ int artAliasFid(int fid)
             || anim == ANIM_CALLED_SHOT_PIC) {
             // Preserve extended flag in the aliased FID
             int aliasIndex = _anon_alias[artGetIndex(fid)];
-            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (aliasIndex & 0xFFF);        }
+            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (aliasIndex & 0xFFF);
+        }
     }
 
     return -1;

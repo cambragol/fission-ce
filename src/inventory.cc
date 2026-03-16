@@ -2743,10 +2743,10 @@ static void _adjust_fid()
 
         int v0 = _art_vault_guy_num;
 
-        // Inverted condition: protoGetProto returns 0 on success, 
-        // -1 on failure. This code only runs when the proto could not be loaded, 
-        // but then it tries to access proto->fid. At that point, 
-        // proto is likely uninitialized or points to invalid memory, 
+        // Inverted condition: protoGetProto returns 0 on success,
+        // -1 on failure. This code only runs when the proto could not be loaded,
+        // but then it tries to access proto->fid. At that point,
+        // proto is likely uninitialized or points to invalid memory,
         // leading to a crash or garbage value.
         if (protoGetProto(_inven_pid, &proto) == -1) {
             v0 = artGetIndex(proto->fid);
