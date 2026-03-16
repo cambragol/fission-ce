@@ -1361,7 +1361,7 @@ char* sfxBuildCharName(Object* a1, int anim, int extra)
     char v8;
     char v9;
 
-    if (artCopyFileName(FID_TYPE(a1->fid), a1->fid & 0xFFF, v7) == -1) {
+    if (artCopyFileName(FID_TYPE(a1->fid), artGetIndex(a1->fid), v7) == -1) {
         return nullptr;
     }
 

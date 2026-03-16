@@ -108,7 +108,7 @@ int actionKnockdown(Object* obj, int* anim, int maxDistance, int rotation, int d
     }
 
     if (*anim == ANIM_FALL_FRONT) {
-        int fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, *anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), *anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
         if (!artExists(fid)) {
             *anim = ANIM_FALL_BACK;
         }
@@ -171,7 +171,7 @@ int _action_blood(Object* obj, int anim, int delay)
         return anim;
     }
 
-    int fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, bloodyAnim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+    int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), bloodyAnim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     if (artExists(fid)) {
         animationRegisterAnimate(obj, bloodyAnim, delay);
     } else {
@@ -264,7 +264,7 @@ int _check_death(Object* obj, int anim, int minViolenceLevel, bool hitFromFront)
     int fid;
 
     if (settings.preferences.violence_level >= minViolenceLevel) {
-        fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
         if (artExists(fid)) {
             return anim;
         }
@@ -274,7 +274,7 @@ int _check_death(Object* obj, int anim, int minViolenceLevel, bool hitFromFront)
         return ANIM_FALL_BACK;
     }
 
-    fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, ANIM_FALL_FRONT, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+    fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), ANIM_FALL_FRONT, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     if (artExists(fid)) {
         return ANIM_FALL_BACK;
     }
@@ -331,7 +331,7 @@ void _show_damage_to_object(Object* defender, int damage, int flags, Object* wea
                     }
                 }
             } else {
-                fid = buildFid(OBJ_TYPE_CRITTER, defender->fid & 0xFFF, ANIM_FIRE_DANCE, (defender->fid & 0xF000) >> 12, defender->rotation + 1);
+                fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(defender->fid), ANIM_FIRE_DANCE, (defender->fid & 0xF000) >> 12, defender->rotation + 1);
                 if (artExists(fid)) {
                     sfx_name = sfxBuildCharName(defender, anim, CHARACTER_SOUND_EFFECT_UNUSED);
                     animationRegisterPlaySoundEffect(defender, sfx_name, delay);
@@ -409,10 +409,10 @@ void _show_damage_to_object(Object* defender, int damage, int flags, Object* wea
                     anim = _pick_fall(defender, anim);
                     animationRegisterAnimate(defender, anim, 0);
                 }
-            } else if ((flags & DAM_ON_FIRE) != 0 && artExists(buildFid(OBJ_TYPE_CRITTER, defender->fid & 0xFFF, ANIM_FIRE_DANCE, (defender->fid & 0xF000) >> 12, defender->rotation + 1))) {
+            } else if ((flags & DAM_ON_FIRE) != 0 && artExists(buildFid(OBJ_TYPE_CRITTER, artGetIndex(defender->fid), ANIM_FIRE_DANCE, (defender->fid & 0xF000) >> 12, defender->rotation + 1))) {
                 animationRegisterAnimate(defender, ANIM_FIRE_DANCE, delay);
 
-                fid = buildFid(OBJ_TYPE_CRITTER, defender->fid & 0xFFF, ANIM_STAND, (defender->fid & 0xF000) >> 12, defender->rotation + 1);
+                fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(defender->fid), ANIM_STAND, (defender->fid & 0xF000) >> 12, defender->rotation + 1);
                 animationRegisterSetFid(defender, fid, -1);
             } else {
                 if (knockbackDistance != 0) {
@@ -424,7 +424,7 @@ void _show_damage_to_object(Object* defender, int damage, int flags, Object* wea
                         animationRegisterAnimate(defender, ANIM_PRONE_TO_STANDING, -1);
                     }
                 } else {
-                    if (hitFromFront || !artExists(buildFid(OBJ_TYPE_CRITTER, defender->fid & 0xFFF, ANIM_HIT_FROM_BACK, (defender->fid & 0xF000) >> 12, defender->rotation + 1))) {
+                    if (hitFromFront || !artExists(buildFid(OBJ_TYPE_CRITTER, artGetIndex(defender->fid), ANIM_HIT_FROM_BACK, (defender->fid & 0xF000) >> 12, defender->rotation + 1))) {
                         anim = ANIM_HIT_FROM_FRONT;
                     } else {
                         anim = ANIM_HIT_FROM_BACK;
@@ -478,7 +478,7 @@ int _show_death(Object* obj, int anim)
 
     objectGetRect(obj, &dirtyRect);
     if (anim < 48 && anim > 63) {
-        fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, anim + 28, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), anim + 28, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
         if (objectSetFid(obj, fid, &tempRect) == 0) {
             rectUnion(&dirtyRect, &tempRect, &dirtyRect);
         }
@@ -609,7 +609,7 @@ int _action_melee(Attack* attack, int anim)
     reg_anim_begin(ANIMATION_REQUEST_RESERVED);
     _register_priority(1);
 
-    fid = buildFid(OBJ_TYPE_CRITTER, attack->attacker->fid & 0xFFF, anim, (attack->attacker->fid & 0xF000) >> 12, attack->attacker->rotation + 1);
+    fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->attacker->fid), anim, (attack->attacker->fid & 0xF000) >> 12, attack->attacker->rotation + 1);
     art = artLock(fid, &cache_entry);
     if (art != nullptr) {
         delay = artGetActionFrame(art);
@@ -649,8 +649,7 @@ int _action_melee(Attack* attack, int anim)
             animationRegisterPlaySoundEffect(attack->attacker, sfx_name_temp, -1);
             animationRegisterAnimate(attack->attacker, anim, 0);
         } else {
-            fid = buildFid(OBJ_TYPE_CRITTER, attack->defender->fid & 0xFFF, ANIM_DODGE_ANIM, (attack->defender->fid & 0xF000) >> 12, attack->defender->rotation + 1);
-            art = artLock(fid, &cache_entry);
+            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->defender->fid), ANIM_DODGE_ANIM, (attack->defender->fid & 0xF000) >> 12, attack->defender->rotation + 1);              art = artLock(fid, &cache_entry);
             if (art != nullptr) {
                 int dodgeDelay = artGetActionFrame(art);
                 artUnlock(cache_entry);
@@ -709,7 +708,7 @@ int _action_ranged(Attack* attack, int anim)
     Object* weapon = attack->weapon;
     protoGetProto(weapon->pid, &weaponProto);
 
-    int fid = buildFid(OBJ_TYPE_CRITTER, attack->attacker->fid & 0xFFF, anim, (attack->attacker->fid & 0xF000) >> 12, attack->attacker->rotation + 1);
+    int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->attacker->fid), anim, (attack->attacker->fid & 0xF000) >> 12, attack->attacker->rotation + 1);
     CacheEntry* artHandle;
     Art* art = artLock(fid, &artHandle);
     int delay = (art != nullptr) ? artGetActionFrame(art) : 0;
@@ -958,7 +957,7 @@ int _action_ranged(Attack* attack, int anim)
             }
 
             if (!takeOutAnimationRegistered) {
-                int fid = buildFid(OBJ_TYPE_CRITTER, attack->attacker->fid & 0xFFF, ANIM_STAND, 0, attack->attacker->rotation + 1);
+                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attack->attacker->fid), ANIM_STAND, 0, attack->attacker->rotation + 1);
                 animationRegisterSetFid(attack->attacker, fid, -1);
             }
         } else {
@@ -1190,7 +1189,7 @@ int actionPickUp(Object* critter, Object* item)
     if (itemProto->item.type != ITEM_TYPE_CONTAINER || _proto_action_can_pickup(item->pid)) {
         animationRegisterAnimate(critter, ANIM_MAGIC_HANDS_GROUND, 0);
 
-        int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, ANIM_MAGIC_HANDS_GROUND, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), ANIM_MAGIC_HANDS_GROUND, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
 
         int actionFrame;
         CacheEntry* cacheEntry;
@@ -1202,7 +1201,7 @@ int actionPickUp(Object* critter, Object* item)
         }
 
         char sfx[16];
-        if (artCopyFileName(FID_TYPE(item->fid), item->fid & 0xFFF, sfx) == 0) {
+        if (artCopyFileName(FID_TYPE(item->fid), artGetIndex(item->fid), sfx) == 0) {
             // NOTE: looks like they copy sfx one more time, what for?
             animationRegisterPlaySoundEffect(item, sfx, actionFrame);
         }
@@ -1222,7 +1221,7 @@ int actionPickUp(Object* critter, Object* item)
             : ANIM_MAGIC_HANDS_GROUND;
         animationRegisterAnimate(critter, anim, 0);
 
-        int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, anim, 0, critter->rotation + 1);
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), anim, 0, critter->rotation + 1);
 
         int actionFrame;
         CacheEntry* cacheEntry;
@@ -1487,7 +1486,7 @@ int actionUseSkill(Object* user, Object* target, int skill)
     animationRegisterCallbackForced(performer, target, (AnimationCallback*)_is_next_to, -1);
 
     int anim = (FID_TYPE(target->fid) == OBJ_TYPE_CRITTER && critterIsProne(target)) ? ANIM_MAGIC_HANDS_GROUND : ANIM_MAGIC_HANDS_MIDDLE;
-    int fid = buildFid(OBJ_TYPE_CRITTER, performer->fid & 0xFFF, anim, 0, performer->rotation + 1);
+    int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(performer->fid), anim, 0, performer->rotation + 1);
 
     CacheEntry* artHandle;
     Art* art = artLock(fid, &artHandle);
@@ -1556,7 +1555,7 @@ int _pick_fall(Object* obj, int anim)
     }
 
     if (anim == ANIM_FALL_FRONT) {
-        fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, ANIM_FALL_FRONT, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid), ANIM_FALL_FRONT, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
         if (!artExists(fid)) {
             anim = ANIM_FALL_BACK;
         }

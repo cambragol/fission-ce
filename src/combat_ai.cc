@@ -2412,7 +2412,7 @@ static bool _ai_can_use_weapon(Object* critter, Object* weapon, int hitMode)
     int rotation = critter->rotation + 1;
     int animationCode = weaponGetAnimationCode(weapon);
     int weaponAnimationCode = weaponGetAnimationForHitMode(weapon, hitMode);
-    int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, weaponAnimationCode, animationCode, rotation);
+    int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), weaponAnimationCode, animationCode, rotation);
     if (!artExists(fid)) {
         return false;
     }
@@ -3139,7 +3139,7 @@ static int _ai_try_attack(Object* attacker, Object* defender)
     if (weapon != nullptr
         || (critterGetBodyType(defender) == BODY_TYPE_BIPED
             && ((defender->fid & 0xF000) >> 12 == 0)
-            && artExists(buildFid(OBJ_TYPE_CRITTER, attacker->fid & 0xFFF, ANIM_THROW_PUNCH, 0, attacker->rotation + 1)))) {
+            && artExists(buildFid(OBJ_TYPE_CRITTER, artGetIndex(attacker->fid), ANIM_THROW_PUNCH, 0, attacker->rotation + 1)))) {
         // SFALL: Check the safety of weapons based on the selected attack mode
         // instead of always the primary weapon hit mode.
         if (_combat_safety_invalidate_weapon(attacker, weapon, hitMode, defender, &safeDistance)) {

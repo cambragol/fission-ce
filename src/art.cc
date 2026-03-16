@@ -25,12 +25,6 @@ namespace fallout {
 
 const int MAX_ART_INDICES = 8192;
 
-static inline int artGetIndex(int fid)
-{
-    int base_index = fid & 0xFFF;
-    return (fid & 0x80000000) ? base_index + 4096 : base_index;
-}
-
 typedef struct ArtListDescription {
     int flags;
     char name[16];
@@ -1357,7 +1351,7 @@ int artGetFidgetCount(int headFid)
         return 0;
     }
 
-    int head = headFid & 0xFFF;
+    int head = artGetIndex(headFid);
 
     if (head > gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength) {
         return 0;
@@ -1995,7 +1989,7 @@ int _art_alias_num(int index)
 int artCritterFidShouldRun(int fid)
 {
     if (FID_TYPE(fid) == OBJ_TYPE_CRITTER) {
-        return gArtCritterFidShoudRunData[fid & 0xFFF];
+        return gArtCritterFidShoudRunData[artGetIndex(fid)];
     }
 
     return 0;
@@ -2020,8 +2014,8 @@ int artAliasFid(int fid)
             || anim == ANIM_FIRE_DANCE
             || anim == ANIM_CALLED_SHOT_PIC) {
             // Preserve extended flag in the aliased FID
-            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (_anon_alias[fid & 0xFFF] & 0xFFF);
-        }
+            int aliasIndex = _anon_alias[artGetIndex(fid)];
+            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (aliasIndex & 0xFFF);        }
     }
 
     return -1;

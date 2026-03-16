@@ -2743,8 +2743,13 @@ static void _adjust_fid()
 
         int v0 = _art_vault_guy_num;
 
+        // Inverted condition: protoGetProto returns 0 on success, 
+        // -1 on failure. This code only runs when the proto could not be loaded, 
+        // but then it tries to access proto->fid. At that point, 
+        // proto is likely uninitialized or points to invalid memory, 
+        // leading to a crash or garbage value.
         if (protoGetProto(_inven_pid, &proto) == -1) {
-            v0 = proto->fid & 0xFFF;
+            v0 = artGetIndex(proto->fid);
         }
 
         if (gInventoryArmor != nullptr) {
@@ -3475,7 +3480,7 @@ int inventoryEquipFunc(Object* critter, Object* item, int handIndex, bool animat
 
         int weaponAnimationCode = weaponGetAnimationCode(item);
         int hitModeAnimationCode = weaponGetAnimationForHitMode(item, HIT_MODE_RIGHT_WEAPON_PRIMARY);
-        int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, hitModeAnimationCode, weaponAnimationCode, critter->rotation + 1);
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), hitModeAnimationCode, weaponAnimationCode, critter->rotation + 1);
         if (!artExists(fid)) {
             debugPrint("\ninven_wield failed!  ERROR ERROR ERROR!");
             return -1;
@@ -3550,11 +3555,11 @@ int inventoryEquipFunc(Object* critter, Object* item, int handIndex, bool animat
                 if (weaponAnimationCode != 0) {
                     animationRegisterTakeOutWeapon(critter, weaponAnimationCode, -1);
                 } else {
-                    int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, 0, 0, critter->rotation + 1);
+                    int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), 0, 0, critter->rotation + 1);
                     animationRegisterSetFid(critter, fid, -1);
                 }
             } else {
-                int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, 0, weaponAnimationCode, critter->rotation + 1);
+                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), 0, weaponAnimationCode, critter->rotation + 1);
                 _dude_stand(critter, critter->rotation, fid);
             }
         }
@@ -3608,13 +3613,13 @@ int inventoryUnequipFunc(Object* critter, int hand, bool animate)
 
             animationRegisterAnimate(critter, ANIM_PUT_AWAY, 0);
 
-            fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, 0, 0, critter->rotation + 1);
+            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), 0, 0, critter->rotation + 1);
             animationRegisterSetFid(critter, fid, -1);
 
             return reg_anim_end();
         }
 
-        fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, 0, 0, critter->rotation + 1);
+        fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), 0, 0, critter->rotation + 1);
         _dude_stand(critter, critter->rotation, fid);
     }
 
@@ -6273,7 +6278,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
                 if (result != INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
                     if (itemMove(targetObj, _inven_dude, item, quantityToMove) == 0) {
                         if ((item->flags & OBJECT_IN_RIGHT_HAND) != 0) {
-                            targetObj->fid = buildFid(FID_TYPE(targetObj->fid), targetObj->fid & 0xFFF, FID_ANIM_TYPE(targetObj->fid), 0, targetObj->rotation + 1);
+                            targetObj->fid = buildFid(FID_TYPE(targetObj->fid), artGetIndex(targetObj->fid), FID_ANIM_TYPE(targetObj->fid), 0, targetObj->rotation + 1);
                         }
 
                         targetObj->flags &= ~OBJECT_EQUIPPED;

@@ -441,7 +441,7 @@ static int _correctFidForRemovedItem(Object* critter, Object* item, int flags)
         }
 
         if (weaponCode == 0) {
-            newFid = buildFid(FID_TYPE(fid), fid & 0xFFF, FID_ANIM_TYPE(fid), 0, FID_ROTATION(fid));
+            newFid = buildFid(FID_TYPE(fid), artGetIndex(fid), FID_ANIM_TYPE(fid), 0, FID_ROTATION(fid));
         }
     } else {
         if (critter == gDude) {
@@ -2336,7 +2336,7 @@ static int _correctDeath(Object* critter, int anim, bool forceBack)
         if (settings.preferences.violence_level < VIOLENCE_LEVEL_MAXIMUM_BLOOD) {
             useStandardDeath = true;
         } else {
-            int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, anim, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
+            int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), anim, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
             if (!artExists(fid)) {
                 useStandardDeath = true;
             }
@@ -2346,7 +2346,7 @@ static int _correctDeath(Object* critter, int anim, bool forceBack)
             if (forceBack) {
                 anim = ANIM_FALL_BACK;
             } else {
-                int fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, ANIM_FALL_FRONT, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
+                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), ANIM_FALL_FRONT, (critter->fid & 0xF000) >> 12, critter->rotation + 1);
                 if (artExists(fid)) {
                     anim = ANIM_FALL_FRONT;
                 } else {
@@ -3393,7 +3393,7 @@ static void opAnim(Program* program)
         if (frame == 0) { // ANIMATE_FORWARD
             animationRegisterAnimate(obj, anim, 0);
             if (anim >= ANIM_FALL_BACK && anim <= ANIM_FALL_FRONT_BLOOD) {
-                int fid = buildFid(OBJ_TYPE_CRITTER, obj->fid & 0xFFF, anim + 28, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(obj->fid ), anim + 28, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
                 animationRegisterSetFid(obj, fid, -1);
             }
 
@@ -3401,13 +3401,13 @@ static void opAnim(Program* program)
                 combatData->results &= ~DAM_KNOCKED_DOWN;
             }
         } else { // ANIMATE_REVERSE == 1
-            int fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+            int fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), anim, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             animationRegisterAnimateReversed(obj, anim, 0);
 
             if (anim == ANIM_PRONE_TO_STANDING) {
-                fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, ANIM_FALL_FRONT_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), ANIM_FALL_FRONT_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             } else if (anim == ANIM_BACK_TO_STANDING) {
-                fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, ANIM_FALL_BACK_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
+                fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid ), ANIM_FALL_BACK_SF, (obj->fid & 0xF000) >> 12, FID_ROTATION(obj->fid));
             }
 
             if (combatData != nullptr) {
@@ -4236,7 +4236,7 @@ static void _op_anim_action_frame(Program* program)
     int actionFrame = 0;
 
     if (object != nullptr) {
-        int fid = buildFid(FID_TYPE(object->fid), object->fid & 0xFFF, anim, 0, object->rotation);
+        int fid = buildFid(FID_TYPE(object->fid), artGetIndex(object->fid ), anim, 0, object->rotation);
         CacheEntry* frmHandle;
         Art* frm = artLock(fid, &frmHandle);
         if (frm != nullptr) {

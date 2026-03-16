@@ -3518,7 +3518,7 @@ void attackInit(Attack* attack, Object* attacker, Object* defender, int hitMode,
 int _combat_attack(Object* attacker, Object* defender, int hitMode, int hitLocation)
 {
     if (attacker != gDude && hitMode == HIT_MODE_PUNCH && randomBetween(1, 4) == 1) {
-        int fid = buildFid(OBJ_TYPE_CRITTER, attacker->fid & 0xFFF, ANIM_KICK_LEG, (attacker->fid & 0xF000) >> 12, FID_ROTATION(attacker->fid));
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attacker->fid), ANIM_KICK_LEG, (attacker->fid & 0xF000) >> 12, FID_ROTATION(attacker->fid));
         if (artExists(fid)) {
             hitMode = HIT_MODE_KICK;
         }
@@ -5463,10 +5463,11 @@ static void _print_tohit(unsigned char* dest, int destPitch, int accuracy)
 }
 
 // 0x42612C
+// need to update combatai.msg to allow for new critter hitlocation messages
 static char* hitLocationGetName(Object* critter, int hitLocation)
 {
     MessageListItem messageListItem;
-    messageListItem.num = 1000 + 10 * _art_alias_num(critter->fid & 0xFFF) + hitLocation;
+    messageListItem.num = 1000 + 10 * _art_alias_num(artGetIndex(critter->fid)) + hitLocation;
     if (messageListGetItem(&gCombatMessageList, &messageListItem)) {
         return messageListItem.text;
     }
@@ -5551,7 +5552,7 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
         CALLED_SHOT_WINDOW_WIDTH);
 
     FrmImage critterFrm;
-    int critterFid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, ANIM_CALLED_SHOT_PIC, 0, 0);
+    int critterFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), ANIM_CALLED_SHOT_PIC, 0, 0);
     if (critterFrm.lock(critterFid)) {
         blitBufferToBuffer(critterFrm.getData(),
             170,

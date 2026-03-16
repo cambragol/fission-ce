@@ -572,7 +572,7 @@ int itemDropAll(Object* critter, int tile)
 {
     bool hasEquippedItems = false;
 
-    int frmId = critter->fid & 0xFFF;
+    int frmId = artGetIndex(critter->fid);
 
     Inventory* inventory = &(critter->data.inventory);
     while (inventory->length > 0) {
@@ -601,7 +601,7 @@ int itemDropAll(Object* critter, int tile)
                         return -1;
                     }
 
-                    frmId = proto->fid & 0xFFF;
+                    frmId = artGetIndex(proto->fid);
                     adjustCritterStatsOnArmorChange(critter, item, nullptr);
                 }
             }

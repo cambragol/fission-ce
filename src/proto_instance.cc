@@ -622,7 +622,7 @@ static int _obj_remove_from_inven(Object* critter, Object* item)
     int v11 = 0;
     if (critterGetItem2(critter) == item) {
         if (critter != gDude || interfaceGetCurrentHand()) {
-            fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, FID_ANIM_TYPE(critter->fid), 0, critter->rotation);
+            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), FID_ANIM_TYPE(critter->fid), 0, critter->rotation);
             objectSetFid(critter, fid, &updatedRect);
             v11 = 2;
         } else {
@@ -630,7 +630,7 @@ static int _obj_remove_from_inven(Object* critter, Object* item)
         }
     } else if (critterGetItem1(critter) == item) {
         if (critter == gDude && !interfaceGetCurrentHand()) {
-            fid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, FID_ANIM_TYPE(critter->fid), 0, critter->rotation);
+            fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), FID_ANIM_TYPE(critter->fid), 0, critter->rotation);
             objectSetFid(critter, fid, &updatedRect);
             v11 = 2;
         } else {

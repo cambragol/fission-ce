@@ -842,7 +842,7 @@ void gameDialogStartLips(const char* audioFileName)
     }
 
     char name[16];
-    if (artCopyFileName(OBJ_TYPE_HEAD, gGameDialogHeadFid & 0xFFF, name) == -1) {
+        if (artCopyFileName(OBJ_TYPE_HEAD, artGetIndex(gGameDialogHeadFid), name) == -1) {
         return;
     }
 
@@ -3010,7 +3010,7 @@ void gameDialogTicker()
             _can_start_new_fidget = false;
             _dialogue_seconds_since_last_input += _tocksWaiting / 1000;
             _tocksWaiting = 1000 * (randomBetween(0, 3) + 4);
-            _gdSetupFidget(gGameDialogFidgetFid & 0xFFF, (gGameDialogFidgetFid & 0xFF0000) >> 16);
+            _gdSetupFidget(artGetIndex(gGameDialogFidgetFid), (gGameDialogFidgetFid & 0xFF0000) >> 16);
         }
         return;
     }
@@ -3733,7 +3733,7 @@ void partyMemberControlWindowUpdate()
 
     // Render preview.
     CacheEntry* previewHandle;
-    int previewFid = buildFid(FID_TYPE(gGameDialogSpeaker->fid), gGameDialogSpeaker->fid & 0xFFF, ANIM_STAND, (gGameDialogSpeaker->fid & 0xF000) >> 12, ROTATION_SW);
+    int previewFid = buildFid(FID_TYPE(gGameDialogSpeaker->fid), artGetIndex(gGameDialogSpeaker->fid), ANIM_STAND, (gGameDialogSpeaker->fid & 0xF000) >> 12, ROTATION_SW);
     Art* preview = artLock(previewFid, &previewHandle);
     if (preview != nullptr) {
         int width = artGetWidth(preview, 0, ROTATION_SW);

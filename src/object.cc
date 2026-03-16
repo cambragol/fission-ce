@@ -458,6 +458,7 @@ int objectRead(Object* obj, File* stream)
         return -1;
     }
 
+    // no need for special handling of the high bit for art Fid here
     if (isExitGridPid(obj->pid)) {
         if (obj->data.misc.map <= 0) {
             if ((obj->fid & 0xFFF) < 33) {
@@ -5194,7 +5195,7 @@ void _obj_fix_violence_settings(int* fid)
         anim = (anim == ANIM_FALL_BACK_BLOOD_SF)
             ? ANIM_FALL_BACK_SF
             : ANIM_FALL_FRONT_SF;
-        *fid = buildFid(OBJ_TYPE_CRITTER, *fid & 0xFFF, anim, (*fid & 0xF000) >> 12, FID_ROTATION(*fid));
+        *fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(*fid), anim, (*fid & 0xF000) >> 12, FID_ROTATION(*fid));
     }
 
     if (shouldResetViolenceLevel) {

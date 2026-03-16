@@ -1835,7 +1835,7 @@ static void interfaceBarSwapHandsAnimatePutAwayTakeOutSequence(int previousWeapo
     if (weaponAnimationCode != 0) {
         animationRegisterTakeOutWeapon(gDude, weaponAnimationCode, -1);
     } else {
-        int fid = buildFid(OBJ_TYPE_CRITTER, gDude->fid & 0xFFF, ANIM_STAND, 0, gDude->rotation + 1);
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(gDude->fid), ANIM_STAND, 0, gDude->rotation + 1);
         animationRegisterSetFid(gDude, fid, -1);
     }
 

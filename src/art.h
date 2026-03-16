@@ -198,6 +198,12 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix);
  */
 int artGetFidWithVariant(int objectType, int baseId, bool useVariant);
 
+static inline int artGetIndex(int fid)
+{
+    int base_index = fid & 0xFFF;
+    return (fid & 0x80000000) ? base_index + 4096 : base_index;
+}
+
 } // namespace fallout
 
 #endif
