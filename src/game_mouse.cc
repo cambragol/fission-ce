@@ -2364,7 +2364,7 @@ int _gmouse_3d_move_to(int x, int y, int elevation, Rect* rect)
 
             _obj_move(gGameMouseHexCursor, x + offsetX, y + offsetY, elevation, rect);
         } else {
-            int tile = tileFromScreenXY(x, y, 0);
+            int tile = tileFromScreenXY(x, y);
             if (tile != -1) {
                 int screenX;
                 int screenY;
@@ -2415,7 +2415,7 @@ int _gmouse_3d_move_to(int x, int y, int elevation, Rect* rect)
             tile = -1;
         }
     } else {
-        tile = tileFromScreenXY(x, y, elevation);
+        tile = tileFromScreenXY(x, y);
     }
 
     if (tile != -1) {
