@@ -1523,7 +1523,7 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         for (int i = 0; i < vanillaCount; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i + 1,                          // - 1-based
+                    i + 1, // - 1-based
                     gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
@@ -1537,7 +1537,7 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i + 1,                          // - 1-based
+                    i + 1, // - 1-based
                     gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
