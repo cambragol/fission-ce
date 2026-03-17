@@ -2001,9 +2001,6 @@ int artAliasFid(int fid)
     int type = FID_TYPE(fid);
     int anim = FID_ANIM_TYPE(fid);
 
-    // Preserve extended flag
-    unsigned int ext_flag = fid & 0x80000000;
-
     if (type == OBJ_TYPE_CRITTER) {
         if (anim == ANIM_ELECTRIFY
             || anim == ANIM_BURNED_TO_NOTHING
@@ -2013,9 +2010,11 @@ int artAliasFid(int fid)
             || anim == ANIM_ELECTRIFIED_TO_NOTHING_SF
             || anim == ANIM_FIRE_DANCE
             || anim == ANIM_CALLED_SHOT_PIC) {
-            // Preserve extended flag in the aliased FID
+
             int aliasIndex = _anon_alias[artGetIndex(fid)];
-            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (aliasIndex & 0xFFF);
+            // Build a new FID with the alias index, preserving rotation, weapon code, and animation.
+            int newFid = buildFid(type, aliasIndex, anim, (fid & 0xF000) >> 12, FID_ROTATION(fid));
+            return newFid;
         }
     }
 
