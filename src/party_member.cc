@@ -1809,7 +1809,7 @@ bool partyMemberSupportsAreaAttackMode(Object* object, int areaAttackMode)
     // Try base
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
-    return partyMemberDescription->areaAttackMode[areaAttackMode];
+        return partyMemberDescription->areaAttackMode[areaAttackMode];
     }
 
     return false;
@@ -1870,11 +1870,9 @@ bool partyMemberSupportsBestWeapon(Object* object, int bestWeapon)
     PartyMemberDescription* partyMemberDescription;
     if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
         return partyMemberDescription->bestWeapon[bestWeapon];
-
     }
 
     return false;
-
 }
 
 // 0x495A40
