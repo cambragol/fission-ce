@@ -1770,19 +1770,19 @@ bool partyMemberSupportsDisposition(Object* critter, int disposition)
         return false;
     }
 
-    // Try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(critter, &partyMemberDescription) == -1) {
-        return false;
-    }
-
-    // Try mod
+    // Check mod description first
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(critter);
     if (modDesc) {
         return modDesc->disposition[disposition + 1];
     }
 
-    return partyMemberDescription->disposition[disposition + 1];
+    // Fall back to base description
+    PartyMemberDescription* baseDesc;
+    if (partyMemberGetDescription(critter, &baseDesc) != -1) {
+        return baseDesc->disposition[disposition + 1];
+    }
+
+    return false;
 }
 
 // 0x495920
@@ -1800,19 +1800,19 @@ bool partyMemberSupportsAreaAttackMode(Object* object, int areaAttackMode)
         return false;
     }
 
-    // Try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->areaAttackMode[areaAttackMode];
     }
 
+    // Try base
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
     return partyMemberDescription->areaAttackMode[areaAttackMode];
+    }
+
+    return false;
 }
 
 // 0x495980
@@ -1830,19 +1830,19 @@ bool partyMemberSupportsRunAwayMode(Object* object, int runAwayMode)
         return false;
     }
 
-    // Try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->runAwayMode[runAwayMode + 1];
     }
 
-    return partyMemberDescription->runAwayMode[runAwayMode + 1];
+    // Try base
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
+        return partyMemberDescription->runAwayMode[runAwayMode + 1];
+    }
+
+    return false;
 }
 
 // 0x4959E0
@@ -1860,19 +1860,21 @@ bool partyMemberSupportsBestWeapon(Object* object, int bestWeapon)
         return false;
     }
 
-    // Try bae
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->bestWeapon[bestWeapon];
     }
 
-    return partyMemberDescription->bestWeapon[bestWeapon];
+    // Try bae
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
+        return partyMemberDescription->bestWeapon[bestWeapon];
+
+    }
+
+    return false;
+
 }
 
 // 0x495A40
@@ -1890,19 +1892,19 @@ bool partyMemberSupportsDistance(Object* object, int distanceMode)
         return false;
     }
 
-    // try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->distanceMode[distanceMode];
     }
 
-    return partyMemberDescription->distanceMode[distanceMode];
+    // try base
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
+        return partyMemberDescription->distanceMode[distanceMode];
+    }
+
+    return false;
 }
 
 // 0x495AA0
@@ -1920,19 +1922,19 @@ bool partyMemberSupportsAttackWho(Object* object, int attackWho)
         return false;
     }
 
-    // try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->attackWho[attackWho];
     }
 
-    return partyMemberDescription->attackWho[attackWho];
+    // try base
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
+        return partyMemberDescription->attackWho[attackWho];
+    }
+
+    return false;
 }
 
 // 0x495B00
@@ -1950,19 +1952,19 @@ bool partyMemberSupportsChemUse(Object* object, int chemUse)
         return false;
     }
 
-    // try base
-    PartyMemberDescription* partyMemberDescription;
-    if (partyMemberGetDescription(object, &partyMemberDescription) == -1) {
-        return false;
-    }
-
     // Try mod
     const PartyMemberDescription* modDesc = getModPartyMemberDescription(object);
     if (modDesc) {
         return modDesc->chemUse[chemUse];
     }
 
-    return partyMemberDescription->chemUse[chemUse];
+    // try base
+    PartyMemberDescription* partyMemberDescription;
+    if (partyMemberGetDescription(object, &partyMemberDescription) != -1) {
+        return partyMemberDescription->chemUse[chemUse];
+    }
+
+    return false;
 }
 
 // partyMemberIncLevels
