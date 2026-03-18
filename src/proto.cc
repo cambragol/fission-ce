@@ -2281,76 +2281,76 @@ int protoGetProto(int pid, Proto** protoPtr)
     }
 
     // Check if it's a mod PID
-if (pid_is_modded(pid)) {
-    // Look up in mod registry
-    ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
-    if (!entry) {
-        return -1; // Mod proto not found
-    }
+    if (pid_is_modded(pid)) {
+        // Look up in mod registry
+        ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
+        if (!entry) {
+            return -1; // Mod proto not found
+        }
 
-    // Try to find in existing cache first
-    ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
-    ProtoListExtent* protoListExtent = protoList->head;
-    while (protoListExtent != nullptr) {
-        for (int index = 0; index < protoListExtent->length; index++) {
-            Proto* proto = (Proto*)protoListExtent->proto[index];
-            if (pid == proto->pid) {
-                *protoPtr = proto;
-                return 0;
+        // Try to find in existing cache first
+        ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
+        ProtoListExtent* protoListExtent = protoList->head;
+        while (protoListExtent != nullptr) {
+            for (int index = 0; index < protoListExtent->length; index++) {
+                Proto* proto = (Proto*)protoListExtent->proto[index];
+                if (pid == proto->pid) {
+                    *protoPtr = proto;
+                    return 0;
+                }
+            }
+            protoListExtent = protoListExtent->next;
+        }
+
+        // Not in cache, load from mod file
+        File* stream = fileOpen(entry->proto_path, "rb");
+        if (stream == nullptr) {
+            debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
+            return -1;
+        }
+
+        // Find or allocate cache slot
+        if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
+            fileClose(stream);
+            return -1;
+        }
+
+        // Read proto data
+        if (protoRead(*protoPtr, stream) != 0) {
+            fileClose(stream);
+            return -1;
+        }
+
+        fileClose(stream);
+
+        // --- Apply FID override if present ---
+        if (entry->has_override_fid) {
+            int final_fid = entry->override_fid;
+
+            // For non?item types, if the provided number is less than 0x01000000,
+            // assume it's an art index and build the full FID by adding the type byte.
+            if (entry->type != OBJ_TYPE_ITEM && final_fid < 0x01000000) {
+                final_fid = (entry->type << 24) | final_fid;
+            }
+
+            (*protoPtr)->fid = final_fid;
+
+            if (!artExists(final_fid)) {
+                debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
+                    final_fid, entry->mod_name, entry->proto_name);
             }
         }
-        protoListExtent = protoListExtent->next;
-    }
 
-    // Not in cache, load from mod file
-    File* stream = fileOpen(entry->proto_path, "rb");
-    if (stream == nullptr) {
-        debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
-        return -1;
-    }
-
-    // Find or allocate cache slot
-    if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
-        fileClose(stream);
-        return -1;
-    }
-
-    // Read proto data
-    if (protoRead(*protoPtr, stream) != 0) {
-        fileClose(stream);
-        return -1;
-    }
-
-    fileClose(stream);
-
-    // --- Apply FID override if present ---
-    if (entry->has_override_fid) {
-        int final_fid = entry->override_fid;
-
-        // For non?item types, if the provided number is less than 0x01000000,
-        // assume it's an art index and build the full FID by adding the type byte.
-        if (entry->type != OBJ_TYPE_ITEM && final_fid < 0x01000000) {
-            final_fid = (entry->type << 24) | final_fid;
+        // --- Apply AI packet override if present and proto is a critter ---
+        if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
+            (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
         }
 
-        (*protoPtr)->fid = final_fid;
+        // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
+        (*protoPtr)->pid = pid;
 
-        if (!artExists(final_fid)) {
-            debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
-                       final_fid, entry->mod_name, entry->proto_name);
-        }
+        return 0;
     }
-
-    // --- Apply AI packet override if present and proto is a critter ---
-    if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
-        (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
-    }
-
-    // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
-    (*protoPtr)->pid = pid;
-
-    return 0;
-}
 
     ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
     ProtoListExtent* protoListExtent = protoList->head;
@@ -2671,12 +2671,14 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         // --- Parse line: first token is proto name, then optional key=value pairs ---
         char* p = line;
         // Skip leading whitespace
-        while (*p && isspace(*p)) p++;
+        while (*p && isspace(*p))
+            p++;
         if (!*p) continue;
 
         // First token: proto name
         char* token_start = p;
-        while (*p && !isspace(*p)) p++;
+        while (*p && !isspace(*p))
+            p++;
         if (*p) *p++ = '\0';
 
         char proto_name[128] = { 0 };
@@ -2704,16 +2706,19 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         // Parse remaining tokens as key=value
         while (*p) {
             // Skip whitespace before next token
-            while (*p && isspace(*p)) p++;
+            while (*p && isspace(*p))
+                p++;
             if (!*p) break;
 
             char* key_start = p;
-            while (*p && !isspace(*p) && *p != '=') p++;
+            while (*p && !isspace(*p) && *p != '=')
+                p++;
             if (*p == '=') {
                 *p++ = '\0'; // terminate key
                 char* key = key_start;
                 char* value_start = p;
-                while (*p && !isspace(*p)) p++;
+                while (*p && !isspace(*p))
+                    p++;
                 if (*p) *p++ = '\0';
                 char* value = value_start;
 
@@ -2726,7 +2731,7 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
                         has_fid = true;
                     } else {
                         debugPrint("Warning: Invalid FID value '%s' in %s line %d\n",
-                                   value, list_path, line_num);
+                            value, list_path, line_num);
                     }
                 } else if (strcmp(key, "ai") == 0) {
                     char* endptr;
@@ -2736,15 +2741,16 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
                         has_ai = true;
                     } else {
                         debugPrint("Warning: Invalid AI value '%s' in %s line %d\n",
-                                   value, list_path, line_num);
+                            value, list_path, line_num);
                     }
                 } else {
                     debugPrint("Warning: Unknown key '%s' in %s line %d\n",
-                               key, list_path, line_num);
+                        key, list_path, line_num);
                 }
             } else {
                 // No '=', skip this token (unrecognized)
-                while (*p && !isspace(*p)) p++;
+                while (*p && !isspace(*p))
+                    p++;
                 if (*p) p++;
             }
         }
