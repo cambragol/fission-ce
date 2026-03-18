@@ -2721,8 +2721,8 @@ void _gdPlayTransition(int anim)
     }
 
     CacheEntry* headFrmHandle;
-int headIdx = artGetIndex(gGameDialogHeadFid);
-int headFid = buildFid(OBJ_TYPE_HEAD, headIdx, anim, 0, 0);
+    int headIdx = artGetIndex(gGameDialogHeadFid);
+    int headFid = buildFid(OBJ_TYPE_HEAD, headIdx, anim, 0, 0);
     Art* headFrm = artLock(headFid, &headFrmHandle);
     if (headFrm == nullptr) {
         debugPrint("\tError locking transition...\n");
