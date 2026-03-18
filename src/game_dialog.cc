@@ -2559,7 +2559,7 @@ void _gdSetupFidget(int headFid, int reaction)
 {
     // Extract the actual head index from the FID (supports modded heads)
     int headFrmId = artGetIndex(headFid);
-    
+
     gGameDialogFidgetFrmCurrentFrame = 0;
 
     if (headFrmId == -1) {
