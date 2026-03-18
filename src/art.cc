@@ -1147,6 +1147,140 @@ static int artInitCritterData()
     return 0;
 }
 
+// Helper function to load mod head data
+static void artLoadModHeadData(ArtListDescription* desc)
+{
+    // Build search pattern for all .lst files in the heads directory
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sart%c%s%c*.lst",
+        _cd_path_base,
+        DIR_SEPARATOR,
+        desc->name,
+        DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    if (fileCount <= 0)
+        return;
+
+    // Ensure fission.lst is processed first (highest priority)
+    for (int i = 0; i < fileCount; i++) {
+        if (strcmp(foundFiles[i], "fission.lst") == 0) {
+            char* temp = foundFiles[0];
+            foundFiles[0] = foundFiles[i];
+            foundFiles[i] = temp;
+            break;
+        }
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* lstFilename = foundFiles[i];
+
+        // Skip the main vanilla list – it was already handled
+        char vanillaListName[64];
+        snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
+        if (compat_stricmp(lstFilename, vanillaListName) == 0)
+            continue;
+
+        // Build full path to the .lst file
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "%sart%c%s%c%s",
+            _cd_path_base,
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR,
+            lstFilename);
+
+        File* stream = fileOpen(fullPath, "rt");
+        if (!stream) {
+            debugPrint("Warning: Could not open mod head list %s\n", fullPath);
+            continue;
+        }
+
+        debugPrint("Loading head fidget data from %s\n", lstFilename);
+
+        char line[256];
+        while (fileReadString(line, sizeof(line), stream)) {
+            // Trim leading/trailing whitespace
+            char* p = line;
+            while (*p && isspace((unsigned char)*p))
+                p++;
+            if (*p == '\0' || *p == '#')
+                continue; // skip empty lines and comments
+
+            // Format: filename,good,neutral,bad
+            char* filename = p;
+            char* comma1 = strchr(p, ',');
+            if (!comma1) {
+                debugPrint("  Warning: Invalid line (missing commas): %s\n", line);
+                continue;
+            }
+            *comma1 = '\0';
+            char* goodStr = comma1 + 1;
+
+            char* comma2 = strchr(goodStr, ',');
+            if (!comma2) {
+                debugPrint("  Warning: Invalid line (missing second comma): %s\n", line);
+                continue;
+            }
+            *comma2 = '\0';
+            char* neutralStr = comma2 + 1;
+
+            char* comma3 = strchr(neutralStr, ',');
+            if (!comma3) {
+                debugPrint("  Warning: Invalid line (missing third comma): %s\n", line);
+                continue;
+            }
+            *comma3 = '\0';
+            char* badStr = comma3 + 1;
+
+            // Trim each part
+            auto trim = [](char* s) -> char* {
+                while (*s && isspace((unsigned char)*s))
+                    s++;
+                char* end = s + strlen(s) - 1;
+                while (end > s && isspace((unsigned char)*end))
+                    end--;
+                *(end + 1) = '\0';
+                return s;
+            };
+            filename = trim(filename);
+            goodStr = trim(goodStr);
+            neutralStr = trim(neutralStr);
+            badStr = trim(badStr);
+
+            int good = atoi(goodStr);
+            int neutral = atoi(neutralStr);
+            int bad = atoi(badStr);
+
+            // Find the index of this filename in the head list
+            int index = -1;
+            for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                    index = idx;
+                    break;
+                }
+            }
+
+            if (index != -1) {
+                gHeadDescriptions[index].goodFidgetCount = good;
+                gHeadDescriptions[index].neutralFidgetCount = neutral;
+                gHeadDescriptions[index].badFidgetCount = bad;
+                debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
+                    index, filename, good, neutral, bad);
+            } else {
+                debugPrint("  Warning: Could not find head filename '%s' from mod list\n", filename);
+            }
+        }
+
+        fileClose(stream);
+    }
+
+    fileNameListFree(&foundFiles, fileCount);
+}
+
 // Helper function to initialize head data
 static int artInitHeadData()
 {

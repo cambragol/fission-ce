@@ -4007,7 +4007,7 @@ static int aiMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "combatai.msg");
 
-    if (!messageListLoad(&gCombatAiMessageList, path)) {
+    if (!(messageListLoadWithMods(&gCombatAiMessageList, path, "COMBATAI"))) {
         return -1;
     }
 

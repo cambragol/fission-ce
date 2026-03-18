@@ -3412,7 +3412,7 @@ static void protoGenerateModProtoListDebug()
             else
                 fileName = entry->proto_path;
 
-            fprintf(debugStream, "  PID: 0x%08X (%d)\n", entry->pid, entry->pid);
+            fprintf(debugStream, "  PID: %d\n", entry->pid); // removed hex number display
             fprintf(debugStream, "    Mod:      %s\n", entry->mod_name);
             fprintf(debugStream, "    Proto:    %s\n", entry->proto_name);
             fprintf(debugStream, "    File:     %s\n", fileName);
@@ -3465,7 +3465,7 @@ static void protoGenerateModProtoListDebug()
     fputc('\n', debugStream);
 
     for (int i = 0; i < _name_to_pid_entries_size; i++) {
-        fprintf(debugStream, "  %-40s -> 0x%08X\n",
+        fprintf(debugStream, "  %-40s -> %d\n",
             _name_to_pid_entries[i].key,
             _name_to_pid_entries[i].pid);
     }
