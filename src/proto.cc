@@ -2281,49 +2281,76 @@ int protoGetProto(int pid, Proto** protoPtr)
     }
 
     // Check if it's a mod PID
-    if (pid_is_modded(pid)) {
-        // Look up in mod registry
-        ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
-        if (!entry) {
-            return -1; // Mod proto not found
-        }
-
-        // Try to find in existing cache first
-        ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
-        ProtoListExtent* protoListExtent = protoList->head;
-        while (protoListExtent != nullptr) {
-            for (int index = 0; index < protoListExtent->length; index++) {
-                Proto* proto = (Proto*)protoListExtent->proto[index];
-                if (pid == proto->pid) {
-                    *protoPtr = proto;
-                    return 0;
-                }
-            }
-            protoListExtent = protoListExtent->next;
-        }
-
-        // Not in cache, load from mod file
-        File* stream = fileOpen(entry->proto_path, "rb");
-        if (stream == nullptr) {
-            debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
-            return -1;
-        }
-
-        // Find or allocate cache slot
-        if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
-            fileClose(stream);
-            return -1;
-        }
-
-        // Read proto data
-        if (protoRead(*protoPtr, stream) != 0) {
-            fileClose(stream);
-            return -1;
-        }
-
-        fileClose(stream);
-        return 0;
+if (pid_is_modded(pid)) {
+    // Look up in mod registry
+    ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
+    if (!entry) {
+        return -1; // Mod proto not found
     }
+
+    // Try to find in existing cache first
+    ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
+    ProtoListExtent* protoListExtent = protoList->head;
+    while (protoListExtent != nullptr) {
+        for (int index = 0; index < protoListExtent->length; index++) {
+            Proto* proto = (Proto*)protoListExtent->proto[index];
+            if (pid == proto->pid) {
+                *protoPtr = proto;
+                return 0;
+            }
+        }
+        protoListExtent = protoListExtent->next;
+    }
+
+    // Not in cache, load from mod file
+    File* stream = fileOpen(entry->proto_path, "rb");
+    if (stream == nullptr) {
+        debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
+        return -1;
+    }
+
+    // Find or allocate cache slot
+    if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
+        fileClose(stream);
+        return -1;
+    }
+
+    // Read proto data
+    if (protoRead(*protoPtr, stream) != 0) {
+        fileClose(stream);
+        return -1;
+    }
+
+    fileClose(stream);
+
+    // --- Apply FID override if present ---
+    if (entry->has_override_fid) {
+        int final_fid = entry->override_fid;
+
+        // For non?item types, if the provided number is less than 0x01000000,
+        // assume it's an art index and build the full FID by adding the type byte.
+        if (entry->type != OBJ_TYPE_ITEM && final_fid < 0x01000000) {
+            final_fid = (entry->type << 24) | final_fid;
+        }
+
+        (*protoPtr)->fid = final_fid;
+
+        if (!artExists(final_fid)) {
+            debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
+                       final_fid, entry->mod_name, entry->proto_name);
+        }
+    }
+
+    // --- Apply AI packet override if present and proto is a critter ---
+    if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
+        (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
+    }
+
+    // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
+    (*protoPtr)->pid = pid;
+
+    return 0;
+}
 
     ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
     ProtoListExtent* protoListExtent = protoList->head;
@@ -2641,9 +2668,19 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
             continue;
         }
 
-        // Parse proto name - JUST the filename, no display name
+        // --- Parse line: first token is proto name, then optional key=value pairs ---
+        char* p = line;
+        // Skip leading whitespace
+        while (*p && isspace(*p)) p++;
+        if (!*p) continue;
+
+        // First token: proto name
+        char* token_start = p;
+        while (*p && !isspace(*p)) p++;
+        if (*p) *p++ = '\0';
+
         char proto_name[128] = { 0 };
-        strncpy(proto_name, line, sizeof(proto_name) - 1);
+        strncpy(proto_name, token_start, sizeof(proto_name) - 1);
 
         // Remove .pro extension if present
         char* dot = strrchr(proto_name, '.');
@@ -2651,17 +2688,71 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
             *dot = '\0';
         }
 
-        // Also remove any trailing spaces
+        // Remove trailing spaces from proto_name
         char* end = proto_name + strlen(proto_name) - 1;
         while (end > proto_name && isspace(*end)) {
             *end = '\0';
             end--;
         }
 
+        // Initialize override values
+        int desired_fid = 0;
+        bool has_fid = false;
+        int desired_ai = 0;
+        bool has_ai = false;
+
+        // Parse remaining tokens as key=value
+        while (*p) {
+            // Skip whitespace before next token
+            while (*p && isspace(*p)) p++;
+            if (!*p) break;
+
+            char* key_start = p;
+            while (*p && !isspace(*p) && *p != '=') p++;
+            if (*p == '=') {
+                *p++ = '\0'; // terminate key
+                char* key = key_start;
+                char* value_start = p;
+                while (*p && !isspace(*p)) p++;
+                if (*p) *p++ = '\0';
+                char* value = value_start;
+
+                // Trim whitespace from key and value (already done by tokenization)
+                if (strcmp(key, "fid") == 0) {
+                    char* endptr;
+                    long fid = strtol(value, &endptr, 0);
+                    if (*endptr == '\0') {
+                        desired_fid = (int)fid;
+                        has_fid = true;
+                    } else {
+                        debugPrint("Warning: Invalid FID value '%s' in %s line %d\n",
+                                   value, list_path, line_num);
+                    }
+                } else if (strcmp(key, "ai") == 0) {
+                    char* endptr;
+                    long ai = strtol(value, &endptr, 0);
+                    if (*endptr == '\0') {
+                        desired_ai = (int)ai;
+                        has_ai = true;
+                    } else {
+                        debugPrint("Warning: Invalid AI value '%s' in %s line %d\n",
+                                   value, list_path, line_num);
+                    }
+                } else {
+                    debugPrint("Warning: Unknown key '%s' in %s line %d\n",
+                               key, list_path, line_num);
+                }
+            } else {
+                // No '=', skip this token (unrecognized)
+                while (*p && !isspace(*p)) p++;
+                if (*p) p++;
+            }
+        }
+
         // Generate PID for this mod proto
         int pid = generate_mod_proto_pid(mod_name, proto_name, proto_type);
 
-        // Check for hash collisions with existing mod protos
+        // Check for hash collisions
         ModProtoEntry* existing_entry = mod_proto_registry_find_by_pid(pid);
         if (existing_entry != nullptr) {
             // HASH COLLISION DETECTED - CRITICAL WARNING
@@ -2701,7 +2792,6 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         if (last_slash) {
             *(last_slash + 1) = '\0';
         }
-
         snprintf(pro_path, sizeof(pro_path), "%s%s.pro", list_dir, proto_name);
 
         // Check if .pro file exists
@@ -2712,15 +2802,18 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         }
         fileClose(pro_test);
 
-        // Create and store entry
+        // Create and store entry, including optional overrides
         ModProtoEntry entry;
         entry.pid = pid;
         entry.mod_name = internal_strdup(mod_name);
         entry.proto_name = internal_strdup(proto_name);
         entry.proto_path = internal_strdup(pro_path);
         entry.type = proto_type;
+        entry.override_fid = desired_fid;
+        entry.has_override_fid = has_fid;
+        entry.override_ai_packet = desired_ai;
+        entry.has_override_ai_packet = has_ai;
 
-        // Add to registry
         mod_proto_registry_add(&entry);
 
         // Create composite key for reverse lookup
