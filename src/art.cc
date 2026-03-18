@@ -1284,15 +1284,26 @@ static void artLoadModHeadData(ArtListDescription* desc)
 // Helper function to initialize head data
 static int artInitHeadData()
 {
-    gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength);
+    // Declare desc
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_HEAD];
+
+    // Allocate gHeadDescriptions for MAX_ART_INDICES (8192)
+    gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * MAX_ART_INDICES);
     if (gHeadDescriptions == nullptr) {
-        gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength = 0;
         debugPrint("Out of memory for head_info in art_init\n");
         return -1;
     }
 
+    // Initialize all to default counts (0)
+    for (int i = 0; i < MAX_ART_INDICES; i++) {
+        gHeadDescriptions[i].goodFidgetCount = 0;
+        gHeadDescriptions[i].neutralFidgetCount = 0;
+        gHeadDescriptions[i].badFidgetCount = 0;
+    }
+
+    // Load vanilla heads.lst
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", gArtListDescriptions[OBJ_TYPE_HEAD].name, gArtListDescriptions[OBJ_TYPE_HEAD].name);
+    snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", desc->name, desc->name);
 
     File* stream = fileOpen(path, "rt");
     if (stream == nullptr) {
@@ -1301,11 +1312,12 @@ static int artInitHeadData()
     }
 
     char string[200];
-    for (int headIndex = 0; headIndex < gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength; headIndex++) {
+    for (int headIndex = 0; headIndex < desc->vanillaCount; headIndex++) {
         if (!fileReadString(string, sizeof(string), stream)) {
             break;
         }
 
+        // Parse line: filename,good,neutral,bad (or just filename with defaults)
         char* sep1 = strchr(string, ',');
         if (sep1 != nullptr) {
             *sep1 = '\0';
@@ -1340,6 +1352,10 @@ static int artInitHeadData()
     }
 
     fileClose(stream);
+
+    // Now load mod head data
+    artLoadModHeadData(desc);
+
     return 0;
 }
 
