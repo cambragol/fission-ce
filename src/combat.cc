@@ -2592,6 +2592,8 @@ static void _combat_begin(Object* attacker)
 {
     _combat_turn_running = 0;
     animationStop();
+    animationUnhideGhosts();
+
     tickersRemove(_dude_fidget);
     _combat_elev = gElevation;
 
