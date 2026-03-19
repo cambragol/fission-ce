@@ -3014,7 +3014,7 @@ void gameDialogTicker()
             _can_start_new_fidget = false;
             _dialogue_seconds_since_last_input += _tocksWaiting / 1000;
             _tocksWaiting = 1000 * (randomBetween(0, 3) + 4);
-            _gdSetupFidget(artGetIndex(gGameDialogFidgetFid), (gGameDialogFidgetFid & 0xFF0000) >> 16);
+            _gdSetupFidget(gGameDialogFidgetFid, (gGameDialogFidgetFid & 0xFF0000) >> 16);
         }
         return;
     }
