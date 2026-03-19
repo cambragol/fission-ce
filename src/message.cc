@@ -877,7 +877,8 @@ static void loadModFileWithSections(MessageList* messageList, const char* fullPa
 
 /**
  * Loads mod messages from files matching messages_*.txt pattern.
- * Searches both English (fallback) and current language directories.
+ * Searches both English (fallback) and current language directories
+ * inside the standard "text" folder (game root + all mounted dat files).
  *
  * @param messageList MessageList to append mod messages to
  * @param msg_type Section name to load from mod files
@@ -888,15 +889,17 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
     char fullPath[COMPAT_MAX_PATH];
 
     // Always load English mods first (as base/fallback)
-    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-        ENGLISH, DIR_SEPARATOR);
+    snprintf(searchPattern, sizeof(searchPattern),
+             "text%c%s%cgame%cmessages_*.txt",
+             DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
 
     for (int i = 0; i < modFileCount; i++) {
-        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-            ENGLISH, DIR_SEPARATOR, modFiles[i]);
+        snprintf(fullPath, sizeof(fullPath),
+                 "text%c%s%cgame%c%s",
+                 DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
         loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
     }
 
@@ -906,14 +909,16 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
 
     // Then load current language (overrides English for available translations)
     if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
-        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-            settings.system.language.c_str(), DIR_SEPARATOR);
+        snprintf(searchPattern, sizeof(searchPattern),
+                 "text%c%s%cgame%cmessages_*.txt",
+                 DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
         modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
 
         for (int i = 0; i < modFileCount; i++) {
-            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-                settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
+            snprintf(fullPath, sizeof(fullPath),
+                     "text%c%s%cgame%c%s",
+                     DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
             loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
         }
 
