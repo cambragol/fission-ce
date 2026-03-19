@@ -890,16 +890,16 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
 
     // Always load English mods first (as base/fallback)
     snprintf(searchPattern, sizeof(searchPattern),
-             "text%c%s%cgame%cmessages_*.txt",
-             DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
+        "text%c%s%cgame%cmessages_*.txt",
+        DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** modFiles = nullptr;
     int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
 
     for (int i = 0; i < modFileCount; i++) {
         snprintf(fullPath, sizeof(fullPath),
-                 "text%c%s%cgame%c%s",
-                 DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
+            "text%c%s%cgame%c%s",
+            DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
         loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
     }
 
@@ -910,15 +910,15 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
     // Then load current language (overrides English for available translations)
     if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
         snprintf(searchPattern, sizeof(searchPattern),
-                 "text%c%s%cgame%cmessages_*.txt",
-                 DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+            "text%c%s%cgame%cmessages_*.txt",
+            DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
         modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
 
         for (int i = 0; i < modFileCount; i++) {
             snprintf(fullPath, sizeof(fullPath),
-                     "text%c%s%cgame%c%s",
-                     DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
+                "text%c%s%cgame%c%s",
+                DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR, modFiles[i]);
             loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
         }
 
