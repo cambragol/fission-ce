@@ -6,6 +6,7 @@
 
 #define DIR_SEPARATOR '/'
 
+#include "animation.h"
 #include "art.h"
 #include "character_editor.h"
 #include "combat.h"
@@ -2281,76 +2282,75 @@ int protoGetProto(int pid, Proto** protoPtr)
     }
 
     // Check if it's a mod PID
-    if (pid_is_modded(pid)) {
-        // Look up in mod registry
-        ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
-        if (!entry) {
-            return -1; // Mod proto not found
-        }
-
-        // Try to find in existing cache first
-        ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
-        ProtoListExtent* protoListExtent = protoList->head;
-        while (protoListExtent != nullptr) {
-            for (int index = 0; index < protoListExtent->length; index++) {
-                Proto* proto = (Proto*)protoListExtent->proto[index];
-                if (pid == proto->pid) {
-                    *protoPtr = proto;
-                    return 0;
-                }
-            }
-            protoListExtent = protoListExtent->next;
-        }
-
-        // Not in cache, load from mod file
-        File* stream = fileOpen(entry->proto_path, "rb");
-        if (stream == nullptr) {
-            debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
-            return -1;
-        }
-
-        // Find or allocate cache slot
-        if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
-            fileClose(stream);
-            return -1;
-        }
-
-        // Read proto data
-        if (protoRead(*protoPtr, stream) != 0) {
-            fileClose(stream);
-            return -1;
-        }
-
-        fileClose(stream);
-
-        // --- Apply FID override if present ---
-        if (entry->has_override_fid) {
-            int final_fid = entry->override_fid;
-
-            // For non?item types, if the provided number is less than 0x01000000,
-            // assume it's an art index and build the full FID by adding the type byte.
-            if (entry->type != OBJ_TYPE_ITEM && final_fid < 0x01000000) {
-                final_fid = (entry->type << 24) | final_fid;
-            }
-
-            (*protoPtr)->fid = final_fid;
-
-            if (!artExists(final_fid)) {
-                debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
-                    final_fid, entry->mod_name, entry->proto_name);
-            }
-        }
-
-        // --- Apply AI packet override if present and proto is a critter ---
-        if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
-            (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
-        }
-
-        // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
-        (*protoPtr)->pid = pid;
-
-        return 0;
+if (pid_is_modded(pid)) {
+    // Look up in mod registry
+    ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
+    if (!entry) {
+        return -1; // Mod proto not found
     }
+
+    // Try to find in existing cache first
+    ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
+    ProtoListExtent* protoListExtent = protoList->head;
+    while (protoListExtent != nullptr) {
+        for (int index = 0; index < protoListExtent->length; index++) {
+            Proto* proto = (Proto*)protoListExtent->proto[index];
+            if (pid == proto->pid) {
+                *protoPtr = proto;
+                return 0;
+            }
+        }
+        protoListExtent = protoListExtent->next;
+    }
+
+    // Not in cache, load from mod file
+    File* stream = fileOpen(entry->proto_path, "rb");
+    if (stream == nullptr) {
+        debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
+        return -1;
+    }
+
+    // Find or allocate cache slot
+    if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
+        fileClose(stream);
+        return -1;
+    }
+
+    // Read proto data
+    if (protoRead(*protoPtr, stream) != 0) {
+        fileClose(stream);
+        return -1;
+    }
+
+    fileClose(stream);
+
+    // --- Apply FID override if present ---
+    if (entry->has_override_fid) {
+        int new_index = entry->override_fid;
+        int old_fid = (*protoPtr)->fid;
+        int rotation = FID_ROTATION(old_fid);
+        int animType = FID_ANIM_TYPE(old_fid);
+        int weaponCode = (old_fid >> 12) & 0xF;
+        int objectType = FID_TYPE(old_fid); // should match entry->type
+        int new_fid = buildFid(objectType, new_index, animType, weaponCode, rotation);
+        (*protoPtr)->fid = new_fid;
+
+        if (!artExists(new_fid)) {
+            debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
+                       new_fid, entry->mod_name, entry->proto_name);
+        }
+    }
+
+    // --- Apply AI packet override if present and proto is a critter ---
+    if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
+        (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
+    }
+
+    // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
+    (*protoPtr)->pid = pid;
+
+    return 0;
+}
 
     ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
     ProtoListExtent* protoListExtent = protoList->head;
