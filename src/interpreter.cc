@@ -3000,7 +3000,7 @@ void programListNodeCreate(Program* program)
 // 0x46E15C
 void runProgram(Program* program)
 {
-    program->flags |= PROGRAM_FLAG_0x02;
+    program->flags |= PROGRAM_FLAG_RUNNING;
     programListNodeCreate(program);
 }
 

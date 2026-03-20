@@ -15,8 +15,6 @@ namespace fallout {
 // - [protoRemoveSomeList]
 #define PROTO_LIST_MAX_ENTRIES 512
 
-#define WEAPON_TWO_HAND 0x00000200
-
 enum {
     GENDER_MALE,
     GENDER_FEMALE,
@@ -204,27 +202,49 @@ enum {
 #define FIRST_RADIOACTIVE_GOO_PID 0x20003D9
 #define LAST_RADIOACTIVE_GOO_PID 0x20003DC
 
-typedef enum ItemProtoFlags {
-    ItemProtoFlags_0x08 = 0x08,
-    ItemProtoFlags_0x10 = 0x10,
-    ItemProtoFlags_0x1000 = 0x1000,
-    ItemProtoFlags_0x8000 = 0x8000,
-    ItemProtoFlags_0x20000000 = 0x20000000,
-    ItemProtoFlags_0x80000000 = 0x80000000,
-} ItemProtoFlags;
+typedef enum ProtoFlags {
+    PROTO_FLAG_FLAT = 0x08,
+    PROTO_FLAG_NO_BLOCK = 0x10,
+    PROTO_FLAG_MULTIHEX = 0x800,
+    PROTO_FLAG_NO_HIGHLIGHT = 0x1000,
+    PROTO_FLAG_TRANS_RED = 0x4000,
+    PROTO_FLAG_TRANS_NONE = 0x8000,
+    PROTO_FLAG_TRANS_WALL = 0x10000,
+    PROTO_FLAG_TRANS_GLASS = 0x20000,
+    PROTO_FLAG_TRANS_STEAM = 0x40000,
+    PROTO_FLAG_TRANS_ENERGY = 0x80000,
+    PROTO_FLAG_WALL_TRANS_END = 0x10000000,
+    PROTO_FLAG_LIGHT_THRU = 0x20000000,
+    PROTO_FLAG_SHOOT_THRU = 0x80000000,
+} ProtoFlags;
 
 typedef enum ItemProtoExtendedFlags {
-    ItemProtoExtendedFlags_BigGun = 0x0100,
-    ItemProtoExtendedFlags_IsTwoHanded = 0x0200,
-    ItemProtoExtendedFlags_0x0800 = 0x0800,
-    ItemProtoExtendedFlags_0x1000 = 0x1000,
-    ItemProtoExtendedFlags_0x2000 = 0x2000,
-    ItemProtoExtendedFlags_0x8000 = 0x8000,
+    // NOTE: `extendedFlags` packs non-boolean weapon data into the low
+    // nibbles (`0x0F` and `0xF0`) for attack mode metadata.
+
+    PROTO_EXT_FLAG_BIG_GUN = 0x0100,
+    PROTO_EXT_FLAG_IS_TWO_HANDED = 0x0200,
+    // PROTO_EXT_FLAG_ENERGY = 0x0400, // Sfall
+    PROTO_EXT_FLAG_CAN_USE = 0x0800,
+    PROTO_EXT_FLAG_CAN_USE_ON = 0x1000,
+    PROTO_EXT_FLAG_LOOK = 0x2000, // never checked, AFAICT
+    PROTO_EXT_FLAG_CAN_TALK_TO = 0x4000,
+    PROTO_EXT_FLAG_CAN_PICK_UP = 0x8000,
 
     // This flag is used on weapons to indicate that's an natural (integral)
     // part of it's owner, for example Claw, or Robot's Rocket Launcher. Items
     // with this flag on do count toward total weight and cannot be dropped.
-    ITEM_HIDDEN = 0x08000000,
+    // Also used with scenery.
+    PROTO_EXT_FLAG_HIDDEN = 0x08000000,
+
+    // Scenery using this flag plays the ground-level magic hands animation.
+    PROTO_EXT_FLAG_MAGIC_HANDS_GROUND = 0x0001,
+
+    // Wall/scenery corner orientation flags, used for lighting and visibility checks
+    PROTO_EXT_FLAG_NORTH_CORNER = 0x10000000,
+    PROTO_EXT_FLAG_SOUTH_CORNER = 0x20000000,
+    PROTO_EXT_FLAG_EAST_CORNER = 0x40000000,
+    PROTO_EXT_FLAG_WEST_CORNER = 0x80000000,
 } ItemProtoExtendedFlags;
 
 typedef struct {
@@ -329,7 +349,7 @@ typedef struct ItemProto {
     int weight; // weight
     int cost; // cost
     int inventoryFid; // inv_fid
-    unsigned char field_80;
+    unsigned char soundId;
 } ItemProto;
 
 typedef struct CritterProtoData {
@@ -365,8 +385,8 @@ typedef struct {
 } SceneryProtoDoorData;
 
 typedef struct {
-    int field_0; // d.lower_tile
-    int field_4; // d.upper_tile
+    int destinationBuiltTile; // d.lower_tile
+    int destinationMap; // d.upper_tile
 } SceneryProtoStairsData;
 
 typedef struct {
@@ -375,11 +395,11 @@ typedef struct {
 } SceneryProtoElevatorData;
 
 typedef struct {
-    int field_0;
+    int destinationMap; // destination map
 } SceneryProtoLadderData;
 
 typedef struct {
-    int field_0;
+    int genericFlags;
 } SceneryProtoGenericData;
 
 typedef struct SceneryProtoData {
@@ -403,9 +423,9 @@ typedef struct SceneryProto {
     int sid; // sid
     int type; // type
     SceneryProtoData data;
-    int field_2C; // material
+    int material; // material
     int field_30; //
-    unsigned char field_34;
+    unsigned char soundId;
 } SceneryProto;
 
 typedef struct WallProto {

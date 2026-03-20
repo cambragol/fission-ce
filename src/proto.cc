@@ -411,9 +411,9 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationBuiltTile)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_4)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationMap)) == -1)
             return -1;
 
         return 0;
@@ -426,12 +426,12 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileReadInt32(stream, &(scenery_data->ladder.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->ladder.destinationMap)) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileReadInt32(stream, &(scenery_data->generic.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->generic.genericFlags)) == -1)
             return -1;
 
         return 0;
@@ -475,7 +475,7 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->item.inventoryFid)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->item.field_80)) == -1)
+        if (fileReadUInt8(stream, &(proto->item.soundId)) == -1)
             return -1;
         if (protoItemDataRead(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -516,9 +516,9 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->scenery.type)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(proto->scenery.field_2C)) == -1)
+        if (fileReadInt32(stream, &(proto->scenery.material)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->scenery.field_34)) == -1)
+        if (fileReadUInt8(stream, &(proto->scenery.soundId)) == -1)
             return -1;
         if (protoSceneryDataRead(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -699,9 +699,9 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileWriteInt32(stream, scenery_data->stairs.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationBuiltTile) == -1)
             return -1;
-        if (fileWriteInt32(stream, scenery_data->stairs.field_4) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationMap) == -1)
             return -1;
 
         return 0;
@@ -714,12 +714,12 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileWriteInt32(stream, scenery_data->ladder.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->ladder.destinationMap) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileWriteInt32(stream, scenery_data->generic.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->generic.genericFlags) == -1)
             return -1;
 
         return 0;
@@ -762,7 +762,7 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->item.inventoryFid) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->item.field_80) == -1)
+        if (fileWriteUInt8(stream, proto->item.soundId) == -1)
             return -1;
         if (protoItemDataWrite(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -802,9 +802,9 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->scenery.type) == -1)
             return -1;
-        if (fileWriteInt32(stream, proto->scenery.field_2C) == -1)
+        if (fileWriteInt32(stream, proto->scenery.material) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->scenery.field_34) == -1)
+        if (fileWriteUInt8(stream, proto->scenery.soundId) == -1)
             return -1;
         if (protoSceneryDataWrite(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -1070,8 +1070,8 @@ static int _proto_update_gen(Object* obj)
             data->scenery.door.openFlags = proto->scenery.data.door.openFlags;
             break;
         case SCENERY_TYPE_STAIRS:
-            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.field_0;
-            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.field_4;
+            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.destinationBuiltTile;
+            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.destinationMap;
             break;
         case SCENERY_TYPE_ELEVATOR:
             data->scenery.elevator.type = proto->scenery.data.elevator.type;
@@ -1079,7 +1079,7 @@ static int _proto_update_gen(Object* obj)
             break;
         case SCENERY_TYPE_LADDER_UP:
         case SCENERY_TYPE_LADDER_DOWN:
-            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.field_0;
+            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.destinationMap;
             break;
         }
         break;
@@ -1103,20 +1103,20 @@ static int _proto_update_gen(Object* obj)
 // ============================================================================
 
 // 0x49EB2C
-int proto_item_init(Proto* proto, int a2)
+int proto_item_init(Proto* proto, int pid)
 {
-    int v1 = a2 & 0xFFFFFF;
+    int protoNum = pid & 0xFFFFFF;
 
     proto->item.pid = -1;
-    proto->item.messageId = 100 * v1;
-    proto->item.fid = buildFid(OBJ_TYPE_ITEM, v1 - 1, 0, 0, 0);
+    proto->item.messageId = 100 * protoNum;
+    proto->item.fid = buildFid(OBJ_TYPE_ITEM, protoNum - 1, 0, 0, 0);
     if (!artExists(proto->item.fid)) {
         proto->item.fid = buildFid(OBJ_TYPE_ITEM, 0, 0, 0, 0);
     }
     proto->item.lightDistance = 0;
     proto->item.lightIntensity = 0;
-    proto->item.flags = 0xA0000008;
-    proto->item.extendedFlags = 0xA000;
+    proto->item.flags = PROTO_FLAG_FLAT | PROTO_FLAG_LIGHT_THRU | PROTO_FLAG_SHOOT_THRU;
+    proto->item.extendedFlags = PROTO_EXT_FLAG_LOOK | PROTO_EXT_FLAG_CAN_PICK_UP;
     proto->item.sid = -1;
     proto->item.type = ITEM_TYPE_MISC;
     proto_item_subdata_init(proto, proto->item.type);
@@ -1125,7 +1125,7 @@ int proto_item_init(Proto* proto, int a2)
     proto->item.weight = 10;
     proto->item.cost = 0;
     proto->item.inventoryFid = -1;
-    proto->item.field_80 = '0';
+    proto->item.soundId = '0';
 
     return 0;
 }
@@ -1151,7 +1151,7 @@ int proto_item_subdata_init(Proto* proto, int type)
     case ITEM_TYPE_CONTAINER:
         proto->item.data.container.openFlags = 0;
         proto->item.data.container.maxSize = 250;
-        proto->item.extendedFlags |= 0x800;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case ITEM_TYPE_DRUG:
         proto->item.data.drug.stat[0] = STAT_STRENGTH;
@@ -1171,7 +1171,7 @@ int proto_item_subdata_init(Proto* proto, int type)
         proto->item.data.drug.addictionChance = 0;
         proto->item.data.drug.withdrawalEffect = 0;
         proto->item.data.drug.withdrawalOnset = 0;
-        proto->item.extendedFlags |= 0x1000;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE_ON;
         break;
     case ITEM_TYPE_WEAPON:
         proto->item.data.weapon.animationCode = 0;
@@ -1206,7 +1206,7 @@ int proto_item_subdata_init(Proto* proto, int type)
         break;
     case ITEM_TYPE_KEY:
         proto->item.data.key.keyCode = -1;
-        proto->item.extendedFlags |= 0x1000;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE_ON;
         break;
     }
 
@@ -1227,8 +1227,8 @@ int proto_critter_init(Proto* proto, int pid)
     proto->fid = buildFid(OBJ_TYPE_CRITTER, num - 1, 0, 0, 0);
     proto->critter.lightDistance = 0;
     proto->critter.lightIntensity = 0;
-    proto->critter.flags = 0x20000000;
-    proto->critter.extendedFlags = 0x6000;
+    proto->critter.flags = PROTO_FLAG_LIGHT_THRU;
+    proto->critter.extendedFlags = PROTO_EXT_FLAG_LOOK | PROTO_EXT_FLAG_CAN_TALK_TO;
     proto->critter.sid = -1;
     proto->critter.data.flags = 0;
     proto->critter.data.bodyType = 0;
@@ -1262,12 +1262,12 @@ int proto_scenery_init(Proto* proto, int pid)
     proto->scenery.lightDistance = 0;
     proto->scenery.lightIntensity = 0;
     proto->scenery.flags = 0;
-    proto->scenery.extendedFlags = 0x2000;
+    proto->scenery.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->scenery.sid = -1;
     proto->scenery.type = SCENERY_TYPE_GENERIC;
     proto_scenery_subdata_init(proto, proto->scenery.type);
-    proto->scenery.field_2C = -1;
-    proto->scenery.field_34 = '0';
+    proto->scenery.material = -1;
+    proto->scenery.soundId = '0';
 
     return 0;
 }
@@ -1278,25 +1278,25 @@ int proto_scenery_subdata_init(Proto* proto, int type)
     switch (type) {
     case SCENERY_TYPE_DOOR:
         proto->scenery.data.door.openFlags = 0;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_STAIRS:
-        proto->scenery.data.stairs.field_0 = -1;
-        proto->scenery.data.stairs.field_4 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.stairs.destinationBuiltTile = -1;
+        proto->scenery.data.stairs.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_ELEVATOR:
         proto->scenery.data.elevator.type = -1;
         proto->scenery.data.elevator.level = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_UP:
-        proto->scenery.data.ladder.field_0 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_DOWN:
-        proto->scenery.data.ladder.field_0 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     }
 
@@ -1317,7 +1317,7 @@ int proto_wall_init(Proto* proto, int pid)
     proto->wall.lightDistance = 0;
     proto->wall.lightIntensity = 0;
     proto->wall.flags = 0;
-    proto->wall.extendedFlags = 0x2000;
+    proto->wall.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->wall.sid = -1;
     proto->wall.material = 1;
 
@@ -1336,7 +1336,7 @@ int proto_tile_init(Proto* proto, int pid)
         proto->tile.fid = buildFid(OBJ_TYPE_TILE, 0, 0, 0, 0);
     }
     proto->tile.flags = 0;
-    proto->tile.extendedFlags = 0x2000;
+    proto->tile.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->tile.sid = -1;
     proto->tile.material = 1;
 
@@ -1553,7 +1553,7 @@ int protoGetDataMember(int pid, int member, ProtoDataMemberValue* value)
             value->integerValue = proto->scenery.type;
             break;
         case SCENERY_DATA_MEMBER_MATERIAL:
-            value->integerValue = proto->scenery.field_2C;
+            value->integerValue = proto->scenery.material;
             break;
         default:
             debugPrint("\n\tError: Unimp'd data member in member in proto_data_member!");
@@ -1669,7 +1669,7 @@ int objectDataRead(Object* obj, File* stream)
         return -1;
 
     if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
-        if (fileReadInt32(stream, &(obj->data.critter.field_0)) == -1)
+        if (fileReadInt32(stream, &(obj->data.critter.reaction)) == -1)
             return -1;
         if (objectCritterCombatDataRead(&(obj->data.critter.combat), stream) == -1)
             return -1;
@@ -2854,7 +2854,7 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
         path, DIR_SEPARATOR, proto_type_name);
 
     char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
         // Extract mod name from filename: {type}_{modname}.lst -> {modname}
@@ -3080,7 +3080,7 @@ void load_mod_proto_messages()
         DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
         // Build full path (same pattern as messageListLoad)
@@ -3099,7 +3099,7 @@ void load_mod_proto_messages()
         snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
-        file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+        file_count = fileNameListInit(search_pattern, &mod_files);
 
         for (int i = 0; i < file_count; i++) {
             char full_path[COMPAT_MAX_PATH];

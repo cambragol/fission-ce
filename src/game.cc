@@ -170,7 +170,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     messageListRepositoryInit();
 
     programWindowSetTitle(windowTitle);
-    _initWindow(1, flags);
+    scriptWindowInit(1, flags);
     paletteInit();
 
     const char* language = settings.system.language.c_str();
@@ -503,9 +503,9 @@ void gameExit()
     partyMembersExit();
     endgameDeathEndingExit();
     interfaceFontsExit();
-    windowClose();
+    scriptWindowClose();
     messageListRepositoryExit();
-    dbExit();
+    dbCloseAll();
     settingsExit(true);
     modConfigExit();
 }
@@ -1218,7 +1218,7 @@ static int loadModGlobalVars()
 
     // Find all matching files
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount <= 0) {
         // No mod GVAR files - still generate an empty report...
         generateGVarReport();
@@ -1810,7 +1810,7 @@ static int gameDbInit()
         if (*patch_file_name == '\0') {
             patch_file_name = nullptr;
         }
-        int handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        int handle = dbOpen(main_file_name, patch_file_name);
         if (handle == -1) {
             showMesageBox(
                 "Could not find the fission datafile. "
@@ -1841,7 +1841,7 @@ static int gameDbInit()
             patch_file_name = nullptr;
         }
 
-        int master_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        int master_db_handle = dbOpen(main_file_name, patch_file_name);
         if (master_db_handle == -1) {
             showMesageBox(
                 "Could not find the master datafile. "
@@ -1870,7 +1870,7 @@ static int gameDbInit()
         patch_file_name = nullptr;
     }
 
-    int critter_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+    int critter_db_handle = dbOpen(main_file_name, patch_file_name);
     if (critter_db_handle == -1) {
         showMesageBox(
             "Could not find the critter datafile. "
@@ -1885,7 +1885,7 @@ static int gameDbInit()
     for (patch_index = 0; patch_index < 1000; patch_index++) {
         snprintf(filename, sizeof(filename), path_file_name_template, patch_index);
         if (compat_access(filename, 0) == 0) {
-            dbOpen(filename, 0, nullptr, 1);
+            dbOpen(filename, nullptr);
         }
     }
 

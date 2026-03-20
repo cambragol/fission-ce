@@ -1,5 +1,6 @@
 #include "scripts.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -703,7 +704,7 @@ static void _doBkProcesses()
         }
     }
 
-    windowUpdateAll();
+    scriptWindowUpdateAll();
 
     if (gScriptsEnabled && _script_engine_run_critters) {
         // SFALL: Fix to prevent the execution of critter_p_proc and game events
@@ -1284,6 +1285,8 @@ void _script_make_path(char* path)
 // 0x4A4810
 int scriptExecProc(int sid, int proc)
 {
+    assert(proc >= 0 && proc < SCRIPT_PROC_COUNT);
+
     if (!gScriptsEnabled) {
         return -1;
     }
@@ -1296,7 +1299,7 @@ int scriptExecProc(int sid, int proc)
     script->scriptOverrides = 0;
 
     bool programLoaded = false;
-    if ((script->flags & SCRIPT_FLAG_0x01) == 0) {
+    if ((script->flags & SCRIPT_FLAG_LOADED) == 0) {
         clock();
 
         char name[16];
@@ -1316,7 +1319,7 @@ int scriptExecProc(int sid, int proc)
         }
 
         programLoaded = true;
-        script->flags |= SCRIPT_FLAG_0x01;
+        script->flags |= SCRIPT_FLAG_LOADED;
     }
 
     Program* program = script->program;
@@ -1328,28 +1331,14 @@ int scriptExecProc(int sid, int proc)
         return 0;
     }
 
-    int v9 = script->procs[proc];
-    if (v9 == 0) {
-        v9 = 1;
-    }
-
-    if (v9 == -1) {
-        return -1;
-    }
-
     if (script->target == nullptr) {
         script->target = script->owner;
     }
 
-    script->flags |= SCRIPT_FLAG_0x04;
+    script->flags |= SCRIPT_FLAG_EXECUTED;
 
     if (programLoaded) {
         scriptLocateProcs(script);
-
-        v9 = script->procs[proc];
-        if (v9 == 0) {
-            v9 = 1;
-        }
 
         script->action = 0;
         // NOTE: Uninline.
@@ -1357,9 +1346,22 @@ int scriptExecProc(int sid, int proc)
         _interpret(program, -1);
     }
 
+    // CE: Fix for the start procedure not being called correctly if the required standard script procedure is missing.
+    int procedureIndex = script->procs[proc];
+    if (procedureIndex == 0) {
+        procedureIndex = script->procs[SCRIPT_PROC_START];
+        if (procedureIndex == 0) {
+            procedureIndex = -1;
+        }
+    }
+
+    if (procedureIndex == -1) {
+        return -1;
+    }
+
     script->action = proc;
 
-    _executeProcedure(program, v9);
+    _executeProcedure(program, procedureIndex);
 
     script->source = nullptr;
 
@@ -1654,7 +1656,7 @@ static int scriptsLoadScriptsList()
         DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         // Sort files alphabetically for consistent loading order
@@ -1847,7 +1849,7 @@ int scriptsSetDudeScript()
         return -1;
     }
 
-    script->flags |= (SCRIPT_FLAG_0x08 | SCRIPT_FLAG_0x10);
+    script->flags |= (SCRIPT_FLAG_NO_SAVE | SCRIPT_FLAG_NO_REMOVE);
 
     return 0;
 }
@@ -1864,7 +1866,7 @@ int scriptsClearDudeScript()
     if (gDude->sid != -1) {
         Script* script;
         if (scriptGetScript(gDude->sid, &script) != -1) {
-            script->flags &= ~(SCRIPT_FLAG_0x08 | SCRIPT_FLAG_0x10);
+            script->flags &= ~(SCRIPT_FLAG_NO_SAVE | SCRIPT_FLAG_NO_REMOVE);
         }
 
         scriptRemove(gDude->sid);
@@ -2267,7 +2269,7 @@ int scriptSaveAll(File* stream)
                 Script* script = &(scriptExtent->scripts[index]);
 
                 lastScriptExtent = scriptList->tail;
-                if ((script->flags & SCRIPT_FLAG_0x08) != 0) {
+                if ((script->flags & SCRIPT_FLAG_NO_SAVE) != 0) {
                     scriptCount--;
 
                     int backwardsIndex = lastScriptExtent->length - 1;
@@ -2277,7 +2279,7 @@ int scriptSaveAll(File* stream)
 
                     while (lastScriptExtent != scriptExtent || backwardsIndex > index) {
                         Script* backwardsScript = &(lastScriptExtent->scripts[backwardsIndex]);
-                        if ((backwardsScript->flags & SCRIPT_FLAG_0x08) == 0) {
+                        if ((backwardsScript->flags & SCRIPT_FLAG_NO_SAVE) == 0) {
                             break;
                         }
 
@@ -2324,7 +2326,7 @@ int scriptSaveAll(File* stream)
                 int index;
                 for (index = 0; index < lastScriptExtent->length; index++) {
                     Script* script = &(lastScriptExtent->scripts[index]);
-                    if ((script->flags & SCRIPT_FLAG_0x08) != 0) {
+                    if ((script->flags & SCRIPT_FLAG_NO_SAVE) != 0) {
                         break;
                     }
                 }
@@ -2471,7 +2473,7 @@ int scriptLoadAll(File* stream)
                 script->source = nullptr;
                 script->target = nullptr;
                 script->program = nullptr;
-                script->flags &= ~SCRIPT_FLAG_0x01;
+                script->flags &= ~SCRIPT_FLAG_LOADED;
             }
 
             extent->next = nullptr;
@@ -2493,7 +2495,7 @@ int scriptLoadAll(File* stream)
                     script->source = nullptr;
                     script->target = nullptr;
                     script->program = nullptr;
-                    script->flags &= ~SCRIPT_FLAG_0x01;
+                    script->flags &= ~SCRIPT_FLAG_LOADED;
                 }
 
                 prevExtent->next = extent;
@@ -2709,13 +2711,13 @@ int scriptRemove(int sid)
     }
 
     Script* script = &(scriptListExtent->scripts[index]);
-    if ((script->flags & SCRIPT_FLAG_0x02) != 0) {
+    if ((script->flags & SCRIPT_FLAG_NO_SPATIAL) != 0) {
         if (script->program != nullptr) {
             script->program = nullptr;
         }
     }
 
-    if ((script->flags & SCRIPT_FLAG_0x10) == 0) {
+    if ((script->flags & SCRIPT_FLAG_NO_REMOVE) == 0) {
         // NOTE: Uninline.
         _scripts_clear_combat_requests(script);
 
@@ -2790,7 +2792,7 @@ int _scr_remove_all()
             while (scriptListExtent != nullptr && index < scriptListExtent->length) {
                 Script* script = &(scriptListExtent->scripts[index]);
 
-                if ((script->flags & SCRIPT_FLAG_0x10) != 0) {
+                if ((script->flags & SCRIPT_FLAG_NO_REMOVE) != 0) {
                     index++;
                 } else {
                     if (index == 0 && scriptListExtent->length == 1) {
@@ -2861,7 +2863,7 @@ Script* scriptGetFirstSpatialScript(int elevation)
     }
 
     Script* script = &(gScriptsEnumerationScriptListExtent->scripts[0]);
-    if ((script->flags & SCRIPT_FLAG_0x02) != 0 || builtTileGetElevation(script->sp.built_tile) != elevation) {
+    if ((script->flags & SCRIPT_FLAG_NO_SPATIAL) != 0 || builtTileGetElevation(script->sp.built_tile) != elevation) {
         script = scriptGetNextSpatialScript();
     }
 
@@ -2893,7 +2895,7 @@ Script* scriptGetNextSpatialScript()
         }
 
         Script* script = &(scriptListExtent->scripts[scriptIndex]);
-        if ((script->flags & SCRIPT_FLAG_0x02) == 0 && builtTileGetElevation(script->sp.built_tile) == gScriptsEnumerationElevation) {
+        if ((script->flags & SCRIPT_FLAG_NO_SPATIAL) == 0 && builtTileGetElevation(script->sp.built_tile) == gScriptsEnumerationElevation) {
             break;
         }
     }

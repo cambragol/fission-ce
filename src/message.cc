@@ -894,7 +894,7 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
         DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** modFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &modFiles);
 
     for (int i = 0; i < modFileCount; i++) {
         snprintf(fullPath, sizeof(fullPath),
@@ -913,7 +913,7 @@ static void loadModMessagesForType(MessageList* messageList, const char* msg_typ
             "text%c%s%cgame%cmessages_*.txt",
             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
-        modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
+        modFileCount = fileNameListInit(searchPattern, &modFiles);
 
         for (int i = 0; i < modFileCount; i++) {
             snprintf(fullPath, sizeof(fullPath),

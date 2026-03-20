@@ -466,8 +466,8 @@ static void tileSetBorder(int windowWidth, int windowHeight, int hexGridWidth, i
     // with 640x480 in mind, so using windowWidth and windowHeight is
     // meaningless for calculating borders. For now keep borders for original
     // resolution.
-    int v1 = tileFromScreenXY(-320, -240, 0);
-    int v2 = tileFromScreenXY(-320, ORIGINAL_ISO_WINDOW_HEIGHT + 240, 0);
+    int v1 = tileFromScreenXY(-320, -240);
+    int v2 = tileFromScreenXY(-320, ORIGINAL_ISO_WINDOW_HEIGHT + 240);
 
     gTileBorderMinX = abs(hexGridWidth - 1 - v2 % hexGridWidth - _tile_x) + 6;
     gTileBorderMinY = abs(_tile_y - v1 / hexGridWidth) + 7;
@@ -545,11 +545,11 @@ int tileSetCenter(int tile, int flags)
         if (gTileScrollLimitingEnabled) {
             int tileScreenX;
             int tileScreenY;
-            tileToScreenXY(tile, &tileScreenX, &tileScreenY, gElevation);
+            tileToScreenXY(tile, &tileScreenX, &tileScreenY);
 
             int dudeScreenX;
             int dudeScreenY;
-            tileToScreenXY(gDude->tile, &dudeScreenX, &dudeScreenY, gElevation);
+            tileToScreenXY(gDude->tile, &dudeScreenX, &dudeScreenY);
 
             int dx = abs(dudeScreenX - tileScreenX);
             int dy = abs(dudeScreenY - tileScreenY);
@@ -681,7 +681,7 @@ int tileRoofIsVisible()
 }
 
 // 0x4B1674
-int tileToScreenXY(int tile, int* screenX, int* screenY, int elevation)
+int tileToScreenXY(int tile, int* screenX, int* screenY)
 {
     int v3;
     int v4;
@@ -722,9 +722,8 @@ int tileToScreenXY(int tile, int* screenX, int* screenY, int elevation)
 // validating hex grid bounds. The resulting invalid tile number serves as an
 // origin for calculations using prepared offsets table during objects
 // rendering.
-// Note: does not take "elevation" into account might need to be corrected.
 // 0x4B1754
-int tileFromScreenXY(int screenX, int screenY, int elevation, bool ignoreBounds)
+int tileFromScreenXY(int screenX, int screenY, bool ignoreBounds)
 {
     int x, y;
 
@@ -812,10 +811,10 @@ int tileDistanceBetween(int tile1, int tile2)
 bool tileIsInFrontOf(int tile1, int tile2)
 {
     int x1, y1;
-    tileToScreenXY(tile1, &x1, &y1, 0);
+    tileToScreenXY(tile1, &x1, &y1);
 
     int x2, y2;
-    tileToScreenXY(tile2, &x2, &y2, 0);
+    tileToScreenXY(tile2, &x2, &y2);
 
     int dx = x2 - x1;
     int dy = y2 - y1;
@@ -827,10 +826,10 @@ bool tileIsInFrontOf(int tile1, int tile2)
 bool tileIsToRightOf(int tile1, int tile2)
 {
     int x1, y1;
-    tileToScreenXY(tile1, &x1, &y1, 0);
+    tileToScreenXY(tile1, &x1, &y1);
 
     int x2, y2;
-    tileToScreenXY(tile2, &x2, &y2, 0);
+    tileToScreenXY(tile2, &x2, &y2);
 
     int dx = x2 - x1;
     int dy = y2 - y1;
@@ -864,10 +863,10 @@ int tileGetTileInDirection(int tile, int rotation, int distance)
 int tileGetRotationTo(int tile1, int tile2)
 {
     int x1, y1;
-    tileToScreenXY(tile1, &x1, &y1, 0);
+    tileToScreenXY(tile1, &x1, &y1);
 
     int x2, y2;
-    tileToScreenXY(tile2, &x2, &y2, 0);
+    tileToScreenXY(tile2, &x2, &y2);
 
     int dy = y2 - y1;
     int dx = x2 - x1;
@@ -898,12 +897,12 @@ int _tile_num_beyond(int from, int to, int distance)
     }
 
     int fromX, fromY;
-    tileToScreenXY(from, &fromX, &fromY, 0);
+    tileToScreenXY(from, &fromX, &fromY);
     fromX += 16;
     fromY += 8;
 
     int toX, toY;
-    tileToScreenXY(to, &toX, &toY, 0);
+    tileToScreenXY(to, &toX, &toY);
     toX += 16;
     toY += 8;
 
@@ -935,7 +934,7 @@ int _tile_num_beyond(int from, int to, int distance)
     if (v27 > v26) {
         int middle = v26 - v27 / 2;
         while (true) {
-            int tile = tileFromScreenXY(tileX, tileY, 0);
+            int tile = tileFromScreenXY(tileX, tileY);
             if (tile != v28) {
                 v6 += 1;
                 if (v6 == distance || tileIsEdge(tile)) {
@@ -956,7 +955,7 @@ int _tile_num_beyond(int from, int to, int distance)
     } else {
         int middle = v27 - v26 / 2;
         while (true) {
-            int tile = tileFromScreenXY(tileX, tileY, 0);
+            int tile = tileFromScreenXY(tileX, tileY);
             if (tile != v28) {
                 v6 += 1;
                 if (v6 == distance || tileIsEdge(tile)) {
@@ -1295,7 +1294,7 @@ static void tileRenderRoof(int fid, int x, int y, Rect* rect, int light)
 
             int eggScreenX;
             int eggScreenY;
-            tileToScreenXY(gEgg->tile, &eggScreenX, &eggScreenY, gEgg->elevation);
+            tileToScreenXY(gEgg->tile, &eggScreenX, &eggScreenY);
 
             eggScreenX += 16;
             eggScreenY += 8;
@@ -1476,7 +1475,7 @@ void _grid_render(Rect* rect, int elevation)
 
     for (int y = rect->top - 12; y < rect->bottom + 12; y += 6) {
         for (int x = rect->left - 32; x < rect->right + 32; x += 16) {
-            int tile = tileFromScreenXY(x, y, elevation);
+            int tile = tileFromScreenXY(x, y);
             _draw_grid(tile, elevation, rect);
         }
     }
@@ -1491,7 +1490,7 @@ static void _draw_grid(int tile, int elevation, Rect* rect)
 
     int x;
     int y;
-    tileToScreenXY(tile, &x, &y, elevation);
+    tileToScreenXY(tile, &x, &y);
 
     Rect r;
     r.left = x;
@@ -1615,7 +1614,7 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
     if (v77 <= 0 || v76 <= 0)
         goto out;
 
-    tile = tileFromScreenXY(savedX, savedY + 13, gElevation);
+    tile = tileFromScreenXY(savedX, savedY + 13);
     if (tile != -1) {
         int parity = tile & 1;
         int ambientIntensity = lightGetAmbientIntensity();
@@ -1785,13 +1784,13 @@ static int _tile_make_line(int from, int to, int* tiles, int tilesCapacity)
 
     int fromX;
     int fromY;
-    tileToScreenXY(from, &fromX, &fromY, gElevation);
+    tileToScreenXY(from, &fromX, &fromY);
     fromX += 16;
     fromY += 8;
 
     int toX;
     int toY;
-    tileToScreenXY(to, &toX, &toY, gElevation);
+    tileToScreenXY(to, &toX, &toY);
     toX += 16;
     toY += 8;
 
@@ -1824,7 +1823,7 @@ static int _tile_make_line(int from, int to, int* tiles, int tilesCapacity)
     if (v28 <= v27) {
         int middleX = v28 - v27 / 2;
         while (true) {
-            int tile = tileFromScreenXY(tileX, tileY, gElevation);
+            int tile = tileFromScreenXY(tileX, tileY);
             tiles[count] = tile;
 
             if (tile == to) {
@@ -1854,7 +1853,7 @@ static int _tile_make_line(int from, int to, int* tiles, int tilesCapacity)
     } else {
         int middleY = v27 - v28 / 2;
         while (true) {
-            int tile = tileFromScreenXY(tileX, tileY, gElevation);
+            int tile = tileFromScreenXY(tileX, tileY);
             tiles[count] = tile;
 
             if (tile == to) {

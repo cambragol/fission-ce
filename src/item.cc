@@ -78,7 +78,7 @@ static void healingItemsInitCustom();
 typedef struct DrugDescription {
     int drugPid;
     int gvar;
-    int field_8;
+    int maxActiveEffects;
 } DrugDescription;
 
 typedef struct BookDescription {
@@ -1142,7 +1142,7 @@ bool itemIsHidden(Object* item)
         return false;
     }
 
-    return (proto->item.extendedFlags & ITEM_HIDDEN) != 0;
+    return (proto->item.extendedFlags & PROTO_EXT_FLAG_HIDDEN) != 0;
 }
 
 // 0x478280
@@ -1189,7 +1189,7 @@ int weaponGetSkillForHitMode(Object* weapon, int hitMode)
         if (damageType == DAMAGE_TYPE_LASER || damageType == DAMAGE_TYPE_PLASMA || damageType == DAMAGE_TYPE_ELECTRICAL) {
             skill = SKILL_ENERGY_WEAPONS;
         } else {
-            if ((proto->item.extendedFlags & ItemProtoExtendedFlags_BigGun) != 0) {
+            if ((proto->item.extendedFlags & PROTO_EXT_FLAG_BIG_GUN) != 0) {
                 skill = SKILL_BIG_GUNS;
             }
         }
@@ -1320,7 +1320,7 @@ int weaponIsTwoHanded(Object* weapon)
 
     protoGetProto(weapon->pid, &proto);
 
-    return (proto->item.extendedFlags & WEAPON_TWO_HAND) != 0;
+    return (proto->item.extendedFlags & PROTO_EXT_FLAG_IS_TWO_HANDED) != 0;
 }
 
 // 0x4785DC
@@ -2757,7 +2757,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
         return true;
     }
 
-    if (drugDescription->field_8 == 0) {
+    if (drugDescription->maxActiveEffects == 0) {
         return true;
     }
 
@@ -2767,7 +2767,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
     while (drugEffectEvent != nullptr) {
         if (drugEffectEvent->drugPid == pid) {
             count++;
-            if (count >= drugDescription->field_8) {
+            if (count >= drugDescription->maxActiveEffects) {
                 return false;
             }
         }
