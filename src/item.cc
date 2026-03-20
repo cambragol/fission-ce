@@ -30,6 +30,7 @@
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
+#include "sfall_script_hooks.h"
 #include "skill.h"
 #include "stat.h"
 #include "tile.h"
@@ -2249,7 +2250,7 @@ bool miscItemUsesCharges(Object* miscItem)
 }
 
 // 0x4794A4
-int miscItemUseCharged(Object* critter, Object* miscItem)
+UseItemResultCode miscItemUseCharged(Object* critter, Object* miscItem)
 {
     int pid = miscItem->pid;
     if (pid == PROTO_ID_STEALTH_BOY_I
@@ -2281,7 +2282,7 @@ int miscItemUseCharged(Object* critter, Object* miscItem)
         }
     }
 
-    return 0;
+    return USE_ITEM_RESULT_OK;
 }
 
 // 0x4795A4
@@ -2778,14 +2779,21 @@ static bool _drug_effect_allowed(Object* critter, int pid)
 }
 
 // 0x479F60
-int drugItemTakeDrug(Object* critter, Object* item)
+UseItemResultCode drugItemTakeDrug(Object* critter, Object* item)
 {
+    // This matches original HOOK_USEOBJON implementation from sfall.
+    // This was needed because normally objectUseItemOnInternal won't get called for drugs.
+    int hookResult = scriptHooks_UseObjOn(critter, critter, item);
+    if (hookResult != -1) {
+        return static_cast<UseItemResultCode>(hookResult);
+    }
+
     if (critterIsDead(critter)) {
-        return -1;
+        return USE_ITEM_RESULT_ERROR;
     }
 
     if (critterGetBodyType(critter) == BODY_TYPE_ROBOTIC) {
-        return -1;
+        return USE_ITEM_RESULT_ERROR;
     }
 
     Proto* proto;
@@ -2801,7 +2809,7 @@ int drugItemTakeDrug(Object* critter, Object* item)
             }
 
             // SFALL: Fix for Jet antidote not being removed.
-            return 1;
+            return USE_ITEM_RESULT_REMOVE;
         }
     }
 
@@ -2850,7 +2858,7 @@ int drugItemTakeDrug(Object* critter, Object* item)
         }
     }
 
-    return 1;
+    return USE_ITEM_RESULT_REMOVE;
 }
 
 // 0x47A178

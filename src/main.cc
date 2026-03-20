@@ -32,6 +32,7 @@
 #include "random.h"
 #include "scripts.h"
 #include "settings.h"
+#include "sfall_callbacks.h"
 #include "sfall_config.h"
 #include "sfall_global_scripts.h"
 #include "svga.h"
@@ -124,6 +125,10 @@ int falloutMain(int argc, char** argv)
 
                     // SFALL: AfterNewGameStartHook.
                     sfall_gl_scr_exec_start_proc();
+                    // SFALL: Call "after loading" event
+                    sfallOnAfterNewGame();
+                    sfallOnAfterGameStarted();
+                    gGameLoaded = true;
 
                     mainLoop();
                     paletteFadeTo(gPaletteWhite);

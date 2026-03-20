@@ -49,6 +49,7 @@
 #include "scripts.h"
 #include "settings.h"
 #include "sfall_config.h"
+#include "sfall_callbacks.h"
 #include "sfall_global_scripts.h"
 #include "sfall_global_vars.h"
 #include "skill.h"
@@ -2242,6 +2243,9 @@ static int lsgLoadGameInSlot(int slot)
 
     // SFALL: Start global scripts.
     sfall_gl_scr_exec_start_proc();
+    // SFALL: Call "after start" event
+    sfallOnAfterGameStarted();
+    gGameLoaded = true;
 
     return 0;
 }
