@@ -940,7 +940,7 @@ static void artLoadModCritterData()
     for (int i = 0; i < fileCount; i++) {
         const char* lstFilename = foundFiles[i];
 
-        // Skip the main vanilla list – it was already handled
+        // Skip the main vanilla list - it was already handled
         char vanillaListName[64];
         snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
         if (compat_stricmp(lstFilename, vanillaListName) == 0)
@@ -975,7 +975,7 @@ static void artLoadModCritterData()
             char* filename = p;
             char* comma1 = strchr(p, ',');
             if (!comma1) {
-                // No comma – assume no extra data, default to 0,0
+                // No comma - assume no extra data, default to 0,0
                 int alias = 0;
                 int runFlag = 0;
 
@@ -1177,7 +1177,7 @@ static void artLoadModHeadData(ArtListDescription* desc)
     for (int i = 0; i < fileCount; i++) {
         const char* lstFilename = foundFiles[i];
 
-        // Skip the main vanilla list – it was already handled
+        // Skip the main vanilla list - it was already handled
         char vanillaListName[64];
         snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
         if (compat_stricmp(lstFilename, vanillaListName) == 0)

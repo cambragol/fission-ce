@@ -1082,7 +1082,7 @@ int wmWorldMap_init()
 
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "worldmap.msg");
 
-    if (!messageListLoadWithMods(&wmMsgFile, path, "WORLDMAP")) {
+    if (!messageListLoadWithMods(&wmMsgFile, path, MESSAGE_LIST_WORLDMAP)) {
         return -1;
     }
 
@@ -3044,7 +3044,7 @@ static int wmAreaLoadModFile(const char* filename)
         // Generate area message ID
         char areaKey[256];
         snprintf(areaKey, sizeof(areaKey), "area_name:%s", areaNameStr);
-        uint32_t message_id = generate_mod_message_id(mod_name, areaKey);
+        uint32_t message_id = generate_mod_message_id(MESSAGE_LIST_MAP, mod_name, areaKey);
         city->areaId = message_id;
 
         areasLoaded++;
@@ -7220,19 +7220,16 @@ static int wmGetAreaName(CityInfo* city, char* name)
     MessageListItem messageListItem;
 
     // Check if this is a mod area (message ID in mod range)
-    if (city->areaId >= 0x8000 && city->areaId <= 0xFFFF) {
-        // Mod areas: areaId directly stores the message ID
-        if (getmsg(&gMapMessageList, &messageListItem, city->areaId)) {
-            strncpy(name, messageListItem.text, 40);
-            name[39] = '\0';
-            return 0;
-        }
-        // Fall through to config name if message not found
-    } else {
-        // Vanilla areas: use original formula (areaId + 1500 offset)
+    if (city->areaId < BASE_AREA_MAX) {
+        // Vanilla area
         if (getmsg(&gMapMessageList, &messageListItem, city->areaId + 1500)) {
             strncpy(name, messageListItem.text, 40);
-            name[39] = '\0';
+            return 0;
+        }
+    } else {
+        // Mod area - areaId is already the correct message ID
+        if (getmsg(&gMapMessageList, &messageListItem, city->areaId)) {
+            strncpy(name, messageListItem.text, 40);
             return 0;
         }
     }
@@ -7652,7 +7649,7 @@ static int wmTownMapRefresh()
             char compositeKey[256];
             snprintf(compositeKey, sizeof(compositeKey), "entrance_%d:%s", index, city->name);
 
-            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            uint32_t messageId = generate_mod_message_id(MESSAGE_LIST_WORLDMAP, modName, compositeKey);
             displayText = getmsg(&wmMsgFile, &messageListItem, messageId);
         } else {
             // Vanilla area: Use original formula (200 + 10*area + entrance index)

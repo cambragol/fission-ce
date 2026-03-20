@@ -299,7 +299,7 @@ void mapInit()
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
         // modified for mods
-        if (!messageListLoadWithMods(&gMapMessageList, path, "MAP")) {
+        if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
             debugPrint("\nError loading map_msg_file!");
         }
     } else {
@@ -533,7 +533,7 @@ char* mapGetName(int map, int elevation)
             char compositeKey[256];
             snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
 
-            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
+            uint32_t messageId = generate_mod_message_id(MESSAGE_LIST_MAP, modName, compositeKey);
             return getmsg(&gMapMessageList, &messageListItem, messageId);
         }
         return nullptr;

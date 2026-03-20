@@ -7,8 +7,15 @@
 namespace fallout {
 
 #define MESSAGE_LIST_ITEM_TEXT_FILTERED 0x01
-
 #define MESSAGE_LIST_ITEM_FIELD_MAX_SIZE 1024
+
+#define MESSAGE_LIST_MAP        "MAP"
+#define MESSAGE_LIST_WORLDMAP   "WORLDMAP"
+#define MESSAGE_LIST_PROTO      "PROTO"
+#define MESSAGE_LIST_PIPBOY     "PIPBOY"
+#define MESSAGE_LIST_COMBAT     "COMBAT"
+#define MESSAGE_LIST_COMBATAI   "COMBATAI"
+#define MESSAGE_LIST_QUESTS     "QUESTS"
 
 // CE: Working with standard message lists is tricky in Sfall. Many message
 // lists are initialized only for the duration of appropriate modal window. This
@@ -93,7 +100,7 @@ void messageListRepositorySetProtoMessageList(int messageListId, MessageList* me
 int messageListRepositoryAddExtra(int messageListId, const char* path);
 char* messageListRepositoryGetMsg(int messageListId, int messageId);
 
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
+uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key);
 bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 bool messageListAddEntry(MessageList* msg, int num, const char* text);
 

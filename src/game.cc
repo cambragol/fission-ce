@@ -1537,7 +1537,7 @@ int loadModGlobalVarsFromSave(File* stream)
         if (idx >= MOD_GVAR_BASE && idx < gGameGlobalVarsLength) {
             gGameGlobalVars[idx] = val;
         } else {
-            // Index out of range – perhaps a mod was removed; ignore.
+            // Index out of range - perhaps a mod was removed; ignore.
             debugPrint("Warning: mod GVAR index %d out of range - skipping.\n",
                 idx, gGameGlobalVarsLength - 1);
         }

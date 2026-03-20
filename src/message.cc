@@ -45,11 +45,27 @@ struct MessageListRepositoryState {
     int nextTemporaryMessageListId = kFirstTemporaryMessageListId;
 };
 
+struct ListInfo {
+    const char* name;
+    uint32_t base;   // first mod ID (max vanilla + 1)
+};
+
+static const ListInfo gListBases[] = {
+    { MESSAGE_LIST_MAP,       5000 },   // vanilla max ~1699 (area names)
+    { MESSAGE_LIST_WORLDMAP,  10000 },   // vanilla max ~4000? adjust as needed
+    { MESSAGE_LIST_PROTO,     5000 }, // Sonora uses high IDs
+    { MESSAGE_LIST_PIPBOY,     100000 },
+    { MESSAGE_LIST_COMBAT,     30000 },
+    { MESSAGE_LIST_COMBATAI,   100000 },
+    { MESSAGE_LIST_QUESTS,     20000 }, 
+    // Add other lists as needed (e.g., "DIALOG", "ITEM", etc.)
+};
+
 // Extends message loading to support mod message files (messages_*.txt)
 // Mod message IDs use range 0x8000-0xFFFF (32768-65535).
 
 static uint32_t stable_hash(const char* str);
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
+uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key);
 void generateMessageReport(MessageList* messageList, const char* msg_type);
 
 // Mod file loading
@@ -81,6 +97,15 @@ static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
 static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
+
+static const ListInfo* findListInfo(const char* name) {
+    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
+        if (compat_stricmp(gListBases[i].name, name) == 0) {
+            return &gListBases[i];
+        }
+    }
+    return NULL;
+}
 
 // ============================================================================
 // Core Static Helper Functions
@@ -733,12 +758,19 @@ static uint32_t stable_hash(const char* str)
  * @param message_key Unique key within the mod's message file
  * @return Message ID in range 32768-65535
  */
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
+uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key)
 {
+    uint32_t base = 0x8000; // fallback
+    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
+        if (compat_stricmp(gListBases[i].name, list_id) == 0) {
+            base = gListBases[i].base;
+            break;
+        }
+    }
     char composite_key[256];
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
     uint32_t hash = stable_hash(composite_key);
-    return 0x8000 + (hash % 0x7FFF); // 0x8000-0xFFFF range
+    return base + hash;
 }
 
 // Load mod messages from a file with section headers
@@ -854,7 +886,7 @@ static void loadModFileWithSections(MessageList* messageList, const char* fullPa
             *end-- = '\0';
 
         if (*key && *value) {
-            uint32_t message_id = generate_mod_message_id(mod_name, key);
+            uint32_t message_id = generate_mod_message_id(target_section, mod_name, key);
 
             MessageListItem item;
             item.num = message_id;
@@ -940,69 +972,66 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
 {
     if (!messageList || !msg_type) return;
 
-    char reportPath[COMPAT_MAX_PATH];
-    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cmessages_%s_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
-
-    FILE* reportFile = compat_fopen(reportPath, "wt");
-    if (!reportFile) {
+    // Find the ListInfo for this message type
+    const ListInfo* listInfo = findListInfo(msg_type);
+    if (!listInfo) {
+        debugPrint("generateMessageReport: unknown message list '%s' - skipping report\n", msg_type);
         return;
     }
 
-    // Write header
+    char reportPath[COMPAT_MAX_PATH];
+    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cmessages_%s_list.txt",
+             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
+
+    FILE* reportFile = compat_fopen(reportPath, "wt");
+    if (!reportFile) return;
+
+    // Write header (unbounded range)
     fprintf(reportFile,
         "==============================================================================\n"
         "Fallout Fission - %s Messages\n"
         "==============================================================================\n"
         "Generated IDs for mod message references in scripts.\n\n"
-        "Message ID Range: 32768-65535 (stable hash-based)\n"
+        "Message ID Range: %u and above (stable hash-based, unbounded)\n"
         "Usage: display_msg(ID);  // Reference in scripts\n"
         "==============================================================================\n\n",
-        msg_type);
+        msg_type, listInfo->base);
 
-    // Write timestamp
+    // Timestamp
     time_t now = time(0);
     struct tm* t = localtime(&now);
     fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-        t->tm_hour, t->tm_min, t->tm_sec);
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
 
-    // Count and list only mod messages (32768-65535 range)
     int modMessageCount = 0;
-
     fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");
     fprintf(reportFile, "ID      | Text Preview\n");
     fprintf(reportFile, "--------|--------------------------------------------------\n");
 
     for (int i = 0; i < messageList->entries_num; i++) {
         MessageListItem* item = &messageList->entries[i];
-
-        // Only show mod messages in our range (32768-65535)
-        if (item->num >= 32768 && item->num <= 65535) {
+        // Mod messages are those with ID >= base (since base > all vanilla IDs)
+        if (item->num >= listInfo->base) {
             modMessageCount++;
-
-            // Create shortened preview (first 60 chars)
             char preview[61];
             strncpy(preview, item->text, 60);
             preview[60] = '\0';
-            if (strlen(item->text) > 60) {
+            if (strlen(item->text) > 60)
                 strcpy(preview + 57, "...");
-            }
-
-            fprintf(reportFile, "%-7d | %s\n", item->num, preview);
+            fprintf(reportFile, "%-7u | %s\n", item->num, preview);
         }
     }
 
-    // Add summary
     fprintf(reportFile, "\nSUMMARY:\n");
     fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
     fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
 
-    // Modder guidance
     fprintf(reportFile, "\nMODDER GUIDANCE:\n");
     fprintf(reportFile, "1. Use the decimal IDs above in your scripts with display_msg()\n");
-    fprintf(reportFile, "2. IDs are stable - same mod+key always generates same ID\n");
-    fprintf(reportFile, "3. File location: data/text/<language>/game/messages_YourMod.txt\n");
-    fprintf(reportFile, "4. Format: unique_key = Your message text\n\n");
+    fprintf(reportFile, "2. IDs are stable - same mod+key always generates same ID for this list\n");
+    fprintf(reportFile, "3. File location: text/<language>/game/messages_YourMod.txt\n");
+    fprintf(reportFile, "4. Format: [%s] section with key=value lines\n\n", msg_type);
 
     fclose(reportFile);
 }

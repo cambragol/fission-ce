@@ -493,7 +493,7 @@ static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, in
     // Get holodisk name using string key
     char nameKey[128];
     snprintf(nameKey, sizeof(nameKey), "%s:name", baseKey);
-    int nameHashId = generate_mod_message_id(modName, nameKey);
+    int nameHashId = generate_mod_message_id(MESSAGE_LIST_PIPBOY, modName, nameKey);
 
     // try to get the name from message list
     MessageListItem nameMsgItem;
@@ -518,7 +518,7 @@ static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, in
     while (lineNum < MOD_HOLODISK_ID_BLOCK - 1 && !foundEndDisk) {
         char lineKey[128];
         snprintf(lineKey, sizeof(lineKey), "%s:line:%d", baseKey, lineNum);
-        int lineHashId = generate_mod_message_id(modName, lineKey);
+        int lineHashId = generate_mod_message_id(MESSAGE_LIST_PIPBOY, modName, lineKey);
 
         MessageListItem lineMsgItem;
         lineMsgItem.num = lineHashId;
@@ -1011,7 +1011,7 @@ int pipboyMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
 
-    if (!(messageListLoadWithMods(&gPipboyMessageList, path, "PIPBOY"))) {
+    if (!(messageListLoadWithMods(&gPipboyMessageList, path, MESSAGE_LIST_PIPBOY))) {
         return -1;
     }
 
@@ -4406,7 +4406,7 @@ static int questLoadModFile(const char* filename)
         char descKey[256];
         snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod); // Keep same format!
 
-        int descMessageId = generate_mod_message_id(mod_name, descKey);
+        int descMessageId = generate_mod_message_id(MESSAGE_LIST_QUESTS, mod_name, descKey);
 
         // IMPORTANT: For mod quests, we need to override the description field
         // with our hashed message ID. This ensures getmsg() can find the mod quest text.
@@ -4487,7 +4487,7 @@ static int questInit()
 
     // Load base and mod quest messages
     // Changed from messageListLoad to messageListLoadWithMods
-    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", "QUESTS")) {
+    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", MESSAGE_LIST_QUESTS)) {
         return -1;
     }
 
