@@ -47,17 +47,17 @@ struct MessageListRepositoryState {
 
 struct ListInfo {
     const char* name;
-    uint32_t base;   // first mod ID (max vanilla + 1)
+    uint32_t base; // first mod ID (max vanilla + 1)
 };
 
 static const ListInfo gListBases[] = {
-    { MESSAGE_LIST_MAP,       5000 },   // vanilla max ~1699 (area names)
-    { MESSAGE_LIST_WORLDMAP,  10000 },   // vanilla max ~4000? adjust as needed
-    { MESSAGE_LIST_PROTO,     5000 }, // Sonora uses high IDs
-    { MESSAGE_LIST_PIPBOY,     100000 },
-    { MESSAGE_LIST_COMBAT,     30000 },
-    { MESSAGE_LIST_COMBATAI,   100000 },
-    { MESSAGE_LIST_QUESTS,     20000 }, 
+    { MESSAGE_LIST_MAP, 5000 }, // vanilla max ~1699 (area names)
+    { MESSAGE_LIST_WORLDMAP, 10000 }, // vanilla max ~4000? adjust as needed
+    { MESSAGE_LIST_PROTO, 5000 }, // Sonora uses high IDs
+    { MESSAGE_LIST_PIPBOY, 100000 },
+    { MESSAGE_LIST_COMBAT, 30000 },
+    { MESSAGE_LIST_COMBATAI, 100000 },
+    { MESSAGE_LIST_QUESTS, 20000 },
     // Add other lists as needed (e.g., "DIALOG", "ITEM", etc.)
 };
 
@@ -98,8 +98,9 @@ static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
 
-static const ListInfo* findListInfo(const char* name) {
-    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
+static const ListInfo* findListInfo(const char* name)
+{
+    for (size_t i = 0; i < sizeof(gListBases) / sizeof(gListBases[0]); i++) {
         if (compat_stricmp(gListBases[i].name, name) == 0) {
             return &gListBases[i];
         }
@@ -761,7 +762,7 @@ static uint32_t stable_hash(const char* str)
 uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key)
 {
     uint32_t base = 0x8000; // fallback
-    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
+    for (size_t i = 0; i < sizeof(gListBases) / sizeof(gListBases[0]); i++) {
         if (compat_stricmp(gListBases[i].name, list_id) == 0) {
             base = gListBases[i].base;
             break;
@@ -981,7 +982,7 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
 
     char reportPath[COMPAT_MAX_PATH];
     snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cmessages_%s_list.txt",
-             _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
+        _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
 
     FILE* reportFile = compat_fopen(reportPath, "wt");
     if (!reportFile) return;
@@ -1001,8 +1002,8 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     time_t now = time(0);
     struct tm* t = localtime(&now);
     fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
 
     int modMessageCount = 0;
     fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");

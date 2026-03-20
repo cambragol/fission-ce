@@ -9,13 +9,13 @@ namespace fallout {
 #define MESSAGE_LIST_ITEM_TEXT_FILTERED 0x01
 #define MESSAGE_LIST_ITEM_FIELD_MAX_SIZE 1024
 
-#define MESSAGE_LIST_MAP        "MAP"
-#define MESSAGE_LIST_WORLDMAP   "WORLDMAP"
-#define MESSAGE_LIST_PROTO      "PROTO"
-#define MESSAGE_LIST_PIPBOY     "PIPBOY"
-#define MESSAGE_LIST_COMBAT     "COMBAT"
-#define MESSAGE_LIST_COMBATAI   "COMBATAI"
-#define MESSAGE_LIST_QUESTS     "QUESTS"
+#define MESSAGE_LIST_MAP "MAP"
+#define MESSAGE_LIST_WORLDMAP "WORLDMAP"
+#define MESSAGE_LIST_PROTO "PROTO"
+#define MESSAGE_LIST_PIPBOY "PIPBOY"
+#define MESSAGE_LIST_COMBAT "COMBAT"
+#define MESSAGE_LIST_COMBATAI "COMBATAI"
+#define MESSAGE_LIST_QUESTS "QUESTS"
 
 // CE: Working with standard message lists is tricky in Sfall. Many message
 // lists are initialized only for the duration of appropriate modal window. This
