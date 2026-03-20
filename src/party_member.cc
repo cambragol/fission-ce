@@ -348,7 +348,7 @@ int partyMembersInit()
         _cd_path_base,
         DIR_SEPARATOR);
 
-    modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         // Sort files alphabetically for consistent loading order

@@ -923,7 +923,7 @@ static void artLoadModCritterData()
         DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount <= 0)
         return;
 
@@ -1160,7 +1160,7 @@ static void artLoadModHeadData(ArtListDescription* desc)
         DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount <= 0)
         return;
 
