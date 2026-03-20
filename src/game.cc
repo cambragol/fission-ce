@@ -473,6 +473,8 @@ void gameExit()
 {
     debugPrint("\nGame Exit\n");
 
+    sfallOnGameModeChange(1, GameMode::getCurrentGameMode());
+
     // SFALL
     scriptHooksExit();
     sfall_gl_scr_exit();
@@ -2087,12 +2089,20 @@ int GameMode::currentGameMode = 0;
 
 void GameMode::enterGameMode(int gameMode)
 {
+    int previousGameMode = currentGameMode;
     currentGameMode |= gameMode;
+    if (currentGameMode != previousGameMode) {
+        sfallOnGameModeChange(0, previousGameMode);
+    }
 }
 
 void GameMode::exitGameMode(int gameMode)
 {
+    int previousGameMode = currentGameMode;
     currentGameMode &= ~gameMode;
+    if (currentGameMode != previousGameMode) {
+        sfallOnGameModeChange(0, previousGameMode);
+    }
 }
 
 bool GameMode::isInGameMode(int gameMode)
