@@ -1343,7 +1343,7 @@ int scriptExecProc(int sid, int proc)
         script->action = 0;
         // NOTE: Uninline.
         runProgram(program);
-        _interpret(program, -1);
+        programInterpret(program, -1);
     }
 
     // CE: Fix for the start procedure not being called correctly if the required standard script procedure is missing.
@@ -1361,7 +1361,7 @@ int scriptExecProc(int sid, int proc)
 
     script->action = proc;
 
-    _executeProcedure(program, procedureIndex);
+    programExecuteProcedure(program, procedureIndex);
 
     script->source = nullptr;
 

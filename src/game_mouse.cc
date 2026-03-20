@@ -347,7 +347,6 @@ static int gGameMouseActionMenuYAdjustment = 0;
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
-static Object* gameMouseGetObjectUnderCursor(int objectType, bool includeDude, int elevation);
 static int gameMouseRenderAccuracy(const char* string, int color);
 static int gameMouseRenderActionPoints(const char* string, int color);
 static int gameMouseObjectsInit();

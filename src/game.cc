@@ -53,12 +53,14 @@
 #include "scripts.h"
 #include "settings.h"
 #include "sfall_arrays.h"
+#include "sfall_callbacks.h"
 #include "sfall_config.h"
 #include "sfall_ext.h"
 #include "sfall_global_scripts.h"
 #include "sfall_global_vars.h"
 #include "sfall_ini.h"
 #include "sfall_lists.h"
+#include "sfall_script_hooks.h"
 #include "skill.h"
 #include "skilldex.h"
 #include "stat.h"
@@ -138,6 +140,8 @@ static char gModGVarSlotOwners[MOD_GVAR_COUNT][128]; // for collision messages
 //
 // 0x58E940
 MessageList gMiscMessageList;
+
+bool gGameLoaded = false;
 
 // CE: Sonora folks like to store objects in global variables.
 static void** gGameGlobalPointers = nullptr;
@@ -403,6 +407,10 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
+    if (!scriptHooksInit()) {
+        debugPrint("Failed on scriptHooksInit");
+        return -1;
+    }
     const char* customConfigBasePath = settings.mod_scripts.ini_config_folder.empty() ? nullptr : settings.mod_scripts.ini_config_folder.c_str();
     sfall_ini_set_base_path(customConfigBasePath);
 
@@ -453,8 +461,11 @@ void gameReset()
     sfall_gl_vars_reset();
     sfallListsReset();
     messageListRepositoryReset();
+    scriptHooksReset();
     sfallArraysReset();
     sfall_gl_scr_reset();
+    sfallOnGameReset();
+    gGameLoaded = false;
 }
 
 // 0x442C34
@@ -463,6 +474,7 @@ void gameExit()
     debugPrint("\nGame Exit\n");
 
     // SFALL
+    scriptHooksExit();
     sfall_gl_scr_exit();
     sfallArraysExit();
     sfallListsExit();
