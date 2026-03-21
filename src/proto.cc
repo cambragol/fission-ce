@@ -2283,74 +2283,82 @@ int protoGetProto(int pid, Proto** protoPtr)
 
     // Check if it's a mod PID
     if (pid_is_modded(pid)) {
-        // Look up in mod registry
-        ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
-        if (!entry) {
-            return -1; // Mod proto not found
-        }
+    // Look up mod entry first
+    ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
+    if (!entry) return -1;
 
-        // Try to find in existing cache first
-        ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
-        ProtoListExtent* protoListExtent = protoList->head;
-        while (protoListExtent != nullptr) {
-            for (int index = 0; index < protoListExtent->length; index++) {
-                Proto* proto = (Proto*)protoListExtent->proto[index];
-                if (pid == proto->pid) {
-                    *protoPtr = proto;
-                    return 0;
-                }
-            }
-            protoListExtent = protoListExtent->next;
-        }
-
-        // Not in cache, load from mod file
-        File* stream = fileOpen(entry->proto_path, "rb");
-        if (stream == nullptr) {
-            debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
-            return -1;
-        }
-
-        // Find or allocate cache slot
-        if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
-            fileClose(stream);
-            return -1;
-        }
-
-        // Read proto data
-        if (protoRead(*protoPtr, stream) != 0) {
-            fileClose(stream);
-            return -1;
-        }
-
-        fileClose(stream);
-
-        // --- Apply FID override if present ---
-        if (entry->has_override_fid) {
-            int new_index = entry->override_fid;
-            int old_fid = (*protoPtr)->fid;
-            int rotation = FID_ROTATION(old_fid);
-            int animType = FID_ANIM_TYPE(old_fid);
-            int weaponCode = (old_fid >> 12) & 0xF;
-            int objectType = FID_TYPE(old_fid); // should match entry->type
-            int new_fid = buildFid(objectType, new_index, animType, weaponCode, rotation);
-            (*protoPtr)->fid = new_fid;
-
-            if (!artExists(new_fid)) {
-                debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
-                    new_fid, entry->mod_name, entry->proto_name);
+    // Try cache
+    ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
+    ProtoListExtent* protoListExtent = protoList->head;
+    while (protoListExtent != nullptr) {
+        for (int index = 0; index < protoListExtent->length; index++) {
+            Proto* proto = (Proto*)protoListExtent->proto[index];
+            if (pid == proto->pid) {
+                *protoPtr = proto;
+                return 0;
             }
         }
-
-        // --- Apply AI packet override if present and proto is a critter ---
-        if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
-            (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
-        }
-
-        // --- IMPORTANT: Set the proto's PID to the mod PID for correct cache lookups ---
-        (*protoPtr)->pid = pid;
-
-        return 0;
+        protoListExtent = protoListExtent->next;
     }
+
+    // Not in cache, load from file
+    File* stream = fileOpen(entry->proto_path, "rb");
+    if (stream == nullptr) {
+        debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
+        return -1;
+    }
+
+    if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
+        fileClose(stream);
+        return -1;
+    }
+
+    if (protoRead(*protoPtr, stream) != 0) {
+        fileClose(stream);
+        return -1;
+    }
+    fileClose(stream);
+
+    // Apply ground FID override
+    if (entry->has_override_fid) {
+        int new_index = entry->override_fid;
+        int old_fid = (*protoPtr)->fid;
+        int rotation   = FID_ROTATION(old_fid);
+        int animType   = FID_ANIM_TYPE(old_fid);
+        int weaponCode = (old_fid >> 12) & 0xF;
+        int objectType = FID_TYPE(old_fid);
+        int new_fid = buildFid(objectType, new_index, animType, weaponCode, rotation);
+        (*protoPtr)->fid = new_fid;
+        if (!artExists(new_fid)) {
+            debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
+                       new_fid, entry->mod_name, entry->proto_name);
+        }
+    }
+
+    // Apply inventory FID override (only for items)
+    if (entry->has_override_inventory_fid && PID_TYPE(pid) == OBJ_TYPE_ITEM) {
+        int inv_raw = entry->override_inventory_fid;
+        int inv_fid;
+        if (inv_raw < 0x01000000) {
+            inv_fid = buildFid(OBJ_TYPE_INVENTORY, inv_raw, 0, 0, 0);
+        } else {
+            inv_fid = inv_raw;
+        }
+        (*protoPtr)->item.inventoryFid = inv_fid;
+        if (!artExists(inv_fid)) {
+            debugPrint("Warning: Inventory FID 0x%08X for mod proto %s:%s does not exist.\n",
+                       inv_fid, entry->mod_name, entry->proto_name);
+        }
+    }
+
+    // Apply AI packet override (only for critters)
+    if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
+        (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
+    }
+
+    (*protoPtr)->pid = pid;
+    return 0;
+}
 
     ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
     ProtoListExtent* protoListExtent = protoList->head;
@@ -2700,6 +2708,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         // Initialize override values
         int desired_fid = 0;
         bool has_fid = false;
+        int desired_inventory_fid = 0;
+        bool has_inventory_fid = false;
         int desired_ai = 0;
         bool has_ai = false;
 
@@ -2732,6 +2742,16 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
                     } else {
                         debugPrint("Warning: Invalid FID value '%s' in %s line %d\n",
                             value, list_path, line_num);
+                    }
+                } else if (strcmp(key, "inventory_fid") == 0) {
+                    char* endptr;
+                    long inv_fid = strtol(value, &endptr, 0);
+                    if (*endptr == '\0') {
+                        desired_inventory_fid = (int)inv_fid;
+                        has_inventory_fid = true;
+                    } else {
+                        debugPrint("Warning: Invalid inventory_fid value '%s' in %s line %d\n",
+                                value, list_path, line_num);
                     }
                 } else if (strcmp(key, "ai") == 0) {
                     char* endptr;
@@ -2817,6 +2837,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         entry.type = proto_type;
         entry.override_fid = desired_fid;
         entry.has_override_fid = has_fid;
+        entry.override_inventory_fid = desired_inventory_fid;
+        entry.has_override_inventory_fid = has_inventory_fid;
         entry.override_ai_packet = desired_ai;
         entry.has_override_ai_packet = has_ai;
 

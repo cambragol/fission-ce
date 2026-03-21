@@ -115,11 +115,13 @@ typedef struct ModProtoEntry {
     char* proto_name;
     char* proto_path;
     int type;
-    // below may be temporary until mod tools catch up
-    int override_fid; // raw FID value from .lst (0 if not used)
-    bool has_override_fid; // true if a valid FID was given
-    int override_ai_packet; // AI packet number (for critters)
-    bool has_override_ai_packet; // true if a valid AI packet was given
+    // overrides until mod tools catch up
+    int override_fid;                // ground FID override (0 if not used)
+    bool has_override_fid;
+    int override_inventory_fid;      // inventory FID override (0 if not used)
+    bool has_override_inventory_fid;
+    int override_ai_packet;          // AI packet number (for critters)
+    bool has_override_ai_packet;
 } ModProtoEntry;
 
 typedef struct NameToPidEntry {
