@@ -330,13 +330,23 @@ static const int gInventoryArrowFrmIds[INVENTORY_ARROW_FRM_COUNT] = {
     125, // right arrow down
 };
 
+// Background FRM IDs for normal inventory (1-4 columns)
+static const int gInventoryBackgroundFrmIds[5] = {
+    0,       // index 0 unused
+    48,      // 1 column (original)
+    7654,       // 2 columns
+    7655,       // 3 columns
+    7656        // 4 columns
+};
+
 // Multi-column inventory layout (normal inventory only)
 
 // Global configuration: number of columns (default 1, will be read from settings later)
 static int gInventoryColumns = 3;
 static const int gInventoryRows = 6;  // fixed number of rows
+static int gCurrentInventoryBackgroundFrm = 48; // default to original
 
-// Layout structure for normal inventory (computed at runtime)
+// Layout structure for normal INVENTORY (computed at runtime)
 struct InventoryLayout {
     int windowWidth;                // total window width
     int windowHeight;               // always 377
@@ -612,7 +622,7 @@ static FrmImage _moveFrmImages[8];
 static void inventoryUpdateLayout() {
     // Base values from original constants
     const int BASE_SCROLLER_X = 46;
-    const int BASE_SCROLLER_Y = 35;
+    const int BASE_SCROLLER_Y = 45;
     const int BASE_WINDOW_WIDTH = 499;
     const int SLOT_WIDTH = 64;
     const int SLOT_HEIGHT = 48;
@@ -659,6 +669,13 @@ static void inventoryUpdateLayout() {
     // Done button (shifts too)
     gLayout.doneButtonX = 438 + shift;
     gLayout.doneButtonY = 329;
+
+    // Set the background FRM ID for the current column count
+    if (gInventoryColumns >= 1 && gInventoryColumns <= 4 && gInventoryBackgroundFrmIds[gInventoryColumns] != 0) {
+        gCurrentInventoryBackgroundFrm = gInventoryBackgroundFrmIds[gInventoryColumns];
+    } else {
+        gCurrentInventoryBackgroundFrm = 48; // fallback
+    }
 }
 
 // 0x46E724
@@ -826,8 +843,9 @@ int totalVisible = gInventoryRows * gInventoryColumns;
                     inventoryRenderSummary();
                     windowRefresh(gInventoryWindow);
                 }
-            } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 1000 && keyCode <= 1008) {
+            } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) { 
+                int totalVisible = gInventoryRows * gInventoryColumns;
+                if (keyCode >= 1000 && keyCode < 1000 + totalVisible) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
@@ -935,18 +953,22 @@ static bool _setup_inventory(int inventoryWindowType)
         unsigned char* dest = windowGetBuffer(gInventoryWindow);
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
+        int backgroundFid;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
+        }
+
         if (backgroundFrmImage.lock(backgroundFid)) {
+            int srcWidth = backgroundFrmImage.getWidth();
+            int srcHeight = backgroundFrmImage.getHeight();
             if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-                // Blit the original background as is
                 blitBufferToBuffer(backgroundFrmImage.getData(),
-                    windowDescription->width,
-                    windowDescription->height,
-                    windowDescription->width,
-                    dest,
-                    actualWidth);
-                // The extra area to the right is not filled; we'll leave it as is.
+                    srcWidth, srcHeight, srcWidth,
+                    dest, actualWidth);
             } else {
+                // For others, use the original size
                 blitBufferToBuffer(backgroundFrmImage.getData(),
                     windowDescription->width,
                     windowDescription->height,
@@ -1835,11 +1857,11 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
 
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
         pitch = gLayout.windowWidth;
-        int srcPitch = 499;
+        int srcPitch = gLayout.windowWidth;
         int shift = (gInventoryColumns - 1) * gLayout.slotWidth;
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 48, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(backgroundFid)) {
             // Clear scroll view background (whole grid area) - no shift here because the grid stays at original X.
             unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.scrollerY + gLayout.scrollerX;
@@ -2339,7 +2361,7 @@ static void _display_body(int fid, int inventoryWindowType)
                 } else {
                     rect.left = 297; // inventory data window? ?not used?
                     rect.top = 37;
-                    Fid = 48;
+                    Fid = gCurrentInventoryBackgroundFrm;
                     sourceXOffset = 229;
                 }
             } else {
@@ -2357,7 +2379,7 @@ static void _display_body(int fid, int inventoryWindowType)
                     // MULTI-COLUMN: Use shifted body view position
                     rect.left = gLayout.bodyViewX; // was 176
                     rect.top = 37;
-                    Fid = 48;
+                    Fid = gCurrentInventoryBackgroundFrm;
                     sourceXOffset = 0;
                 }
             }
@@ -2657,9 +2679,9 @@ static void _inven_pickup(int buttonCode, int indexOffset)
         rect.bottom = rect.top + height - 1;
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 48, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(backgroundFid)) {
-            int srcPitch = 499; // original background width
+            int srcPitch = gLayout.windowWidth; // original background width
             int shift = (gInventoryColumns - 1) * gLayout.slotWidth;
 
             int srcX, srcY;
@@ -3257,9 +3279,9 @@ static void inventoryRenderSummary()
     unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
 
     FrmImage backgroundFrmImage;
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 48, 0, 0, 0);
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
     if (backgroundFrmImage.lock(backgroundFid)) {
-        int srcPitch = 499; // original background width
+        int srcPitch = gLayout.windowWidth; // original background width
         int shift = (gInventoryColumns - 1) * gLayout.slotWidth; // same shift used in layout
         // Source X: original summary X + shift (so we take a right-shifted region)
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
@@ -4017,9 +4039,9 @@ static void inventoryExamineItem(Object* critter, Object* item)
 
     // Clear item description area.
     FrmImage backgroundFrmImage;
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 48, 0, 0, 0);
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
     if (backgroundFrmImage.lock(backgroundFid)) {
-        int srcPitch = 499;
+        int srcPitch = gLayout.windowWidth;
         int shift = (gInventoryColumns - 1) * gLayout.slotWidth;
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
         unsigned char* dest = windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX;
@@ -5447,11 +5469,22 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
 
         // Restore background where menu button was
         unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
-        int srcPitch = windowDesc->width;
-        int destPitch = (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) ? gLayout.windowWidth : srcPitch;
+        int srcPitch, destPitch;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            srcPitch = gLayout.windowWidth;
+            destPitch = gLayout.windowWidth;
+        } else {
+            srcPitch = windowDesc->width;
+            destPitch = windowDesc->width;
+        }
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDesc->frmId, 0, 0, 0);
+        int backgroundFid;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDesc->frmId, 0, 0, 0);
+        }
         if (backgroundFrmImage.lock(backgroundFid)) {
             blitBufferToBuffer(backgroundFrmImage.getData() + srcPitch * buttonRect.top + buttonRect.left,
                 cursorData->width, menuButtonHeight, srcPitch,
@@ -5724,11 +5757,22 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
             windowDescription->width);
     } else {
         // Normal and other windows restoration
-        int srcPitch = windowDescription->width;  // original background width
-        int destPitch = (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) ? gLayout.windowWidth : srcPitch;
+        int srcPitch, destPitch;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            srcPitch = gLayout.windowWidth;
+            destPitch = gLayout.windowWidth;
+        } else {
+            srcPitch = windowDescription->width;
+            destPitch = windowDescription->width;
+        }
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
+        int backgroundFid;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
+        }
         if (backgroundFrmImage.lock(backgroundFid)) {
             blitBufferToBuffer(backgroundFrmImage.getData() + srcPitch * rect.top + rect.left,
                 cursorData->width,

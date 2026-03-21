@@ -20,3 +20,6 @@ SORTREVH.FRM        ; reverse sort on
 MINIMAP.FRM         ; new minimap background
 AUTOUP_M.FRM        ; minimap toggle up
 AUTODN_M.FRM        ; minimap toggle down
+INVBOX2.FRM         ; 2 column inventory
+INVBOX3.FRM         ; 3 column inventory
+INVBOX4.FRM         ; 4 column inventory
