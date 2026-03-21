@@ -116,11 +116,11 @@ typedef struct ModProtoEntry {
     char* proto_path;
     int type;
     // overrides until mod tools catch up
-    int override_fid;                // ground FID override (0 if not used)
+    int override_fid; // ground FID override (0 if not used)
     bool has_override_fid;
-    int override_inventory_fid;      // inventory FID override (0 if not used)
+    int override_inventory_fid; // inventory FID override (0 if not used)
     bool has_override_inventory_fid;
-    int override_ai_packet;          // AI packet number (for critters)
+    int override_ai_packet; // AI packet number (for critters)
     bool has_override_ai_packet;
 } ModProtoEntry;
 
