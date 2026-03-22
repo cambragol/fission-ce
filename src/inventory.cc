@@ -186,8 +186,8 @@ namespace fallout {
 #define INVENTORY_BUTTON_RIGHT 2501
 
 #define INVENTORY_HAND_RIGHT_KEY 2006
-#define INVENTORY_HAND_LEFT_KEY  2007
-#define INVENTORY_ARMOR_KEY      2008
+#define INVENTORY_HAND_LEFT_KEY 2007
+#define INVENTORY_ARMOR_KEY 2008
 
 typedef enum InventoryArrowFrm {
     INVENTORY_ARROW_FRM_LEFT_ARROW_UP,
@@ -336,33 +336,33 @@ static const int gInventoryArrowFrmIds[INVENTORY_ARROW_FRM_COUNT] = {
 
 // Background FRM IDs for normal inventory (1-4 columns)
 static const int gInventoryBackgroundFrmIds[5] = {
-    0,       // index 0 unused
-    48,      // 1 column (original)
-    7654,       // 2 columns
-    7655,       // 3 columns
-    7656        // 4 columns
+    0, // index 0 unused
+    48, // 1 column (original)
+    7654, // 2 columns
+    7655, // 3 columns
+    7656 // 4 columns
 };
 
 // Multi-column inventory layout (normal inventory only)
 
 // Global configuration: number of columns (default 1, will be read from settings later)
 static int gInventoryColumns = 2;
-static const int gInventoryRows = 6;  // fixed number of rows
+static const int gInventoryRows = 6; // fixed number of rows
 static int gCurrentInventoryBackgroundFrm = 48; // default to original
 
 // Layout structure for normal INVENTORY (computed at runtime)
 struct InventoryLayout {
-    int windowWidth;                // total window width
-    int windowHeight;               // always 377
-    int scrollerX;                  // leftmost column X
-    int scrollerY;                  // top row Y
-    int scrollerWidth;              // columns * slotWidth
-    int scrollerHeight;             // rows * slotHeight
-    int slotWidth;                  // 64
-    int slotHeight;                 // 48
-    int slotPadding;                // 4
-    int slotContentWidth;           // slotWidth - 2*padding
-    int slotContentHeight;          // slotHeight - 2*padding
+    int windowWidth; // total window width
+    int windowHeight; // always 377
+    int scrollerX; // leftmost column X
+    int scrollerY; // top row Y
+    int scrollerWidth; // columns * slotWidth
+    int scrollerHeight; // rows * slotHeight
+    int slotWidth; // 64
+    int slotHeight; // 48
+    int slotPadding; // 4
+    int slotContentWidth; // slotWidth - 2*padding
+    int slotContentHeight; // slotHeight - 2*padding
     int leftHandSlotX;
     int leftHandSlotY;
     int rightHandSlotX;
@@ -623,13 +623,14 @@ static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
 // Computes layout based on number of columns
-static void inventoryUpdateLayout() {
+static void inventoryUpdateLayout()
+{
     // Compute the shift due to extra columns
     int shift = (gInventoryColumns - 1) * INVENTORY_SLOT_WIDTH;
 
     // Fill layout fields
     gLayout.windowWidth = INVENTORY_WINDOW_WIDTH + shift;
-    gLayout.windowHeight = 377;  // unchanged
+    gLayout.windowHeight = 377; // unchanged
     gLayout.scrollerX = INVENTORY_SCROLLER_X;
     gLayout.scrollerY = INVENTORY_SCROLLER_Y;
     gLayout.scrollerWidth = gInventoryColumns * INVENTORY_SLOT_WIDTH;
@@ -843,10 +844,7 @@ void inventoryOpen()
                 int totalVisible = gInventoryRows * gInventoryColumns;
                 // Grid slots: 1000 to 1000+totalVisible-1
                 // Hand/armor slots: new constants
-                if ((keyCode >= 1000 && keyCode < 1000 + totalVisible) ||
-                    (keyCode == INVENTORY_HAND_RIGHT_KEY ||
-                     keyCode == INVENTORY_HAND_LEFT_KEY ||
-                     keyCode == INVENTORY_ARMOR_KEY)) {
+                if ((keyCode >= 1000 && keyCode < 1000 + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
@@ -854,23 +852,23 @@ void inventoryOpen()
                     }
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_WHEEL) != 0) {
-                    if (mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY,
-                                             gLayout.scrollerX + gLayout.scrollerWidth,
-                                             gLayout.scrollerY + gLayout.scrollerHeight)) {
-                        int wheelX, wheelY;
-                        mouseGetWheel(&wheelX, &wheelY);
-                        if (wheelY > 0) {
-                            if (_stack_offset[_curr_stack] >= gInventoryColumns) {
-                                _stack_offset[_curr_stack] -= gInventoryColumns;
-                                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                            }
-                        } else if (wheelY < 0) {
-                            if (_stack_offset[_curr_stack] + totalVisible < _pud->length) {
-                                _stack_offset[_curr_stack] += gInventoryColumns;
-                                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                            }
+                if (mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY,
+                        gLayout.scrollerX + gLayout.scrollerWidth,
+                        gLayout.scrollerY + gLayout.scrollerHeight)) {
+                    int wheelX, wheelY;
+                    mouseGetWheel(&wheelX, &wheelY);
+                    if (wheelY > 0) {
+                        if (_stack_offset[_curr_stack] >= gInventoryColumns) {
+                            _stack_offset[_curr_stack] -= gInventoryColumns;
+                            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+                        }
+                    } else if (wheelY < 0) {
+                        if (_stack_offset[_curr_stack] + totalVisible < _pud->length) {
+                            _stack_offset[_curr_stack] += gInventoryColumns;
+                            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
                         }
                     }
+                }
             }
         }
 
@@ -1957,7 +1955,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 InventoryItem* inventoryItem = &(_pud->items[actualItemIndex]);
 
                 int destOffset = pitch * (gLayout.scrollerY + row * gLayout.slotHeight + gLayout.slotPadding)
-                               + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
+                    + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
                 artRender(itemGetInventoryFid(inventoryItem->item), windowBuffer + destOffset, gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
                 _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
             }
@@ -2637,9 +2635,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     Rect rect;
 
     // Determine if this is a hand/armor slot using the new keycodes
-    bool isHandOrArmor = (buttonCode == INVENTORY_HAND_RIGHT_KEY ||
-                          buttonCode == INVENTORY_HAND_LEFT_KEY ||
-                          buttonCode == INVENTORY_ARMOR_KEY);
+    bool isHandOrArmor = (buttonCode == INVENTORY_HAND_RIGHT_KEY || buttonCode == INVENTORY_HAND_LEFT_KEY || buttonCode == INVENTORY_ARMOR_KEY);
 
     if (isHandOrArmor) {
         // Hand/armor slots: use layout positions
@@ -2746,9 +2742,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     _drag_item_loop(item, immediate);
 
     // drag into inventory list, or ctrl-click from slot
-    if (pickUpFromSlot && (immediate || mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY,
-                                                             gLayout.scrollerX + gLayout.scrollerWidth,
-                                                             gLayout.scrollerY + gLayout.scrollerHeight))) {
+    if (pickUpFromSlot && (immediate || mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY, gLayout.scrollerX + gLayout.scrollerWidth, gLayout.scrollerY + gLayout.scrollerHeight))) {
         int x;
         int y;
         mouseGetPositionInWindow(gInventoryWindow, &x, &y);
@@ -2803,8 +2797,8 @@ static void _inven_pickup(int buttonCode, int indexOffset)
 
         // drop in left hand slot
     } else if (mouseHitTestInWindow(gInventoryWindow, gLayout.leftHandSlotX, gLayout.leftHandSlotY,
-                                    gLayout.leftHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-                                    gLayout.leftHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+                   gLayout.leftHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
+                   gLayout.leftHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (gInventoryLeftHandItem != nullptr && itemGetType(gInventoryLeftHandItem) == ITEM_TYPE_CONTAINER && gInventoryLeftHandItem != item) {
             _drop_into_container(gInventoryLeftHandItem, item, itemIndex, itemSlot, count);
         } else if (gInventoryLeftHandItem == nullptr || _drop_ammo_into_weapon(gInventoryLeftHandItem, item, itemSlot, count, buttonCode)) {
@@ -2813,17 +2807,15 @@ static void _inven_pickup(int buttonCode, int indexOffset)
 
         // drop in right hand slot
     } else if (mouseHitTestInWindow(gInventoryWindow, gLayout.rightHandSlotX, gLayout.rightHandSlotY,
-                                    gLayout.rightHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-                                    gLayout.rightHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+                   gLayout.rightHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
+                   gLayout.rightHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (gInventoryRightHandItem != nullptr && itemGetType(gInventoryRightHandItem) == ITEM_TYPE_CONTAINER && gInventoryRightHandItem != item) {
             _drop_into_container(gInventoryRightHandItem, item, itemIndex, itemSlot, count);
         } else if (gInventoryRightHandItem == nullptr || _drop_ammo_into_weapon(gInventoryRightHandItem, item, itemSlot, count, buttonCode)) {
             _switch_hand(item, &gInventoryRightHandItem, itemSlot, itemIndex);
         }
 
-    } else if ((immediate && itemGetType(item) == ITEM_TYPE_ARMOR) || mouseHitTestInWindow(gInventoryWindow, gLayout.armorSlotX, gLayout.armorSlotY,
-                                                                                           gLayout.armorSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-                                                                                           gLayout.armorSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+    } else if ((immediate && itemGetType(item) == ITEM_TYPE_ARMOR) || mouseHitTestInWindow(gInventoryWindow, gLayout.armorSlotX, gLayout.armorSlotY, gLayout.armorSlotX + INVENTORY_LARGE_SLOT_WIDTH, gLayout.armorSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (itemGetType(item) == ITEM_TYPE_ARMOR) {
             Object* currentArmor = gInventoryArmor;
             int itemAddResult = 0;
@@ -2855,8 +2847,8 @@ static void _inven_pickup(int buttonCode, int indexOffset)
             }
         }
     } else if (mouseHitTestInWindow(gInventoryWindow, gLayout.bodyViewX, gLayout.bodyViewY,
-                                    gLayout.bodyViewX + INVENTORY_BODY_VIEW_WIDTH,
-                                    gLayout.bodyViewY + INVENTORY_BODY_VIEW_HEIGHT)) {
+                   gLayout.bodyViewX + INVENTORY_BODY_VIEW_WIDTH,
+                   gLayout.bodyViewY + INVENTORY_BODY_VIEW_HEIGHT)) {
         if (_curr_stack != 0) {
             // If we are looking inside nested inventory (such as backpack item), we see this item in the PC Body View instead of the player.
             // So we drop item into it.
