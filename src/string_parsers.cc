@@ -5,8 +5,32 @@
 
 #include "debug.h"
 #include "platform_compat.h"
+#include <algorithm>
+#include <cctype>
+
+static std::string trim(const std::string& s)
+{
+    auto start = std::find_if_not(s.begin(), s.end(), [](unsigned char ch) { return std::isspace(ch); });
+    auto end = std::find_if_not(s.rbegin(), s.rend(), [](unsigned char ch) { return std::isspace(ch); }).base();
+    return (start < end) ? std::string(start, end) : std::string();
+}
 
 namespace fallout {
+
+std::vector<std::string> splitString(const std::string& str, char delimiter)
+{
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    size_t end = str.find(delimiter);
+    while (end != std::string::npos) {
+        std::string token = str.substr(start, end - start);
+        tokens.push_back(trim(token));
+        start = end + 1;
+        end = str.find(delimiter, start);
+    }
+    tokens.push_back(trim(str.substr(start)));
+    return tokens;
+}
 
 // strParseInt
 // 0x4AFD10

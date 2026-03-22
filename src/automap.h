@@ -43,6 +43,9 @@ typedef struct AutomapHeader {
     int offsets[AUTOMAP_MAP_COUNT][ELEVATION_COUNT];
 } AutomapHeader;
 
+// expose automap window to control visibility with interface
+extern int gAutomapWindow;
+
 int automapInit();
 int automapReset();
 void automapExit();
@@ -55,6 +58,12 @@ int automapSaveCurrent();
 int automapGetHeader(AutomapHeader** automapHeaderPtr);
 
 void automapSetDisplayMap(int map, bool available);
+
+// New functions for persistant minimap (automap)
+bool automapIsOpen();
+bool automapHandleKey(int keyCode);
+void automapUpdate();
+void automapClose();
 
 } // namespace fallout
 

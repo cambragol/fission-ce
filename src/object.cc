@@ -1010,7 +1010,7 @@ int objectCreateWithFidPid(Object** objectPtr, int fid, int pid)
         objectListNode->obj->flags |= OBJECT_NO_HIGHLIGHT;
     }
 
-    _obj_new_sid(objectListNode->obj, &(objectListNode->obj->sid));
+    objectSetScriptFromProto(objectListNode->obj, &(objectListNode->obj->sid));
 
     return 0;
 }
@@ -1063,7 +1063,7 @@ int _obj_copy(Object** a1, Object* a2)
 
     if (objectListNode->obj->sid != -1) {
         objectListNode->obj->sid = -1;
-        _obj_new_sid(objectListNode->obj, &(objectListNode->obj->sid));
+        objectSetScriptFromProto(objectListNode->obj, &(objectListNode->obj->sid));
     }
 
     if (objectSetRotation(objectListNode->obj, a2->rotation, nullptr) == -1) {
@@ -2102,10 +2102,7 @@ bool _obj_portal_is_walk_thru(Object* obj)
         return false;
     }
 
-    int autoOpenDoors = 0;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_OPEN_DOORS, &autoOpenDoors);
-
-    if (autoOpenDoors) {
+    if (settings.enhancements.auto_open_doors && !settings.enhancements.strict_vanilla) {
         if (!isInCombat()) {
             if (proto->scenery.type == SCENERY_TYPE_DOOR) // Door
             {
@@ -2436,6 +2433,68 @@ bool _obj_occupied(int tile, int elevation)
     return false;
 }
 
+Object* _obj_blocking_at_for_path(Object* mover, int tile, int elev)
+{
+    ObjectListNode* objectListNode;
+    Object* obj;
+    int type;
+
+    if (!hexGridTileIsValid(tile)) {
+        return nullptr;
+    }
+
+    objectListNode = gObjectListHeadByTile[tile];
+    while (objectListNode != nullptr) {
+        obj = objectListNode->obj;
+        if (obj->elevation == elev) {
+            if ((obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0 && obj != mover) {
+                type = FID_TYPE(obj->fid);
+                if (type == OBJ_TYPE_CRITTER) {
+                    // For the player out of combat, critters are not blockers
+                    if (mover == gDude && !isInCombat()) {
+                        // treat as non-blocking
+                    } else {
+                        return obj;
+                    }
+                } else if (type == OBJ_TYPE_SCENERY || type == OBJ_TYPE_WALL) {
+                    return obj;
+                }
+            }
+        }
+        objectListNode = objectListNode->next;
+    }
+
+    // Multihex check
+    for (int rotation = 0; rotation < ROTATION_COUNT; rotation++) {
+        int neighbor = tileGetTileInDirection(tile, rotation, 1);
+        if (hexGridTileIsValid(neighbor)) {
+            objectListNode = gObjectListHeadByTile[neighbor];
+            while (objectListNode != nullptr) {
+                obj = objectListNode->obj;
+                if ((obj->flags & OBJECT_MULTIHEX) != 0) {
+                    if (obj->elevation == elev) {
+                        if ((obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0 && obj != mover) {
+                            type = FID_TYPE(obj->fid);
+                            if (type == OBJ_TYPE_CRITTER) {
+                                if (mover == gDude && !isInCombat()) {
+                                    // ignore
+                                } else {
+                                    return obj;
+                                }
+                            } else if (type == OBJ_TYPE_SCENERY || type == OBJ_TYPE_WALL) {
+                                return obj;
+                            }
+                        }
+                    }
+                }
+                objectListNode = objectListNode->next;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 // 0x48B848
 Object* _obj_blocking_at(Object* excludeObj, int tile, int elev)
 {
@@ -2703,8 +2762,7 @@ int objectGetDistanceBetweenTiles(Object* object1, int tile1, Object* object2, i
 
 bool objectWithinWalkDistance(Object* critter, Object* target)
 {
-    int walkDistance = 5;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_WALK_DISTANCE, &walkDistance);
+    int walkDistance = settings.mod_settings.use_walk_distance;
     if (objectGetDistanceBetween(critter, target) >= walkDistance) {
         return false;
     }
@@ -3752,7 +3810,7 @@ int _obj_load_dude(File* stream)
         debugPrint("\nError: obj_load_dude: Can't destroy temp object!\n");
     }
 
-    _inven_reset_dude();
+    inventoryResetDude();
 
     int tile;
     if (fileReadInt32(stream, &tile) == -1) {

@@ -71,6 +71,7 @@ Object* objectFindFirstAtLocation(int elevation, int tile);
 Object* objectFindNextAtLocation();
 void objectGetRect(Object* obj, Rect* rect);
 bool _obj_occupied(int tile_num, int elev);
+Object* _obj_blocking_at_for_path(Object* mover, int tile, int elev);
 Object* _obj_blocking_at(Object* excludeObj, int tile_num, int elev);
 Object* _obj_shoot_blocking_at(Object* excludeObj, int tile, int elev);
 Object* _obj_ai_blocking_at(Object* excludeObj, int tile, int elevation);

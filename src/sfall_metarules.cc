@@ -257,7 +257,7 @@ void mf_intface_redraw(Program* program, int args)
 void mf_loot_obj(Program* program, int args)
 {
     if (GameMode::isInGameMode(GameMode::kInventory)) {
-        programStackPushPointer(program, inven_get_current_target_obj());
+        programStackPushPointer(program, inventoryGetTargetObject());
     } else {
         programStackPushPointer(program, nullptr);
     }
@@ -323,10 +323,10 @@ void mf_set_outline(Program* program, int args)
 void mf_show_window(Program* program, int args)
 {
     if (args == 0) {
-        _windowShow();
+        windowShow();
     } else if (args == 1) {
         const char* windowName = programStackPopString(program);
-        if (!_windowShowNamed(windowName)) {
+        if (!windowShowNamed(windowName)) {
             debugPrint("show_window: window '%s' is not found", windowName);
         }
     }

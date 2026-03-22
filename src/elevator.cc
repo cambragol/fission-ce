@@ -19,6 +19,7 @@
 #include "map.h"
 #include "pipboy.h"
 #include "scripts.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "svga.h"
 #include "touch.h"
@@ -649,12 +650,7 @@ static int elevatorGetLevelFromKeyCode(int elevator, int keyCode)
 
 void elevatorsInit()
 {
-    char* elevatorsFileName;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_ELEVATORS_FILE_KEY, &elevatorsFileName);
-    if (elevatorsFileName != nullptr && *elevatorsFileName == '\0') {
-        elevatorsFileName = nullptr;
-    }
-
+    const char* elevatorsFileName = settings.mod_settings.elevators_file.empty() ? nullptr : settings.mod_settings.elevators_file.c_str();
     if (elevatorsFileName != nullptr) {
         Config elevatorsConfig;
         if (configInit(&elevatorsConfig)) {

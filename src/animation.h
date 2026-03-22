@@ -155,6 +155,7 @@ void _dude_fidget();
 void _dude_stand(Object* obj, int rotation, int fid);
 void _dude_standup(Object* a1);
 void animationStop();
+void animationUnhideGhosts();
 
 int animationRegisterSetLightIntensity(Object* owner, int lightDistance, int lightIntensity, int delay);
 
