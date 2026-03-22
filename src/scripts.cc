@@ -275,15 +275,6 @@ static bool _set;
 // 0x667750
 static char _tempStr1[20];
 
-static int gStartYear;
-static int gStartMonth;
-static int gStartDay;
-
-static int gMovieTimerArtimer1;
-static int gMovieTimerArtimer2;
-static int gMovieTimerArtimer3;
-static int gMovieTimerArtimer4;
-
 // Returns game time in ticks (1/10 second).
 //
 // 0x4A3330
@@ -295,9 +286,9 @@ unsigned int gameTimeGetTime()
 // 0x4A3338
 void gameTimeGetDate(int* monthPtr, int* dayPtr, int* yearPtr)
 {
-    int year = (gGameTime / GAME_TIME_TICKS_PER_DAY + gStartDay) / 365 + gStartYear;
-    int month = gStartMonth;
-    int day = (gGameTime / GAME_TIME_TICKS_PER_DAY + gStartDay) % 365;
+    int year = (gGameTime / GAME_TIME_TICKS_PER_DAY + settings.mod_settings.start_day) / 365 + settings.mod_settings.start_year;
+    int month = settings.mod_settings.start_month;
+    int day = (gGameTime / GAME_TIME_TICKS_PER_DAY + settings.mod_settings.start_day) % 365;
 
     while (1) {
         int daysInMonth = gGameTimeDaysPerMonth[month];
@@ -428,9 +419,9 @@ int gameTimeEventProcess(Object* obj, void* data)
         _scriptsCheckGameEvents(&movie_index, -1);
     }
 
-    stopProcess = _critter_check_rads(gDude);
+    stopProcess = critterCheckRadiationEvent(gDude);
 
-    _queue_clear_type(4, nullptr);
+    queueClearByEventType(4, nullptr);
 
     gameTimeScheduleUpdateEvent();
 
@@ -456,7 +447,7 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
         movieFlags = GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC;
         endgame = true;
     } else {
-        if (day >= gMovieTimerArtimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
+        if (day >= settings.mod_settings.movie_timer_artimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
             movie = MOVIE_ARTIMER4;
             if (!gameMovieIsSeen(MOVIE_ARTIMER4)) {
                 adjustRep = true;
@@ -464,13 +455,13 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
                 wmAreaSetVisibleState(CITY_DESTROYED_ARROYO, 1, 1);
                 wmAreaMarkVisitedState(CITY_DESTROYED_ARROYO, 2);
             }
-        } else if (day >= gMovieTimerArtimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER3;
-        } else if (day >= gMovieTimerArtimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER2;
-        } else if (day >= gMovieTimerArtimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+        } else if (day >= settings.mod_settings.movie_timer_artimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
             movie = MOVIE_ARTIMER1;
         }
@@ -515,7 +506,7 @@ int mapUpdateEventProcess(Object* obj, void* data)
 {
     scriptsExecMapUpdateScripts(SCRIPT_PROC_MAP_UPDATE);
 
-    _queue_clear_type(EVENT_TYPE_MAP_UPDATE_EVENT, nullptr);
+    queueClearByEventType(EVENT_TYPE_MAP_UPDATE_EVENT, nullptr);
 
     if (gMapHeader.name[0] == '\0') {
         return 0;
@@ -712,7 +703,7 @@ static void _doBkProcesses()
         }
     }
 
-    _updateWindows();
+    windowUpdateAll();
 
     if (gScriptsEnabled && _script_engine_run_critters) {
         // SFALL: Fix to prevent the execution of critter_p_proc and game events
@@ -964,7 +955,7 @@ int scriptsHandleRequests()
                 if (elevation == gElevation) {
                     reg_anim_clear(gDude);
                     objectSetRotation(gDude, ROTATION_SE, nullptr);
-                    _obj_attempt_placement(gDude, tile, elevation, 0);
+                    objectAttemptPlacement(gDude, tile, elevation, 0);
                 } else {
                     Object* elevatorDoors = objectFindFirstAtElevation(gDude->elevation);
                     while (elevatorDoors != nullptr) {
@@ -979,7 +970,7 @@ int scriptsHandleRequests()
 
                     reg_anim_clear(gDude);
                     objectSetRotation(gDude, ROTATION_SE, nullptr);
-                    _obj_attempt_placement(gDude, tile, elevation, 0);
+                    objectAttemptPlacement(gDude, tile, elevation, 0);
 
                     if (elevatorDoors != nullptr) {
                         objectSetFrame(elevatorDoors, 0, nullptr);
@@ -1072,7 +1063,7 @@ int _scripts_check_state_in_combat()
                 if (elevation == gElevation) {
                     reg_anim_clear(gDude);
                     objectSetRotation(gDude, ROTATION_SE, nullptr);
-                    _obj_attempt_placement(gDude, tile, elevation, 0);
+                    objectAttemptPlacement(gDude, tile, elevation, 0);
                 } else {
                     Object* elevatorDoors = objectFindFirstAtElevation(gDude->elevation);
                     while (elevatorDoors != nullptr) {
@@ -1087,7 +1078,7 @@ int _scripts_check_state_in_combat()
 
                     reg_anim_clear(gDude);
                     objectSetRotation(gDude, ROTATION_SE, nullptr);
-                    _obj_attempt_placement(gDude, tile, elevation, 0);
+                    objectAttemptPlacement(gDude, tile, elevation, 0);
 
                     if (elevatorDoors != nullptr) {
                         objectSetFrame(elevatorDoors, 0, nullptr);
@@ -1507,45 +1498,47 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
         maxIndex);
 
-    // Slot ranges section
+    // Slot ranges section (now 1-based for user convenience)
     fputs("------------------------------------------------------------\n"
-          "Slot Ranges:\n",
+          "Slot Ranges (1-based):\n",
         scriptsListFile);
 
     if (actualModCount > 0) {
         fprintf(scriptsListFile,
-            "  Vanilla: 0-%d\n"
+            "  Vanilla: 1-%d\n"
             "  Mods: %d-%d\n",
-            vanillaCount - 1,
-            firstModIndex, lastModIndex);
+            vanillaCount,
+            firstModIndex + 1, lastModIndex + 1);
     } else {
         fprintf(scriptsListFile,
-            "  Vanilla: 0-%d\n"
+            "  Vanilla: 1-%d\n"
             "  Mods: (none)\n",
-            vanillaCount - 1);
+            vanillaCount);
     }
     fputs("------------------------------------------------------------\n", scriptsListFile);
 
-    // Vanilla scripts section
+    // Vanilla scripts section (1-based indices)
     if (actualVanillaCount > 0) {
         fputs("VANILLA SCRIPTS:\n", scriptsListFile);
         for (int i = 0; i < vanillaCount; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i, gScriptsListEntries[i].name,
+                    i + 1, // - 1-based
+                    gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
         }
         fputs("\n", scriptsListFile);
     }
 
-    // Mod scripts section
+    // Mod scripts section (1-based indices)
     if (actualModCount > 0) {
         fputs("MOD SCRIPTS:\n", scriptsListFile);
         for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i, gScriptsListEntries[i].name,
+                    i + 1, // - 1-based
+                    gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
         }
@@ -1560,7 +1553,8 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         fputs("  --- CONFLICT DETAILS ---\n", scriptsListFile);
         for (int i = 0; i < 4096; i++) {
             if (collisionDetails[i][0] != '\0') {
-                fprintf(scriptsListFile, "  # %4d: %s\n", i, collisionDetails[i]);
+                // Collision details remain 0-based internally, but we can also show as 1-based if desired
+                fprintf(scriptsListFile, "  # %4d: %s\n", i + 1, collisionDetails[i]);
             }
         }
         fputs("\n", scriptsListFile);
@@ -1848,7 +1842,7 @@ int scriptsSetDudeScript()
 
     proto->critter.sid = 0x4000000;
 
-    _obj_new_sid(gDude, &(gDude->sid));
+    objectSetScriptFromProto(gDude, &(gDude->sid));
 
     Script* script;
     if (scriptGetScript(gDude->sid, &script) == -1) {
@@ -1929,15 +1923,6 @@ int scriptsInit()
     }
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_SCRIPT, &gScrMessageList);
-
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_YEAR, &gStartYear);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_MONTH, &gStartMonth);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_START_DAY, &gStartDay);
-
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER1, &gMovieTimerArtimer1);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER2, &gMovieTimerArtimer2);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER3, &gMovieTimerArtimer3);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_MOVIE_TIMER_ARTIMER4, &gMovieTimerArtimer4);
 
     checkScriptsOpcodes();
 
@@ -2118,13 +2103,14 @@ void _scr_disable_critters()
 // 0x4A5400
 int scriptsSaveGameGlobalVars(File* stream)
 {
-    return fileWriteInt32List(stream, gGameGlobalVars, gGameGlobalVarsLength);
+    // Save only the vanilla GVARs
+    return fileWriteInt32List(stream, gGameGlobalVars, gGameGlobalVarsVanillaCount);
 }
 
-// 0x4A5424
 int scriptsLoadGameGlobalVars(File* stream)
 {
-    return fileReadInt32List(stream, gGameGlobalVars, gGameGlobalVarsLength);
+    // Load only the vanilla GVARs (the array must already be large enough)
+    return fileReadInt32List(stream, gGameGlobalVars, gGameGlobalVarsVanillaCount);
 }
 
 // NOTE: For unknown reason save game files contains two identical sets of game
@@ -2795,7 +2781,7 @@ int scriptRemove(int sid)
 // 0x4A63E0
 int _scr_remove_all()
 {
-    _queue_clear_type(EVENT_TYPE_SCRIPT, nullptr);
+    queueClearByEventType(EVENT_TYPE_SCRIPT, nullptr);
     _scr_message_free();
 
     for (int scriptType = 0; scriptType < SCRIPT_TYPE_COUNT; scriptType++) {
@@ -2839,7 +2825,7 @@ int _scr_remove_all()
 // 0x4A64A8
 int _scr_remove_all_force()
 {
-    _queue_clear_type(EVENT_TYPE_SCRIPT, nullptr);
+    queueClearByEventType(EVENT_TYPE_SCRIPT, nullptr);
     _scr_message_free();
 
     for (int type = 0; type < SCRIPT_TYPE_COUNT; type++) {
@@ -3230,7 +3216,7 @@ int scriptGetLocalVar(int sid, int variable, ProgramValue& value)
 
     if (script->localVarsCount > 0) {
         if (script->localVarsOffset == -1) {
-            script->localVarsOffset = _map_malloc_local_var(script->localVarsCount);
+            script->localVarsOffset = mapAllocLocalVars(script->localVarsCount);
         }
 
         if (mapGetLocalVar(script->localVarsOffset + variable, value) == -1) {
@@ -3261,7 +3247,7 @@ int scriptSetLocalVar(int sid, int variable, ProgramValue& value)
     }
 
     if (script->localVarsOffset == -1) {
-        script->localVarsOffset = _map_malloc_local_var(script->localVarsCount);
+        script->localVarsOffset = mapAllocLocalVars(script->localVarsCount);
     }
 
     mapSetLocalVar(script->localVarsOffset + variable, value);

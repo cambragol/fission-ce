@@ -1978,14 +1978,12 @@ static const char* gCritDataMemberKeys[CRIT_DATA_MEMBER_COUNT] = {
 };
 
 static bool gBurstModEnabled = false;
-static int gBurstModCenterMultiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-static int gBurstModCenterDivisor = SFALL_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-static int gBurstModTargetMultiplier = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-static int gBurstModTargetDivisor = SFALL_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+static int gBurstModCenterMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
+static int gBurstModCenterDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
+static int gBurstModTargetMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
+static int gBurstModTargetDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
-static bool gBonusHthDamageFix;
-static bool gDisplayBonusDamage;
 
 // combat_init
 // 0x420CC0
@@ -2594,6 +2592,8 @@ static void _combat_begin(Object* attacker)
 {
     _combat_turn_running = 0;
     animationStop();
+    animationUnhideGhosts();
+
     tickersRemove(_dude_fidget);
     _combat_elev = gElevation;
 
@@ -2867,7 +2867,7 @@ static void _combat_over()
     gameMouseSetMode(GAME_MOUSE_MODE_MOVE);
     interfaceRenderArmorClass(true);
 
-    if (_critter_is_prone(gDude) && !critterIsDead(gDude) && _combat_ending_guy == nullptr) {
+    if (critterIsProne(gDude) && !critterIsDead(gDude) && _combat_ending_guy == nullptr) {
         queueRemoveEventsByType(gDude, EVENT_TYPE_KNOCKOUT);
         knockoutEventProcess(gDude, nullptr);
     }
@@ -3039,11 +3039,11 @@ static void _combat_sequence_init(Object* attacker, Object* defender)
     _list_noncom -= next;
 
     if (attacker != nullptr) {
-        _critter_set_who_hit_me(attacker, defender);
+        critterSetWhoHitMe(attacker, defender);
     }
 
     if (defender != nullptr) {
-        _critter_set_who_hit_me(defender, attacker);
+        critterSetWhoHitMe(defender, attacker);
     }
 }
 
@@ -3288,7 +3288,7 @@ static int _combat_turn(Object* obj, bool a2)
         }
 
         if (!scriptOverrides) {
-            if (!a2 && _critter_is_prone(obj)) {
+            if (!a2 && critterIsProne(obj)) {
                 _combat_standup(obj);
             }
 
@@ -3578,7 +3578,7 @@ int _combat_attack(Object* attacker, Object* defender, int hitMode, int hitLocat
 
     if (attacker == gDude) {
         interfaceRenderActionPoints(attacker->data.critter.combat.ap, _combat_free_move);
-        _critter_set_who_hit_me(attacker, defender);
+        critterSetWhoHitMe(attacker, defender);
     }
 
     // SFALL
@@ -3933,7 +3933,7 @@ static int attackCompute(Attack* attack)
         }
     }
 
-    if (_item_w_compute_ammo_cost(attack->weapon, &(attack->ammoQuantity)) == -1) {
+    if (weaponComputeAmmoCost(attack->weapon, &(attack->ammoQuantity)) == -1) {
         return -1;
     }
 
@@ -4120,7 +4120,7 @@ void _compute_explosion_on_extras(Attack* attack, bool isFromAttacker, bool isGr
 static int attackComputeCriticalHit(Attack* attack)
 {
     Object* defender = attack->defender;
-    if (defender != nullptr && _critter_flag_check(defender->pid, CRITTER_INVULNERABLE)) {
+    if (defender != nullptr && critterFlagCheck(defender->pid, CRITTER_INVULNERABLE)) {
         return 2;
     }
 
@@ -4194,7 +4194,7 @@ static int _attackFindInvalidFlags(Object* critter, Object* item)
 {
     int flags = 0;
 
-    if (critter != nullptr && PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER && _critter_flag_check(critter->pid, CRITTER_NO_DROP)) {
+    if (critter != nullptr && PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER && critterFlagCheck(critter->pid, CRITTER_NO_DROP)) {
         flags |= DAM_DROP;
     }
 
@@ -4210,17 +4210,16 @@ static int attackComputeCriticalFailure(Attack* attack)
 {
     attack->attackerFlags &= ~DAM_HIT;
 
-    if (attack->attacker != nullptr && _critter_flag_check(attack->attacker->pid, CRITTER_INVULNERABLE)) {
+    if (attack->attacker != nullptr && critterFlagCheck(attack->attacker->pid, CRITTER_INVULNERABLE)) {
         return 0;
     }
 
     if (attack->attacker == gDude) {
-        // SFALL: Remove criticals time limits.
-        bool criticalsTimeLimitsRemoved = false;
-        configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_REMOVE_CRITICALS_TIME_LIMITS_KEY, &criticalsTimeLimitsRemoved);
-
         unsigned int gameTime = gameTimeGetTime();
-        if (!criticalsTimeLimitsRemoved && gameTime / GAME_TIME_TICKS_PER_DAY < 6) {
+
+        // In strict vanilla mode, ignore the config and always enforce the 6‑day limit.
+        // Otherwise, only enforce if the removal feature is not enabled.
+        if ((settings.enhancements.strict_vanilla || !settings.enhancements.remove_criticals_time_limits) && (gameTime / GAME_TIME_TICKS_PER_DAY < 6)) {
             return 0;
         }
     }
@@ -4666,7 +4665,7 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
         && (critter->flags & OBJECT_MULTIHEX) == 0
         && (damageType == DAMAGE_TYPE_EXPLOSION || attack->weapon == nullptr || weaponGetAttackTypeForHitMode(attack->weapon, attack->hitMode) == ATTACK_TYPE_MELEE)
         && PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER
-        && !_critter_flag_check(critter->pid, CRITTER_NO_KNOCKBACK)) {
+        && !critterFlagCheck(critter->pid, CRITTER_NO_KNOCKBACK)) {
         bool shouldKnockback = true;
         bool hasStonewall = false;
         if (critter == gDude) {
@@ -4743,7 +4742,7 @@ void _apply_damage(Attack* attack, bool animated)
             if (defenderIsCritter) {
                 if ((defender->data.critter.combat.results & (DAM_DEAD | DAM_KNOCKED_OUT)) != 0) {
                     if (!v5 || defender != gDude) {
-                        _critter_set_who_hit_me(defender, attack->attacker);
+                        critterSetWhoHitMe(defender, attack->attacker);
                     }
                 } else if (defender == attack->oops || defender->data.critter.combat.team != attack->attacker->data.critter.combat.team) {
                     _combatai_check_retaliation(defender, attack->attacker);
@@ -4772,7 +4771,7 @@ void _apply_damage(Attack* attack, bool animated)
 
             if (defenderIsCritter) {
                 if ((obj->data.critter.combat.results & (DAM_DEAD | DAM_KNOCKED_OUT)) != 0) {
-                    _critter_set_who_hit_me(obj, attack->attacker);
+                    critterSetWhoHitMe(obj, attack->attacker);
                 } else if (obj->data.critter.combat.team != attack->attacker->data.critter.combat.team) {
                     _combatai_check_retaliation(obj, attack->attacker);
                 }
@@ -4797,7 +4796,7 @@ void _apply_damage(Attack* attack, bool animated)
 // 0x424EE8
 static void _check_for_death(Object* object, int damage, int* flags)
 {
-    if (object == nullptr || !_critter_flag_check(object->pid, CRITTER_INVULNERABLE)) {
+    if (object == nullptr || !critterFlagCheck(object->pid, CRITTER_INVULNERABLE)) {
         if (object == nullptr || PID_TYPE(object->pid) == OBJ_TYPE_CRITTER) {
             if (damage > 0) {
                 if (critterGetHitPoints(object) - damage <= 0) {
@@ -4819,7 +4818,7 @@ static void _set_new_results(Object* critter, int flags)
         return;
     }
 
-    if (_critter_flag_check(critter->pid, CRITTER_INVULNERABLE)) {
+    if (critterFlagCheck(critter->pid, CRITTER_INVULNERABLE)) {
         return;
     }
 
@@ -4860,7 +4859,7 @@ static void _damage_object(Object* a1, int damage, bool animated, int a4, Object
         return;
     }
 
-    if (_critter_flag_check(a1->pid, CRITTER_INVULNERABLE)) {
+    if (critterFlagCheck(a1->pid, CRITTER_INVULNERABLE)) {
         return;
     }
 
@@ -6060,8 +6059,7 @@ int combatGetTargetHighlight()
 
 static void criticalsInit()
 {
-    int mode = 2;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, &mode);
+    int mode = settings.mod_settings.override_criticals_mode;
     if (mode < 0 || mode > 3) {
         mode = 0;
     }
@@ -6202,8 +6200,7 @@ static void criticalsInit()
     if (mode == 1 || mode == 3) {
         Config criticalsConfig;
         if (configInit(&criticalsConfig)) {
-            char* criticalsConfigFilePath;
-            configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, &criticalsConfigFilePath);
+            const char* criticalsConfigFilePath = settings.mod_settings.override_criticals_file.empty() ? nullptr : settings.mod_settings.override_criticals_file.c_str();
             if (criticalsConfigFilePath != nullptr && *criticalsConfigFilePath == '\0') {
                 criticalsConfigFilePath = nullptr;
             }
@@ -6320,10 +6317,10 @@ void criticalsResetValue(int killType, int hitLocation, int effect, int dataMemb
 
 static void burstModInit()
 {
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_ENABLED_KEY, &gBurstModEnabled);
+    gBurstModEnabled = settings.mod_settings.burst_mod_enabled;
 
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, &gBurstModCenterMultiplier);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, &gBurstModCenterDivisor);
+    gBurstModCenterMultiplier = settings.mod_settings.burst_mod_center_multiplier;
+    gBurstModCenterDivisor = settings.mod_settings.burst_mod_center_divisor;
     if (gBurstModCenterDivisor < 1) {
         gBurstModCenterDivisor = 1;
     }
@@ -6331,8 +6328,8 @@ static void burstModInit()
         gBurstModCenterMultiplier = gBurstModCenterDivisor;
     }
 
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, &gBurstModTargetMultiplier);
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, &gBurstModTargetDivisor);
+    gBurstModTargetMultiplier = settings.mod_settings.burst_mod_target_multiplier;
+    gBurstModTargetDivisor = settings.mod_settings.burst_mod_target_divisor;
     if (gBurstModTargetDivisor < 1) {
         gBurstModTargetDivisor = 1;
     }
@@ -6539,12 +6536,7 @@ static void unarmedInitVanilla()
 
 static void unarmedInitCustom()
 {
-    char* unarmedFileName = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_UNARMED_FILE_KEY, &unarmedFileName);
-    if (unarmedFileName != nullptr && *unarmedFileName == '\0') {
-        unarmedFileName = nullptr;
-    }
-
+    const char* unarmedFileName = settings.mod_settings.unarmed_file.empty() ? nullptr : settings.mod_settings.unarmed_file.c_str();
     if (unarmedFileName == nullptr) {
         return;
     }
@@ -6672,24 +6664,21 @@ static int unarmedGetHitModeInRange(int firstHitMode, int lastHitMode, bool isSe
 
 static void damageModInit()
 {
-    gDamageCalculationType = DAMAGE_CALCULATION_TYPE_VANILLA;
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DAMAGE_MOD_FORMULA_KEY, &gDamageCalculationType);
-
-    gBonusHthDamageFix = true;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, &gBonusHthDamageFix);
-
-    gDisplayBonusDamage = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DISPLAY_BONUS_DAMAGE_KEY, &gDisplayBonusDamage);
+    gDamageCalculationType = settings.mod_settings.damage_mod_formula;
 }
 
 bool damageModGetBonusHthDamageFix()
 {
-    return gBonusHthDamageFix;
+    return settings.mod_settings.bonus_hth_damage_fix;
 }
 
 bool damageModGetDisplayBonusDamage()
 {
-    return gDisplayBonusDamage;
+    if (!settings.enhancements.strict_vanilla) {
+        return settings.enhancements.display_bonus_damage;
+    } else {
+        return false;
+    }
 }
 
 static void damageModCalculateGlovz(DamageCalculationContext* context)

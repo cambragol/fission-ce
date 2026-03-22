@@ -6,6 +6,7 @@
 
 #include "animation.h"
 #include "art.h"
+#include "automap.h"
 #include "color.h"
 #include "combat.h"
 #include "config.h"
@@ -29,6 +30,7 @@
 #include "proto.h"
 #include "proto_instance.h"
 #include "proto_types.h"
+#include "settings.h"
 #include "skill.h"
 #include "stat.h"
 #include "svga.h"
@@ -127,6 +129,9 @@ static void sidePanelsExit();
 static void sidePanelsHide();
 static void sidePanelsShow();
 static void sidePanelsDraw(const char* path, int win, bool isLeading);
+
+static void minimapHide();
+static void minimapShow();
 
 // 0x518F08
 static bool gInterfaceBarInitialized = false;
@@ -252,9 +257,6 @@ static unsigned char* gInterfaceWindowBuffer;
 // 0x59D40C
 static unsigned char gInterfaceActionPointsBarBackground[90 * 5];
 
-// Should the game window stretch all the way to the bottom or sit at the top of the interface bar (default)
-bool gInterfaceBarMode = false;
-
 static FrmImage _inventoryButtonNormalFrmImage;
 static FrmImage _inventoryButtonPressedFrmImage;
 static FrmImage _optionsButtonNormalFrmImage;
@@ -289,8 +291,6 @@ int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
 bool gInterfaceBarIsWide = false;
 
-int gInterfaceSidePanelsImageId = 2;
-bool gInterfaceSidePanelsExtendFromScreenEdge = false;
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
@@ -781,6 +781,7 @@ void interfaceBarHide()
 
     // SFALL
     sidePanelsHide();
+    minimapHide();
 
     indicatorBarRefresh();
 }
@@ -795,6 +796,7 @@ void interfaceBarShow()
             interfaceRenderArmorClass(false);
             windowShow(gInterfaceBarWindow);
             sidePanelsShow();
+            minimapShow();
             gInterfaceBarHidden = false;
         }
     }
@@ -1304,7 +1306,7 @@ void _intface_use_item()
         if (isInCombat()) {
             int actionPointsRequired = itemGetActionPointCost(gDude, ptr->secondaryHitMode, false);
             if (actionPointsRequired <= gDude->data.critter.combat.ap) {
-                _obj_use_item(gDude, ptr->item);
+                objectUseItem(gDude, ptr->item);
                 interfaceUpdateItems(false, INTERFACE_ITEM_ACTION_DEFAULT, INTERFACE_ITEM_ACTION_DEFAULT);
                 if (actionPointsRequired > gDude->data.critter.combat.ap) {
                     gDude->data.critter.combat.ap = 0;
@@ -1315,7 +1317,7 @@ void _intface_use_item()
                 interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
             }
         } else {
-            _obj_use_item(gDude, ptr->item);
+            objectUseItem(gDude, ptr->item);
             interfaceUpdateItems(false, INTERFACE_ITEM_ACTION_DEFAULT, INTERFACE_ITEM_ACTION_DEFAULT);
         }
     }
@@ -2489,11 +2491,11 @@ static void interfaceBarSize()
 
 static void sidePanelsInit()
 {
-    if (gInterfaceBarMode) {
+    if (settings.mod_settings.iface_bar_mode) {
         return;
     }
 
-    if (gInterfaceSidePanelsImageId == 0) {
+    if (settings.mod_settings.iface_bar_side_art == 0) {
         return;
     }
 
@@ -2508,10 +2510,10 @@ static void sidePanelsInit()
     gInterfaceSidePanelsTrailingWindow = windowCreate(windowRect.right + 1, windowRect.top, screenGetWidth() - windowRect.right - 1, windowRect.bottom - windowRect.top + 1, 0, WINDOW_HIDDEN | WINDOW_DONT_MOVE_TOP);
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "art\\intrface\\HR_IFACELFT%d.frm", gInterfaceSidePanelsImageId);
+    snprintf(path, sizeof(path), "art\\intrface\\HR_IFACELFT%d.frm", settings.mod_settings.iface_bar_side_art);
     sidePanelsDraw(path, gInterfaceSidePanelsLeadingWindow, true);
 
-    snprintf(path, sizeof(path), "art\\intrface\\HR_IFACERHT%d.frm", gInterfaceSidePanelsImageId);
+    snprintf(path, sizeof(path), "art\\intrface\\HR_IFACERHT%d.frm", settings.mod_settings.iface_bar_side_art);
     sidePanelsDraw(path, gInterfaceSidePanelsTrailingWindow, false);
 }
 
@@ -2550,6 +2552,21 @@ static void sidePanelsShow()
     }
 }
 
+// Hide show minimap with interface
+static void minimapHide()
+{
+    if (gAutomapWindow != -1) {
+        windowHide(gAutomapWindow);
+    }
+}
+
+static void minimapShow()
+{
+    if (gAutomapWindow != -1) {
+        windowShow(gAutomapWindow);
+    }
+}
+
 static void sidePanelsDraw(const char* path, int win, bool isLeading)
 {
     Art* image = artLoad(path);
@@ -2567,11 +2584,11 @@ static void sidePanelsDraw(const char* path, int win, bool isLeading)
 
     int width = std::min(imageWidth, windowWidth);
 
-    if (!gInterfaceSidePanelsExtendFromScreenEdge && isLeading) {
+    if (!settings.mod_settings.iface_bar_sides_ori && isLeading) {
         imageData += imageWidth - width;
     }
 
-    if (gInterfaceSidePanelsExtendFromScreenEdge && !isLeading) {
+    if (settings.mod_settings.iface_bar_sides_ori && !isLeading) {
         imageData += imageWidth - width;
     }
 

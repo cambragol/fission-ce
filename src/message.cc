@@ -17,6 +17,7 @@
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
+#include "string_parsers.h"
 #include "window_manager.h"
 
 namespace fallout {
@@ -612,9 +613,8 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
         return;
     }
 
-    bool enabled = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, &enabled);
-    if (!enabled) {
+    // modConfig: bool for gender words
+    if (!settings.mod_settings.game_dialog_gender_words) {
         return;
     }
 
@@ -1059,54 +1059,34 @@ bool messageListRepositoryInit()
         return false;
     }
 
-    char* fileList;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXTRA_MESSAGE_LISTS_KEY, &fileList);
-    if (fileList != nullptr && *fileList == '\0') {
-        fileList = nullptr;
+    const std::string& extraMsgLists = settings.mod_settings.extra_message_lists;
+    if (extraMsgLists.empty()) {
+        return true; // Nothing to load, but success.
     }
+
+    std::vector<std::string> tokens = splitString(extraMsgLists);
 
     char path[COMPAT_MAX_PATH];
     int nextMessageListId = 0;
-    while (fileList != nullptr) {
-        char* pch = strchr(fileList, ',');
-        if (pch != nullptr) {
-            *pch = '\0';
+    for (const std::string& token : tokens) {
+        std::string filePart = token;
+        int listId = nextMessageListId; // Default to auto-number
+
+        // Check for colon separator
+        size_t colonPos = token.find(':');
+        if (colonPos != std::string::npos) {
+            filePart = token.substr(0, colonPos);
+            listId = std::atoi(token.substr(colonPos + 1).c_str());
         }
 
-        char* sep = strchr(fileList, ':');
-        if (sep != nullptr) {
-            *sep = '\0';
-            nextMessageListId = atoi(sep + 1);
-        }
-
-        snprintf(path, sizeof(path), "%s\\%s.msg", "game", fileList);
-
-        if (sep != nullptr) {
-            *sep = ':';
-        }
+        snprintf(path, sizeof(path), "%s\\%s.msg", "game", filePart.c_str());
 
         MessageList* messageList = messageListRepositoryLoad(path);
         if (messageList != nullptr) {
-            _messageListRepositoryState->persistentMessageLists[kFirstPersistentMessageListId + nextMessageListId] = messageList;
+            _messageListRepositoryState->persistentMessageLists[kFirstPersistentMessageListId + listId] = messageList;
         }
 
-        if (pch != nullptr) {
-            *pch = ',';
-            fileList = pch + 1;
-        } else {
-            fileList = nullptr;
-        }
-
-        // Sfall's implementation is a little bit odd. |nextMessageListId| can
-        // be set via "key:value" pair in the config, so if the first pair is
-        // "msg:12287", then this check will think it's the end of the loop.
-        // In order to maintain compatibility we'll use the same approach,
-        // however it looks like the whole idea of auto-numbering extra message
-        // lists is a bad one. To use these extra message lists we need to
-        // specify their ids from user-space scripts. Without explicitly
-        // specifying message list ids as "key:value" pairs a mere change of
-        // order in the config will break such scripts in an unexpected way.
-        nextMessageListId++;
+        nextMessageListId = listId + 1; // Original increments after each token
         if (nextMessageListId == kLastPersistentMessageListId - kFirstPersistentMessageListId + 1) {
             break;
         }

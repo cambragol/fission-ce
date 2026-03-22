@@ -340,9 +340,6 @@ static Object* gGameMousePointedObject;
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
 
-// used for setting strict vanilla behavior
-static bool strictVanilla = false;
-
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
@@ -379,9 +376,6 @@ int gameMouseInit()
     if (gameMouseObjectsInit() != 0) {
         return -1;
     }
-
-    // turn strict vanilla mode on or off from conifg
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STRICT_VANILLA, &strictVanilla);
 
     gGameMouseInitialized = true;
     _gmouse_enabled = 1;
@@ -746,7 +740,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!strictVanilla && gGameMouseItemHighlightEnabled) {
+    if (!settings.enhancements.strict_vanilla && gGameMouseItemHighlightEnabled && settings.enhancements.mass_highlight) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 
@@ -817,7 +811,7 @@ void gameMouseRefresh()
                                     primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_TALK;
                                 }
                             } else {
-                                if (_critter_flag_check(pointedObject->pid, CRITTER_NO_STEAL)) {
+                                if (critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL)) {
                                     primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_LOOK;
                                 } else {
                                     primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
@@ -850,7 +844,7 @@ void gameMouseRefresh()
 
                     if (pointedObject != gGameMousePointedObject) {
                         gGameMousePointedObject = pointedObject;
-                        _obj_look_at(gDude, gGameMousePointedObject);
+                        objectLookAt(gDude, gGameMousePointedObject);
                     }
                 }
             } else if (gGameMouseMode == GAME_MOUSE_MODE_CROSSHAIR) {
@@ -866,8 +860,8 @@ void gameMouseRefresh()
                     bool pointedObjectIsCritter = FID_TYPE(pointedObject->fid) == OBJ_TYPE_CRITTER;
 
                     if (settings.preferences.combat_looks) {
-                        if (_obj_examine(gDude, pointedObject) == -1) {
-                            _obj_look_at(gDude, pointedObject);
+                        if (objectExamine(gDude, pointedObject) == -1) {
+                            objectLookAt(gDude, pointedObject);
                         }
                     }
 
@@ -1007,7 +1001,7 @@ bool gameMouseClickOnInterfaceBar()
     int interfaceBarWindowRectLeft = 0;
     int interfaceBarWindowRectRight = _scr_size.right;
 
-    if (gInterfaceBarMode) {
+    if (settings.mod_settings.iface_bar_mode) {
         interfaceBarWindowRectLeft = interfaceBarWindowRect.left;
         interfaceBarWindowRectRight = interfaceBarWindowRect.right;
     }
@@ -1097,8 +1091,8 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                     } else {
                         if (_obj_action_can_talk_to(targetObj)) {
                             if (isInCombat()) {
-                                if (_obj_examine(gDude, targetObj) == -1) {
-                                    _obj_look_at(gDude, targetObj);
+                                if (objectExamine(gDude, targetObj) == -1) {
+                                    objectLookAt(gDude, targetObj);
                                 }
                             } else {
                                 actionTalk(gDude, targetObj);
@@ -1112,14 +1106,14 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                     if (_obj_action_can_use(targetObj)) {
                         _action_use_an_object(gDude, targetObj);
                     } else {
-                        if (_obj_examine(gDude, targetObj) == -1) {
-                            _obj_look_at(gDude, targetObj);
+                        if (objectExamine(gDude, targetObj) == -1) {
+                            objectLookAt(gDude, targetObj);
                         }
                     }
                     break;
                 case OBJ_TYPE_WALL:
-                    if (_obj_examine(gDude, targetObj) == -1) {
-                        _obj_look_at(gDude, targetObj);
+                    if (objectExamine(gDude, targetObj) == -1) {
+                        objectLookAt(gDude, targetObj);
                     }
                     break;
                 }
@@ -1218,7 +1212,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_TALK;
                         }
                     } else {
-                        if (!_critter_flag_check(targetObj->pid, CRITTER_NO_STEAL)) {
+                        if (!critterFlagCheck(targetObj->pid, CRITTER_NO_STEAL)) {
                             actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_USE;
                         }
                     }
@@ -1316,8 +1310,8 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         inventoryOpenUseItemOn(targetObj);
                         break;
                     case GAME_MOUSE_ACTION_MENU_ITEM_LOOK:
-                        if (_obj_examine(gDude, targetObj) == -1) {
-                            _obj_look_at(gDude, targetObj);
+                        if (objectExamine(gDude, targetObj) == -1) {
+                            objectLookAt(gDude, targetObj);
                         }
                         break;
                     case GAME_MOUSE_ACTION_MENU_ITEM_ROTATE:
@@ -2599,13 +2593,13 @@ int objectIsDoor(Object* object)
 
 static void customMouseModeFrmsInit()
 {
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_FIRST_AID_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_FIRST_AID]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_DOCTOR_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_DOCTOR]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_LOCKPICK_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_LOCKPICK]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_STEAL_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_STEAL]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_TRAPS_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_TRAPS]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_SCIENCE_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_SCIENCE]));
-    configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_USE_REPAIR_FRM_KEY, &(gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_REPAIR]));
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_FIRST_AID] = settings.mod_settings.use_first_aid_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_DOCTOR] = settings.mod_settings.use_doctor_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_LOCKPICK] = settings.mod_settings.use_lockpick_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_STEAL] = settings.mod_settings.use_steal_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_TRAPS] = settings.mod_settings.use_traps_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_SCIENCE] = settings.mod_settings.use_science_frm;
+    gGameMouseModeFrmIds[GAME_MOUSE_MODE_USE_REPAIR] = settings.mod_settings.use_repair_frm;
 }
 
 void gameMouseRefreshImmediately()

@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "display_monitor.h"
 #include "game.h"
+#include "game_config.h"
 #include "interface.h"
 #include "inventory.h"
 #include "light.h"
@@ -27,6 +28,7 @@
 #include "proto_instance.h"
 #include "queue.h"
 #include "random.h"
+#include "settings.h"
 #include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
@@ -171,7 +173,6 @@ static Object* _wd_obj;
 static int _wd_gvar;
 
 static std::vector<BookDescription> gBooks;
-static bool gExplosionEmitsLight;
 static int gGrenadeExplosionRadius;
 static int gRocketExplosionRadius;
 static int gDynamiteMinDamage;
@@ -558,7 +559,7 @@ int itemDestroyAllHidden(Object* owner)
         // NOTE: Uninline.
         if (itemIsHidden(inventoryItem->item)) {
             itemRemove(owner, inventoryItem->item, 1);
-            _obj_destroy(inventoryItem->item);
+            objectDestroy(inventoryItem->item);
         } else {
             index++;
         }
@@ -584,7 +585,7 @@ int itemDropAll(Object* critter, int tile)
 
             if (_obj_connect(item, tile, critter->elevation, nullptr) != 0) {
                 if (itemAdd(critter, item, 1) != 0) {
-                    _obj_destroy(item);
+                    objectDestroy(item);
                 }
                 return -1;
             }
@@ -601,7 +602,7 @@ int itemDropAll(Object* critter, int tile)
                     }
 
                     frmId = proto->fid & 0xFFF;
-                    _adjust_ac(critter, item, nullptr);
+                    adjustCritterStatsOnArmorChange(critter, item, nullptr);
                 }
             }
 
@@ -624,7 +625,7 @@ int itemDropAll(Object* critter, int tile)
 
                 if (_obj_connect(item, tile, critter->elevation, nullptr) != 0) {
                     if (itemAdd(critter, item, 1) != 0) {
-                        _obj_destroy(item);
+                        objectDestroy(item);
                     }
                     return -1;
                 }
@@ -1113,7 +1114,7 @@ Object* itemReplace(Object* owner, Object* itemToReplace, int flags)
 
                 item->flags &= ~flags;
                 if (itemAdd(owner, item, 1) != 0) {
-                    _obj_destroy(item);
+                    objectDestroy(item);
                 }
             }
         }
@@ -1451,7 +1452,7 @@ int weaponAttemptReload(Object* critter, Object* weapon)
     if (weapon->pid != PROTO_ID_SOLAR_SCORCHER) {
         int inventoryItemIndex = -1;
         for (;;) {
-            Object* ammo = _inven_find_type(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
+            Object* ammo = inventoryFindByType(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
             if (ammo == nullptr) {
                 break;
             }
@@ -1460,7 +1461,7 @@ int weaponAttemptReload(Object* critter, Object* weapon)
                 if (weaponCanBeReloadedWith(weapon, ammo) != 0) {
                     int rc = weaponReload(weapon, ammo);
                     if (rc == 0) {
-                        _obj_destroy(ammo);
+                        objectDestroy(ammo);
                     }
 
                     if (rc == -1) {
@@ -1474,7 +1475,7 @@ int weaponAttemptReload(Object* critter, Object* weapon)
 
         inventoryItemIndex = -1;
         for (;;) {
-            Object* ammo = _inven_find_type(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
+            Object* ammo = inventoryFindByType(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
             if (ammo == nullptr) {
                 break;
             }
@@ -1482,7 +1483,7 @@ int weaponAttemptReload(Object* critter, Object* weapon)
             if (weaponCanBeReloadedWith(weapon, ammo) != 0) {
                 int rc = weaponReload(weapon, ammo);
                 if (rc == 0) {
-                    _obj_destroy(ammo);
+                    objectDestroy(ammo);
                 }
 
                 if (rc == -1) {
@@ -1637,7 +1638,7 @@ int weaponGetRange(Object* critter, int hitMode)
         return range;
     }
 
-    if (_critter_flag_check(critter->pid, CRITTER_LONG_LIMBS)) {
+    if (critterFlagCheck(critter->pid, CRITTER_LONG_LIMBS)) {
         return 2;
     }
 
@@ -1951,11 +1952,9 @@ int weaponGetSecondaryActionPointCost(Object* weapon)
 }
 
 // 0x4790AC
-int _item_w_compute_ammo_cost(Object* obj, int* inout_a2)
+int weaponComputeAmmoCost(const Object* obj, int* ammoQty)
 {
-    int pid;
-
-    if (inout_a2 == nullptr) {
+    if (ammoQty == nullptr) {
         return -1;
     }
 
@@ -1963,9 +1962,8 @@ int _item_w_compute_ammo_cost(Object* obj, int* inout_a2)
         return 0;
     }
 
-    pid = obj->pid;
-    if (pid == PROTO_ID_SUPER_CATTLE_PROD || pid == PROTO_ID_MEGA_POWER_FIST) {
-        *inout_a2 *= 2;
+    if (const int pid = obj->pid; pid == PROTO_ID_SUPER_CATTLE_PROD || pid == PROTO_ID_MEGA_POWER_FIST) {
+        *ammoQty *= 2;
     }
 
     return 0;
@@ -2238,7 +2236,7 @@ int miscItemGetPowerTypePid(Object* miscItem)
 }
 
 // 0x47947C
-bool miscItemIsConsumable(Object* miscItem)
+bool miscItemUsesCharges(Object* miscItem)
 {
     if (miscItem == nullptr) {
         return false;
@@ -2251,7 +2249,7 @@ bool miscItemIsConsumable(Object* miscItem)
 }
 
 // 0x4794A4
-int _item_m_use_charged_item(Object* critter, Object* miscItem)
+int miscItemUseCharged(Object* critter, Object* miscItem)
 {
     int pid = miscItem->pid;
     if (pid == PROTO_ID_STEALTH_BOY_I
@@ -2340,7 +2338,7 @@ bool miscItemIsOn(Object* obj)
         return false;
     }
 
-    if (!miscItemIsConsumable(obj)) {
+    if (!miscItemUsesCharges(obj)) {
         return false;
     }
 
@@ -2455,7 +2453,7 @@ int miscItemTurnOff(Object* item)
 }
 
 // 0x479954
-int _item_m_turn_off_from_queue(Object* obj, void* data)
+int miscItemTurnOffFromQueue(Object* obj, void* data)
 {
     miscItemTurnOff(obj);
     return 1;
@@ -2780,7 +2778,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
 }
 
 // 0x479F60
-int _item_d_take_drug(Object* critter, Object* item)
+int drugItemTakeDrug(Object* critter, Object* item)
 {
     if (critterIsDead(critter)) {
         return -1;
@@ -2811,7 +2809,7 @@ int _item_d_take_drug(Object* critter, Object* item)
     _wd_gvar = drugGetAddictionGvarByPid(item->pid);
     _wd_onset = proto->item.data.drug.withdrawalOnset;
 
-    _queue_clear_type(EVENT_TYPE_WITHDRAWAL, _item_wd_clear_all);
+    queueClearByEventType(EVENT_TYPE_WITHDRAWAL, _item_wd_clear_all);
 
     if (_drug_effect_allowed(critter, item->pid)) {
         _perform_drug_effect(critter, proto->item.data.drug.stat, proto->item.data.drug.amount, true);
@@ -2856,7 +2854,7 @@ int _item_d_take_drug(Object* critter, Object* item)
 }
 
 // 0x47A178
-int _item_d_clear(Object* obj, void* data)
+int drugItemClear(Object* obj, void* data)
 {
     if (objectIsPartyMember(obj)) {
         return 0;
@@ -2945,7 +2943,7 @@ static int _insert_withdrawal(Object* obj, int active, int duration, int perk, i
 }
 
 // 0x47A2FC
-int _item_wd_clear(Object* obj, void* data)
+int withdrawalClear(Object* obj, void* data)
 {
     WithdrawalEvent* withdrawalEvent = (WithdrawalEvent*)data;
 
@@ -3316,12 +3314,7 @@ static void booksInitVanilla()
 
 static void booksInitCustom()
 {
-    char* booksFilePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_BOOKS_FILE_KEY, &booksFilePath);
-    if (booksFilePath != nullptr && *booksFilePath == '\0') {
-        booksFilePath = nullptr;
-    }
-
+    const char* booksFilePath = settings.mod_settings.books_file.empty() ? nullptr : settings.mod_settings.books_file.c_str();
     if (booksFilePath != nullptr) {
         Config booksConfig;
         if (configInit(&booksConfig)) {
@@ -3387,9 +3380,6 @@ bool booksGetInfo(int bookPid, int* messageIdPtr, int* skillPtr)
 
 static void explosionsInit()
 {
-    gExplosionEmitsLight = false;
-    configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_EXPLOSION_EMITS_LIGHT_KEY, &gExplosionEmitsLight);
-
     explosionsReset();
 }
 
@@ -3398,29 +3388,19 @@ static void explosionsReset()
     gGrenadeExplosionRadius = 2;
     gRocketExplosionRadius = 3;
 
-    gDynamiteMinDamage = 30;
-    gDynamiteMaxDamage = 50;
-    gPlasticExplosiveMinDamage = 40;
-    gPlasticExplosiveMaxDamage = 80;
+    // Use values from centralized settings
+    gDynamiteMinDamage = settings.mod_settings.dynamite_min_damage;
+    gDynamiteMaxDamage = settings.mod_settings.dynamite_max_damage;
+    gPlasticExplosiveMinDamage = settings.mod_settings.plastic_explosive_min_damage;
+    gPlasticExplosiveMaxDamage = settings.mod_settings.plastic_explosive_max_damage;
 
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, &gDynamiteMaxDamage)) {
-        gDynamiteMaxDamage = std::clamp(gDynamiteMaxDamage, 0, 9999);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, &gDynamiteMinDamage)) {
-        gDynamiteMinDamage = std::clamp(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, &gPlasticExplosiveMaxDamage)) {
-        gPlasticExplosiveMaxDamage = std::clamp(gPlasticExplosiveMaxDamage, 0, 9999);
-    }
-
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, &gPlasticExplosiveMinDamage)) {
-        gPlasticExplosiveMinDamage = std::clamp(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
-    }
+    // Clamp to safe ranges (as original code did)
+    gDynamiteMaxDamage = std::clamp(gDynamiteMaxDamage, 0, 9999);
+    gDynamiteMinDamage = std::clamp(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
+    gPlasticExplosiveMaxDamage = std::clamp(gPlasticExplosiveMaxDamage, 0, 9999);
+    gPlasticExplosiveMinDamage = std::clamp(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
 
     gExplosives.clear();
-
     explosionSettingsReset();
 }
 
@@ -3431,7 +3411,11 @@ static void explosionsExit()
 
 bool explosionEmitsLight()
 {
-    return gExplosionEmitsLight;
+    if (settings.enhancements.strict_vanilla) {
+        return false;
+    } else {
+        return settings.enhancements.explosion_emits_light;
+    }
 }
 
 void weaponSetGrenadeExplosionRadius(int value)
@@ -3624,12 +3608,7 @@ static void healingItemsInitVanilla()
 
 static void healingItemsInitCustom()
 {
-    char* tweaksFilePath = nullptr;
-    configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_TWEAKS_FILE_KEY, &tweaksFilePath);
-    if (tweaksFilePath != nullptr && *tweaksFilePath == '\0') {
-        tweaksFilePath = nullptr;
-    }
-
+    const char* tweaksFilePath = settings.mod_settings.tweaks_file.empty() ? nullptr : settings.mod_settings.tweaks_file.c_str();
     if (tweaksFilePath == nullptr) {
         return;
     }
@@ -3637,9 +3616,9 @@ static void healingItemsInitCustom()
     Config tweaksConfig;
     if (configInit(&tweaksConfig)) {
         if (configRead(&tweaksConfig, tweaksFilePath, false)) {
-            configGetInt(&gSfallConfig, "Items", "STIMPAK", &(gHealingItemPids[HEALING_ITEM_STIMPACK]));
-            configGetInt(&gSfallConfig, "Items", "SUPER_STIMPAK", &(gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK]));
-            configGetInt(&gSfallConfig, "Items", "HEALING_POWDER", &(gHealingItemPids[HEALING_ITEM_HEALING_POWDER]));
+            configGetInt(&gModConfig, "Items", "STIMPAK", &(gHealingItemPids[HEALING_ITEM_STIMPACK]));
+            configGetInt(&gModConfig, "Items", "SUPER_STIMPAK", &(gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK]));
+            configGetInt(&gModConfig, "Items", "HEALING_POWDER", &(gHealingItemPids[HEALING_ITEM_HEALING_POWDER]));
         }
 
         configFree(&tweaksConfig);

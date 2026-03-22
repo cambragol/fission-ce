@@ -720,6 +720,32 @@ void fillRectWithColor(unsigned char* buffer, int pitch, int x, int y, int width
     }
 }
 
+static void _UpdateBrightnessSlider(void)
+{
+    PreferenceDescription* meta = &(gPreferenceDescriptions[PREF_BRIGHTNESS]);
+    Point pos = gOffsets.preferencePositions[PREF_BRIGHTNESS];
+    int pitch = gOffsets.width;
+
+    int knobX = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))) + gOffsets.rangeStartX;
+
+    if (knobX < gOffsets.rangeSliderMinX) knobX = gOffsets.rangeSliderMinX;
+    if (knobX > gOffsets.rangeSliderMaxX) knobX = gOffsets.rangeSliderMaxX;
+
+    // Blit back the background
+    int off = pitch * pos.y + gOffsets.rangeStartX;
+    blitBufferToBuffer(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_BACKGROUND].getData() + off,
+        gOffsets.rangeBlitWidth, 12, pitch,
+        gPreferencesWindowBuffer + off, pitch);
+
+    // Draw the knob (use "off" image - moving knob is 'on' though...)
+    blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+        21, 12, 21,
+        gPreferencesWindowBuffer + pitch * pos.y + knobX,
+        pitch);
+
+    windowRefresh(gPreferencesWindow);
+}
+
 // 0x491A68
 static void _UpdateThing(int index)
 {
@@ -1379,8 +1405,6 @@ err:
 // 0x4928E4
 void brightnessIncrease()
 {
-    gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 < dbl_50C168) {
         gPreferencesBrightness1 += dbl_50C170;
 
@@ -1403,8 +1427,6 @@ void brightnessIncrease()
 // 0x4929C8
 void brightnessDecrease()
 {
-    gPreferencesBrightness1 = settings.preferences.brightness;
-
     if (gPreferencesBrightness1 > 1.0) {
         gPreferencesBrightness1 += dbl_50C178;
 
@@ -1558,9 +1580,13 @@ static int preferencesWindowInit()
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 121);
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 
-    // Affect player speed
+    // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise
     fontSetCurrent(101);
-    messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.game_speed) {
+        messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, 110);
+    } else {
+        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
+    }
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.speedLabelX + gOffsets.speedLabelY, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
 
     for (i = 0; i < PREF_COUNT; i++) {
@@ -1645,7 +1671,7 @@ static int preferencesWindowInit()
         }
     }
 
-    // Player Speed Checkbox
+    // Player Speed Checkbox in strictVanilla mode - Affect Non-combat Speed otherwise
     _plyrspdbid = buttonCreate(gPreferencesWindow,
         gOffsets.playerSpeedCheckboxX,
         gOffsets.playerSpeedCheckboxY,
@@ -1844,10 +1870,12 @@ int doPreferences(bool animated)
         case KEY_EQUAL:
         case KEY_PLUS:
             brightnessIncrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_MINUS:
         case KEY_UNDERSCORE:
             brightnessDecrease();
+            _UpdateBrightnessSlider();
             break;
         case KEY_F12:
             takeScreenshot();

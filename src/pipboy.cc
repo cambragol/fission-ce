@@ -1143,7 +1143,7 @@ static int pipboyWindowInit(int intent)
     }
 
     if (intent == PIPBOY_OPEN_INTENT_REST) {
-        if (!_critter_can_obj_dude_rest()) {
+        if (!critterCanDudeRest()) {
             blitBufferToBufferTrans(
                 _pipboyFrmImages[PIPBOY_FRM_LOGO].getData(),
                 _pipboyFrmImages[PIPBOY_FRM_LOGO].getWidth(),
@@ -1288,10 +1288,8 @@ static void _pip_init_()
     // undesired side effect. When the option is set to (2), the check is simply
     // bypassed. CE implements only the latter approach, as it does not have any
     // side effects.
-    int value = 0;
-    if (configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, &value)) {
-        pipboy_available_at_game_start = value == 1 || value == 2;
-    }
+    int value = settings.mod_settings.pipboy_available_at_gamestart;
+    pipboy_available_at_game_start = value == 1 || value == 2;
 }
 
 // NOTE: Uncollapsed 0x497918.
@@ -3214,7 +3212,7 @@ static int _PrintAMelevList(int selectedMap)
         gPipboyCurrentLine = 2;
     }
 
-    const char* name = _map_get_description_idx_(_amcty_indx);
+    const char* name = mapDescriptionById(_amcty_indx);
     pipboyDrawText(name, PIPBOY_TEXT_ALIGNMENT_CENTER, _colorTable[992]);
 
     if (gPipboyLinesCount >= 4) {
@@ -3308,7 +3306,7 @@ static int _PrintAMList(int selectedLocation)
             int locationExistsIndex = 0;
             if (count != 0) {
                 for (int index = 0; index < count; index++) {
-                    if (_is_map_idx_same(map, _sortlist[index].field_4)) {
+                    if (mapAreSameArea(map, _sortlist[index].field_4)) {
                         break;
                     }
                     locationExistsIndex++;
@@ -3503,7 +3501,7 @@ static int pipboyRenderVideoArchive(int a1)
 static void pipboyHandleAlarmClock(int eventCode)
 {
     if (eventCode == 1024) {
-        if (_critter_can_obj_dude_rest()) {
+        if (critterCanDudeRest()) {
             pipboyWindowDestroyButtons();
             pipboyWindowRenderRestOptions(0);
             pipboyWindowCreateButtons(5, gPipboyRestOptionsCount, false);
