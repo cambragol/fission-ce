@@ -116,7 +116,6 @@ namespace fallout {
 #define GAME_CONFIG_MINIMAP "Minimap"
 #define GAME_CONFIG_MULTI_COLUMN_INVENTORY "InventoryColumns"
 
-
 #define ENGLISH "english"
 #define FRENCH "french"
 #define GERMAN "german"
