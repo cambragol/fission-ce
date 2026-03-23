@@ -625,6 +625,19 @@ static FrmImage _moveFrmImages[8];
 // Computes layout based on number of columns
 static void inventoryUpdateLayout()
 {
+    // Determine number of columns from settings
+    if (settings.enhancements.strict_vanilla) {
+        gInventoryColumns = 1;
+    } else {
+        int requested = settings.enhancements.multi_column_inventory;
+        // Clamp between 1 and 4 (3 for non widescreen)
+        if (requested < 1) requested = 1;
+        if (requested > 4) requested = 4;
+        if (!settings.graphics.widescreen && requested == 4) // restrict 4 columns to widescreen only, otherwise crash
+            requested = 3;
+        gInventoryColumns = requested;
+    }
+
     // Compute the shift due to extra columns
     int shift = (gInventoryColumns - 1) * INVENTORY_SLOT_WIDTH;
 
@@ -928,13 +941,14 @@ static bool _setup_inventory(int inventoryWindowType)
             actualHeight = gLayout.windowHeight;
         }
 
-        // Maintain original position in original resolution, otherwise center it.
-        int inventoryWindowX = INVENTORY_WINDOW_X;
-        int inventoryWindowY = INVENTORY_WINDOW_Y;
-        if (screenGetWidth() != 640) {
+        // Maintain original position in original resolution and column, otherwise center it.
+        int inventoryWindowX, inventoryWindowY;
+        // Only use original hard?coded position if we have 1 column and screen is exactly 640x480
+        if (gInventoryColumns == 1 && screenGetWidth() == 640 && screenGetHeight() == 480) {
+            inventoryWindowX = INVENTORY_WINDOW_X;
+            inventoryWindowY = INVENTORY_WINDOW_Y;
+        } else {
             inventoryWindowX = (screenGetWidth() - actualWidth) / 2;
-        }
-        if (screenGetHeight() != 480) {
             inventoryWindowY = (screenGetHeight() - actualHeight) / 2;
         }
 
