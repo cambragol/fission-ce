@@ -2589,12 +2589,10 @@ void _gdDestroyHeadWindow()
 // 0x447300
 void _gdSetupFidget(int headFid, int reaction)
 {
-    // Extract the actual head index from the FID (supports modded heads)
-    int headFrmId = artGetIndex(headFid);
 
     gGameDialogFidgetFrmCurrentFrame = 0;
 
-    if (headFrmId == -1) {
+    if (headFid == -1) {
         gGameDialogFidgetFid = -1;
         gGameDialogFidgetFrm = nullptr;
         gGameDialogFidgetFrmHandle = INVALID_CACHE_ENTRY;
@@ -2607,6 +2605,9 @@ void _gdSetupFidget(int headFid, int reaction)
         _lipsFp = nullptr;
         return;
     }
+
+    // Extract the actual head index from the FID (supports modded heads)
+    int headFrmId = artGetIndex(headFid);
 
     int anim = HEAD_ANIMATION_NEUTRAL_PHONEMES;
     switch (reaction) {
