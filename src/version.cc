@@ -14,7 +14,7 @@ void versionGetVersion(char* dest, size_t size)
     if (!settings.mod_settings.version_string.empty()) {
         versionString = settings.mod_settings.version_string.c_str();
     }
-    snprintf(dest, size, (versionString ? versionString : "FALLOUT: SONORA %d.%02d.2E"), VERSION_MAJOR, VERSION_MINOR);
+    snprintf(dest, size, (versionString ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
 }
 
 } // namespace fallout

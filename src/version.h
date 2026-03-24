@@ -9,7 +9,7 @@ namespace fallout {
 #define VERSION_MAX (32)
 
 #define VERSION_MAJOR (1)
-#define VERSION_MINOR (16)
+#define VERSION_MINOR (2)
 #define VERSION_RELEASE ('R')
 
 void versionGetVersion(char* dest, size_t size);
