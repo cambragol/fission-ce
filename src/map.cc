@@ -954,7 +954,7 @@ static int mapLoad(File* stream)
     tileDisable();
 
     int rc = 0;
-    int overrideScript = -1;   // default to no override
+    int overrideScript = -1; // default to no override
 
     windowFill(gIsoWindow,
         0,
@@ -983,7 +983,7 @@ static int mapLoad(File* stream)
     // Override script index if an override is defined in the mod configuration
     overrideScript = wmGetMapScriptOverride(gMapHeader.name);
     if (overrideScript != -1) {
-        gMapHeader.scriptIndex = overrideScript;   // correct the header
+        gMapHeader.scriptIndex = overrideScript; // correct the header
     }
 
     error = "Invalid map version";

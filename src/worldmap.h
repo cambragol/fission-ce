@@ -301,7 +301,6 @@ int wmGetAreaMessageId(int areaIndex);
 int wmGetMapEntranceMessageId(int mapIndex, int elevation);
 int wmGetMapScriptOverride(const char* mapFileName);
 
-
 } // namespace fallout
 
 #endif /* WORLD_MAP_H */

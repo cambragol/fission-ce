@@ -289,7 +289,7 @@ typedef struct MapInfo {
     MapAmbientSoundEffectInfo ambientSoundEffects[MAP_AMBIENT_SOUND_EFFECTS_CAPACITY];
     int startPointsLength;
     MapStartPointInfo startPoints[MAP_STARTING_POINTS_CAPACITY];
-    int overrideScriptIndex;   // new field
+    int overrideScriptIndex; // new field
 } MapInfo;
 
 typedef struct Terrain {
@@ -3412,7 +3412,7 @@ static int wmMapSlotInit(MapInfo* map)
     map->flags = 0x3F;
     map->ambientSoundEffectsLength = 0;
     map->startPointsLength = 0;
-    map->overrideScriptIndex = -1;   // default: no override
+    map->overrideScriptIndex = -1; // default: no override
 
     return 0;
 }
