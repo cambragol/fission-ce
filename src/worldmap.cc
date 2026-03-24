@@ -289,6 +289,7 @@ typedef struct MapInfo {
     MapAmbientSoundEffectInfo ambientSoundEffects[MAP_AMBIENT_SOUND_EFFECTS_CAPACITY];
     int startPointsLength;
     MapStartPointInfo startPoints[MAP_STARTING_POINTS_CAPACITY];
+    int overrideScriptIndex;   // new field
 } MapInfo;
 
 typedef struct Terrain {
@@ -3411,6 +3412,7 @@ static int wmMapSlotInit(MapInfo* map)
     map->flags = 0x3F;
     map->ambientSoundEffectsLength = 0;
     map->startPointsLength = 0;
+    map->overrideScriptIndex = -1;   // default: no override
 
     return 0;
 }
@@ -3546,7 +3548,7 @@ static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* sectio
     }
 }
 
-// Update existing map with new values from config
+// Update existing MAP with new values from config
 static void wmMapUpdateFromConfig(MapInfo* map, Config* config, const char* section)
 {
     char* str;
@@ -3665,6 +3667,10 @@ static void wmMapUpdateFromConfig(MapInfo* map, Config* config, const char* sect
             }
         }
         debugPrint("\nwmMapUpdateFromConfig: Updated random_start_point, now %d points", map->startPointsLength);
+    }
+    // Optional field: Map script overrride
+    if (configGetInt(config, section, "map_script", &num)) {
+        map->overrideScriptIndex = num;
     }
 }
 
@@ -8399,6 +8405,17 @@ void wmForceEncounter(int map, unsigned int flags)
     } else {
         wmForceEncounterFlags &= ~(1 << 31);
     }
+}
+
+int wmGetMapScriptOverride(const char* mapFileName)
+{
+    // mapFileName is the base name without extension (already lowercased)
+    for (int i = 0; i < wmMaxMapNum; i++) {
+        if (compat_stricmp(wmMapInfoList[i].mapFileName, mapFileName) == 0) {
+            return wmMapInfoList[i].overrideScriptIndex;
+        }
+    }
+    return -1; // no override
 }
 
 } // namespace fallout
