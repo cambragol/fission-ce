@@ -48,7 +48,7 @@ struct MessageListRepositoryState {
 struct ListInfo {
     const char* name;
     uint32_t base;
-    uint32_t range;   // size of mod ID space for this list
+    uint32_t range; // size of mod ID space for this list
 };
 
 static const ListInfo gListBases[] = {
@@ -763,8 +763,8 @@ static uint32_t stable_hash(const char* str)
 uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key)
 {
     uint32_t base = 0x8000;
-    uint32_t range = 10000;  // fallback
-    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
+    uint32_t range = 10000; // fallback
+    for (size_t i = 0; i < sizeof(gListBases) / sizeof(gListBases[0]); i++) {
         if (compat_stricmp(gListBases[i].name, list_id) == 0) {
             base = gListBases[i].base;
             range = gListBases[i].range;
@@ -1031,8 +1031,8 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
     fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
     fprintf(reportFile,
-    "Message ID Range: %u - %u (stable hash-based)\n",
-    listInfo->base, listInfo->base + listInfo->range - 1);
+        "Message ID Range: %u - %u (stable hash-based)\n",
+        listInfo->base, listInfo->base + listInfo->range - 1);
 
     fprintf(reportFile, "\nMODDER GUIDANCE:\n");
     fprintf(reportFile, "1. Use the decimal IDs above in your scripts with display_msg()\n");
