@@ -47,17 +47,18 @@ struct MessageListRepositoryState {
 
 struct ListInfo {
     const char* name;
-    uint32_t base; // first mod ID (max vanilla + 1)
+    uint32_t base;
+    uint32_t range;   // size of mod ID space for this list
 };
 
 static const ListInfo gListBases[] = {
-    { MESSAGE_LIST_MAP, 5000 }, // vanilla max ~1699 (area names)
-    { MESSAGE_LIST_WORLDMAP, 10000 }, // vanilla max ~4000? adjust as needed
-    { MESSAGE_LIST_PROTO, 5000 }, // Sonora uses high IDs
-    { MESSAGE_LIST_PIPBOY, 100000 },
-    { MESSAGE_LIST_COMBAT, 30000 },
-    { MESSAGE_LIST_COMBATAI, 100000 },
-    { MESSAGE_LIST_QUESTS, 20000 },
+    { MESSAGE_LIST_MAP, 5000, 100000 }, // vanilla max ~1699 (area names)
+    { MESSAGE_LIST_WORLDMAP, 10000, 1000000 }, // vanilla max ~4000? adjust as needed
+    { MESSAGE_LIST_PROTO, 5000, 1000000 }, // Sonora uses high IDs
+    { MESSAGE_LIST_PIPBOY, 100000, 1000000 },
+    { MESSAGE_LIST_COMBAT, 30000, 1000000 },
+    { MESSAGE_LIST_COMBATAI, 100000, 1000000 },
+    { MESSAGE_LIST_QUESTS, 20000, 1000000 },
     // Add other lists as needed (e.g., "DIALOG", "ITEM", etc.)
 };
 
@@ -761,17 +762,19 @@ static uint32_t stable_hash(const char* str)
  */
 uint32_t generate_mod_message_id(const char* list_id, const char* mod_name, const char* message_key)
 {
-    uint32_t base = 0x8000; // fallback
-    for (size_t i = 0; i < sizeof(gListBases) / sizeof(gListBases[0]); i++) {
+    uint32_t base = 0x8000;
+    uint32_t range = 10000;  // fallback
+    for (size_t i = 0; i < sizeof(gListBases)/sizeof(gListBases[0]); i++) {
         if (compat_stricmp(gListBases[i].name, list_id) == 0) {
             base = gListBases[i].base;
+            range = gListBases[i].range;
             break;
         }
     }
     char composite_key[256];
     snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
     uint32_t hash = stable_hash(composite_key);
-    return base + hash;
+    return base + (hash % range);
 }
 
 // Load mod messages from a file with section headers
@@ -1027,6 +1030,9 @@ void generateMessageReport(MessageList* messageList, const char* msg_type)
     fprintf(reportFile, "\nSUMMARY:\n");
     fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
     fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
+    fprintf(reportFile,
+    "Message ID Range: %u - %u (stable hash-based)\n",
+    listInfo->base, listInfo->base + listInfo->range - 1);
 
     fprintf(reportFile, "\nMODDER GUIDANCE:\n");
     fprintf(reportFile, "1. Use the decimal IDs above in your scripts with display_msg()\n");
