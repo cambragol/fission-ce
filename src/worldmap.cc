@@ -289,6 +289,7 @@ typedef struct MapInfo {
     MapAmbientSoundEffectInfo ambientSoundEffects[MAP_AMBIENT_SOUND_EFFECTS_CAPACITY];
     int startPointsLength;
     MapStartPointInfo startPoints[MAP_STARTING_POINTS_CAPACITY];
+    int overrideScriptIndex;
 } MapInfo;
 
 typedef struct Terrain {
@@ -3411,7 +3412,7 @@ static int wmMapSlotInit(MapInfo* map)
     map->flags = 0x3F;
     map->ambientSoundEffectsLength = 0;
     map->startPointsLength = 0;
-
+    map->overrideScriptIndex = -1;   // default: no override
     return 0;
 }
 
@@ -3544,6 +3545,11 @@ static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* sectio
             }
         }
     }
+
+    // Optional field: Override for map script
+    if (configGetInt(config, section, "map_script", &num)) {
+        map->overrideScriptIndex = num;
+    }
 }
 
 // Update existing map with new values from config
@@ -3665,6 +3671,11 @@ static void wmMapUpdateFromConfig(MapInfo* map, Config* config, const char* sect
             }
         }
         debugPrint("\nwmMapUpdateFromConfig: Updated random_start_point, now %d points", map->startPointsLength);
+    }
+
+    // Optional field: Override for map script
+    if (configGetInt(config, section, "map_script", &num)) {
+        map->overrideScriptIndex = num;
     }
 }
 
@@ -3900,7 +3911,7 @@ static void wmGenerateMapListDebug()
         return;
     }
 
-    // Write header in the consistent style
+    // Write header
     const char* header = "==============================================================================\n"
                          "Fallout 2 Fission - World Map Report\n"
                          "==============================================================================\n"
@@ -3915,9 +3926,9 @@ static void wmGenerateMapListDebug()
 
                          "Usage Notes:\n"
                          "- Use these map indices when referencing maps in:\n"
-                         "  • Scripts (call load_map, etc.)\n"
-                         "  • Encounter tables\n"
-                         "  • World travel events\n"
+                         "  * Scripts (call load_map, etc.)\n"
+                         "  * Encounter tables\n"
+                         "  * World travel events\n"
                          "- Map positions are STABLE between game sessions\n"
                          "- Mod map positions use mod filename + lookup name hash for consistency\n"
                          "==============================================================================\n\n";
@@ -3970,7 +3981,7 @@ static void wmGenerateMapListDebug()
         }
     }
 
-    // Summary section in horizontal style like art_list.txt
+    // Summary section
     fprintf(debugStream,
         "Total Maps: %d | Base: %d | Mods: %d\n"
         "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
@@ -3997,16 +4008,16 @@ static void wmGenerateMapListDebug()
             if (wmMapInfoList[i].lookupName[0] != '\0') {
                 const char* overrideMarker = "";
                 if (gBaseMapOverrides[i][0] != '\0') {
-                    // Extract just the filename from the override path
                     const char* lastSlash = strrchr(gBaseMapOverrides[i], DIR_SEPARATOR);
                     const char* modName = lastSlash ? lastSlash + 1 : gBaseMapOverrides[i];
                     overrideMarker = " [OVERRIDDEN]";
                 }
-                fprintf(debugStream, "  %5d: %s (%s)%s\n",
-                    i,
-                    wmMapInfoList[i].lookupName,
-                    wmMapInfoList[i].mapFileName,
-                    overrideMarker);
+                // Add overrideScriptIndex to output
+                fprintf(debugStream, "  %5d: %s (%s)", i, wmMapInfoList[i].lookupName, wmMapInfoList[i].mapFileName);
+                if (wmMapInfoList[i].overrideScriptIndex != -1) {
+                    fprintf(debugStream, " [override script: %d]", wmMapInfoList[i].overrideScriptIndex);
+                }
+                fprintf(debugStream, "%s\n", overrideMarker);
             }
         }
         fputs("\n", debugStream);
@@ -4021,11 +4032,12 @@ static void wmGenerateMapListDebug()
                 if (isDuplicateLookup && isDuplicateLookup[i]) {
                     duplicateMarker = " #";
                 }
-                fprintf(debugStream, "  %5d: %s (%s)%s\n",
-                    i,
-                    wmMapInfoList[i].lookupName,
-                    wmMapInfoList[i].mapFileName,
-                    duplicateMarker);
+                // Add overrideScriptIndex to output
+                fprintf(debugStream, "  %5d: %s (%s)", i, wmMapInfoList[i].lookupName, wmMapInfoList[i].mapFileName);
+                if (wmMapInfoList[i].overrideScriptIndex != -1) {
+                    fprintf(debugStream, " [override script: %d]", wmMapInfoList[i].overrideScriptIndex);
+                }
+                fprintf(debugStream, "%s\n", duplicateMarker);
             }
         }
         fputs("\n", debugStream);
@@ -4034,7 +4046,7 @@ static void wmGenerateMapListDebug()
         fputs("  (no mod maps found)\n\n", debugStream);
     }
 
-    // Overridden base maps details (if any)
+    // Overridden base maps details
     if (overriddenBaseCount > 0) {
         fputs("OVERRIDDEN BASE MAPS:\n", debugStream);
         for (int i = 0; i < BASE_MAP_MAX; i++) {
@@ -4048,17 +4060,15 @@ static void wmGenerateMapListDebug()
         fputs("\n", debugStream);
     }
 
-    // Duplicate lookup name details (if any)
+    // Duplicate lookup name details
     if (duplicateNameCount > 0 && isDuplicateLookup) {
         fputs("  --- DUPLICATE LOOKUP NAMES ---\n", debugStream);
-        // Group duplicates together for clarity
         bool* reported = (bool*)internal_malloc(wmMaxMapNum * sizeof(bool));
         if (reported) {
             memset(reported, 0, wmMaxMapNum * sizeof(bool));
 
             for (int i = MOD_MAP_START; i < wmMaxMapNum; i++) {
                 if (wmMapInfoList[i].lookupName[0] != '\0' && isDuplicateLookup[i] && !reported[i]) {
-                    // Find all slots with this lookup name
                     fprintf(debugStream, "  # %s:\n", wmMapInfoList[i].lookupName);
                     for (int j = i; j < wmMaxMapNum; j++) {
                         if (wmMapInfoList[j].lookupName[0] != '\0' && strcmp(wmMapInfoList[i].lookupName, wmMapInfoList[j].lookupName) == 0) {
@@ -4073,7 +4083,7 @@ static void wmGenerateMapListDebug()
         fputs("\n", debugStream);
     }
 
-    // Important notes footer (matching style of other reports)
+    // Important notes footer
     fputs("=== IMPORTANT NOTES ===\n", debugStream);
 
     if (duplicateNameCount > 0) {
@@ -4093,7 +4103,6 @@ static void wmGenerateMapListDebug()
     fputs("- Hash collisions show popup warnings and skip the conflicting map\n", debugStream);
     fputs("- Reference these exact numbers in your scripts and encounter tables\n", debugStream);
 
-    // Clean up
     if (isDuplicateLookup) {
         internal_free(isDuplicateLookup);
     }
@@ -8399,6 +8408,16 @@ void wmForceEncounter(int map, unsigned int flags)
     } else {
         wmForceEncounterFlags &= ~(1 << 31);
     }
+}
+
+int wmGetMapScriptOverride(const char* mapFileName)
+{
+    for (int i = 0; i < wmMaxMapNum; i++) {
+        if (compat_stricmp(wmMapInfoList[i].mapFileName, mapFileName) == 0) {
+            return wmMapInfoList[i].overrideScriptIndex;
+        }
+    }
+    return -1;
 }
 
 } // namespace fallout
