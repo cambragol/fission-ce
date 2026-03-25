@@ -3412,7 +3412,7 @@ static int wmMapSlotInit(MapInfo* map)
     map->flags = 0x3F;
     map->ambientSoundEffectsLength = 0;
     map->startPointsLength = 0;
-    map->overrideScriptIndex = -1;   // default: no override
+    map->overrideScriptIndex = -1; // default: no override
     return 0;
 }
 

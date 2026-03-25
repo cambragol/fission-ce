@@ -954,7 +954,7 @@ static int mapLoad(File* stream)
     tileDisable();
 
     int rc = 0;
-    int overrideScript = -1;   // declare early
+    int overrideScript = -1; // declare early
     char baseNameForOverride[16];
     char* dot = nullptr;
 
@@ -994,7 +994,7 @@ static int mapLoad(File* stream)
 
     // Strip extension from gMapHeader.name to get base name for lookup
     strncpy(baseNameForOverride, gMapHeader.name, sizeof(baseNameForOverride));
-    baseNameForOverride[sizeof(baseNameForOverride)-1] = '\0';
+    baseNameForOverride[sizeof(baseNameForOverride) - 1] = '\0';
     dot = strchr(baseNameForOverride, '.');
     if (dot) *dot = '\0';
     compat_strlwr(baseNameForOverride);
@@ -1112,7 +1112,7 @@ static int mapLoad(File* stream)
 
             Script* script;
             scriptGetScript(gMapSid, &script);
-            script->index = scriptIndexToUse - 1;   // 1?based to 0?based
+            script->index = scriptIndexToUse - 1; // 1?based to 0?based
             script->flags |= SCRIPT_FLAG_NO_SAVE;
             object->id = scriptsNewObjectId();
             script->ownerId = object->id;
