@@ -2390,11 +2390,12 @@ static int lsgLoadHeaderInSlot(int slot)
         return -1;
     }
 
-    if (ptr->versionMinor != 1 || ptr->versionMajor != 2 || ptr->versionRelease != 'R') {
+    // Any point to this?
+    /*if (ptr->versionMinor != 1 || ptr->versionMajor != 2 || ptr->versionRelease != 'R') {
         debugPrint("\nLOADSAVE: Load slot #%d Version: %d.%d%c\n", slot, ptr->versionMinor, ptr->versionMajor, ptr->versionRelease);
         _ls_error_code = 1;
         return -1;
-    }
+    }*/
 
     if (fileRead(ptr->characterName, 32, 1, _flptr) != 1) {
         return -1;

@@ -1443,27 +1443,86 @@ int wmWorldMap_load(File* stream)
         return -1;
 
     for (int areaIdx = 0; areaIdx < numCities; areaIdx++) {
-        CityInfo* city = &(wmAreaInfoList[areaIdx]);
-
-        if (fileReadInt32(stream, &(city->x)) == -1)
-            return -1;
-        if (fileReadInt32(stream, &(city->y)) == -1)
-            return -1;
-        if (fileReadInt32(stream, &(city->state)) == -1)
-            return -1;
-        if (fileReadInt32(stream, &(city->visitedState)) == -1)
-            return -1;
+        // Read saved data (must do this to advance file pointer)
+        int x, y, state, visitedState;
+        if (fileReadInt32(stream, &x) == -1) return -1;
+        if (fileReadInt32(stream, &y) == -1) return -1;
+        if (fileReadInt32(stream, &state) == -1) return -1;
+        if (fileReadInt32(stream, &visitedState) == -1) return -1;
 
         int entranceCount;
-        if (fileReadInt32(stream, &(entranceCount)) == -1) {
-            return -1;
-        }
+        if (fileReadInt32(stream, &entranceCount) == -1) return -1;
 
-        for (int entranceIdx = 0; entranceIdx < entranceCount; entranceIdx++) {
-            EntranceInfo* entrance = &(city->entrances[entranceIdx]);
+        // Only process slots that are within our area array
+        if (areaIdx < wmMaxAreaNum) {
+            bool isBaseArea = (areaIdx < BASE_AREA_MAX);
+            bool isModArea = (areaIdx >= BASE_AREA_MAX && gAreaModNames[areaIdx][0] != '\0');
+            bool isOrphanedMod = (areaIdx >= BASE_AREA_MAX && gAreaModNames[areaIdx][0] == '\0');
 
-            if (fileReadInt32(stream, &(entrance->state)) == -1) {
-                return -1;
+            if (isOrphanedMod) {
+                // This slot was previously a mod area but the mod is now missing.
+                // Skip restoring data - keep the area in default (unknown) state.
+                for (int j = 0; j < entranceCount; j++) {
+                    int dummy;
+                    if (fileReadInt32(stream, &dummy) == -1) return -1;
+                }
+                continue; // do not update this slot
+            }
+
+            CityInfo* city = &wmAreaInfoList[areaIdx];
+
+            if (isModArea) {
+                // Mod area still present: decide whether to restore progress
+                bool hasProgress = (state != CITY_STATE_UNKNOWN || visitedState != 0);
+                if (hasProgress) {
+                    // Restore dynamic fields from save
+                    city->x = x;
+                    city->y = y;
+                    city->state = state;
+                    city->visitedState = visitedState;
+                    int entrancesToCopy = (entranceCount > ENTRANCE_LIST_CAPACITY) ? ENTRANCE_LIST_CAPACITY : entranceCount;
+                    for (int j = 0; j < entrancesToCopy; j++) {
+                        int entranceState;
+                        if (fileReadInt32(stream, &entranceState) == -1) return -1;
+                        city->entrances[j].state = entranceState;
+                    }
+                    // Skip any remaining entrance data (if entranceCount > capacity)
+                    for (int j = entrancesToCopy; j < entranceCount; j++) {
+                        int dummy;
+                        if (fileReadInt32(stream, &dummy) == -1) return -1;
+                    }
+                } else {
+                    // No progress: keep mod's default configuration (do not overwrite)
+                    // Still need to skip entrance data
+                    for (int j = 0; j < entranceCount; j++) {
+                        int dummy;
+                        if (fileReadInt32(stream, &dummy) == -1) return -1;
+                    }
+                }
+            } else if (isBaseArea) {
+                // Base area: fully restore from save
+                city->x = x;
+                city->y = y;
+                city->state = state;
+                city->visitedState = visitedState;
+                if (entranceCount > ENTRANCE_LIST_CAPACITY)
+                    entranceCount = ENTRANCE_LIST_CAPACITY;
+                city->entrancesLength = entranceCount;
+                for (int j = 0; j < entranceCount; j++) {
+                    if (fileReadInt32(stream, &city->entrances[j].state) == -1) return -1;
+                }
+            } else {
+                // Fallback (should not happen) - skip entrance data
+                for (int j = 0; j < entranceCount; j++) {
+                    int dummy;
+                    if (fileReadInt32(stream, &dummy) == -1) return -1;
+                }
+            }
+        } else {
+            // Slot index out of range, still need to skip entrance data
+            for (int j = 0; j < entranceCount; j++) {
+                int dummy;
+                if (fileReadInt32(stream, &dummy) == -1) return -1;
             }
         }
     }
