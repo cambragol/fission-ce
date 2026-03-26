@@ -994,7 +994,7 @@ static int mapLoad(File* stream)
 
     // Strip extension and get override
     strncpy(baseNameForOverride, gMapHeader.name, sizeof(baseNameForOverride));
-    baseNameForOverride[sizeof(baseNameForOverride)-1] = '\0';
+    baseNameForOverride[sizeof(baseNameForOverride) - 1] = '\0';
     dot = strchr(baseNameForOverride, '.');
     if (dot) *dot = '\0';
     compat_strlwr(baseNameForOverride);
@@ -1004,7 +1004,7 @@ static int mapLoad(File* stream)
         // Convert 0-based config value to 1-based header value
         gMapHeader.scriptIndex = overrideScript + 1;
     }
-    
+
     _obj_remove_all();
 
     if (gMapHeader.globalVariablesCount < 0) {
