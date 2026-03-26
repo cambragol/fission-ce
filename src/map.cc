@@ -992,16 +992,19 @@ static int mapLoad(File* stream)
         mapSetEnteringLocation(gMapHeader.enteringElevation, gMapHeader.enteringTile, gMapHeader.enteringRotation);
     }
 
-    // Strip extension from gMapHeader.name to get base name for lookup
+    // Strip extension and get override
     strncpy(baseNameForOverride, gMapHeader.name, sizeof(baseNameForOverride));
-    baseNameForOverride[sizeof(baseNameForOverride) - 1] = '\0';
+    baseNameForOverride[sizeof(baseNameForOverride)-1] = '\0';
     dot = strchr(baseNameForOverride, '.');
     if (dot) *dot = '\0';
     compat_strlwr(baseNameForOverride);
 
     overrideScript = wmGetMapScriptOverride(baseNameForOverride);
-    // Do NOT modify gMapHeader.scriptIndex here; we will use overrideScript later.
-
+    if (overrideScript != -1) {
+        // Convert 0-based config value to 1-based header value
+        gMapHeader.scriptIndex = overrideScript + 1;
+    }
+    
     _obj_remove_all();
 
     if (gMapHeader.globalVariablesCount < 0) {
@@ -1093,38 +1096,34 @@ static int mapLoad(File* stream)
 
     scriptsEnable();
 
-    if (gMapHeader.scriptIndex > 0 || overrideScript > 0) {
-        int scriptIndexToUse = (overrideScript != -1) ? overrideScript : gMapHeader.scriptIndex;
+    if (gMapHeader.scriptIndex > 0) {
+        error = "Error creating new map script";
+        if (scriptAdd(&gMapSid, SCRIPT_TYPE_SYSTEM) == -1) {
+            goto err;
+        }
 
-        if (scriptIndexToUse > 0) {
-            error = "Error creating new map script";
-            if (scriptAdd(&gMapSid, SCRIPT_TYPE_SYSTEM) == -1) {
-                goto err;
-            }
+        Object* object;
+        int fid = buildFid(OBJ_TYPE_MISC, 12, 0, 0, 0);
+        objectCreateWithFidPid(&object, fid, -1);
+        object->flags |= (OBJECT_LIGHT_THRU | OBJECT_NO_SAVE | OBJECT_HIDDEN);
+        objectSetLocation(object, 1, 0, nullptr);
+        object->sid = gMapSid;
+        scriptSetFixedParam(gMapSid, (gMapHeader.flags & 1) == 0);
 
-            Object* object;
-            int fid = buildFid(OBJ_TYPE_MISC, 12, 0, 0, 0);
-            objectCreateWithFidPid(&object, fid, -1);
-            object->flags |= (OBJECT_LIGHT_THRU | OBJECT_NO_SAVE | OBJECT_HIDDEN);
-            objectSetLocation(object, 1, 0, nullptr);
-            object->sid = gMapSid;
-            scriptSetFixedParam(gMapSid, (gMapHeader.flags & 1) == 0);
+        Script* script;
+        scriptGetScript(gMapSid, &script);
+        script->index = gMapHeader.scriptIndex - 1; // convert to 0-based
+        script->flags |= SCRIPT_FLAG_NO_SAVE;
+        object->id = scriptsNewObjectId();
+        script->ownerId = object->id;
+        script->owner = object;
+        _scr_spatials_disable();
+        scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
+        _scr_spatials_enable();
 
-            Script* script;
-            scriptGetScript(gMapSid, &script);
-            script->index = scriptIndexToUse - 1; // 1?based to 0?based
-            script->flags |= SCRIPT_FLAG_NO_SAVE;
-            object->id = scriptsNewObjectId();
-            script->ownerId = object->id;
-            script->owner = object;
-            _scr_spatials_disable();
-            scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
-            _scr_spatials_enable();
-
-            error = "Error Setting up random encounter";
-            if (wmSetupRandomEncounter() == -1) {
-                goto err;
-            }
+        error = "Error Setting up random encounter";
+        if (wmSetupRandomEncounter() == -1) {
+            goto err;
         }
     }
 
