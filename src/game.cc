@@ -4,7 +4,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#if defined(__linux__) && !defined(__ANDROID__)
+#include <filesystem>
+#elif defined(_WIN32)
+#include <sys/stat.h>
+#include <windows.h>
+#else
 #include <dirent.h>
+#endif
 
 #include "actions.h"
 #include "animation.h"
