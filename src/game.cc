@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
 
 #include "actions.h"
 #include "animation.h"
@@ -92,6 +93,7 @@ static int gameDbInit();
 static void showSplash();
 static int loadModGlobalVars();
 static void generateGVarReport();
+static void generateModsOrderFile(const char* modsPath, const char* orderFilePath);
 
 // 0x501C9C
 static char _aGame_0[] = "game\\";
@@ -1903,8 +1905,53 @@ static int gameDbInit()
         }
     }
 
+    // Load mods from the "mods" folder (order defined by mods_order.txt)
+    const char* modsPath = "mods";
+    const char* orderFilename = "mods_order.txt";
+    char orderFilePath[COMPAT_MAX_PATH];
+    compat_makepath(orderFilePath, nullptr, modsPath, orderFilename, nullptr);
+
+    compat_mkdir(modsPath);
+
+    if (compat_access(orderFilePath, 0) != 0) {
+        generateModsOrderFile(modsPath, orderFilePath);
+    }
+
+    File* stream = fileOpen(orderFilePath, "r");
+    if (stream) {
+        char line[COMPAT_MAX_PATH];
+        while (fileReadString(line, COMPAT_MAX_PATH, stream)) {
+            std::string entry(line);
+            if (entry.find_first_of(";#") != std::string::npos)
+                continue;
+
+            // Trim whitespace
+            entry.erase(entry.begin(),
+                        std::find_if(entry.begin(), entry.end(),
+                                     [](unsigned char ch) { return !isspace(ch); }));
+            entry.erase(std::find_if(entry.rbegin(), entry.rend(),
+                                     [](unsigned char ch) { return !isspace(ch); }).base(),
+                        entry.end());
+            if (entry.empty())
+                continue;
+
+            char fullPath[COMPAT_MAX_PATH];
+            compat_makepath(fullPath, nullptr, modsPath, entry.c_str(), nullptr);
+
+            if (compat_access(fullPath, 0) != 0) {
+                debugPrint("Skipping missing mod: %s\n", fullPath);
+                continue;
+            }
+
+            debugPrint("Loading mod: %s\n", fullPath);
+            dbOpen(fullPath, nullptr);
+        }
+        fileClose(stream);
+    } else {
+        debugPrint("Error opening %s for reading\n", orderFilePath);
+    }
+
     createListsFolder();
-    sfallLoadMods();
 
     return 0;
 }
@@ -2119,6 +2166,64 @@ ScopedGameMode::ScopedGameMode(int gameMode)
 ScopedGameMode::~ScopedGameMode()
 {
     GameMode::exitGameMode(gameMode);
+}
+
+static void generateModsOrderFile(const char* modsPath, const char* orderFilePath) {
+    DIR* dir = opendir(modsPath);
+    if (!dir) {
+        debugPrint("Could not open mods folder: %s\n", modsPath);
+        return;
+    }
+
+    std::vector<std::string> validEntries;
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        const char* name = entry->d_name;
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+
+        size_t len = strlen(name);
+        // Accept any entry whose name ends with ".dat" (case-insensitive)
+        if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
+            validEntries.push_back(name);
+            debugPrint("Found mod: %s\n", name);
+        } else {
+            debugPrint("Skipping non-mod: %s\n", name);
+        }
+    }
+    closedir(dir);
+
+    if (validEntries.size() < 2) {
+        debugPrint("Not generating %s: found %zu mod(s) (need at least 2).\n",
+                   orderFilePath, validEntries.size());
+        return;
+    }
+
+    std::sort(validEntries.begin(), validEntries.end());
+
+    debugPrint("Generating Mods Order file based on the contents of Mods folder: %s\n", orderFilePath);
+
+    File* stream = fileOpen(orderFilePath, "wt");
+    if (!stream) {
+        debugPrint("Failed to create %s\n", orderFilePath);
+        return;
+    }
+
+    fileWriteString("# FISSION mods_order.txt\n", stream);
+    fileWriteString("#\n", stream);
+    fileWriteString("# Mods (both directories and .dat files) are loaded in the order they appear below.\n", stream);
+    fileWriteString("# Under FISSION's modular system, mods DO NOT usually need to be ordered,\n", stream);
+    fileWriteString("# because assets are extended via hashed lists. However, if you want one mod\n", stream);
+    fileWriteString("# to override another, place the overriding mod LOWER in this list.\n", stream);
+    fileWriteString("#\n", stream);
+    fileWriteString("# Lines beginning with '#' or ';' are ignored. Empty lines are also ignored.\n", stream);
+    fileWriteString("\n", stream);
+
+    for (const auto& mod : validEntries) {
+        fileWriteString(mod.c_str(), stream);
+        fileWriteString("\n", stream);
+    }
+
+    fileClose(stream);
 }
 
 } // namespace fallout
