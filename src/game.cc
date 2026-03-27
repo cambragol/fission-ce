@@ -1,10 +1,10 @@
 #include "game.h"
 #include "platform/git_version.h"
 
+#include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <dirent.h>
 
 #include "actions.h"
 #include "animation.h"
@@ -1927,11 +1927,12 @@ static int gameDbInit()
 
             // Trim whitespace
             entry.erase(entry.begin(),
-                        std::find_if(entry.begin(), entry.end(),
-                                     [](unsigned char ch) { return !isspace(ch); }));
+                std::find_if(entry.begin(), entry.end(),
+                    [](unsigned char ch) { return !isspace(ch); }));
             entry.erase(std::find_if(entry.rbegin(), entry.rend(),
-                                     [](unsigned char ch) { return !isspace(ch); }).base(),
-                        entry.end());
+                            [](unsigned char ch) { return !isspace(ch); })
+                            .base(),
+                entry.end());
             if (entry.empty())
                 continue;
 
@@ -2168,7 +2169,8 @@ ScopedGameMode::~ScopedGameMode()
     GameMode::exitGameMode(gameMode);
 }
 
-static void generateModsOrderFile(const char* modsPath, const char* orderFilePath) {
+static void generateModsOrderFile(const char* modsPath, const char* orderFilePath)
+{
     DIR* dir = opendir(modsPath);
     if (!dir) {
         debugPrint("Could not open mods folder: %s\n", modsPath);
@@ -2194,7 +2196,7 @@ static void generateModsOrderFile(const char* modsPath, const char* orderFilePat
 
     if (validEntries.size() < 2) {
         debugPrint("Not generating %s: found %zu mod(s) (need at least 2).\n",
-                   orderFilePath, validEntries.size());
+            orderFilePath, validEntries.size());
         return;
     }
 
