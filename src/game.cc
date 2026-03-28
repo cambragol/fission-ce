@@ -1,10 +1,10 @@
 #include "game.h"
 #include "platform/git_version.h"
 
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <algorithm>
 
 #if defined(_WIN32)
 #include <windows.h>
