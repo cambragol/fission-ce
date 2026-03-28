@@ -1,16 +1,9 @@
 #include "game.h"
 #include "platform/git_version.h"
 
-#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <dirent.h>
-#endif
 
 #include "actions.h"
 #include "animation.h"
