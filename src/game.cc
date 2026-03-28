@@ -30,6 +30,7 @@
 #include "draw.h"
 #include "endgame.h"
 #include "font_manager.h"
+#include "file_find.h"
 #include "game_dialog.h"
 #include "game_memory.h"
 #include "game_mouse.h"
@@ -1933,12 +1934,11 @@ static int gameDbInit()
 
             // Trim whitespace
             entry.erase(entry.begin(),
-                std::find_if(entry.begin(), entry.end(),
-                    [](unsigned char ch) { return !isspace(ch); }));
+                        std::find_if(entry.begin(), entry.end(),
+                                     [](unsigned char ch) { return !isspace(ch); }));
             entry.erase(std::find_if(entry.rbegin(), entry.rend(),
-                            [](unsigned char ch) { return !isspace(ch); })
-                            .base(),
-                entry.end());
+                                     [](unsigned char ch) { return !isspace(ch); }).base(),
+                        entry.end());
             if (entry.empty())
                 continue;
 
@@ -1946,16 +1946,12 @@ static int gameDbInit()
             compat_makepath(fullPath, nullptr, modsPath, entry.c_str(), nullptr);
 
             if (compat_access(fullPath, 0) != 0) {
-                debugPrint("Skipping missing mod: %s\n", fullPath);
                 continue;
             }
 
-            debugPrint("Loading mod: %s\n", fullPath);
             dbOpen(fullPath, nullptr);
         }
         fileClose(stream);
-    } else {
-        debugPrint("Error opening %s for reading\n", orderFilePath);
     }
 
     createListsFolder();
@@ -2175,44 +2171,38 @@ ScopedGameMode::~ScopedGameMode()
     GameMode::exitGameMode(gameMode);
 }
 
-static void generateModsOrderFile(const char* modsPath, const char* orderFilePath)
-{
-    DIR* dir = opendir(modsPath);
-    if (!dir) {
-        debugPrint("Could not open mods folder: %s\n", modsPath);
+static std::vector<std::string> listModsInFolder(const char* modsPath) {
+    std::vector<std::string> results;
+
+    char pattern[COMPAT_MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s%c*", modsPath, DIR_SEPARATOR);
+
+    DirectoryFileFindData findData;
+    if (fileFindFirst(pattern, &findData)) {
+        do {
+            const char* name = fileFindGetName(&findData);
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+            size_t len = strlen(name);
+            if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
+                results.push_back(name);
+            }
+        } while (fileFindNext(&findData));
+        findFindClose(&findData);
+    }
+
+    return results;
+}
+
+static void generateModsOrderFile(const char* modsPath, const char* orderFilePath) {
+    std::vector<std::string> mods = listModsInFolder(modsPath);
+    if (mods.size() < 2) {
         return;
     }
 
-    std::vector<std::string> validEntries;
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        const char* name = entry->d_name;
-        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-
-        size_t len = strlen(name);
-        // Accept any entry whose name ends with ".dat" (case-insensitive)
-        if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
-            validEntries.push_back(name);
-            debugPrint("Found mod: %s\n", name);
-        } else {
-            debugPrint("Skipping non-mod: %s\n", name);
-        }
-    }
-    closedir(dir);
-
-    if (validEntries.size() < 2) {
-        debugPrint("Not generating %s: found %zu mod(s) (need at least 2).\n",
-            orderFilePath, validEntries.size());
-        return;
-    }
-
-    std::sort(validEntries.begin(), validEntries.end());
-
-    debugPrint("Generating Mods Order file based on the contents of Mods folder: %s\n", orderFilePath);
+    std::sort(mods.begin(), mods.end());
 
     File* stream = fileOpen(orderFilePath, "wt");
     if (!stream) {
-        debugPrint("Failed to create %s\n", orderFilePath);
         return;
     }
 
@@ -2226,7 +2216,7 @@ static void generateModsOrderFile(const char* modsPath, const char* orderFilePat
     fileWriteString("# Lines beginning with '#' or ';' are ignored. Empty lines are also ignored.\n", stream);
     fileWriteString("\n", stream);
 
-    for (const auto& mod : validEntries) {
+    for (const auto& mod : mods) {
         fileWriteString(mod.c_str(), stream);
         fileWriteString("\n", stream);
     }
