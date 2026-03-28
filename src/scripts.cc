@@ -1500,45 +1500,47 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         gScriptsListEntriesLength, gScriptsListEntriesLength - 1,
         maxIndex);
 
-    // Slot ranges section
+    // Slot ranges section (now 1-based for user convenience)
     fputs("------------------------------------------------------------\n"
-          "Slot Ranges:\n",
+          "Slot Ranges (1-based):\n",
         scriptsListFile);
 
     if (actualModCount > 0) {
         fprintf(scriptsListFile,
-            "  Vanilla: 0-%d\n"
+            "  Vanilla: 1-%d\n"
             "  Mods: %d-%d\n",
-            vanillaCount - 1,
-            firstModIndex, lastModIndex);
+            vanillaCount,
+            firstModIndex + 1, lastModIndex + 1);
     } else {
         fprintf(scriptsListFile,
-            "  Vanilla: 0-%d\n"
+            "  Vanilla: 1-%d\n"
             "  Mods: (none)\n",
-            vanillaCount - 1);
+            vanillaCount);
     }
     fputs("------------------------------------------------------------\n", scriptsListFile);
 
-    // Vanilla scripts section
+    // Vanilla scripts section (1-based indices)
     if (actualVanillaCount > 0) {
         fputs("VANILLA SCRIPTS:\n", scriptsListFile);
         for (int i = 0; i < vanillaCount; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i, gScriptsListEntries[i].name,
+                    i + 1, // - 1-based
+                    gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
         }
         fputs("\n", scriptsListFile);
     }
 
-    // Mod scripts section
+    // Mod scripts section (1-based indices)
     if (actualModCount > 0) {
         fputs("MOD SCRIPTS:\n", scriptsListFile);
         for (int i = vanillaCount; i < gScriptsListEntriesLength; i++) {
             if (gScriptsListEntries[i].name[0] != '\0') {
                 fprintf(scriptsListFile, "  %4d: %s (local_vars=%d)\n",
-                    i, gScriptsListEntries[i].name,
+                    i + 1, // - 1-based
+                    gScriptsListEntries[i].name,
                     gScriptsListEntries[i].local_vars_num);
             }
         }
@@ -1553,7 +1555,8 @@ static void generateScriptsListReport(int vanillaCount, bool collisionOccurred, 
         fputs("  --- CONFLICT DETAILS ---\n", scriptsListFile);
         for (int i = 0; i < 4096; i++) {
             if (collisionDetails[i][0] != '\0') {
-                fprintf(scriptsListFile, "  # %4d: %s\n", i, collisionDetails[i]);
+                // Collision details remain 0-based internally, but we can also show as 1-based if desired
+                fprintf(scriptsListFile, "  # %4d: %s\n", i + 1, collisionDetails[i]);
             }
         }
         fputs("\n", scriptsListFile);
