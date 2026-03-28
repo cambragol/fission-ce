@@ -1,6 +1,7 @@
 #include "game.h"
 #include "platform/git_version.h"
 
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -22,8 +23,8 @@
 #include "display_monitor.h"
 #include "draw.h"
 #include "endgame.h"
-#include "file_find.h"
 #include "font_manager.h"
+#include "file_find.h"
 #include "game_dialog.h"
 #include "game_memory.h"
 #include "game_mouse.h"
@@ -1927,12 +1928,11 @@ static int gameDbInit()
 
             // Trim whitespace
             entry.erase(entry.begin(),
-                std::find_if(entry.begin(), entry.end(),
-                    [](unsigned char ch) { return !isspace(ch); }));
+                        std::find_if(entry.begin(), entry.end(),
+                                     [](unsigned char ch) { return !isspace(ch); }));
             entry.erase(std::find_if(entry.rbegin(), entry.rend(),
-                            [](unsigned char ch) { return !isspace(ch); })
-                            .base(),
-                entry.end());
+                                     [](unsigned char ch) { return !isspace(ch); }).base(),
+                        entry.end());
             if (entry.empty())
                 continue;
 
@@ -2165,8 +2165,7 @@ ScopedGameMode::~ScopedGameMode()
     GameMode::exitGameMode(gameMode);
 }
 
-static std::vector<std::string> listModsInFolder(const char* modsPath)
-{
+static std::vector<std::string> listModsInFolder(const char* modsPath) {
     std::vector<std::string> results;
 
     char pattern[COMPAT_MAX_PATH];
@@ -2188,8 +2187,7 @@ static std::vector<std::string> listModsInFolder(const char* modsPath)
     return results;
 }
 
-static void generateModsOrderFile(const char* modsPath, const char* orderFilePath)
-{
+static void generateModsOrderFile(const char* modsPath, const char* orderFilePath) {
     std::vector<std::string> mods = listModsInFolder(modsPath);
     if (mods.size() < 2) {
         return;
