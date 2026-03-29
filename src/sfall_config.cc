@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 namespace fallout {
 
 #define DIR_SEPARATOR '/'
@@ -20,13 +19,15 @@ Config gModConfig;
 ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
 
-static int getModPresenceIndex(const char* modName) {
+static int getModPresenceIndex(const char* modName)
+{
     if (!modName || !modName[0]) return -1;
     // Pass the base name directly (same as engine does for .lst entries)
     return artGetStableIndex(modName);
 }
 
-static void writeModFidsFile() {
+static void writeModFidsFile()
+{
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%sdata%clists%cmod_ids_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR);
     FILE* f = compat_fopen(path, "w");
@@ -58,7 +59,8 @@ static void writeModFidsFile() {
 }
 
 // Extract mod_info section into ModInfo struct
-static void extractModInfo(Config* config, ModInfo* info) {
+static void extractModInfo(Config* config, ModInfo* info)
+{
     memset(info, 0, sizeof(ModInfo));
 
     char* name = nullptr;
@@ -239,7 +241,7 @@ bool modConfigInit(int argc, char** argv)
     }
 
     // Pass 2: Read all .cfg files into the global config (overriding in order)
-    configRead(&gModConfig, path, true);  // main mod.cfg
+    configRead(&gModConfig, path, true); // main mod.cfg
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {

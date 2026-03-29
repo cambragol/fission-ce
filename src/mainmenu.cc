@@ -30,25 +30,25 @@
 namespace fallout {
 
 // Constants for mod list window (based on perk dialog)
-#define MOD_WINDOW_WIDTH  573
+#define MOD_WINDOW_WIDTH 573
 #define MOD_WINDOW_HEIGHT 230
-#define MOD_WINDOW_X      0
-#define MOD_WINDOW_Y      0
+#define MOD_WINDOW_X 0
+#define MOD_WINDOW_Y 0
 
 // List area
-#define MOD_LIST_X        45
-#define MOD_LIST_Y        43
-#define MOD_LIST_WIDTH    192
-#define MOD_LIST_HEIGHT   129
+#define MOD_LIST_X 45
+#define MOD_LIST_Y 43
+#define MOD_LIST_WIDTH 192
+#define MOD_LIST_HEIGHT 129
 
 // Detail area
-#define MOD_ICON_X        413
-#define MOD_ICON_Y        64
-#define MOD_TEXT_X        280
-#define MOD_NAME_Y        27
-#define MOD_DESC_Y        70
-#define MOD_AUTHOR_Y      150
-#define MOD_DEP_Y         180
+#define MOD_ICON_X 413
+#define MOD_ICON_Y 64
+#define MOD_TEXT_X 280
+#define MOD_NAME_Y 27
+#define MOD_DESC_Y 70
+#define MOD_AUTHOR_Y 150
+#define MOD_DEP_Y 180
 
 typedef enum MainMenuButton {
     MAIN_MENU_BUTTON_INTRO,
@@ -533,8 +533,8 @@ int mainMenuWindowHandleEvents()
             } else if (keyCode == 501) {
                 main_menu_play_sound("nmselec0");
                 modListShow();
-                
-                //showFissionAbout();
+
+                // showFissionAbout();
                 continue;
             } else if (keyCode == 1111) {
                 if (!(mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_REPEAT)) {
@@ -611,7 +611,8 @@ static int modListShow()
         if (!_modListFrmImages[i].lock(fid)) {
             debugPrint("Error loading button graphic %d\n", i);
             _modListBackgroundFrm.unlock();
-            for (int j = 0; j < i; j++) _modListFrmImages[j].unlock();
+            for (int j = 0; j < i; j++)
+                _modListFrmImages[j].unlock();
             return -1;
         }
     }
@@ -620,11 +621,12 @@ static int modListShow()
     int windowX = (screenGetWidth() - MOD_WINDOW_WIDTH) / 2;
     int windowY = (screenGetHeight() - MOD_WINDOW_HEIGHT) / 2;
     gModListWindow = windowCreate(windowX, windowY, MOD_WINDOW_WIDTH, MOD_WINDOW_HEIGHT, 256,
-                                  WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+        WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
     if (gModListWindow == -1) {
         debugPrint("Error creating mod list window\n");
         _modListBackgroundFrm.unlock();
-        for (int i = 0; i < MOD_GRAPHIC_COUNT; i++) _modListFrmImages[i].unlock();
+        for (int i = 0; i < MOD_GRAPHIC_COUNT; i++)
+            _modListFrmImages[i].unlock();
         return -1;
     }
 
@@ -700,11 +702,11 @@ static int modListShow()
 
     // Hardcoded titles (can be replaced with fission.msg entries later)
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 16 + 49,
-                 "Loaded Mods", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        "Loaded Mods", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 69,
-                 "Done", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        "Done", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 171,
-                 "Cancel", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        "Cancel", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
 
     // Draw the mod list
     int count = modListDrawList();
@@ -718,7 +720,8 @@ static int modListShow()
 
     // Cleanup
     _modListBackgroundFrm.unlock();
-    for (int i = 0; i < MOD_GRAPHIC_COUNT; i++) _modListFrmImages[i].unlock();
+    for (int i = 0; i < MOD_GRAPHIC_COUNT; i++)
+        _modListFrmImages[i].unlock();
     windowDestroy(gModListWindow);
 
     return rc;
@@ -736,7 +739,7 @@ static int modListDrawList()
     if (gLoadedModsCount == 0) {
         fontSetCurrent(101);
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * (MOD_LIST_Y + 10) + (MOD_LIST_X + 10),
-                     "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[992]);
+            "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[992]);
         return 0;
     }
 
@@ -749,7 +752,7 @@ static int modListDrawList()
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color = (i == gModListTopLine + gModListCurrentLine) ? _colorTable[32747] : _colorTable[992];
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_LIST_X,
-                     gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+            gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
 
@@ -772,9 +775,9 @@ static void modListDrawDetails(int selectedIndex)
     int fid = buildFid(OBJ_TYPE_INTERFACE, info->icon_index, 0, 0, 0);
     if (iconFrm.lock(fid)) {
         blitBufferToBuffer(iconFrm.getData(),
-                           iconFrm.getWidth(), iconFrm.getHeight(), iconFrm.getWidth(),
-                           gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_ICON_Y + MOD_ICON_X,
-                           MOD_WINDOW_WIDTH);
+            iconFrm.getWidth(), iconFrm.getHeight(), iconFrm.getWidth(),
+            gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_ICON_Y + MOD_ICON_X,
+            MOD_WINDOW_WIDTH);
         iconFrm.unlock();
     }
 
@@ -786,7 +789,7 @@ static void modListDrawDetails(int selectedIndex)
     int nameWidth = fontGetStringWidth(info->name);
     int nameLineHeight = fontGetLineHeight();
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
-                 info->name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        info->name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Mod Author
     fontSetCurrent(101);
@@ -794,9 +797,9 @@ static void modListDrawDetails(int selectedIndex)
     int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4; // vertical center
     int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
-                 "by", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]); // add to fission.msg later
+        "by", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]); // add to fission.msg later
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + 18,
-                 info->author, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        info->author, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Draw divider line below name/author
     int lineY = MOD_NAME_Y + nameLineHeight + 4; // gap below name line
@@ -825,9 +828,9 @@ static void modListDrawDetails(int selectedIndex)
             char savedChar = buffer[end];
             buffer[end] = '\0';
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_TEXT_X,
-                         buffer + start,
-                         MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-                         _colorTable[0]);
+                buffer + start,
+                MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+                _colorTable[0]);
             buffer[end] = savedChar;
             y += lineHeight;
             descLines++;
@@ -854,9 +857,9 @@ static void modListDrawDetails(int selectedIndex)
                 char savedChar = buffer[end];
                 buffer[end] = '\0';
                 fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
-                             buffer + start,
-                             MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-                             _colorTable[0]);
+                    buffer + start,
+                    MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+                    _colorTable[0]);
                 buffer[end] = savedChar;
                 yDep += lineHeight;
             }

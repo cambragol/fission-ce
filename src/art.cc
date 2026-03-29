@@ -520,7 +520,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
             // Extract mod name for logging
             const char* modName = "FISSION";
-            char cleanModName[256] = {0};
+            char cleanModName[256] = { 0 };
             if (isCategoryModFile) {
                 modName = filename + strlen(desc->name) + 1; // Skip "[category]_"
 
@@ -641,7 +641,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     if (index >= desc->fileNamesLength) {
                         int newLength = index + 1;
                         char* newNames = (char*)internal_realloc(desc->fileNames,
-                                                                  newLength * FILENAME_LENGTH);
+                            newLength * FILENAME_LENGTH);
                         if (!newNames) {
                             debugPrint("Failed to expand array for %s\n", desc->name);
                             continue;
@@ -667,20 +667,18 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         // Build overwrite message
                         char message[256];
                         snprintf(message, sizeof(message),
-                                 "OVERWRITTEN: %s -> %s (from %s)",
-                                 oldAsset, modAssetName, modName);
+                            "OVERWRITTEN: %s -> %s (from %s)",
+                            oldAsset, modAssetName, modName);
 
                         // Append to collisionDetails (multi?line history)
                         if (desc->collisionDetails[index][0] == '\0') {
                             strncpy(desc->collisionDetails[index], message,
-                                    sizeof(desc->collisionDetails[index]) - 1);
+                                sizeof(desc->collisionDetails[index]) - 1);
                         } else {
                             strncat(desc->collisionDetails[index], "\n",
-                                    sizeof(desc->collisionDetails[index]) -
-                                    strlen(desc->collisionDetails[index]) - 1);
+                                sizeof(desc->collisionDetails[index]) - strlen(desc->collisionDetails[index]) - 1);
                             strncat(desc->collisionDetails[index], message,
-                                    sizeof(desc->collisionDetails[index]) -
-                                    strlen(desc->collisionDetails[index]) - 1);
+                                sizeof(desc->collisionDetails[index]) - strlen(desc->collisionDetails[index]) - 1);
                         }
                         desc->collisionDetails[index][sizeof(desc->collisionDetails[index]) - 1] = '\0';
                         desc->collisionOccurred = true;
@@ -690,7 +688,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         slot[FILENAME_LENGTH - 1] = '\0';
 
                         debugPrint("  Overwrote asset: %s -> slot %d (was %s)\n",
-                                   modAssetName, index, oldAsset);
+                            modAssetName, index, oldAsset);
                         // modCount unchanged
                     } else {
                         // --- New asset ---
@@ -1393,7 +1391,7 @@ int artInit()
 
         // Initialize collision tracking for all indices
         desc->collisionOccurred = false;
-        for (int i = 0; i < MAX_ART_INDICES; i++) {   // 8192
+        for (int i = 0; i < MAX_ART_INDICES; i++) { // 8192
             desc->collisionDetails[i][0] = '\0';
         }
 
