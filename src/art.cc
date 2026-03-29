@@ -185,7 +185,7 @@ static void getBaseNameWithoutExtension(char* dest, const char* path, size_t siz
  * - Predictable FID generation
  * - No conflicts with vanilla/variant assets
  */
-static int artGetStableIndex(const char* filename, int vanillaCount, int variantCount)
+int artGetStableIndex(const char* filename)
 {
     // Step 1: Filename normalization
     // ------------------------------
@@ -490,7 +490,6 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
         // Sort to ensure fission.lst is processed first (highest priority)
         for (int i = 0; i < fileCount; i++) {
             if (strcmp(foundFiles[i], "fission.lst") == 0) {
-                // Move fission.lst to the front
                 char* temp = foundFiles[0];
                 foundFiles[0] = foundFiles[i];
                 foundFiles[i] = temp;
@@ -521,11 +520,11 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
             // Extract mod name for logging
             const char* modName = "FISSION";
+            char cleanModName[256] = {0};
             if (isCategoryModFile) {
                 modName = filename + strlen(desc->name) + 1; // Skip "[category]_"
 
                 // Remove .lst extension
-                char cleanModName[256];
                 strncpy(cleanModName, modName, sizeof(cleanModName) - 1);
                 char* dot = strrchr(cleanModName, '.');
                 if (dot) {
@@ -614,10 +613,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     getBaseNameWithoutExtension(baseName, modAssetName, sizeof(baseName));
 
                     // Calculate stable index position
-                    int index = artGetStableIndex(
-                        baseName,
-                        desc->vanillaCount,
-                        desc->variantCount);
+                    int index = artGetStableIndex(baseName);
 
                     // Handle category capacity overflow
                     if (index == -1) {
@@ -641,68 +637,65 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         continue;
                     }
 
-                    // Check for index collision with existing assets
-                    if (desc->usedIndices[index]) {
-                        // Only report collision if the slot actually has content
-                        char* existingSlot = desc->fileNames + index * FILENAME_LENGTH;
-                        if (existingSlot[0] != '\0') {
-                            const char* existing = existingSlot;
-                            char existingBase[FILENAME_LENGTH] = { 0 };
-                            getBaseNameWithoutExtension(existingBase, existing, sizeof(existingBase));
-
-                            // Extract base name of new asset
-                            char currentBase[FILENAME_LENGTH] = { 0 };
-                            getBaseNameWithoutExtension(currentBase, modAssetName, sizeof(currentBase));
-
-                            // Show error popup for collision
-                            char errorMsg[512];
-                            snprintf(errorMsg, sizeof(errorMsg),
-                                "ART SLOT COLLISION DETECTED!\n\n"
-                                "New asset: %s\n"
-                                "Target slot: %d\n"
-                                "Existing asset: %s\n\n"
-                                "To resolve: Rename your art file to change its namespace.\n\n"
-                                "The asset '%s' will NOT be loaded.",
-                                modAssetName, index, existing, modAssetName);
-                            showMesageBox(errorMsg);
-
-                            debugPrint("\n  Collision: skipping art asset '%s' (slot %d occupied by '%s')",
-                                modAssetName, index, existing);
-
-                            // Record collision but don't overwrite
-                            snprintf(desc->collisionDetails[index], sizeof(desc->collisionDetails[index]),
-                                "COLLISION: %s (existing) vs %s (new) - SKIPPED", existing, modAssetName);
-                            desc->collisionOccurred = true;
-                        } else {
-                            // Slot was marked as used but is actually empty - this should not happen
-                            debugPrint("Warning: Slot %d marked as used but empty, loading asset anyway\n", index);
+                    // Ensure the fileNames array is large enough
+                    if (index >= desc->fileNamesLength) {
+                        int newLength = index + 1;
+                        char* newNames = (char*)internal_realloc(desc->fileNames,
+                                                                  newLength * FILENAME_LENGTH);
+                        if (!newNames) {
+                            debugPrint("Failed to expand array for %s\n", desc->name);
+                            continue;
                         }
+                        // Initialize new slots to empty
+                        for (int k = desc->fileNamesLength; k < newLength; k++) {
+                            char* slot = newNames + k * FILENAME_LENGTH;
+                            *slot = '\0';
+                        }
+                        desc->fileNames = newNames;
+                        desc->fileNamesLength = newLength;
                     }
 
-                    // If slot is not used OR slot is marked used but empty, we can use it
-                    if (!desc->usedIndices[index] || (desc->usedIndices[index] && desc->fileNames[index * FILENAME_LENGTH] == '\0')) {
+                    char* slot = desc->fileNames + index * FILENAME_LENGTH;
+                    bool slotOccupied = (desc->usedIndices[index] && slot[0] != '\0');
 
-                        // Expand asset array if needed
-                        if (index >= desc->fileNamesLength) {
-                            int newLength = index + 1;
-                            char* newNames = (char*)internal_realloc(desc->fileNames, newLength * FILENAME_LENGTH);
-                            if (newNames) {
-                                // Initialize new slots as empty
-                                for (int k = desc->fileNamesLength; k < newLength; k++) {
-                                    char* slot = newNames + k * FILENAME_LENGTH;
-                                    *slot = '\0';
-                                }
-                                desc->fileNames = newNames;
-                                desc->fileNamesLength = newLength;
-                            }
+                    if (slotOccupied) {
+                        // --- Overwrite existing asset ---
+                        char oldAsset[FILENAME_LENGTH];
+                        strncpy(oldAsset, slot, FILENAME_LENGTH - 1);
+                        oldAsset[FILENAME_LENGTH - 1] = '\0';
+
+                        // Build overwrite message
+                        char message[256];
+                        snprintf(message, sizeof(message),
+                                 "OVERWRITTEN: %s -> %s (from %s)",
+                                 oldAsset, modAssetName, modName);
+
+                        // Append to collisionDetails (multi?line history)
+                        if (desc->collisionDetails[index][0] == '\0') {
+                            strncpy(desc->collisionDetails[index], message,
+                                    sizeof(desc->collisionDetails[index]) - 1);
+                        } else {
+                            strncat(desc->collisionDetails[index], "\n",
+                                    sizeof(desc->collisionDetails[index]) -
+                                    strlen(desc->collisionDetails[index]) - 1);
+                            strncat(desc->collisionDetails[index], message,
+                                    sizeof(desc->collisionDetails[index]) -
+                                    strlen(desc->collisionDetails[index]) - 1);
                         }
+                        desc->collisionDetails[index][sizeof(desc->collisionDetails[index]) - 1] = '\0';
+                        desc->collisionOccurred = true;
 
-                        // Store asset at calculated index
-                        char* slot = desc->fileNames + index * FILENAME_LENGTH;
+                        // Replace the filename
                         strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
                         slot[FILENAME_LENGTH - 1] = '\0';
 
-                        // Update tracking information
+                        debugPrint("  Overwrote asset: %s -> slot %d (was %s)\n",
+                                   modAssetName, index, oldAsset);
+                        // modCount unchanged
+                    } else {
+                        // --- New asset ---
+                        strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
+                        slot[FILENAME_LENGTH - 1] = '\0';
                         desc->usedIndices[index] = true;
                         desc->modCount++;
 
@@ -848,17 +841,31 @@ static void artGenerateReport()
             // Add collision/remap details
             if (desc->collisionOccurred) {
                 fputs("\n  --- CONFLICT DETAILS ---\n", artListFile);
-                for (int i = 0; i < 4096; i++) {
+                for (int i = 0; i < MAX_ART_INDICES; i++) {
                     if (desc->collisionDetails[i][0] != '\0') {
-                        // Different prefix for remap vs collision
-                        const char* prefix = "! ";
-                        if (strstr(desc->collisionDetails[i], "REMAP:")) {
-                            prefix = "» ";
-                        } else if (strstr(desc->collisionDetails[i], "COLLISION:")) {
-                            prefix = "# ";
-                        }
+                        char* line = desc->collisionDetails[i];
+                        char* line_start = line;
+                        char* newline;
+                        do {
+                            newline = strchr(line_start, '\n');
+                            if (newline) *newline = '\0';
 
-                        fprintf(artListFile, "  %s%5d: %s\n", prefix, i, desc->collisionDetails[i]);
+                            const char* prefix = "  ! ";
+                            if (strstr(line_start, "REMAP:")) {
+                                prefix = "  @ ";
+                            } else if (strstr(line_start, "OVERWRITTEN:")) {
+                                prefix = "  O ";
+                            } else if (strstr(line_start, "COLLISION:")) {
+                                prefix = "  # ";
+                            }
+
+                            fprintf(artListFile, "  %s%5d: %s\n", prefix, i, line_start);
+
+                            if (newline) {
+                                *newline = '\n';
+                                line_start = newline + 1;
+                            }
+                        } while (newline && *line_start);
                     }
                 }
             }
@@ -1384,10 +1391,10 @@ int artInit()
         ArtListDescription* desc = &gArtListDescriptions[objectType];
         desc->flags = 0;
 
-        // Initialize collision tracking
+        // Initialize collision tracking for all indices
         desc->collisionOccurred = false;
-        for (int i = 0; i < 4096; i++) {
-            desc->collisionDetails[i][0] = '\0'; // Clear any previous messages
+        for (int i = 0; i < MAX_ART_INDICES; i++) {   // 8192
+            desc->collisionDetails[i][0] = '\0';
         }
 
         // 1. Load VANILLA assets

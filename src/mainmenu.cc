@@ -5,6 +5,7 @@
 #include "art.h"
 #include "color.h"
 #include "dbox.h"
+#include "debug.h"
 #include "draw.h"
 #include "game.h"
 #include "game_sound.h"
@@ -22,10 +23,32 @@
 #include "text_font.h"
 #include "version.h"
 #include "window_manager.h"
+#include "word_wrap.h"
 
 #include "platform/git_version.h"
 
 namespace fallout {
+
+// Constants for mod list window (based on perk dialog)
+#define MOD_WINDOW_WIDTH  573
+#define MOD_WINDOW_HEIGHT 230
+#define MOD_WINDOW_X      0
+#define MOD_WINDOW_Y      0
+
+// List area
+#define MOD_LIST_X        45
+#define MOD_LIST_Y        43
+#define MOD_LIST_WIDTH    192
+#define MOD_LIST_HEIGHT   129
+
+// Detail area
+#define MOD_ICON_X        413
+#define MOD_ICON_Y        64
+#define MOD_TEXT_X        280
+#define MOD_NAME_Y        27
+#define MOD_DESC_Y        70
+#define MOD_AUTHOR_Y      150
+#define MOD_DEP_Y         180
 
 typedef enum MainMenuButton {
     MAIN_MENU_BUTTON_INTRO,
@@ -39,6 +62,12 @@ typedef enum MainMenuButton {
 
 static int main_menu_fatal_error();
 static void main_menu_play_sound(const char* fileName);
+
+static int modListShow();
+static int modListDrawList();
+static void modListDrawDetails(int selectedIndex);
+static void modListRefresh();
+static int modListHandleInput(int count);
 
 // 0x5194F0
 static int gMainMenuWindow = -1;
@@ -58,6 +87,35 @@ static unsigned int gMainMenuScreensaverDelay = 120000;
 static MessageList gFissionMessageList;
 
 static MessageListItem gFissionMessageListItem;
+
+// Graphics for mod list screen
+enum {
+    MOD_GRAPHIC_UP_ARROW_OFF,
+    MOD_GRAPHIC_UP_ARROW_ON,
+    MOD_GRAPHIC_DOWN_ARROW_OFF,
+    MOD_GRAPHIC_DOWN_ARROW_ON,
+    MOD_GRAPHIC_LITTLE_RED_BUTTON_UP,
+    MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN,
+    MOD_GRAPHIC_COUNT,
+};
+
+static int gModListFrmIds[MOD_GRAPHIC_COUNT] = {
+    199, // MOD_GRAPHIC_UP_ARROW_OFF
+    200, // MOD_GRAPHIC_UP_ARROW_ON
+    181, // MOD_GRAPHIC_DOWN_ARROW_OFF
+    182, // MOD_GRAPHIC_DOWN_ARROW_ON
+    8, // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
+    9, // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
+};
+
+static int gModListWindow = -1;
+static unsigned char* gModListWindowBuffer = nullptr;
+static int gModListTopLine = 0;
+static int gModListCurrentLine = 0;
+static int gModListPreviousCurrentLine = -2;
+
+static FrmImage _modListBackgroundFrm;
+static FrmImage _modListFrmImages[MOD_GRAPHIC_COUNT];
 
 // 0x519510
 static const int gMainMenuButtonKeyBindings[MAIN_MENU_BUTTON_COUNT] = {
@@ -474,7 +532,9 @@ int mainMenuWindowHandleEvents()
                 continue;
             } else if (keyCode == 501) {
                 main_menu_play_sound("nmselec0");
-                showFissionAbout();
+                modListShow();
+                
+                //showFissionAbout();
                 continue;
             } else if (keyCode == 1111) {
                 if (!(mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_REPEAT)) {
@@ -528,6 +588,402 @@ static int main_menu_fatal_error()
 static void main_menu_play_sound(const char* fileName)
 {
     soundPlayFile(fileName);
+}
+
+// Opens the modlist window
+static int modListShow()
+{
+    // Reset state
+    gModListTopLine = 0;
+    gModListCurrentLine = 0;
+    gModListPreviousCurrentLine = -2;
+
+    // Load background - adjust with final/custom graphic later
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 86, 0, 0, 0);
+    if (!_modListBackgroundFrm.lock(backgroundFid)) {
+        debugPrint("Error loading mod list background\n");
+        return -1;
+    }
+
+    // Load button graphics
+    for (int i = 0; i < MOD_GRAPHIC_COUNT; i++) {
+        int fid = buildFid(OBJ_TYPE_INTERFACE, gModListFrmIds[i], 0, 0, 0);
+        if (!_modListFrmImages[i].lock(fid)) {
+            debugPrint("Error loading button graphic %d\n", i);
+            _modListBackgroundFrm.unlock();
+            for (int j = 0; j < i; j++) _modListFrmImages[j].unlock();
+            return -1;
+        }
+    }
+
+    // Determine window position (always center)
+    int windowX = (screenGetWidth() - MOD_WINDOW_WIDTH) / 2;
+    int windowY = (screenGetHeight() - MOD_WINDOW_HEIGHT) / 2;
+    gModListWindow = windowCreate(windowX, windowY, MOD_WINDOW_WIDTH, MOD_WINDOW_HEIGHT, 256,
+                                  WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+    if (gModListWindow == -1) {
+        debugPrint("Error creating mod list window\n");
+        _modListBackgroundFrm.unlock();
+        for (int i = 0; i < MOD_GRAPHIC_COUNT; i++) _modListFrmImages[i].unlock();
+        return -1;
+    }
+
+    gModListWindowBuffer = windowGetBuffer(gModListWindow);
+    memcpy(gModListWindowBuffer, _modListBackgroundFrm.getData(), MOD_WINDOW_WIDTH * MOD_WINDOW_HEIGHT);
+
+    // Create buttons
+    // Up arrow
+    int btnUp = buttonCreate(gModListWindow,
+        25, 46,
+        _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getWidth(),
+        _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
+        -1, 574, 572, 574,
+        _modListFrmImages[MOD_GRAPHIC_UP_ARROW_OFF].getData(),
+        _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (btnUp != -1) {
+        buttonSetCallbacks(btnUp, _gsound_red_butt_press, nullptr);
+    }
+
+    // Down arrow
+    int btnDown = buttonCreate(gModListWindow,
+        25, 47 + _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
+        _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getWidth(),
+        _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getHeight(),
+        -1, 575, 573, 575,
+        _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_OFF].getData(),
+        _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (btnDown != -1) {
+        buttonSetCallbacks(btnDown, _gsound_red_butt_press, nullptr);
+    }
+
+    // Done button
+    int btnDone = buttonCreate(gModListWindow,
+        48, 186,
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getWidth(),
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getHeight(),
+        -1, -1, -1, 500,
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getData(),
+        _modListFrmImages[MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (btnDone != -1) {
+        buttonSetCallbacks(btnDone, _gsound_red_butt_press, _gsound_red_butt_release);
+    }
+
+    // Cancel button
+    int btnCancel = buttonCreate(gModListWindow,
+        153, 186,
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getWidth(),
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getHeight(),
+        -1, -1, -1, 502,
+        _modListFrmImages[MOD_GRAPHIC_LITTLE_RED_BUTTON_UP].getData(),
+        _modListFrmImages[MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+    if (btnCancel != -1) {
+        buttonSetCallbacks(btnCancel, _gsound_red_butt_press, _gsound_red_butt_release);
+    }
+
+    // Clickable list area (invisible buttons)
+    buttonCreate(gModListWindow,
+        MOD_LIST_X, MOD_LIST_Y, MOD_LIST_WIDTH, MOD_LIST_HEIGHT,
+        -1, -1, -1, 501,
+        nullptr, nullptr, nullptr,
+        BUTTON_FLAG_TRANSPARENT);
+
+    // Set font for titles
+    fontSetCurrent(103);
+
+    // Hardcoded titles (can be replaced with fission.msg entries later)
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 16 + 49,
+                 "Loaded Mods", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 69,
+                 "Done", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 171,
+                 "Cancel", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+
+    // Draw the mod list
+    int count = modListDrawList();
+    if (count > 0) {
+        modListDrawDetails(gModListTopLine + gModListCurrentLine);
+    }
+
+    windowRefresh(gModListWindow);
+
+    int rc = modListHandleInput(count);
+
+    // Cleanup
+    _modListBackgroundFrm.unlock();
+    for (int i = 0; i < MOD_GRAPHIC_COUNT; i++) _modListFrmImages[i].unlock();
+    windowDestroy(gModListWindow);
+
+    return rc;
+}
+
+static int modListDrawList()
+{
+    // Clear the list area
+    blitBufferToBuffer(
+        _modListBackgroundFrm.getData() + MOD_WINDOW_WIDTH * MOD_LIST_Y + MOD_LIST_X,
+        MOD_LIST_WIDTH, MOD_LIST_HEIGHT, MOD_WINDOW_WIDTH,
+        gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_LIST_Y + MOD_LIST_X,
+        MOD_WINDOW_WIDTH);
+
+    if (gLoadedModsCount == 0) {
+        fontSetCurrent(101);
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * (MOD_LIST_Y + 10) + (MOD_LIST_X + 10),
+                     "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[992]);
+        return 0;
+    }
+
+    fontSetCurrent(101);
+    int lineHeight = fontGetLineHeight() + 2;
+    int y = MOD_LIST_Y;
+    int endIndex = gModListTopLine + 11;
+    if (endIndex > gLoadedModsCount) endIndex = gLoadedModsCount;
+
+    for (int i = gModListTopLine; i < endIndex; i++) {
+        int color = (i == gModListTopLine + gModListCurrentLine) ? _colorTable[32747] : _colorTable[992];
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_LIST_X,
+                     gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+        y += lineHeight;
+    }
+
+    return gLoadedModsCount;
+}
+
+static void modListDrawDetails(int selectedIndex)
+{
+    if (selectedIndex < 0 || selectedIndex >= gLoadedModsCount) return;
+
+    const ModInfo* info = &gLoadedMods[selectedIndex];
+
+    // Clear the detail area (copy background)
+    blitBufferToBuffer(
+        _modListBackgroundFrm.getData() + 280, 293, MOD_WINDOW_HEIGHT, MOD_WINDOW_WIDTH,
+        gModListWindowBuffer + 280, MOD_WINDOW_WIDTH);
+
+    // Draw mod icon if it exists
+    FrmImage iconFrm;
+    int fid = buildFid(OBJ_TYPE_INTERFACE, info->icon_index, 0, 0, 0);
+    if (iconFrm.lock(fid)) {
+        blitBufferToBuffer(iconFrm.getData(),
+                           iconFrm.getWidth(), iconFrm.getHeight(), iconFrm.getWidth(),
+                           gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_ICON_Y + MOD_ICON_X,
+                           MOD_WINDOW_WIDTH);
+        iconFrm.unlock();
+    }
+
+    // Save current font to restore later
+    int oldFont = fontGetCurrent();
+
+    // Mod Name
+    fontSetCurrent(102);
+    int nameWidth = fontGetStringWidth(info->name);
+    int nameLineHeight = fontGetLineHeight();
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
+                 info->name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+
+    // Mod Author
+    fontSetCurrent(101);
+    int authorLineHeight = fontGetLineHeight();
+    int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4; // vertical center
+    int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
+                 "by", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]); // add to fission.msg later
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + 18,
+                 info->author, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+
+    // Draw divider line below name/author
+    int lineY = MOD_NAME_Y + nameLineHeight + 4; // gap below name line
+    int lineStartX = MOD_TEXT_X;
+    int lineEndX = MOD_TEXT_X + 260; // match text area end
+    windowDrawLine(gModListWindow, lineStartX, lineY, lineEndX, lineY, _colorTable[0]);
+    windowDrawLine(gModListWindow, lineStartX, lineY + 1, lineEndX, lineY + 1, _colorTable[0]);
+
+    // Common settings for wrapped text
+    int lineHeight = authorLineHeight + 2; // line spacing
+    int maxDescWidth = MOD_ICON_X - MOD_TEXT_X - 8; // width available for text before hitting the icon
+    char buffer[512];
+    short beginnings[256];
+    short beginningsCount;
+
+    // Description (wrapped)
+    strncpy(buffer, info->description, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    int descLines = 0;
+    if (wordWrap(buffer, maxDescWidth, beginnings, &beginningsCount) == 0) {
+        int y = lineY + 8; // start description below divider with some margin
+        for (int i = 0; i < beginningsCount - 1; i++) {
+            short start = beginnings[i];
+            short end = beginnings[i + 1];
+            char savedChar = buffer[end];
+            buffer[end] = '\0';
+            fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_TEXT_X,
+                         buffer + start,
+                         MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+                         _colorTable[0]);
+            buffer[end] = savedChar;
+            y += lineHeight;
+            descLines++;
+        }
+    }
+
+    // Dependencies (wrapped, if any)
+    if (info->dependencyCount > 0) {
+        // Build dependencies string
+        char depString[256] = "Dependencies: ";
+        for (int i = 0; i < info->dependencyCount; i++) {
+            strcat(depString, info->dependencies[i]);
+            if (i < info->dependencyCount - 1) strcat(depString, ", ");
+        }
+
+        strncpy(buffer, depString, sizeof(buffer) - 1);
+        buffer[sizeof(buffer) - 1] = '\0';
+
+        if (wordWrap(buffer, maxDescWidth, beginnings, &beginningsCount) == 0) {
+            int yDep = lineY + 8 + descLines * lineHeight + 5; // below description
+            for (int i = 0; i < beginningsCount - 1; i++) {
+                short start = beginnings[i];
+                short end = beginnings[i + 1];
+                char savedChar = buffer[end];
+                buffer[end] = '\0';
+                fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
+                             buffer + start,
+                             MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+                             _colorTable[0]);
+                buffer[end] = savedChar;
+                yDep += lineHeight;
+            }
+        }
+    }
+
+    // Restore original font
+    fontSetCurrent(oldFont);
+}
+
+static void modListRefresh()
+{
+    modListDrawList();
+    modListDrawDetails(gModListTopLine + gModListCurrentLine);
+    windowRefresh(gModListWindow);
+}
+
+static int modListHandleInput(int count)
+{
+    fontSetCurrent(101);
+    int lineHeight = fontGetLineHeight() + 2;
+
+    int rc = 0;
+    while (rc == 0) {
+        sharedFpsLimiter.mark();
+
+        int keyCode = inputGetInput();
+        int repCounter = 0;
+
+        convertMouseWheelToArrowKey(&keyCode);
+
+        if (keyCode == 500) { // Done button
+            rc = 1;
+        } else if (keyCode == KEY_RETURN) {
+            soundPlayFile("ib1p1xx1");
+            rc = 1;
+        } else if (keyCode == 501) { // Click on list area
+            int mouseX, mouseY;
+            mouseGetPositionInWindow(gModListWindow, &mouseX, &mouseY);
+            int clickedLine = (mouseY - MOD_LIST_Y) / lineHeight;
+            if (clickedLine >= 0 && clickedLine < 11 && (gModListTopLine + clickedLine) < count) {
+                gModListCurrentLine = clickedLine;
+                if (gModListCurrentLine == gModListPreviousCurrentLine) {
+                    soundPlayFile("ib1p1xx1");
+                    rc = 1;
+                }
+                gModListPreviousCurrentLine = gModListCurrentLine;
+                modListRefresh();
+            }
+        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0) {
+            rc = 2; // cancel
+        } else {
+            // Handle arrow button clicks (572 = up, 573 = down)
+            if (keyCode == 572) {
+                keyCode = KEY_ARROW_UP;
+            } else if (keyCode == 573) {
+                keyCode = KEY_ARROW_DOWN;
+            }
+
+            switch (keyCode) {
+            case KEY_ARROW_UP:
+                gModListPreviousCurrentLine = -2;
+                if (count > 0) {
+                    if (gModListTopLine > 0) {
+                        gModListTopLine--;
+                    } else if (gModListCurrentLine > 0) {
+                        gModListCurrentLine--;
+                    }
+                    modListRefresh();
+                }
+                break;
+            case KEY_PAGE_UP:
+                gModListPreviousCurrentLine = -2;
+                for (int i = 0; i < 11; i++) {
+                    if (gModListTopLine > 0) {
+                        gModListTopLine--;
+                    } else if (gModListCurrentLine > 0) {
+                        gModListCurrentLine--;
+                    }
+                }
+                modListRefresh();
+                break;
+            case KEY_ARROW_DOWN:
+                gModListPreviousCurrentLine = -2;
+                if (count > 0) {
+                    if (gModListTopLine + 11 < count) {
+                        gModListTopLine++;
+                    } else if (gModListCurrentLine < 10 && (gModListTopLine + gModListCurrentLine + 1) < count) {
+                        gModListCurrentLine++;
+                    }
+                    modListRefresh();
+                }
+                break;
+            case KEY_PAGE_DOWN:
+                gModListPreviousCurrentLine = -2;
+                for (int i = 0; i < 11; i++) {
+                    if (gModListTopLine + 11 < count) {
+                        gModListTopLine++;
+                    } else if (gModListCurrentLine < 10 && (gModListTopLine + gModListCurrentLine + 1) < count) {
+                        gModListCurrentLine++;
+                    }
+                }
+                modListRefresh();
+                break;
+            case KEY_HOME:
+                gModListTopLine = 0;
+                gModListCurrentLine = 0;
+                gModListPreviousCurrentLine = -2;
+                modListRefresh();
+                break;
+            case KEY_END:
+                if (count > 11) {
+                    gModListTopLine = count - 11;
+                    gModListCurrentLine = 10;
+                } else {
+                    gModListCurrentLine = count - 1;
+                }
+                gModListPreviousCurrentLine = -2;
+                modListRefresh();
+                break;
+            }
+        }
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+    return rc;
 }
 
 } // namespace fallout

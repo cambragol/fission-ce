@@ -197,6 +197,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix);
  * @return int The final FID
  */
 int artGetFidWithVariant(int objectType, int baseId, bool useVariant);
+int artGetStableIndex(const char* filename);
 
 static inline int artGetIndex(int fid)
 {
