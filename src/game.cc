@@ -94,7 +94,6 @@ static int gameDbInit();
 static void showSplash();
 static int loadModGlobalVars();
 static void generateGVarReport();
-static void generateModsOrderFile(const char* modsPath, const char* orderFilePath);
 
 // 0x501C9C
 static char _aGame_0[] = "game\\";
@@ -1914,10 +1913,6 @@ static int gameDbInit()
 
     compat_mkdir(modsPath);
 
-    if (compat_access(orderFilePath, 0) != 0) {
-        generateModsOrderFile(modsPath, orderFilePath);
-    }
-
     File* stream = fileOpen(orderFilePath, "r");
     if (stream) {
         char line[COMPAT_MAX_PATH];
@@ -2187,38 +2182,6 @@ static std::vector<std::string> listModsInFolder(const char* modsPath)
     }
 
     return results;
-}
-
-static void generateModsOrderFile(const char* modsPath, const char* orderFilePath)
-{
-    std::vector<std::string> mods = listModsInFolder(modsPath);
-    if (mods.size() < 2) {
-        return;
-    }
-
-    std::sort(mods.begin(), mods.end());
-
-    File* stream = fileOpen(orderFilePath, "wt");
-    if (!stream) {
-        return;
-    }
-
-    fileWriteString("# FISSION mods_order.txt\n", stream);
-    fileWriteString("#\n", stream);
-    fileWriteString("# Mods (both directories and .dat files) are loaded in the order they appear below.\n", stream);
-    fileWriteString("# Under FISSION's modular system, mods DO NOT usually need to be ordered,\n", stream);
-    fileWriteString("# because assets are extended via hashed lists. However, if you want one mod\n", stream);
-    fileWriteString("# to override another, place the overriding mod LOWER in this list.\n", stream);
-    fileWriteString("#\n", stream);
-    fileWriteString("# Lines beginning with '#' or ';' are ignored. Empty lines are also ignored.\n", stream);
-    fileWriteString("\n", stream);
-
-    for (const auto& mod : mods) {
-        fileWriteString(mod.c_str(), stream);
-        fileWriteString("\n", stream);
-    }
-
-    fileClose(stream);
 }
 
 } // namespace fallout

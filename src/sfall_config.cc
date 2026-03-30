@@ -2,6 +2,7 @@
 
 #include "art.h"
 #include "db.h"
+#include "file_find.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "scan_unimplemented.h"
@@ -9,6 +10,7 @@
 #include "string_parsers.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h> 
 
 namespace fallout {
 
@@ -18,6 +20,47 @@ bool gModConfigInitialized = false;
 Config gModConfig;
 ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
+
+// Comparison function for qsort
+static int compareStrings(const void* a, const void* b) {
+    return strcmp((const char*)a, (const char*)b);
+}
+
+// Scan the mods folder and return a list of base names (without .dat)
+static int scanModsFolder(char modList[][MOD_INFO_MAX_NAME], int maxEntries) {
+    const char* modsPath = "mods";
+    char pattern[COMPAT_MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s%c*", modsPath, DIR_SEPARATOR);
+    int count = 0;
+
+    DirectoryFileFindData findData;
+    if (fileFindFirst(pattern, &findData)) {
+        do {
+            const char* name = fileFindGetName(&findData);
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+
+            size_t len = strlen(name);
+            // Check if the entry ends with ".dat" (case?insensitive)
+            if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
+                // Extract base name (without .dat)
+                size_t baseLen = len - 4;
+                char base[MOD_INFO_MAX_NAME];
+                if (baseLen >= MOD_INFO_MAX_NAME) baseLen = MOD_INFO_MAX_NAME - 1;
+                strncpy(base, name, baseLen);
+                base[baseLen] = '\0';
+
+                // Only accept if the base name starts with "mod_"
+                if (strncmp(base, "mod_", 4) == 0 && count < maxEntries) {
+                    strncpy(modList[count], base, MOD_INFO_MAX_NAME - 1);
+                    modList[count][MOD_INFO_MAX_NAME - 1] = '\0';
+                    count++;
+                }
+            }
+        } while (fileFindNext(&findData));
+        findFindClose(&findData);
+    }
+    return count;
+}
 
 static void extractDatName(const char* path, char* out, size_t outSize) {
     // Find the last separator
@@ -169,6 +212,130 @@ static void extractModInfo(Config* config, ModInfo* info)
     }
 }
 
+static void syncModsOrderFile(void) {
+    // Ensure the mods folder exists
+    compat_mkdir("mods");
+
+    // Scan the folder for all mod entries (files/folders ending with .dat)
+    char folderMods[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+    int folderCount = scanModsFolder(folderMods, MAX_LOADED_MODS);
+
+    // Add default entries for any mod not already in gLoadedMods
+    for (int i = 0; i < folderCount; i++) {
+        const char* base = folderMods[i];
+        int found = 0;
+        for (int j = 0; j < gLoadedModsCount; j++) {
+            if (strcmp(gLoadedMods[j].datName, base) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found && gLoadedModsCount < MAX_LOADED_MODS) {
+            ModInfo defaultInfo;
+            memset(&defaultInfo, 0, sizeof(defaultInfo));
+            strncpy(defaultInfo.name, base, MOD_INFO_MAX_NAME - 1);
+            defaultInfo.name[MOD_INFO_MAX_NAME - 1] = '\0';
+            strncpy(defaultInfo.description, "No description available", MOD_INFO_MAX_DESC - 1);
+            strncpy(defaultInfo.author, "Unknown", MOD_INFO_MAX_AUTHOR - 1);
+            strncpy(defaultInfo.datName, base, MOD_INFO_MAX_NAME - 1);
+            defaultInfo.dependencyCount = 0;
+            // filePath remains empty (no .cfg file)
+            gLoadedMods[gLoadedModsCount++] = defaultInfo;
+        }
+    }
+
+    // Recompute icon_index for all mods (including newly added ones)
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        gLoadedMods[i].icon_index = getModPresenceIndex(gLoadedMods[i].name);
+    }
+
+    // Read current mod order file (if any)
+    char orderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+    int orderCount = readModOrderFile(orderList, MAX_LOADED_MODS);
+
+    // Collect new mods (present in folder but not in order file)
+    char newMods[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+    int newModsCount = 0;
+    for (int i = 0; i < folderCount; i++) {
+        const char* base = folderMods[i];
+        int inOrder = 0;
+        for (int j = 0; j < orderCount; j++) {
+            if (strcmp(orderList[j], base) == 0) {
+                inOrder = 1;
+                break;
+            }
+        }
+        if (!inOrder && newModsCount < MAX_LOADED_MODS) {
+            strncpy(newMods[newModsCount], base, MOD_INFO_MAX_NAME - 1);
+            newMods[newModsCount][MOD_INFO_MAX_NAME - 1] = '\0';
+            newModsCount++;
+        }
+    }
+
+    // Append new mods in alphabetical order
+    if (newModsCount > 0) {
+        qsort(newMods, newModsCount, MOD_INFO_MAX_NAME, compareStrings);
+        for (int i = 0; i < newModsCount && orderCount < MAX_LOADED_MODS; i++) {
+            strncpy(orderList[orderCount], newMods[i], MOD_INFO_MAX_NAME - 1);
+            orderList[orderCount][MOD_INFO_MAX_NAME - 1] = '\0';
+            orderCount++;
+        }
+    }
+
+    // Write the (possibly updated) order file
+    if (orderCount > 0) {
+        writeModOrderFile(orderList, orderCount);
+    } else if (folderCount > 0) {
+        // No order file existed and there are mods - create a sorted list
+        char newOrderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+        int newCount = 0;
+        for (int i = 0; i < folderCount && newCount < MAX_LOADED_MODS; i++) {
+            strncpy(newOrderList[newCount], folderMods[i], MOD_INFO_MAX_NAME - 1);
+            newOrderList[newCount][MOD_INFO_MAX_NAME - 1] = '\0';
+            newCount++;
+        }
+        qsort(newOrderList, newCount, MOD_INFO_MAX_NAME, compareStrings);
+        writeModOrderFile(newOrderList, newCount);
+        // Update orderList and orderCount for reordering
+        orderCount = newCount;
+        memcpy(orderList, newOrderList, orderCount * MOD_INFO_MAX_NAME);
+    }
+
+    // Reorder gLoadedMods according to the final orderList
+    if (orderCount > 0) {
+        ModInfo newList[MAX_LOADED_MODS];
+        int newCount = 0;
+
+        // Add mods in the order specified by the order file
+        for (int i = 0; i < orderCount; i++) {
+            for (int j = 0; j < gLoadedModsCount; j++) {
+                if (strcmp(gLoadedMods[j].datName, orderList[i]) == 0) {
+                    newList[newCount++] = gLoadedMods[j];
+                    break;
+                }
+            }
+        }
+
+        // Add remaining mods (not in order file) in their original order
+        for (int i = 0; i < gLoadedModsCount; i++) {
+            int found = 0;
+            for (int j = 0; j < orderCount; j++) {
+                if (strcmp(gLoadedMods[i].datName, orderList[j]) == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                newList[newCount++] = gLoadedMods[i];
+            }
+        }
+
+        // Replace the global list with the sorted one
+        memcpy(gLoadedMods, newList, newCount * sizeof(ModInfo));
+        gLoadedModsCount = newCount;
+    }
+}
+
 bool modConfigInit(int argc, char** argv)
 {
     if (gModConfigInitialized) {
@@ -312,41 +479,8 @@ bool modConfigInit(int argc, char** argv)
         info->icon_index = getModPresenceIndex(info->name);
     }
 
-    // Read mod order file and sort gLoadedMods accordingly
-    char orderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
-    int orderCount = readModOrderFile(orderList, MAX_LOADED_MODS);
-    if (orderCount > 0) {
-        ModInfo newList[MAX_LOADED_MODS];
-        int newCount = 0;
-
-        // Add mods in the order specified by the order file
-        for (int i = 0; i < orderCount; i++) {
-                for (int j = 0; j < gLoadedModsCount; j++) {
-                    if (strcmp(gLoadedMods[j].datName, orderList[i]) == 0) {
-                        newList[newCount++] = gLoadedMods[j];
-                        break;
-                    }
-                }
-        }
-
-        // Add remaining mods (not in order file) in their original order
-        for (int i = 0; i < gLoadedModsCount; i++) {
-            int found = 0;
-            for (int j = 0; j < orderCount; j++) {
-                if (strcmp(gLoadedMods[i].datName, orderList[j]) == 0) {
-                    found = 1;
-                    break;
-                }
-            }
-            if (!found) {
-                newList[newCount++] = gLoadedMods[i];
-            }
-        }
-
-        // Replace the global list with the sorted one
-        memcpy(gLoadedMods, newList, newCount * sizeof(ModInfo));
-        gLoadedModsCount = newCount;
-    }
+    // Synchronize the mods folder with the order file and gLoadedMods
+    syncModsOrderFile();
 
     // Pass 2: Read all .cfg files in the sorted order (main first, then mods)
     configRead(&gModConfig, path, true); // main mod.cfg

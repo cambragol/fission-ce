@@ -40,6 +40,7 @@ namespace fallout {
 #define MOD_LIST_Y 43
 #define MOD_LIST_WIDTH 192
 #define MOD_LIST_HEIGHT 110
+#define MOD_MAX_MOD_LINES 8
 
 // Detail area
 #define MOD_ICON_X 413
@@ -771,7 +772,7 @@ static int modListDrawList()
     fontSetCurrent(101);
     int lineHeight = fontGetLineHeight() + 2;
     int y = MOD_LIST_Y;
-    int endIndex = gModListTopLine + 11;
+    int endIndex = gModListTopLine + MOD_MAX_MOD_LINES;
     if (endIndex > gLoadedModsCount) endIndex = gLoadedModsCount;
 
     for (int i = gModListTopLine; i < endIndex; i++) {
@@ -933,9 +934,9 @@ static void modListMoveDown() {
     gLoadedMods[idx] = gLoadedMods[idx+1];
     gLoadedMods[idx+1] = temp;
     // Update selection
-    if (gModListCurrentLine == 10 && gModListTopLine + 11 < gLoadedModsCount) {
+    if (gModListCurrentLine == MOD_MAX_MOD_LINES - 1 && gModListTopLine + MOD_MAX_MOD_LINES < gLoadedModsCount) {
         gModListTopLine++;
-    } else if (gModListCurrentLine < 10) {
+    } else if (gModListCurrentLine < MOD_MAX_MOD_LINES - 1) {
         gModListCurrentLine++;
     }
     gModListOrderChanged = 1;
@@ -957,20 +958,34 @@ static int modListHandleInput(int count)
 
         convertMouseWheelToArrowKey(&keyCode);
 
-        if (keyCode == 500) {
+        if (keyCode == 500 || keyCode == KEY_RETURN) {
             if (gModListOrderChanged) {
-                // temporary handling
-                showMesageBox("Mod order changed. Please restart the game for changes to take effect.");
+                // temporary handling - messages must be updated in fission.msg
+                const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 103);
+                const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 104);
+                const char* bodyLines[] = { bodyText };
+
+                showDialogBox(
+                    title,
+                    bodyLines,
+                    1,
+                    192, 135,
+                    _colorTable[32328],
+                    nullptr,
+                    _colorTable[32328],
+                    1 // DIALOG_BOX_OK
+                );
+                gModListOrderChanged = 0;
             }
-            rc = 1;
-        } else if (keyCode == KEY_RETURN) {
+            if (keyCode == KEY_RETURN) {
             soundPlayFile("ib1p1xx1");
+            }
             rc = 1;
         } else if (keyCode == 501) { // Click on list area
             int mouseX, mouseY;
             mouseGetPositionInWindow(gModListWindow, &mouseX, &mouseY);
             int clickedLine = (mouseY - MOD_LIST_Y) / lineHeight;
-            if (clickedLine >= 0 && clickedLine < 11 && (gModListTopLine + clickedLine) < count) {
+            if (clickedLine >= 0 && clickedLine < MOD_MAX_MOD_LINES && (gModListTopLine + clickedLine) < count) {
                 gModListCurrentLine = clickedLine;
                 if (gModListCurrentLine == gModListPreviousCurrentLine) {
                     soundPlayFile("ib1p1xx1");
@@ -1004,19 +1019,23 @@ static int modListHandleInput(int count)
 
             switch (keyCode) {
             case KEY_ARROW_UP:
-                gModListPreviousCurrentLine = -2;
-                if (count > 0) {
-                    if (gModListTopLine > 0) {
-                        gModListTopLine--;
-                    } else if (gModListCurrentLine > 0) {
-                        gModListCurrentLine--;
+                if (gModListReorderMode) {
+                    modListMoveUp();
+                } else {
+                    gModListPreviousCurrentLine = -2;
+                    if (count > 0) {
+                        if (gModListTopLine > 0) {
+                            gModListTopLine--;
+                        } else if (gModListCurrentLine > 0) {
+                            gModListCurrentLine--;
+                        }
+                        modListRefresh();
                     }
-                    modListRefresh();
                 }
                 break;
             case KEY_PAGE_UP:
                 gModListPreviousCurrentLine = -2;
-                for (int i = 0; i < 11; i++) {
+                for (int i = 0; i < MOD_MAX_MOD_LINES; i++) {
                     if (gModListTopLine > 0) {
                         gModListTopLine--;
                     } else if (gModListCurrentLine > 0) {
@@ -1026,22 +1045,26 @@ static int modListHandleInput(int count)
                 modListRefresh();
                 break;
             case KEY_ARROW_DOWN:
-                gModListPreviousCurrentLine = -2;
-                if (count > 0) {
-                    if (gModListTopLine + 11 < count) {
-                        gModListTopLine++;
-                    } else if (gModListCurrentLine < 10 && (gModListTopLine + gModListCurrentLine + 1) < count) {
-                        gModListCurrentLine++;
+                if (gModListReorderMode) {
+                    modListMoveDown();
+                } else {
+                    gModListPreviousCurrentLine = -2;
+                    if (count > 0) {
+                        if (gModListTopLine + MOD_MAX_MOD_LINES < count) {
+                            gModListTopLine++;
+                        } else if (gModListCurrentLine < MOD_MAX_MOD_LINES - 1 && (gModListTopLine + gModListCurrentLine + 1) < count) {
+                            gModListCurrentLine++;
+                        }
+                        modListRefresh();
                     }
-                    modListRefresh();
                 }
                 break;
             case KEY_PAGE_DOWN:
                 gModListPreviousCurrentLine = -2;
-                for (int i = 0; i < 11; i++) {
-                    if (gModListTopLine + 11 < count) {
+                for (int i = 0; i < MOD_MAX_MOD_LINES; i++) {
+                    if (gModListTopLine + MOD_MAX_MOD_LINES < count) {
                         gModListTopLine++;
-                    } else if (gModListCurrentLine < 10 && (gModListTopLine + gModListCurrentLine + 1) < count) {
+                    } else if (gModListCurrentLine < MOD_MAX_MOD_LINES - 1 && (gModListTopLine + gModListCurrentLine + 1) < count) {
                         gModListCurrentLine++;
                     }
                 }
@@ -1054,9 +1077,9 @@ static int modListHandleInput(int count)
                 modListRefresh();
                 break;
             case KEY_END:
-                if (count > 11) {
-                    gModListTopLine = count - 11;
-                    gModListCurrentLine = 10;
+                if (count > MOD_MAX_MOD_LINES) {
+                    gModListTopLine = count - MOD_MAX_MOD_LINES;
+                    gModListCurrentLine = MOD_MAX_MOD_LINES - 1;
                 } else {
                     gModListCurrentLine = count - 1;
                 }
