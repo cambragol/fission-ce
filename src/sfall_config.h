@@ -2,6 +2,7 @@
 #define MOD_CONFIG_H
 
 #include "config.h"
+#include "platform_compat.h"
 
 namespace fallout {
 
@@ -176,6 +177,8 @@ typedef struct ModInfo {
     char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];
     int dependencyCount;
     int icon_index;
+    char filePath[COMPAT_MAX_PATH];
+    char datName[MOD_INFO_MAX_NAME];
 } ModInfo;
 
 // Global list of loaded mods
@@ -187,6 +190,8 @@ extern Config gModConfig;
 
 bool modConfigInit(int argc, char** argv);
 void modConfigExit();
+
+void modConfigWriteOrderFromLoadedMods();
 
 } // namespace fallout
 

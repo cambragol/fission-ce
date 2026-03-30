@@ -19,6 +19,78 @@ Config gModConfig;
 ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
 
+static void extractDatName(const char* path, char* out, size_t outSize) {
+    // Find the last separator
+    const char* base = strrchr(path, DIR_SEPARATOR);
+    if (!base) base = path;
+    else base++;
+    // Copy until '.'
+    const char* dot = strchr(base, '.');
+    size_t len = dot ? (dot - base) : strlen(base);
+    if (len >= outSize) len = outSize - 1;
+    strncpy(out, base, len);
+    out[len] = '\0';
+}
+
+static int readModOrderFile(char orderList[][MOD_INFO_MAX_NAME], int maxEntries) {
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "mods%cmods_order.txt", DIR_SEPARATOR);
+    FILE* f = compat_fopen(path, "r");
+    if (!f) return 0;
+    int count = 0;
+    char line[256];
+    while (fgets(line, sizeof(line), f) && count < maxEntries) {
+        char* nl = strchr(line, '\n');
+        if (nl) *nl = '\0';
+        char* start = line;
+        while (*start == ' ') start++;
+        if (*start == '#' || *start == ';' || *start == '\0') continue;
+        // Remove .dat extension if present
+        char* dot = strstr(start, ".dat");
+        if (dot) *dot = '\0';
+        strncpy(orderList[count], start, MOD_INFO_MAX_NAME - 1);
+        orderList[count][MOD_INFO_MAX_NAME - 1] = '\0';
+        count++;
+    }
+    fclose(f);
+    return count;
+}
+
+static void writeModOrderFile(const char orderList[][MOD_INFO_MAX_NAME], int count) {
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "mods%cmods_order.txt", DIR_SEPARATOR);
+    compat_mkdir("mods");
+    FILE* f = compat_fopen(path, "w");
+    if (!f) return;
+    // Write header
+    fprintf(f, "# FISSION mods_order.txt\n");
+    fprintf(f, "#\n");
+    fprintf(f, "# Mods (both directories and .dat files) are loaded in the order they appear below.\n");
+    fprintf(f, "# Under FISSION's modular system, mods DO NOT usually need to be ordered,\n");
+    fprintf(f, "# because assets are extended via hashed lists. However, if you want one mod\n");
+    fprintf(f, "# to override another, place the overriding mod LOWER in this list.\n");
+    fprintf(f, "#\n");
+    fprintf(f, "# Lines beginning with '#' or ';' are ignored. Empty lines are also ignored.\n");
+    fprintf(f, "\n");
+    for (int i = 0; i < count; i++) {
+        fprintf(f, "%s.dat\n", orderList[i]);
+    }
+    fclose(f);
+}
+
+void modConfigWriteOrderFromLoadedMods() {
+    char orderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+    int validCount = 0;
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        if (gLoadedMods[i].datName[0] != '\0') {
+            strncpy(orderList[validCount], gLoadedMods[i].datName, MOD_INFO_MAX_NAME - 1);
+            orderList[validCount][MOD_INFO_MAX_NAME - 1] = '\0';
+            validCount++;
+        }
+    }
+    writeModOrderFile(orderList, validCount);
+}
+
 static int getModPresenceIndex(const char* modName)
 {
     if (!modName || !modName[0]) return -1;
@@ -189,11 +261,6 @@ bool modConfigInit(int argc, char** argv)
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "data%c%s", DIR_SEPARATOR, MOD_CONFIG_FILE_NAME);
 
-    // ConfigChecker expects the final config after all reads, but it's defined
-    // early; we'll create it after reading? Actually original code created it
-    // before reading mod.cfg. We'll keep that order, but note that we read
-    // metadata first with temporary configs, then read the actual configs.
-    // For simplicity, create configChecker here (as in original).
     auto configChecker = ConfigChecker(gModConfig, MOD_CONFIG_FILE_NAME);
 
     // Pass 1: Collect metadata from all .cfg files (temporary configs)
@@ -205,6 +272,9 @@ bool modConfigInit(int argc, char** argv)
     ModInfo mainInfo;
     extractModInfo(&tempConfig, &mainInfo);
     if (mainInfo.name[0] != '\0' && gLoadedModsCount < MAX_LOADED_MODS) {
+        strncpy(mainInfo.filePath, path, COMPAT_MAX_PATH - 1);
+        mainInfo.filePath[COMPAT_MAX_PATH - 1] = '\0';
+        extractDatName(path, mainInfo.datName, MOD_INFO_MAX_NAME);
         gLoadedMods[gLoadedModsCount++] = mainInfo;
     }
     configFree(&tempConfig);
@@ -227,28 +297,70 @@ bool modConfigInit(int argc, char** argv)
             ModInfo info;
             extractModInfo(&modTemp, &info);
             if (info.name[0] != '\0' && gLoadedModsCount < MAX_LOADED_MODS) {
+                strncpy(info.filePath, modPath, COMPAT_MAX_PATH - 1);
+                info.filePath[COMPAT_MAX_PATH - 1] = '\0';
+                extractDatName(modPath, info.datName, MOD_INFO_MAX_NAME);
                 gLoadedMods[gLoadedModsCount++] = info;
             }
             configFree(&modTemp);
         }
     }
 
-    // Compute stable FID for each mod's icon/presence marker
-    // Compute presence index for each loaded mod
+    // Compute stable index for each mod's icon/presence marker
     for (int i = 0; i < gLoadedModsCount; i++) {
         ModInfo* info = &gLoadedMods[i];
         info->icon_index = getModPresenceIndex(info->name);
     }
 
-    // Pass 2: Read all .cfg files into the global config (overriding in order)
+    // Read mod order file and sort gLoadedMods accordingly
+    char orderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
+    int orderCount = readModOrderFile(orderList, MAX_LOADED_MODS);
+    if (orderCount > 0) {
+        ModInfo newList[MAX_LOADED_MODS];
+        int newCount = 0;
+
+        // Add mods in the order specified by the order file
+        for (int i = 0; i < orderCount; i++) {
+                for (int j = 0; j < gLoadedModsCount; j++) {
+                    if (strcmp(gLoadedMods[j].datName, orderList[i]) == 0) {
+                        newList[newCount++] = gLoadedMods[j];
+                        break;
+                    }
+                }
+        }
+
+        // Add remaining mods (not in order file) in their original order
+        for (int i = 0; i < gLoadedModsCount; i++) {
+            int found = 0;
+            for (int j = 0; j < orderCount; j++) {
+                if (strcmp(gLoadedMods[i].datName, orderList[j]) == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                newList[newCount++] = gLoadedMods[i];
+            }
+        }
+
+        // Replace the global list with the sorted one
+        memcpy(gLoadedMods, newList, newCount * sizeof(ModInfo));
+        gLoadedModsCount = newCount;
+    }
+
+    // Pass 2: Read all .cfg files in the sorted order (main first, then mods)
     configRead(&gModConfig, path, true); // main mod.cfg
 
-    if (modFileCount > 0) {
-        for (int i = 0; i < modFileCount; i++) {
-            char modPath[COMPAT_MAX_PATH];
-            snprintf(modPath, sizeof(modPath), "data%c%s", DIR_SEPARATOR, modFiles[i]);
-            configRead(&gModConfig, modPath, true);
+    // Read mods in the order they appear in gLoadedMods (already sorted)
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        const ModInfo* info = &gLoadedMods[i];
+        if (info->filePath[0] != '\0' && strcmp(info->filePath, path) != 0) {
+            configRead(&gModConfig, info->filePath, true);
         }
+    }
+
+    // Free the file list if it was allocated
+    if (modFileCount > 0) {
         fileNameListFree(&modFiles, modFileCount);
     }
 
@@ -256,7 +368,7 @@ bool modConfigInit(int argc, char** argv)
     configParseCommandLineArguments(&gModConfig, argc, argv);
     configChecker.check(gModConfig);
 
-    // read mod settigs into main settings
+    // read mod settings into main settings
     settingsFromModConfig();
 
     writeModFidsFile();

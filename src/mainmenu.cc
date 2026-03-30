@@ -39,7 +39,7 @@ namespace fallout {
 #define MOD_LIST_X 45
 #define MOD_LIST_Y 43
 #define MOD_LIST_WIDTH 192
-#define MOD_LIST_HEIGHT 129
+#define MOD_LIST_HEIGHT 110
 
 // Detail area
 #define MOD_ICON_X 413
@@ -96,6 +96,8 @@ enum {
     MOD_GRAPHIC_DOWN_ARROW_ON,
     MOD_GRAPHIC_LITTLE_RED_BUTTON_UP,
     MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN,
+    MOD_GRAPHIC_REORDER_BUTTON_OFF,
+    MOD_GRAPHIC_REORDER_BUTTON_ON,
     MOD_GRAPHIC_COUNT,
 };
 
@@ -106,6 +108,8 @@ static int gModListFrmIds[MOD_GRAPHIC_COUNT] = {
     182, // MOD_GRAPHIC_DOWN_ARROW_ON
     8, // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
     9, // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
+    7527,
+    4459,
 };
 
 static int gModListWindow = -1;
@@ -113,6 +117,10 @@ static unsigned char* gModListWindowBuffer = nullptr;
 static int gModListTopLine = 0;
 static int gModListCurrentLine = 0;
 static int gModListPreviousCurrentLine = -2;
+
+static int gModListReorderMode = 0;
+static int gModListReorderButton = -1;
+static int gModListOrderChanged = 0;
 
 static FrmImage _modListBackgroundFrm;
 static FrmImage _modListFrmImages[MOD_GRAPHIC_COUNT];
@@ -146,7 +154,6 @@ static bool gMainMenuWindowHidden;
 static FrmImage _mainMenuBackgroundFrmImage;
 static FrmImage _mainMenuButtonNormalFrmImage;
 static FrmImage _mainMenuButtonPressedFrmImage;
-
 static FrmImage _mainMenuFissionLogoFrmImage;
 
 bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
@@ -599,7 +606,7 @@ static int modListShow()
     gModListPreviousCurrentLine = -2;
 
     // Load background - adjust with final/custom graphic later
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 86, 0, 0, 0);
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 5599, 0, 0, 0);
     if (!_modListBackgroundFrm.lock(backgroundFid)) {
         debugPrint("Error loading mod list background\n");
         return -1;
@@ -621,7 +628,7 @@ static int modListShow()
     int windowX = (screenGetWidth() - MOD_WINDOW_WIDTH) / 2;
     int windowY = (screenGetHeight() - MOD_WINDOW_HEIGHT) / 2;
     gModListWindow = windowCreate(windowX, windowY, MOD_WINDOW_WIDTH, MOD_WINDOW_HEIGHT, 256,
-        WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+        WINDOW_MODAL | WINDOW_MOVE_ON_TOP | WINDOW_TRANSPARENT);
     if (gModListWindow == -1) {
         debugPrint("Error creating mod list window\n");
         _modListBackgroundFrm.unlock();
@@ -690,6 +697,24 @@ static int modListShow()
         buttonSetCallbacks(btnCancel, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
+    // Reorder mode toggle button (normal button, toggles mode on click)
+    int reorderX = 219 - 8 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
+    int reorderY = 148;
+    gModListReorderButton = buttonCreate(gModListWindow,
+        reorderX, reorderY,
+        _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth(),
+        _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getHeight(),
+        -1, -1, 505, 505,
+        _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_ON].getData(),
+        _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getData(),
+        nullptr,
+        BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE | BUTTON_FLAG_CHECK_ON_DOWN);
+        if (gModListReorderButton != -1) {
+        _win_set_button_rest_state(gModListReorderButton, gModListReorderMode, 0);
+    }
+    buttonSetCallbacks(gModListReorderButton, _gsound_med_butt_press, _gsound_med_butt_press);
+
+
     // Clickable list area (invisible buttons)
     buttonCreate(gModListWindow,
         MOD_LIST_X, MOD_LIST_Y, MOD_LIST_WIDTH, MOD_LIST_HEIGHT,
@@ -751,8 +776,13 @@ static int modListDrawList()
 
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color = (i == gModListTopLine + gModListCurrentLine) ? _colorTable[32747] : _colorTable[992];
-        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_LIST_X,
-            gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+        int x = MOD_LIST_X;
+        if (gModListReorderMode && i == gModListTopLine + gModListCurrentLine) {
+            x += 10; // indent
+            color = _colorTable[32767];
+        }
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
+                     gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
 
@@ -877,6 +907,42 @@ static void modListRefresh()
     windowRefresh(gModListWindow);
 }
 
+static void modListMoveUp() {
+    int idx = gModListTopLine + gModListCurrentLine;
+    if (idx <= 0) return;
+    // Swap
+    ModInfo temp = gLoadedMods[idx];
+    gLoadedMods[idx] = gLoadedMods[idx-1];
+    gLoadedMods[idx-1] = temp;
+    // Update selection
+    if (gModListCurrentLine == 0 && gModListTopLine > 0) {
+        gModListTopLine--;
+    } else {
+        gModListCurrentLine--;
+    }
+    gModListOrderChanged = 1;
+    modListRefresh();
+    modConfigWriteOrderFromLoadedMods();
+}
+
+static void modListMoveDown() {
+    int idx = gModListTopLine + gModListCurrentLine;
+    if (idx >= gLoadedModsCount - 1) return;
+    // Swap
+    ModInfo temp = gLoadedMods[idx];
+    gLoadedMods[idx] = gLoadedMods[idx+1];
+    gLoadedMods[idx+1] = temp;
+    // Update selection
+    if (gModListCurrentLine == 10 && gModListTopLine + 11 < gLoadedModsCount) {
+        gModListTopLine++;
+    } else if (gModListCurrentLine < 10) {
+        gModListCurrentLine++;
+    }
+    gModListOrderChanged = 1;
+    modListRefresh();
+    modConfigWriteOrderFromLoadedMods();
+}
+
 static int modListHandleInput(int count)
 {
     fontSetCurrent(101);
@@ -891,7 +957,11 @@ static int modListHandleInput(int count)
 
         convertMouseWheelToArrowKey(&keyCode);
 
-        if (keyCode == 500) { // Done button
+        if (keyCode == 500) {
+            if (gModListOrderChanged) {
+                // temporary handling
+                showMesageBox("Mod order changed. Please restart the game for changes to take effect.");
+            }
             rc = 1;
         } else if (keyCode == KEY_RETURN) {
             soundPlayFile("ib1p1xx1");
@@ -913,11 +983,24 @@ static int modListHandleInput(int count)
             rc = 2; // cancel
         } else {
             // Handle arrow button clicks (572 = up, 573 = down)
-            if (keyCode == 572) {
+        // Convert arrow button clicks to arrow keys, unless in reorder mode
+            if (keyCode == 572) { // Up arrow button
+            if (gModListReorderMode) {
+                modListMoveUp();
+            } else {
                 keyCode = KEY_ARROW_UP;
-            } else if (keyCode == 573) {
+            }
+        } else if (keyCode == 573) { // Down arrow button
+            if (gModListReorderMode) {
+                modListMoveDown();
+            } else {
                 keyCode = KEY_ARROW_DOWN;
             }
+        } else if (keyCode == 505) { // Reorder toggle button
+            gModListReorderMode = !gModListReorderMode;
+            modListRefresh();
+            continue; // skip further processing
+        }
 
             switch (keyCode) {
             case KEY_ARROW_UP:

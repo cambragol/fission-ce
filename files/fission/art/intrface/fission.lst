@@ -23,3 +23,6 @@ AUTODN_M.FRM        ; minimap toggle down
 INVBOX2.FRM         ; 2 column inventory
 INVBOX3.FRM         ; 3 column inventory
 INVBOX4.FRM         ; 4 column inventory
+MODWIN.FRM          ; Mod List window background
+BOXBON.FRM          ; Mod List sort button on
+BOXBOFF.FRM         ; Mod List sort button off
