@@ -100,3 +100,16 @@
 {460}{}{Tu inventario ya está "optimizado."}
 {461}{}{Hay una grave falta de oportunidades de ordenamiento aquí.}
 
+#
+# Menú de carga de mods
+#
+
+# Títulos
+{500}{}{MODS CARGADOS}
+{501}{}{LISTO}
+{502}{}{CANCELAR}
+{503}{}{por}
+
+# Ventana emergente de reinicio
+{510}{}{Los cambios en el orden de los mods tendrán}
+{511}{}{efecto al reiniciar.}

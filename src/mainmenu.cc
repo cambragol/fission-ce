@@ -123,6 +123,10 @@ static int gModListReorderMode = 0;
 static int gModListReorderButton = -1;
 static int gModListOrderChanged = 0;
 
+// For temporary mod list before confirmation when sorting
+static ModInfo gModListTempMods[MAX_LOADED_MODS];
+static int gModListTempCount = 0;
+
 static FrmImage _modListBackgroundFrm;
 static FrmImage _modListFrmImages[MOD_GRAPHIC_COUNT];
 
@@ -605,6 +609,8 @@ static int modListShow()
     gModListTopLine = 0;
     gModListCurrentLine = 0;
     gModListPreviousCurrentLine = -2;
+    gModListReorderMode = 0;
+    gModListOrderChanged = 0;
 
     // Load background - adjust with final/custom graphic later
     int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 5599, 0, 0, 0);
@@ -715,6 +721,10 @@ static int modListShow()
     }
     buttonSetCallbacks(gModListReorderButton, _gsound_med_butt_press, _gsound_med_butt_press);
 
+    // Copy current mod list into temporary storage
+    gModListTempCount = gLoadedModsCount;
+    memcpy(gModListTempMods, gLoadedMods, gLoadedModsCount * sizeof(ModInfo));
+
     // Clickable list area (invisible buttons)
     buttonCreate(gModListWindow,
         MOD_LIST_X, MOD_LIST_Y, MOD_LIST_WIDTH, MOD_LIST_HEIGHT,
@@ -725,13 +735,16 @@ static int modListShow()
     // Set font for titles
     fontSetCurrent(103);
 
-    // Hardcoded titles (can be replaced with fission.msg entries later)
+    // Button and window titles
+    const char* mods = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 500);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 16 + 49,
-        "Loaded Mods", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        mods, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+    const char* done = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 501);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 69,
-        "Done", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        done, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+    const char* cancel = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 502);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 171,
-        "Cancel", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        cancel, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
 
     // Draw the mod list
     int count = modListDrawList();
@@ -761,7 +774,7 @@ static int modListDrawList()
         gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_LIST_Y + MOD_LIST_X,
         MOD_WINDOW_WIDTH);
 
-    if (gLoadedModsCount == 0) {
+    if (gModListTempCount == 0) {
         fontSetCurrent(101);
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * (MOD_LIST_Y + 10) + (MOD_LIST_X + 10),
             "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[992]);
@@ -772,7 +785,7 @@ static int modListDrawList()
     int lineHeight = fontGetLineHeight() + 2;
     int y = MOD_LIST_Y;
     int endIndex = gModListTopLine + MOD_MAX_MOD_LINES;
-    if (endIndex > gLoadedModsCount) endIndex = gLoadedModsCount;
+    if (endIndex > gModListTempCount) endIndex = gModListTempCount;
 
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color = (i == gModListTopLine + gModListCurrentLine) ? _colorTable[32747] : _colorTable[992];
@@ -782,18 +795,18 @@ static int modListDrawList()
             color = _colorTable[32767];
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-            gLoadedMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+            gModListTempMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
 
-    return gLoadedModsCount;
+    return gModListTempCount;
 }
 
 static void modListDrawDetails(int selectedIndex)
 {
-    if (selectedIndex < 0 || selectedIndex >= gLoadedModsCount) return;
+    if (selectedIndex < 0 || selectedIndex >= gModListTempCount) return;
 
-    const ModInfo* info = &gLoadedMods[selectedIndex];
+    const ModInfo* info = &gModListTempMods[selectedIndex];
 
     // Clear the detail area (copy background)
     blitBufferToBuffer(
@@ -826,9 +839,11 @@ static void modListDrawDetails(int selectedIndex)
     int authorLineHeight = fontGetLineHeight();
     int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4; // vertical center
     int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
+    const char* by = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 503);
+    int byWidth = fontGetStringWidth(by);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
-        "by", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]); // add to fission.msg later
-    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + 18,
+        by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + byWidth,
         info->author, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Draw divider line below name/author
@@ -912,9 +927,9 @@ static void modListMoveUp()
     int idx = gModListTopLine + gModListCurrentLine;
     if (idx <= 0) return;
     // Swap
-    ModInfo temp = gLoadedMods[idx];
-    gLoadedMods[idx] = gLoadedMods[idx - 1];
-    gLoadedMods[idx - 1] = temp;
+    ModInfo temp = gModListTempMods[idx];
+    gModListTempMods[idx] = gModListTempMods[idx - 1];
+    gModListTempMods[idx - 1] = temp;
     // Update selection
     if (gModListCurrentLine == 0 && gModListTopLine > 0) {
         gModListTopLine--;
@@ -923,26 +938,24 @@ static void modListMoveUp()
     }
     gModListOrderChanged = 1;
     modListRefresh();
-    modConfigWriteOrderFromLoadedMods();
 }
 
 static void modListMoveDown()
 {
     int idx = gModListTopLine + gModListCurrentLine;
-    if (idx >= gLoadedModsCount - 1) return;
+    if (idx >= gModListTempCount - 1) return;
     // Swap
-    ModInfo temp = gLoadedMods[idx];
-    gLoadedMods[idx] = gLoadedMods[idx + 1];
-    gLoadedMods[idx + 1] = temp;
+    ModInfo temp = gModListTempMods[idx];
+    gModListTempMods[idx] = gModListTempMods[idx + 1];
+    gModListTempMods[idx + 1] = temp;
     // Update selection
-    if (gModListCurrentLine == MOD_MAX_MOD_LINES - 1 && gModListTopLine + MOD_MAX_MOD_LINES < gLoadedModsCount) {
+    if (gModListCurrentLine == MOD_MAX_MOD_LINES - 1 && gModListTopLine + MOD_MAX_MOD_LINES < gModListTempCount) {
         gModListTopLine++;
     } else if (gModListCurrentLine < MOD_MAX_MOD_LINES - 1) {
         gModListCurrentLine++;
     }
     gModListOrderChanged = 1;
     modListRefresh();
-    modConfigWriteOrderFromLoadedMods();
 }
 
 static int modListHandleInput(int count)
@@ -962,8 +975,8 @@ static int modListHandleInput(int count)
         if (keyCode == 500 || keyCode == KEY_RETURN) {
             if (gModListOrderChanged) {
                 // temporary handling - messages must be updated in fission.msg
-                const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 103);
-                const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 104);
+                const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 510);
+                const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 511);
                 const char* bodyLines[] = { bodyText };
 
                 showDialogBox(
@@ -976,6 +989,9 @@ static int modListHandleInput(int count)
                     _colorTable[32328],
                     1 // DIALOG_BOX_OK
                 );
+                memcpy(gLoadedMods, gModListTempMods, gModListTempCount * sizeof(ModInfo));
+                gLoadedModsCount = gModListTempCount;
+                modConfigWriteOrderFromLoadedMods();
                 gModListOrderChanged = 0;
             }
             if (keyCode == KEY_RETURN) {
