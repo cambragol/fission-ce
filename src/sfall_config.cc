@@ -9,8 +9,8 @@
 #include "settings.h"
 #include "string_parsers.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <stdlib.h> 
 
 namespace fallout {
 
@@ -22,12 +22,14 @@ ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
 
 // Comparison function for qsort
-static int compareStrings(const void* a, const void* b) {
+static int compareStrings(const void* a, const void* b)
+{
     return strcmp((const char*)a, (const char*)b);
 }
 
 // Scan the mods folder and return a list of base names (without .dat)
-static int scanModsFolder(char modList[][MOD_INFO_MAX_NAME], int maxEntries) {
+static int scanModsFolder(char modList[][MOD_INFO_MAX_NAME], int maxEntries)
+{
     const char* modsPath = "mods";
     char pattern[COMPAT_MAX_PATH];
     snprintf(pattern, sizeof(pattern), "%s%c*", modsPath, DIR_SEPARATOR);
@@ -62,7 +64,8 @@ static int scanModsFolder(char modList[][MOD_INFO_MAX_NAME], int maxEntries) {
     return count;
 }
 
-static void extractDatName(const char* path, char* out, size_t outSize) {
+static void extractDatName(const char* path, char* out, size_t outSize)
+{
     // Find the last separator
     const char* base = strrchr(path, DIR_SEPARATOR);
     if (!base)
@@ -218,7 +221,8 @@ static void extractModInfo(Config* config, ModInfo* info)
     }
 }
 
-static void syncModsOrderFile(void) {
+static void syncModsOrderFile(void)
+{
     // Ensure the mods folder exists
     compat_mkdir("mods");
 

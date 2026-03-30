@@ -979,7 +979,7 @@ static int modListHandleInput(int count)
                 gModListOrderChanged = 0;
             }
             if (keyCode == KEY_RETURN) {
-            soundPlayFile("ib1p1xx1");
+                soundPlayFile("ib1p1xx1");
             }
             rc = 1;
         } else if (keyCode == 501) { // Click on list area
