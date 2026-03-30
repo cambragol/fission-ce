@@ -19,11 +19,14 @@ Config gModConfig;
 ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
 
-static void extractDatName(const char* path, char* out, size_t outSize) {
+static void extractDatName(const char* path, char* out, size_t outSize)
+{
     // Find the last separator
     const char* base = strrchr(path, DIR_SEPARATOR);
-    if (!base) base = path;
-    else base++;
+    if (!base)
+        base = path;
+    else
+        base++;
     // Copy until '.'
     const char* dot = strchr(base, '.');
     size_t len = dot ? (dot - base) : strlen(base);
@@ -32,7 +35,8 @@ static void extractDatName(const char* path, char* out, size_t outSize) {
     out[len] = '\0';
 }
 
-static int readModOrderFile(char orderList[][MOD_INFO_MAX_NAME], int maxEntries) {
+static int readModOrderFile(char orderList[][MOD_INFO_MAX_NAME], int maxEntries)
+{
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "mods%cmods_order.txt", DIR_SEPARATOR);
     FILE* f = compat_fopen(path, "r");
@@ -43,7 +47,8 @@ static int readModOrderFile(char orderList[][MOD_INFO_MAX_NAME], int maxEntries)
         char* nl = strchr(line, '\n');
         if (nl) *nl = '\0';
         char* start = line;
-        while (*start == ' ') start++;
+        while (*start == ' ')
+            start++;
         if (*start == '#' || *start == ';' || *start == '\0') continue;
         // Remove .dat extension if present
         char* dot = strstr(start, ".dat");
@@ -56,7 +61,8 @@ static int readModOrderFile(char orderList[][MOD_INFO_MAX_NAME], int maxEntries)
     return count;
 }
 
-static void writeModOrderFile(const char orderList[][MOD_INFO_MAX_NAME], int count) {
+static void writeModOrderFile(const char orderList[][MOD_INFO_MAX_NAME], int count)
+{
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "mods%cmods_order.txt", DIR_SEPARATOR);
     compat_mkdir("mods");
@@ -78,7 +84,8 @@ static void writeModOrderFile(const char orderList[][MOD_INFO_MAX_NAME], int cou
     fclose(f);
 }
 
-void modConfigWriteOrderFromLoadedMods() {
+void modConfigWriteOrderFromLoadedMods()
+{
     char orderList[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
     int validCount = 0;
     for (int i = 0; i < gLoadedModsCount; i++) {
@@ -321,12 +328,12 @@ bool modConfigInit(int argc, char** argv)
 
         // Add mods in the order specified by the order file
         for (int i = 0; i < orderCount; i++) {
-                for (int j = 0; j < gLoadedModsCount; j++) {
-                    if (strcmp(gLoadedMods[j].datName, orderList[i]) == 0) {
-                        newList[newCount++] = gLoadedMods[j];
-                        break;
-                    }
+            for (int j = 0; j < gLoadedModsCount; j++) {
+                if (strcmp(gLoadedMods[j].datName, orderList[i]) == 0) {
+                    newList[newCount++] = gLoadedMods[j];
+                    break;
                 }
+            }
         }
 
         // Add remaining mods (not in order file) in their original order
