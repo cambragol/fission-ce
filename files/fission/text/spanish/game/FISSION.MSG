@@ -111,5 +111,5 @@
 {503}{}{por}
 
 # Ventana emergente de reinicio
-{510}{}{Los cambios en el orden de los mods tendrán}
-{511}{}{efecto al reiniciar.}
+{510}{}{Los cambios en el orden de los mods}
+{511}{}{tendrán efecto al reiniciar.}
