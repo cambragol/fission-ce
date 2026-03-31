@@ -2356,6 +2356,34 @@ int protoGetProto(int pid, Proto** protoPtr)
             (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
         }
 
+        // Apply script override (sid)
+        if (entry->has_override_script) {
+            switch (PID_TYPE(pid)) {
+                case OBJ_TYPE_ITEM:
+                    (*protoPtr)->item.sid = entry->override_script;
+                    break;
+                case OBJ_TYPE_CRITTER:
+                    (*protoPtr)->critter.sid = entry->override_script;
+                    break;
+                case OBJ_TYPE_SCENERY:
+                    (*protoPtr)->scenery.sid = entry->override_script;
+                    break;
+                case OBJ_TYPE_WALL:
+                    (*protoPtr)->wall.sid = entry->override_script;
+                    break;
+                case OBJ_TYPE_TILE:
+                    (*protoPtr)->tile.sid = entry->override_script;
+                    break;
+                case OBJ_TYPE_MISC:
+                    // MISC objects don't have sid; ignore the override with a warning
+                    debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
+                        entry->mod_name, entry->proto_name, pid);
+                    break;
+                default:
+                    break;
+            }
+        }
+
         (*protoPtr)->pid = pid;
         return 0;
     }
@@ -2712,6 +2740,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         bool has_inventory_fid = false;
         int desired_ai = 0;
         bool has_ai = false;
+        int desired_script = 0;
+        bool has_script = false;
 
         // Parse remaining tokens as key=value
         while (*p) {
@@ -2761,6 +2791,16 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
                         has_ai = true;
                     } else {
                         debugPrint("Warning: Invalid AI value '%s' in %s line %d\n",
+                            value, list_path, line_num);
+                    }
+                } else if (strcmp(key, "script") == 0) {
+                    char* endptr;
+                    long script = strtol(value, &endptr, 0);
+                    if (*endptr == '\0') {
+                        desired_script = (int)script;
+                        has_script = true;
+                    } else {
+                        debugPrint("Warning: Invalid script value '%s' in %s line %d\n",
                             value, list_path, line_num);
                     }
                 } else {
@@ -2841,6 +2881,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         entry.has_override_inventory_fid = has_inventory_fid;
         entry.override_ai_packet = desired_ai;
         entry.has_override_ai_packet = has_ai;
+        entry.override_script = desired_script;
+        entry.has_override_script = has_script;
 
         mod_proto_registry_add(&entry);
 
@@ -3537,6 +3579,19 @@ static void protoGenerateModProtoListDebug()
             fprintf(debugStream, "    Mod:      %s\n", entry->mod_name);
             fprintf(debugStream, "    Proto:    %s\n", entry->proto_name);
             fprintf(debugStream, "    File:     %s\n", fileName);
+            // Overrides
+            if (entry->has_override_fid) {
+                fprintf(debugStream, "    Override FID: %d\n", entry->override_fid);
+            }
+            if (entry->has_override_inventory_fid) {
+                fprintf(debugStream, "    Override Inventory FID: %d\n", entry->override_inventory_fid);
+            }
+            if (entry->has_override_ai_packet) {
+                fprintf(debugStream, "    Override AI Packet: %d\n", entry->override_ai_packet);
+            }
+            if (entry->has_override_script) {
+                fprintf(debugStream, "    Override Script: %d\n", entry->override_script);
+            }
 
             if (protoLoaded) {
                 fprintf(debugStream, "    Message:  ID %d\n", proto->messageId);

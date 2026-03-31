@@ -122,6 +122,8 @@ typedef struct ModProtoEntry {
     bool has_override_inventory_fid;
     int override_ai_packet; // AI packet number (for critters)
     bool has_override_ai_packet;
+    int override_script;
+    bool has_override_script;
 } ModProtoEntry;
 
 typedef struct NameToPidEntry {
