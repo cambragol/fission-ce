@@ -2359,28 +2359,28 @@ int protoGetProto(int pid, Proto** protoPtr)
         // Apply script override (sid)
         if (entry->has_override_script) {
             switch (PID_TYPE(pid)) {
-                case OBJ_TYPE_ITEM:
-                    (*protoPtr)->item.sid = entry->override_script;
-                    break;
-                case OBJ_TYPE_CRITTER:
-                    (*protoPtr)->critter.sid = entry->override_script;
-                    break;
-                case OBJ_TYPE_SCENERY:
-                    (*protoPtr)->scenery.sid = entry->override_script;
-                    break;
-                case OBJ_TYPE_WALL:
-                    (*protoPtr)->wall.sid = entry->override_script;
-                    break;
-                case OBJ_TYPE_TILE:
-                    (*protoPtr)->tile.sid = entry->override_script;
-                    break;
-                case OBJ_TYPE_MISC:
-                    // MISC objects don't have sid; ignore the override with a warning
-                    debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
-                        entry->mod_name, entry->proto_name, pid);
-                    break;
-                default:
-                    break;
+            case OBJ_TYPE_ITEM:
+                (*protoPtr)->item.sid = entry->override_script;
+                break;
+            case OBJ_TYPE_CRITTER:
+                (*protoPtr)->critter.sid = entry->override_script;
+                break;
+            case OBJ_TYPE_SCENERY:
+                (*protoPtr)->scenery.sid = entry->override_script;
+                break;
+            case OBJ_TYPE_WALL:
+                (*protoPtr)->wall.sid = entry->override_script;
+                break;
+            case OBJ_TYPE_TILE:
+                (*protoPtr)->tile.sid = entry->override_script;
+                break;
+            case OBJ_TYPE_MISC:
+                // MISC objects don't have sid; ignore the override with a warning
+                debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
+                    entry->mod_name, entry->proto_name, pid);
+                break;
+            default:
+                break;
             }
         }
 
