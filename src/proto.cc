@@ -2358,29 +2358,32 @@ int protoGetProto(int pid, Proto** protoPtr)
 
         // Apply script override (sid)
         if (entry->has_override_script) {
+            int script_id = entry->override_script;
+            if (script_id > 0) {
+                script_id--; // convert from 1-indexed to 0-indexed
+            }
             switch (PID_TYPE(pid)) {
-            case OBJ_TYPE_ITEM:
-                (*protoPtr)->item.sid = entry->override_script;
-                break;
-            case OBJ_TYPE_CRITTER:
-                (*protoPtr)->critter.sid = entry->override_script;
-                break;
-            case OBJ_TYPE_SCENERY:
-                (*protoPtr)->scenery.sid = entry->override_script;
-                break;
-            case OBJ_TYPE_WALL:
-                (*protoPtr)->wall.sid = entry->override_script;
-                break;
-            case OBJ_TYPE_TILE:
-                (*protoPtr)->tile.sid = entry->override_script;
-                break;
-            case OBJ_TYPE_MISC:
-                // MISC objects don't have sid; ignore the override with a warning
-                debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
-                    entry->mod_name, entry->proto_name, pid);
-                break;
-            default:
-                break;
+                case OBJ_TYPE_ITEM:
+                    (*protoPtr)->item.sid = script_id;
+                    break;
+                case OBJ_TYPE_CRITTER:
+                    (*protoPtr)->critter.sid = script_id;
+                    break;
+                case OBJ_TYPE_SCENERY:
+                    (*protoPtr)->scenery.sid = script_id;
+                    break;
+                case OBJ_TYPE_WALL:
+                    (*protoPtr)->wall.sid = script_id;
+                    break;
+                case OBJ_TYPE_TILE:
+                    (*protoPtr)->tile.sid = script_id;
+                    break;
+                case OBJ_TYPE_MISC:
+                    debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
+                        entry->mod_name, entry->proto_name, pid);
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -3590,7 +3593,11 @@ static void protoGenerateModProtoListDebug()
                 fprintf(debugStream, "    Override AI Packet: %d\n", entry->override_ai_packet);
             }
             if (entry->has_override_script) {
-                fprintf(debugStream, "    Override Script: %d\n", entry->override_script);
+                int internal_script = entry->override_script;
+                if (internal_script > 0) {
+                    internal_script--;
+                }
+                fprintf(debugStream, "    Override Script: %d (internal: %d)\n", entry->override_script, internal_script);
             }
 
             if (protoLoaded) {
