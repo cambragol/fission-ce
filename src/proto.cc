@@ -2363,27 +2363,27 @@ int protoGetProto(int pid, Proto** protoPtr)
                 script_id--; // convert from 1-indexed to 0-indexed
             }
             switch (PID_TYPE(pid)) {
-                case OBJ_TYPE_ITEM:
-                    (*protoPtr)->item.sid = script_id;
-                    break;
-                case OBJ_TYPE_CRITTER:
-                    (*protoPtr)->critter.sid = script_id;
-                    break;
-                case OBJ_TYPE_SCENERY:
-                    (*protoPtr)->scenery.sid = script_id;
-                    break;
-                case OBJ_TYPE_WALL:
-                    (*protoPtr)->wall.sid = script_id;
-                    break;
-                case OBJ_TYPE_TILE:
-                    (*protoPtr)->tile.sid = script_id;
-                    break;
-                case OBJ_TYPE_MISC:
-                    debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
-                        entry->mod_name, entry->proto_name, pid);
-                    break;
-                default:
-                    break;
+            case OBJ_TYPE_ITEM:
+                (*protoPtr)->item.sid = script_id;
+                break;
+            case OBJ_TYPE_CRITTER:
+                (*protoPtr)->critter.sid = script_id;
+                break;
+            case OBJ_TYPE_SCENERY:
+                (*protoPtr)->scenery.sid = script_id;
+                break;
+            case OBJ_TYPE_WALL:
+                (*protoPtr)->wall.sid = script_id;
+                break;
+            case OBJ_TYPE_TILE:
+                (*protoPtr)->tile.sid = script_id;
+                break;
+            case OBJ_TYPE_MISC:
+                debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
+                    entry->mod_name, entry->proto_name, pid);
+                break;
+            default:
+                break;
             }
         }
 
