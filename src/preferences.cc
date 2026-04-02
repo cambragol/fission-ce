@@ -443,11 +443,11 @@ void applyPlayAreaResolution()
         int displayIndex = 0; // Primary display
 
         switch (gPreferencesPlayArea1) {
-        case 0: // Default
+        case 0: // Original
             settings.graphics.game_width = 640;
             settings.graphics.game_height = 480;
             break;
-        case 1: // Normal
+        case 1: // Default
             settings.graphics.game_width = 800;
             settings.graphics.game_height = 500;
             break;

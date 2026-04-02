@@ -2020,7 +2020,7 @@ int combatInit()
 
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "combat.msg");
 
-    if (!(messageListLoadWithMods(&gCombatMessageList, path, MESSAGE_LIST_COMBAT))) {
+    if (!(messageListLoad(&gCombatMessageList, path))) {
         return -1;
     }
 
