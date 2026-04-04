@@ -4,10 +4,33 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      # Documentation
+      - '**.md'
+      - 'docs/**'
+      - '**.txt'
+      - '**.rst'
+      # Licensing & git
+      - 'LICENSE'
+      - 'LICENSE.*'
+      - '.gitignore'
+      - '.gitattributes'
+      # GitHub-specific
+      - '.github/**'
+      - '.editorconfig'
+      # Other non‑code assets (adjust as needed)
+      - '**.png'
+      - '**.jpg'
+      - '**.svg'
+      - '**.ico'
+      - '**.ttf'
+      - '**.otf'
   pull_request:
     types:
       - opened
       - synchronize
+    # Optional: also ignore docs for PR triggers (if desired)
+    # paths-ignore: (same list as above)
 
 defaults:
   run:
