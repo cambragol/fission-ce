@@ -593,40 +593,33 @@ jobs:
       - name: Compute next beta version
         id: version
         run: |
-          # Fetch all tags (ensure we have latest)
           git fetch --tags
-  
-          # Find all tags matching "Beta [0-9]+.[0-9]+.[0-9]+"
-          # Sort them using version sort and pick the highest
-          latest_tag=$(git tag -l "Beta *.*.*" | sort -V | tail -n1)
-  
+          # Match tags like "beta-0.9.1" (machine-readable)
+          latest_tag=$(git tag -l "beta-*.*.*" | sort -V | tail -n1)
+      
           if [ -z "$latest_tag" ]; then
-            # No beta tag yet → start with 0.9.0
             base_version="0.9.0"
-            echo "No existing beta tag found. Starting at $base_version"
           else
-            # Extract version part: "Beta 0.9.1" -> "0.9.1"
-            base_version=${latest_tag#Beta }
-            echo "Latest beta tag: $latest_version"
+            # Extract version from "beta-0.9.1" -> "0.9.1"
+            base_version=${latest_tag#beta-}
           fi
-  
-          # Split version into major.minor.patch
+      
           IFS='.' read -r major minor patch <<< "$base_version"
-  
-          # Increment patch number
           new_patch=$((patch + 1))
           new_version="${major}.${minor}.${new_patch}"
-  
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
-          echo "new_tag=Beta $new_version" >> $GITHUB_OUTPUT
-  
+      
+          # Machine-readable tag (no spaces)
+          echo "new_tag=beta-${new_version}" >> $GITHUB_OUTPUT
+          # Human-readable release name
+          echo "release_name=Beta ${new_version}" >> $GITHUB_OUTPUT
+      
       - name: Create and push new beta tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.version.outputs.new_tag }}"
           git push origin "${{ steps.version.outputs.new_tag }}"
-  
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v0.1.15
         with:
@@ -635,9 +628,9 @@ jobs:
           tag_name: ${{ steps.version.outputs.new_tag }}
           draft: false
           prerelease: true
-          name: "Fallout Fission ${{ steps.version.outputs.new_tag }}"
+          name: "Fallout Fission ${{ steps.version.outputs.release_name }}"
           body: |
             Automated beta build from commit ${{ github.sha }}.
-  
-            **Version:** ${{ steps.version.outputs.new_tag }}
+      
+            **Version:** ${{ steps.version.outputs.release_name }}
             **Changes:** See commit history.
