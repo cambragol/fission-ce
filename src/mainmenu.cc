@@ -518,8 +518,8 @@ static int showFissionAbout()
     const char* bodyText2 = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 302);
     const char* bodyLines[] = { bodyText, bodyText2 };
 
-    char commitHash[VERSION_MAX] = "FISSION - Date: ";
-    strcat(commitHash, _BUILD_AUTHOR);
+    char commitHash[VERSION_MAX] = "FISSION - ";
+    strcat(commitHash, _BUILD_VER);
     // len = fontGetStringWidth(commitHash);
 
     showDialogBox(

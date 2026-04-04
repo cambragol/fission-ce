@@ -2747,75 +2747,83 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         bool has_script = false;
 
         // Parse remaining tokens as key=value
-        while (*p) {
-            // Skip whitespace before next token
-            while (*p && isspace(*p))
-                p++;
-            if (!*p) break;
+        char* rest = p;                // rest points to the remaining part of the line
+        while (*rest) {
+            // Skip leading whitespace
+            while (*rest && isspace(*rest)) rest++;
+            if (!*rest) break;
 
-            char* key_start = p;
-            while (*p && !isspace(*p) && *p != '=')
-                p++;
-            if (*p == '=') {
-                *p++ = '\0'; // terminate key
-                char* key = key_start;
-                char* value_start = p;
-                while (*p && !isspace(*p))
-                    p++;
-                if (*p) *p++ = '\0';
-                char* value = value_start;
+            // Find the '='
+            char* eq = strchr(rest, '=');
+            if (!eq) {
+                // No '=' in this token; skip it (unrecognized)
+                while (*rest && !isspace(*rest)) rest++;
+                continue;
+            }
 
-                // Trim whitespace from key and value (already done by tokenization)
-                if (strcmp(key, "fid") == 0) {
-                    char* endptr;
-                    long fid = strtol(value, &endptr, 0);
-                    if (*endptr == '\0') {
-                        desired_fid = (int)fid;
-                        has_fid = true;
-                    } else {
-                        debugPrint("Warning: Invalid FID value '%s' in %s line %d\n",
-                            value, list_path, line_num);
-                    }
-                } else if (strcmp(key, "inventory_fid") == 0) {
-                    char* endptr;
-                    long inv_fid = strtol(value, &endptr, 0);
-                    if (*endptr == '\0') {
-                        desired_inventory_fid = (int)inv_fid;
-                        has_inventory_fid = true;
-                    } else {
-                        debugPrint("Warning: Invalid inventory_fid value '%s' in %s line %d\n",
-                            value, list_path, line_num);
-                    }
-                } else if (strcmp(key, "ai") == 0) {
-                    char* endptr;
-                    long ai = strtol(value, &endptr, 0);
-                    if (*endptr == '\0') {
-                        desired_ai = (int)ai;
-                        has_ai = true;
-                    } else {
-                        debugPrint("Warning: Invalid AI value '%s' in %s line %d\n",
-                            value, list_path, line_num);
-                    }
-                } else if (strcmp(key, "script") == 0) {
-                    char* endptr;
-                    long script = strtol(value, &endptr, 0);
-                    if (*endptr == '\0') {
-                        desired_script = (int)script;
-                        has_script = true;
-                    } else {
-                        debugPrint("Warning: Invalid script value '%s' in %s line %d\n",
-                            value, list_path, line_num);
-                    }
+            // Extract key (everything before '=', trimming trailing spaces)
+            char* key_start = rest;
+            char* key_end = eq;
+            while (key_end > key_start && isspace(*(key_end - 1))) key_end--;
+            char saved = *key_end;
+            *key_end = '\0';
+            char* key = key_start;
+
+            // Move past '=' and skip any leading spaces
+            char* value_start = eq + 1;
+            while (*value_start && isspace(*value_start)) value_start++;
+            // Find end of value (next whitespace or end of line)
+            char* value_end = value_start;
+            while (*value_end && !isspace(*value_end)) value_end++;
+            saved = *value_end;
+            *value_end = '\0';
+            char* value = value_start;
+
+            // Process key=value
+            if (strcmp(key, "fid") == 0) {
+                char* endptr;
+                long fid = strtol(value, &endptr, 0);
+                if (*endptr == '\0') {
+                    desired_fid = (int)fid;
+                    has_fid = true;
                 } else {
-                    debugPrint("Warning: Unknown key '%s' in %s line %d\n",
-                        key, list_path, line_num);
+                    debugPrint("Warning: Invalid FID value '%s' in %s line %d\n", value, list_path, line_num);
+                }
+            } else if (strcmp(key, "inventory_fid") == 0) {
+                char* endptr;
+                long inv_fid = strtol(value, &endptr, 0);
+                if (*endptr == '\0') {
+                    desired_inventory_fid = (int)inv_fid;
+                    has_inventory_fid = true;
+                } else {
+                    debugPrint("Warning: Invalid inventory_fid value '%s' in %s line %d\n", value, list_path, line_num);
+                }
+            } else if (strcmp(key, "ai") == 0) {
+                char* endptr;
+                long ai = strtol(value, &endptr, 0);
+                if (*endptr == '\0') {
+                    desired_ai = (int)ai;
+                    has_ai = true;
+                } else {
+                    debugPrint("Warning: Invalid AI value '%s' in %s line %d\n", value, list_path, line_num);
+                }
+            } else if (strcmp(key, "script") == 0) {
+                char* endptr;
+                long script = strtol(value, &endptr, 0);
+                if (*endptr == '\0') {
+                    desired_script = (int)script;
+                    has_script = true;
+                } else {
+                    debugPrint("Warning: Invalid script value '%s' in %s line %d\n", value, list_path, line_num);
                 }
             } else {
-                // No '=', skip this token (unrecognized)
-                while (*p && !isspace(*p))
-                    p++;
-                if (*p) p++;
+                debugPrint("Warning: Unknown key '%s' in %s line %d\n", key, list_path, line_num);
             }
+
+            // Restore the character we overwrote and advance `rest` past the value
+            *value_end = saved;
+            rest = value_end;
+            if (*rest) rest++;   // move past the null we placed (or the original character)
         }
 
         // Generate PID for this mod proto
