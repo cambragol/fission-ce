@@ -2747,34 +2747,39 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         bool has_script = false;
 
         // Parse remaining tokens as key=value
-        char* rest = p;                // rest points to the remaining part of the line
+        char* rest = p; // rest points to the remaining part of the line
         while (*rest) {
             // Skip leading whitespace
-            while (*rest && isspace(*rest)) rest++;
+            while (*rest && isspace(*rest))
+                rest++;
             if (!*rest) break;
 
             // Find the '='
             char* eq = strchr(rest, '=');
             if (!eq) {
                 // No '=' in this token; skip it (unrecognized)
-                while (*rest && !isspace(*rest)) rest++;
+                while (*rest && !isspace(*rest))
+                    rest++;
                 continue;
             }
 
             // Extract key (everything before '=', trimming trailing spaces)
             char* key_start = rest;
             char* key_end = eq;
-            while (key_end > key_start && isspace(*(key_end - 1))) key_end--;
+            while (key_end > key_start && isspace(*(key_end - 1)))
+                key_end--;
             char saved = *key_end;
             *key_end = '\0';
             char* key = key_start;
 
             // Move past '=' and skip any leading spaces
             char* value_start = eq + 1;
-            while (*value_start && isspace(*value_start)) value_start++;
+            while (*value_start && isspace(*value_start))
+                value_start++;
             // Find end of value (next whitespace or end of line)
             char* value_end = value_start;
-            while (*value_end && !isspace(*value_end)) value_end++;
+            while (*value_end && !isspace(*value_end))
+                value_end++;
             saved = *value_end;
             *value_end = '\0';
             char* value = value_start;
@@ -2823,7 +2828,7 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
             // Restore the character we overwrote and advance `rest` past the value
             *value_end = saved;
             rest = value_end;
-            if (*rest) rest++;   // move past the null we placed (or the original character)
+            if (*rest) rest++; // move past the null we placed (or the original character)
         }
 
         // Generate PID for this mod proto
