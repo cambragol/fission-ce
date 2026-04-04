@@ -313,9 +313,7 @@ int mainMenuWindowInit()
     int overlap = 5;
 
     if (showModButton) {
-        totalButtonsWidth = _mainMenuFissionLogoFrmImage.getWidth() +
-                            _mainMenuFissionModLogoFrmImage.getWidth() -
-                            overlap;
+        totalButtonsWidth = _mainMenuFissionLogoFrmImage.getWidth() + _mainMenuFissionModLogoFrmImage.getWidth() - overlap;
     } else {
         totalButtonsWidth = _mainMenuFissionLogoFrmImage.getWidth();
     }
@@ -333,7 +331,7 @@ int mainMenuWindowInit()
         nullptr, BUTTON_FLAG_TRANSPARENT);
 
     // Mod logo button - created only when mods are present
-    int modbtn = -1;  // unused if not created
+    int modbtn = -1; // unused if not created
     if (showModButton) {
         int modbtnX = btnX + _mainMenuFissionLogoFrmImage.getWidth() - overlap;
         modbtn = buttonCreate(gMainMenuWindow,
@@ -514,7 +512,7 @@ int _main_menu_is_enabled()
 static int showFissionAbout()
 {
     // Info dialog (OK)
-    
+
     const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 300);
     const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 301);
     const char* bodyText2 = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 302);
@@ -522,7 +520,7 @@ static int showFissionAbout()
 
     char commitHash[VERSION_MAX] = "FISSION - Date: ";
     strcat(commitHash, _BUILD_AUTHOR);
-    //len = fontGetStringWidth(commitHash);
+    // len = fontGetStringWidth(commitHash);
 
     showDialogBox(
         commitHash,
@@ -1052,7 +1050,7 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
-        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M ) {
+        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
             rc = 2; // cancel
         } else {
             // Handle arrow button clicks (572 = up, 573 = down)
