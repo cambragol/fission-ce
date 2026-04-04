@@ -557,35 +557,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: [android, ios, linux, linux-armhf, linux-arm64, macos, windows, package-combined]
     permissions: write-all
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    
+    # Only run when all required jobs succeeded and we are on main push
+    if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+  
     steps:
       - name: Fetch artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-
-      - name: Remove old release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        with:
-          delete_release: true
-          tag_name: beta
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  
       - name: Process artifacts for release
         run: |
-          # Create release directory
           mkdir -p release-files
-          
-          # Move all packaged zips to release files
           cd artifacts
           for artifact_dir in *; do
             if [ -d "$artifact_dir" ]; then
               cd "$artifact_dir"
               for file in *; do
                 if [ -f "$file" ]; then
-                  echo "Moving $file to release-files/"
                   mv "$file" ../../release-files/
                 fi
               done
@@ -593,21 +582,55 @@ jobs:
             fi
           done
           cd ..
-          
-          # List release files
-          echo "Release files:"
           ls -la release-files/
-
-      - name: Allow GitHub to process removed release for few seconds
+  
+      - name: Checkout repository (with full history & tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+  
+      - name: Compute next beta version
+        id: version
         run: |
-          sleep 20s
-
-      - name: Upload new release
+          git fetch --tags
+          # Match tags like "beta-0.9.1" (machine-readable)
+          latest_tag=$(git tag -l "beta-*.*.*" | sort -V | tail -n1)
+      
+          if [ -z "$latest_tag" ]; then
+            base_version="0.9.0"
+          else
+            # Extract version from "beta-0.9.1" -> "0.9.1"
+            base_version=${latest_tag#beta-}
+          fi
+      
+          IFS='.' read -r major minor patch <<< "$base_version"
+          new_patch=$((patch + 1))
+          new_version="${major}.${minor}.${new_patch}"
+      
+          # Machine-readable tag (no spaces)
+          echo "new_tag=beta-${new_version}" >> $GITHUB_OUTPUT
+          # Human-readable release name
+          echo "release_name=Beta ${new_version}" >> $GITHUB_OUTPUT
+      
+      - name: Create and push new beta tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.new_tag }}"
+          git push origin "${{ steps.version.outputs.new_tag }}"
+      
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v0.1.15
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: release-files/*
-          tag_name: beta
+          tag_name: ${{ steps.version.outputs.new_tag }}
           draft: false
           prerelease: true
-          name: Fallout Fission Beta Build
+          name: "Fallout Fission ${{ steps.version.outputs.release_name }}"
+          body: |
+            Automated beta build from commit ${{ github.sha }}.
+      
+            **Version:** ${{ steps.version.outputs.release_name }}
+            **Changes:** See commit history.
