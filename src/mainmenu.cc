@@ -64,7 +64,7 @@ typedef enum MainMenuButton {
 static int main_menu_fatal_error();
 static void main_menu_play_sound(const char* fileName);
 
-static int modListShow();
+static int showModList();
 static int modListDrawList();
 static void modListDrawDetails(int selectedIndex);
 static void modListRefresh();
@@ -160,6 +160,7 @@ static FrmImage _mainMenuBackgroundFrmImage;
 static FrmImage _mainMenuButtonNormalFrmImage;
 static FrmImage _mainMenuButtonPressedFrmImage;
 static FrmImage _mainMenuFissionLogoFrmImage;
+static FrmImage _mainMenuFissionModLogoFrmImage;
 
 bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
 {
@@ -299,31 +300,63 @@ int mainMenuWindowInit()
         return main_menu_fatal_error();
     }
 
+    // fissmods.frm
+    fid = buildFid(OBJ_TYPE_INTERFACE, 4336, 0, 0, 0);
+    if (!_mainMenuFissionModLogoFrmImage.lock(fid)) {
+        return main_menu_fatal_error();
+    }
+
+    // Determine if mod button should be shown
+    const bool showModButton = (gLoadedModsCount > 0);
+
+    int totalButtonsWidth = 0;
+    int overlap = 5;
+
+    if (showModButton) {
+        totalButtonsWidth = _mainMenuFissionLogoFrmImage.getWidth() +
+                            _mainMenuFissionModLogoFrmImage.getWidth() -
+                            overlap;
+    } else {
+        totalButtonsWidth = _mainMenuFissionLogoFrmImage.getWidth();
+    }
+
+    // Fission logo button - always created
+    int btnX = gOffsets.hashX - totalButtonsWidth;
+    int btnY = gOffsets.hashY - 2;
     btn = buttonCreate(gMainMenuWindow,
-        gOffsets.hashX - _mainMenuFissionLogoFrmImage.getWidth(),
-        gOffsets.hashY - 2,
+        btnX, btnY,
         _mainMenuFissionLogoFrmImage.getWidth(),
         _mainMenuFissionLogoFrmImage.getHeight(),
-        -1,
-        -1,
-        -1,
-        501,
+        -1, -1, -1, 501,
         _mainMenuFissionLogoFrmImage.getData(),
         _mainMenuFissionLogoFrmImage.getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
+        nullptr, BUTTON_FLAG_TRANSPARENT);
+
+    // Mod logo button - created only when mods are present
+    int modbtn = -1;  // unused if not created
+    if (showModButton) {
+        int modbtnX = btnX + _mainMenuFissionLogoFrmImage.getWidth() - overlap;
+        modbtn = buttonCreate(gMainMenuWindow,
+            modbtnX, btnY,
+            _mainMenuFissionModLogoFrmImage.getWidth(),
+            _mainMenuFissionModLogoFrmImage.getHeight(),
+            -1, -1, -1, 503,
+            _mainMenuFissionModLogoFrmImage.getData(),
+            _mainMenuFissionModLogoFrmImage.getData(),
+            nullptr, BUTTON_FLAG_TRANSPARENT);
+    }
 
     // Version.
     char version[VERSION_MAX];
     versionGetVersion(version, sizeof(version));
     len = fontGetStringWidth(version);
-    windowDrawText(gMainMenuWindow, version, 0, gOffsets.hashX - len - _mainMenuFissionLogoFrmImage.getWidth() - 3, gOffsets.hashY, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, version, 0, gOffsets.hashX - len - totalButtonsWidth - 3, gOffsets.hashY, fontSettings | 0x06000000);
 
     // Hash - modified for release/fission logo
     char commitHash[VERSION_MAX] = "POWERED BY: ";
     // strcat(commitHash, _BUILD_HASH);
     len = fontGetStringWidth(commitHash);
-    windowDrawText(gMainMenuWindow, commitHash, 0, gOffsets.versionX - len - _mainMenuFissionLogoFrmImage.getWidth() - 3, gOffsets.versionY, fontSettings | 0x06000000);
+    windowDrawText(gMainMenuWindow, commitHash, 0, gOffsets.versionX - len - totalButtonsWidth - 3, gOffsets.versionY, fontSettings | 0x06000000);
 
     // Build Date - removed for release
     /*char buildDate[VERSION_MAX] = "DATE: ";
@@ -417,6 +450,7 @@ void mainMenuWindowFree()
     _mainMenuButtonPressedFrmImage.unlock();
     _mainMenuButtonNormalFrmImage.unlock();
     _mainMenuFissionLogoFrmImage.unlock();
+    _mainMenuFissionModLogoFrmImage.unlock();
 
     if (gMainMenuWindow != -1) {
         windowDestroy(gMainMenuWindow);
@@ -480,13 +514,18 @@ int _main_menu_is_enabled()
 static int showFissionAbout()
 {
     // Info dialog (OK)
+    
     const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 300);
     const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 301);
     const char* bodyText2 = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 302);
     const char* bodyLines[] = { bodyText, bodyText2 };
 
+    char commitHash[VERSION_MAX] = "FISSION - Date: ";
+    strcat(commitHash, _BUILD_AUTHOR);
+    //len = fontGetStringWidth(commitHash);
+
     showDialogBox(
-        title,
+        commitHash,
         bodyLines,
         2,
         192, 135,
@@ -542,11 +581,13 @@ int mainMenuWindowHandleEvents()
             } else if (keyCode == KEY_UPPERCASE_D || keyCode == KEY_LOWERCASE_D) {
                 rc = MAIN_MENU_SCREENSAVER;
                 continue;
-            } else if (keyCode == 501) {
+            } else if (keyCode == 501 || keyCode == KEY_UPPERCASE_A || keyCode == KEY_LOWERCASE_A) {
                 main_menu_play_sound("nmselec0");
-                modListShow();
-
-                // showFissionAbout();
+                showFissionAbout();
+                continue;
+            } else if (keyCode == 503 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
+                main_menu_play_sound("nmselec0");
+                showModList();
                 continue;
             } else if (keyCode == 1111) {
                 if (!(mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_REPEAT)) {
@@ -603,7 +644,7 @@ static void main_menu_play_sound(const char* fileName)
 }
 
 // Opens the modlist window
-static int modListShow()
+static int showModList()
 {
     // Reset state
     gModListTopLine = 0;
@@ -1011,7 +1052,7 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
-        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0) {
+        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M ) {
             rc = 2; // cancel
         } else {
             // Handle arrow button clicks (572 = up, 573 = down)

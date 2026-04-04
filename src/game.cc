@@ -1944,6 +1944,9 @@ static int gameDbInit()
         fileClose(stream);
     }
 
+    // Restore CWD to data by calling dbOpen again
+    int master_db_handle = dbOpen(nullptr, settings.system.master_patches_path.c_str());
+
     createListsFolder();
 
     return 0;
