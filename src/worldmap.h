@@ -301,6 +301,13 @@ int wmGetAreaMessageId(int areaIndex);
 int wmGetMapEntranceMessageId(int mapIndex, int elevation);
 int wmGetMapScriptOverride(const char* mapFileName);
 
+// Get area name by city index
+const char* wmGetAreaNameById(int city);
+
+// Get stored message ID for area (for mod areas)
+int wmGetAreaMessageId(int city);
+void wmReloadAreaMessages();
+
 } // namespace fallout
 
 #endif /* WORLD_MAP_H */

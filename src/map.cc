@@ -49,6 +49,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define BASE_AREA_MAX 200
 #define MOD_AREA_START 200
 #define MOD_AREA_MAX 1000
@@ -75,6 +77,9 @@ static void _square_reset();
 static int _square_load(File* stream, int flags);
 static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
+
+static void loadModMapMessages();
+
 
 // 0x50B058
 static char byte_50B058[] = "";
@@ -298,13 +303,21 @@ void mapInit()
         char path[COMPAT_MAX_PATH];
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
-        // modified for mods
-        if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
-            debugPrint("\nError loading map_msg_file!");
-        }
+    // modified for mods
+    if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
+        debugPrint("\nError loading map_msg_file!");
+    }
+
+    // Load mod map name messages
+    loadModMapMessages();
+
+    // Reload area messages (needed because gMapMessageList is recreated each map init)
+wmReloadAreaMessages();
+    
     } else {
         debugPrint("\nError initing map_msg_file!");
     }
+
 
     mapNewMap();
     tickersAdd(gameMouseRefresh);
@@ -523,18 +536,21 @@ char* mapGetName(int map, int elevation)
     MessageListItem messageListItem;
 
     if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
-        // Mod map: generate message ID using mod name and lookup name
+        // Mod map: use block allocation
         const char* lookupName = wmGetMapLookupName(map);
         int areaIndex = wmGetAreaContainingMap(map);
 
         if (areaIndex != -1 && lookupName != nullptr) {
             const char* modName = wmGetAreaModName(areaIndex);
-
-            char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
-
-            uint32_t messageId = generate_mod_message_id(MESSAGE_LIST_MAP, modName, compositeKey);
-            return getmsg(&gMapMessageList, &messageListItem, messageId);
+            if (modName && modName[0] != '\0') {
+                // Generate base ID for this map's block (same as when loading)
+                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_MAP, modName, lookupName);
+                if (baseId != 0) {
+                    // Message ID = baseId + elevation (0,1,2)
+                    uint32_t messageId = baseId + elevation;
+                    return getmsg(&gMapMessageList, &messageListItem, messageId);
+                }
+            }
         }
         return nullptr;
     } else {
@@ -665,10 +681,23 @@ char* mapGetCityName(int map)
     MessageListItem messageListItem;
 
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
-        // Mod area: use the area's message ID (already set during loading)
-        messageListItem.num = wmGetAreaId(city);
-        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
-        return name ? name : _aErrorF2;
+        const char* modName = wmGetAreaModName(city);
+        if (modName && modName[0] != '\0') {
+            // Use stored message ID
+            int msgId = wmGetAreaMessageId(city);
+            if (msgId != -1 && msgId != 0) {
+                return getmsg(&gMapMessageList, &messageListItem, msgId);
+            }
+            // Fallback: compute on the fly
+            const char* areaName = wmGetAreaNameById(city);
+            if (areaName && areaName[0] != '\0') {
+                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_AREA, modName, areaName);
+                if (baseId != 0) {
+                    return getmsg(&gMapMessageList, &messageListItem, baseId);
+                }
+            }
+        }
+        return _aErrorF2;
     } else {
         // Vanilla area: use original formula (1500 + city)
         messageListItem.num = 1500 + city;
@@ -1648,6 +1677,97 @@ static void mapMakeMapsDirectory()
 
     strcat(path, "\\MAPS");
     compat_mkdir(path);
+}
+
+static void loadModMapMessages()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "text%c%s%cgame%cmaps_*.msg",
+             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
+
+    if (fileCount == 0) {
+        // Fallback to English if current language has no mod map files
+            snprintf(searchPattern, sizeof(searchPattern), "text%cenglish%cgame%cmaps_*.msg",
+                     DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
+            fileCount = fileNameListInit(searchPattern, &foundFiles);
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* filename = foundFiles[i];
+        char mod_name[64] = {0};
+        char map_key[64] = {0};
+
+        const char* prefix = "maps_";
+        if (strncmp(filename, prefix, strlen(prefix)) != 0) {
+            continue;
+        }
+
+        const char* first_underscore = strchr(filename + strlen(prefix), '_');
+        if (!first_underscore) {
+            continue;
+        }
+
+        size_t mod_len = first_underscore - (filename + strlen(prefix));
+        if (mod_len > 0 && mod_len < sizeof(mod_name)) {
+            strncpy(mod_name, filename + strlen(prefix), mod_len);
+            mod_name[mod_len] = '\0';
+        } else {
+            continue;
+        }
+
+        const char* dot = strchr(first_underscore + 1, '.');
+        if (!dot) {
+            continue;
+        }
+        size_t key_len = dot - (first_underscore + 1);
+        if (key_len > 0 && key_len < sizeof(map_key)) {
+            strncpy(map_key, first_underscore + 1, key_len);
+            map_key[key_len] = '\0';
+        } else {
+            continue;
+        }
+
+        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_MAP, mod_name, map_key);
+        if (baseId == 0) {
+            debugPrint("Failed to generate base ID for map %s mod %s\n", map_key, mod_name);
+            continue;
+        }
+
+        // Build full path to check existence
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "text%c%s%cgame%c%s",
+                 DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR, filename);
+
+        File* test = fileOpen(fullPath, "rt");
+        if (!test && compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(fullPath, sizeof(fullPath), "text%c%s%cgame%c%s",
+                     DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, filename);
+            test = fileOpen(fullPath, "rt");
+        }
+        if (test) {
+            fileClose(test);
+        } else {
+            
+            debugPrint("Map message file not found: %s\n", fullPath);
+            continue;
+        }
+
+        char relPath[COMPAT_MAX_PATH];
+        snprintf(relPath, sizeof(relPath), "game%c%s", DIR_SEPARATOR, filename);
+        
+        if (!messageListLoadWithBaseOffset(&gMapMessageList, relPath, baseId)) {
+            debugPrint("Failed to load map message file: %s\n", relPath);
+        } else {
+            debugPrint("Loaded mod map messages: %s (baseId=%u)\n", filename, baseId);
+        }
+    }
+
+    if (fileCount > 0) {
+        fileNameListFree(&foundFiles, 0);
+    }
 }
 
 // 0x483ED0

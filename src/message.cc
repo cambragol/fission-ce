@@ -62,6 +62,20 @@ static const ListInfo gListBases[] = {
     // Add other lists as needed (e.g., "DIALOG", "ITEM", etc.)
 };
 
+// Define the ID ranges and block sizes for each mod block type.
+const ModBlockRange gModBlockRanges[] = {
+    { MOD_BLOCK_MAP,      5000,   100000,  1000 },   // area names
+    { MOD_BLOCK_MAP,      5000,   500000,  3 },      // map names (3 elevations per map)
+    { MOD_BLOCK_AREA,     500001, 1000000, 1 },    // area names (1 ID per area)
+    { MOD_BLOCK_PROTO,    5000,   1000000, 1000 },   // proto messages
+    { MOD_BLOCK_PIPBOY,   100000, 1000000, 100 },    // Pip-Boy texts (holodisks: 100 lines each)
+    { MOD_BLOCK_COMBAT,   30000,  1000000, 1000 },   // combat messages
+    { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 },   // combat AI messages
+    { MOD_BLOCK_QUESTS,   20000,  1000000, 100 },   // quest descriptions, 100 IDs per mod block
+};
+
+const int gModBlockRangesCount = sizeof(gModBlockRanges) / sizeof(gModBlockRanges[0]);
+
 // Extends message loading to support mod message files (messages_*.txt)
 // Mod message IDs use range 0x8000-0xFFFF (32768-65535).
 
@@ -431,6 +445,94 @@ err:
     return success;
 }
 
+// Load a message file where entry numbers are offsets from a base ID.
+// Example: if baseId = 1000 and file contains {0}{audio}{text}, the entry is added with ID = 1000 + 0.
+bool messageListLoadWithBaseOffset(MessageList* messageList, const char* path, int baseId)
+{
+    char localized_path[COMPAT_MAX_PATH];
+    File* file_ptr;
+    char num[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char audio[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char text[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    int rc;
+    bool success;
+    MessageListItem entry;
+
+    success = false;
+
+    if (messageList == nullptr) {
+        return false;
+    }
+
+    if (path == nullptr) {
+        return false;
+    }
+
+    snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
+
+    file_ptr = fileOpen(localized_path, "rt");
+
+    // Fallback to english if requested localization does not exist.
+    if (file_ptr == nullptr) {
+        if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", ENGLISH, path);
+            file_ptr = fileOpen(localized_path, "rt");
+        }
+    }
+
+    if (file_ptr == nullptr) {
+        return false;
+    }
+
+    entry.num = 0;
+    entry.audio = audio;
+    entry.text = text;
+
+    while (1) {
+        rc = _messageListLoadField(file_ptr, num);
+        if (rc != 0) {
+            break;
+        }
+
+        if (_messageListLoadField(file_ptr, audio) != 0) {
+            debugPrint("\nError loading audio field.\n", localized_path);
+            goto err;
+        }
+
+        if (_messageListLoadField(file_ptr, text) != 0) {
+            debugPrint("\nError loading text field.\n", localized_path);
+            goto err;
+        }
+
+        int offset;
+        if (!_messageListParseNumber(&offset, num)) {
+            debugPrint("\nError parsing number.\n", localized_path);
+            goto err;
+        }
+
+        entry.num = baseId + offset;
+
+        if (!_messageListAdd(messageList, &entry)) {
+            debugPrint("\nError adding message.\n", localized_path);
+            goto err;
+        }
+    }
+
+    if (rc == 1) {
+        success = true;
+    }
+
+err:
+
+    if (!success) {
+        debugPrint("Error loading message file %s at offset %x.", localized_path, fileTell(file_ptr));
+    }
+
+    fileClose(file_ptr);
+
+    return success;
+}
+
 // 0x484C30
 bool messageListGetItem(MessageList* msg, MessageListItem* entry)
 {
@@ -750,6 +852,44 @@ static uint32_t stable_hash(const char* str)
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
     return hash;
+}
+
+uint32_t generate_mod_block_base_id(int listId, const char* mod_name, const char* block_key)
+{
+    // Find the range for the requested listId
+    const ModBlockRange* range = nullptr;
+    for (int i = 0; i < gModBlockRangesCount; i++) {
+        if (gModBlockRanges[i].listId == listId) {
+            range = &gModBlockRanges[i];
+            break;
+        }
+    }
+    if (range == nullptr) {
+        debugPrint("ERROR: No mod block range defined for listId %d\n", listId);
+        return 0;
+    }
+
+    // Compute how many blocks fit in the range
+    uint32_t range_size = range->maxId - range->startId + 1;
+    uint32_t block_count = range_size / range->blockSize;
+    if (block_count == 0) {
+        debugPrint("ERROR: Block size %d larger than range %d-%d\n",
+                   range->blockSize, range->startId, range->maxId);
+        return 0;
+    }
+
+    // Create composite key from mod name and block key
+    char composite_key[256];
+    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, block_key);
+
+    // Get a stable hash (case-insensitive DJB2)
+    uint32_t hash = stable_hash(composite_key);
+
+    // Map hash to a block index
+    uint32_t block_index = hash % block_count;
+
+    // Return the start ID of that block
+    return range->startId + (block_index * range->blockSize);
 }
 
 /**
