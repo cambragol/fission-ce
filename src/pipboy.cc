@@ -507,7 +507,7 @@ static bool loadModHolodisk(const char* mod_name, const char* block_key, int gva
     HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
 
     holodisk->gvar = gvar;
-    holodisk->name = baseId;           // Title is at baseId+0
+    holodisk->name = baseId; // Title is at baseId+0
     holodisk->description = baseId + 1; // First text line is at baseId+1
 
     gHolodisksCount++;
@@ -4174,7 +4174,7 @@ static void generateQuestListDebug()
                     gQuestModNames[i],
                     // We don't store offset, but we can approximate by looking at description ID
                     // and subtracting a guessed base. Skip for now.
-                    0,  // offset unknown from this data
+                    0, // offset unknown from this data
                     quest->description,
                     quest->location,
                     quest->gvar);
@@ -4212,7 +4212,7 @@ static void questLoadModFiles()
             // Skip the vanilla quests.txt itself (if it matches pattern? It won't, because "quests.txt" has no underscore)
             char fullPath[COMPAT_MAX_PATH];
             snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFilesNew[i]);
-            questLoadModFileNew(fullPath);  // Our new loader
+            questLoadModFileNew(fullPath); // Our new loader
         }
         fileNameListFree(&foundModFilesNew, 0);
     }
@@ -4228,10 +4228,12 @@ static void questLoadModFileNew(const char* filename)
 
     // Extract mod name from filename (quests_MyMod.txt -> MyMod)
     const char* base_filename = strrchr(filename, DIR_SEPARATOR);
-    if (!base_filename) base_filename = filename;
-    else base_filename++;
+    if (!base_filename)
+        base_filename = filename;
+    else
+        base_filename++;
 
-    char mod_name[64] = {0};
+    char mod_name[64] = { 0 };
     const char* prefix = "quests_";
     const char* suffix = ".txt";
     if (strncmp(base_filename, prefix, strlen(prefix)) != 0) {
@@ -4279,7 +4281,8 @@ static void questLoadModFileNew(const char* filename)
 
         int location, offset, gvar, displayThreshold, completedThreshold;
         if (sscanf(line, "%d, %d, %d, %d, %d",
-                   &location, &offset, &gvar, &displayThreshold, &completedThreshold) != 5) {
+                &location, &offset, &gvar, &displayThreshold, &completedThreshold)
+            != 5) {
             debugPrint("Invalid quest line in %s: %s\n", filename, line);
             continue;
         }
@@ -4304,7 +4307,7 @@ static void questLoadModFileNew(const char* filename)
         // Fill the quest description
         QuestDescription* quest = &gQuestDescriptions[slot];
         quest->location = location;
-        quest->description = baseMsgId + offset;  // message ID = base + offset
+        quest->description = baseMsgId + offset; // message ID = base + offset
         quest->gvar = gvar;
         quest->displayThreshold = displayThreshold;
         quest->completedThreshold = completedThreshold;
@@ -4616,13 +4619,15 @@ static int holodiskInit()
         for (int i = 0; i < modFileCount; i++) {
             char fullPath[COMPAT_MAX_PATH];
             snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
-            
+
             // Extract mod name from filename (holodisk_MyMod.txt -> MyMod)
             const char* base_filename = strrchr(foundModFiles[i], DIR_SEPARATOR);
-            if (!base_filename) base_filename = foundModFiles[i];
-            else base_filename++;
-            
-            char mod_name[64] = {0};
+            if (!base_filename)
+                base_filename = foundModFiles[i];
+            else
+                base_filename++;
+
+            char mod_name[64] = { 0 };
             const char* prefix = "holodisk_";
             const char* suffix = ".txt";
             if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
@@ -4636,11 +4641,11 @@ static int holodiskInit()
             } else {
                 continue;
             }
-            
+
             // Open the file and read each line: GVAR, BlockKey
             File* stream = fileOpen(fullPath, "rt");
             if (!stream) continue;
-            
+
             char line[256];
             while (fileReadString(line, sizeof(line) - 1, stream)) {
                 // Remove line endings
@@ -4648,10 +4653,10 @@ static int holodiskInit()
                 if (newline) *newline = '\0';
                 char* cr = strchr(line, '\r');
                 if (cr) *cr = '\0';
-                
+
                 // Skip empty lines and comments
                 if (line[0] == '\0' || line[0] == '#' || line[0] == ';') continue;
-                
+
                 // Parse "GVAR, BlockKey"
                 int gvar;
                 char block_key[64];

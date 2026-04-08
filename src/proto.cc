@@ -2365,13 +2365,26 @@ int protoGetProto(int pid, Proto** protoPtr)
         // Set messageId: reserve two IDs per proto (name + description)
         const char* type_key;
         switch (PID_TYPE(pid)) {
-            case OBJ_TYPE_ITEM:    type_key = "item"; break;
-            case OBJ_TYPE_CRITTER: type_key = "crit"; break;
-            case OBJ_TYPE_SCENERY: type_key = "scen"; break;
-            case OBJ_TYPE_WALL:    type_key = "wall"; break;
-            case OBJ_TYPE_TILE:    type_key = "tile"; break;
-            case OBJ_TYPE_MISC:    type_key = "misc"; break;
-            default:               type_key = "unknown";
+        case OBJ_TYPE_ITEM:
+            type_key = "item";
+            break;
+        case OBJ_TYPE_CRITTER:
+            type_key = "crit";
+            break;
+        case OBJ_TYPE_SCENERY:
+            type_key = "scen";
+            break;
+        case OBJ_TYPE_WALL:
+            type_key = "wall";
+            break;
+        case OBJ_TYPE_TILE:
+            type_key = "tile";
+            break;
+        case OBJ_TYPE_MISC:
+            type_key = "misc";
+            break;
+        default:
+            type_key = "unknown";
         }
         uint32_t base_id = generate_mod_block_base_id(MOD_BLOCK_PROTO, entry->mod_name, type_key);
         (*protoPtr)->messageId = base_id + (entry->message_offset * 2);
@@ -2669,7 +2682,7 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
     }
 
     char line[256];
-    int proto_counter = 0;   // 0-based offset for each valid proto
+    int proto_counter = 0; // 0-based offset for each valid proto
 
     while (fileReadString(line, sizeof(line), stream)) {
         // Remove line endings
@@ -2685,11 +2698,13 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
 
         // --- Parse line: first token is proto name, then optional key=value pairs ---
         char* p = line;
-        while (*p && isspace(*p)) p++;
+        while (*p && isspace(*p))
+            p++;
         if (!*p) continue;
 
         char* token_start = p;
-        while (*p && !isspace(*p)) p++;
+        while (*p && !isspace(*p))
+            p++;
         if (*p) *p++ = '\0';
 
         char proto_name[128];
@@ -2704,7 +2719,8 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
 
         // Trim trailing spaces
         char* end = proto_name + strlen(proto_name) - 1;
-        while (end > proto_name && isspace(*end)) *end-- = '\0';
+        while (end > proto_name && isspace(*end))
+            *end-- = '\0';
 
         // Parse optional overrides (fid, inventory_fid, ai, script) - same as before
         int desired_fid = 0;
@@ -2718,26 +2734,31 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
 
         char* rest = p;
         while (*rest) {
-            while (*rest && isspace(*rest)) rest++;
+            while (*rest && isspace(*rest))
+                rest++;
             if (!*rest) break;
 
             char* eq = strchr(rest, '=');
             if (!eq) {
-                while (*rest && !isspace(*rest)) rest++;
+                while (*rest && !isspace(*rest))
+                    rest++;
                 continue;
             }
 
             char* key_start = rest;
             char* key_end = eq;
-            while (key_end > key_start && isspace(*(key_end - 1))) key_end--;
+            while (key_end > key_start && isspace(*(key_end - 1)))
+                key_end--;
             char saved = *key_end;
             *key_end = '\0';
             char* key = key_start;
 
             char* value_start = eq + 1;
-            while (*value_start && isspace(*value_start)) value_start++;
+            while (*value_start && isspace(*value_start))
+                value_start++;
             char* value_end = value_start;
-            while (*value_end && !isspace(*value_end)) value_end++;
+            while (*value_end && !isspace(*value_end))
+                value_end++;
             saved = *value_end;
             *value_end = '\0';
             char* value = value_start;
@@ -2815,7 +2836,7 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, proto_name);
         name_to_pid_registry_add(composite_key, pid);
 
-        proto_counter++;   // only increment for successfully added protos
+        proto_counter++; // only increment for successfully added protos
     }
 
     fileClose(stream);
@@ -2927,7 +2948,7 @@ static void load_mod_proto_msg_files()
 
         for (int i = 0; i < file_count; i++) {
             // Extract mod name: pro_item_mymod.msg -> "mymod"
-            char mod_name[64] = {0};
+            char mod_name[64] = { 0 };
             const char* first_underscore = strchr(msg_files[i], '_');
             if (first_underscore) {
                 const char* second_underscore = strchr(first_underscore + 1, '_');

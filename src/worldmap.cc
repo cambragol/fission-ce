@@ -1093,14 +1093,14 @@ static void wmLoadModWorldmapMsgFiles()
 {
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "text%c%s%cgame%cworldmap_*.msg",
-             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+        DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** msgFiles = nullptr;
     int fileCount = fileNameListInit(searchPattern, &msgFiles);
 
     for (int i = 0; i < fileCount; i++) {
         // Extract mod name: worldmap_MyMod.msg ? "MyMod"
-        char modName[64] = {0};
+        char modName[64] = { 0 };
         const char* prefix = "worldmap_";
         const char* suffix = ".msg";
         if (strncmp(msgFiles[i], prefix, strlen(prefix)) == 0) {
@@ -7797,7 +7797,7 @@ static int wmTownMapRefresh()
             // Get the base ID for this mod's entrance block
             uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
             if (baseId != 0) {
-                messageListItem.num = baseId + index;   // entrance index offset
+                messageListItem.num = baseId + index; // entrance index offset
                 if (messageListGetItem(&wmMsgFile, &messageListItem)) {
                     displayText = messageListItem.text;
                 }

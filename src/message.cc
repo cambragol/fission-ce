@@ -64,15 +64,15 @@ static const ListInfo gListBases[] = {
 
 // Define the ID ranges and block sizes for each mod block type.
 const ModBlockRange gModBlockRanges[] = {
-    { MOD_BLOCK_MAP,      5000,   100000,  1000 },   // area names
-    { MOD_BLOCK_MAP,      5000,   500000,  100 },      // map names (3 elevations per map)
-    { MOD_BLOCK_AREA,     500001, 1000000, 30 },    // area names
-    { MOD_BLOCK_PROTO,    5000,   1000000, 1000 },   // proto messages
-    { MOD_BLOCK_PIPBOY,   100000, 1000000, 100 },    // Pip-Boy texts (holodisks: 100 lines each)
-    { MOD_BLOCK_COMBAT,   30000,  1000000, 1000 },   // combat messages
-    { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 },   // combat AI messages
-    { MOD_BLOCK_QUESTS,   20000,  1000000, 100 },   // quest descriptions, 100 IDs per mod block
-    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 30 },   // entrance names per town
+    { MOD_BLOCK_MAP, 5000, 100000, 1000 }, // area names
+    { MOD_BLOCK_MAP, 5000, 500000, 100 }, // map names (3 elevations per map)
+    { MOD_BLOCK_AREA, 500001, 1000000, 30 }, // area names
+    { MOD_BLOCK_PROTO, 5000, 1000000, 1000 }, // proto messages
+    { MOD_BLOCK_PIPBOY, 100000, 1000000, 100 }, // Pip-Boy texts (holodisks: 100 lines each)
+    { MOD_BLOCK_COMBAT, 30000, 1000000, 1000 }, // combat messages
+    { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 }, // combat AI messages
+    { MOD_BLOCK_QUESTS, 20000, 1000000, 100 }, // quest descriptions, 100 IDs per mod block
+    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 30 }, // entrance names per town
 };
 
 const int gModBlockRangesCount = sizeof(gModBlockRanges) / sizeof(gModBlockRanges[0]);
@@ -817,7 +817,7 @@ uint32_t generate_mod_block_base_id(int listId, const char* mod_name, const char
     uint32_t block_count = range_size / range->blockSize;
     if (block_count == 0) {
         debugPrint("ERROR: Block size %d larger than range %d-%d\n",
-                   range->blockSize, range->startId, range->maxId);
+            range->blockSize, range->startId, range->maxId);
         return 0;
     }
 
@@ -1340,7 +1340,7 @@ bool _message_make_path(char* dest, size_t size, const char* path)
 // Load a message file where entries are added with one of two base IDs based on offset threshold.
 // Offsets below threshold use baseIdFirst; offsets >= threshold use baseIdSecond (with threshold subtracted).
 bool messageListLoadCombined(MessageList* messageList, const char* path,
-                             uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold)
+    uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold)
 {
     char localized_path[COMPAT_MAX_PATH];
     File* file_ptr;

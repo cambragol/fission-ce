@@ -80,7 +80,6 @@ static int mapHeaderRead(MapHeader* ptr, File* stream);
 
 static void loadModMapMessages();
 
-
 // 0x50B058
 static char byte_50B058[] = "";
 
@@ -306,18 +305,17 @@ void mapInit()
         char path[COMPAT_MAX_PATH];
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
-    // modified for mods
-    if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
-        debugPrint("\nError loading map_msg_file!");
-    }
+        // modified for mods
+        if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
+            debugPrint("\nError loading map_msg_file!");
+        }
 
-    // Load mod map name messages
-    loadModMapMessages();
-    
+        // Load mod map name messages
+        loadModMapMessages();
+
     } else {
         debugPrint("\nError initing map_msg_file!");
     }
-
 
     mapNewMap();
     tickersAdd(gameMouseRefresh);
@@ -1677,7 +1675,7 @@ static void loadModMapMessages()
 {
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "text%c%s%cgame%cmap_*.msg",
-             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+        DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
     int fileCount = fileNameListInit(searchPattern, &foundFiles);
@@ -1685,7 +1683,7 @@ static void loadModMapMessages()
         // Fallback to English if current language has no mod map files
         if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
             snprintf(searchPattern, sizeof(searchPattern), "text%cenglish%cgame%cmap_*.msg",
-                     DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
+                DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
             fileCount = fileNameListInit(searchPattern, &foundFiles);
         }
     }
@@ -1693,7 +1691,7 @@ static void loadModMapMessages()
     for (int i = 0; i < fileCount; i++) {
         const char* filename = foundFiles[i];
         // Extract mod name from filename: map_<ModName>.msg
-        char mod_name[64] = {0};
+        char mod_name[64] = { 0 };
         const char* prefix = "map_";
         if (strncmp(filename, prefix, strlen(prefix)) != 0) {
             continue;

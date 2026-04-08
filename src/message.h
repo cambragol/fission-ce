@@ -18,15 +18,14 @@ namespace fallout {
 #define MESSAGE_LIST_QUESTS "QUESTS"
 
 // Mod block range identifiers (use these as listId in generate_mod_block_base_id)
-#define MOD_BLOCK_MAP       1
-#define MOD_BLOCK_WORLDMAP  2
-#define MOD_BLOCK_PROTO     3
-#define MOD_BLOCK_PIPBOY    4
-#define MOD_BLOCK_COMBAT    5
-#define MOD_BLOCK_COMBATAI  6
-#define MOD_BLOCK_QUESTS    7
-#define MOD_BLOCK_AREA      8   // world map location names
-
+#define MOD_BLOCK_MAP 1
+#define MOD_BLOCK_WORLDMAP 2
+#define MOD_BLOCK_PROTO 3
+#define MOD_BLOCK_PIPBOY 4
+#define MOD_BLOCK_COMBAT 5
+#define MOD_BLOCK_COMBATAI 6
+#define MOD_BLOCK_QUESTS 7
+#define MOD_BLOCK_AREA 8 // world map location names
 
 // CE: Working with standard message lists is tricky in Sfall. Many message
 // lists are initialized only for the duration of appropriate modal window. This
@@ -93,10 +92,10 @@ typedef struct MessageList {
 
 // Structure to define a block-allocated ID range for a specific mod block type
 struct ModBlockRange {
-    int listId;      // one of MOD_BLOCK_* constants
-    int startId;     // first ID in the range (inclusive)
-    int maxId;       // last ID in the range (inclusive)
-    int blockSize;   // number of consecutive IDs per mod item (e.g., 100 for holodisks)
+    int listId; // one of MOD_BLOCK_* constants
+    int startId; // first ID in the range (inclusive)
+    int maxId; // last ID in the range (inclusive)
+    int blockSize; // number of consecutive IDs per mod item (e.g., 100 for holodisks)
 };
 
 // Global array of ranges for mod block allocation
@@ -133,7 +132,7 @@ uint32_t generate_mod_block_base_id(int listId, const char* mod_name, const char
 bool messageListLoad(MessageList* msg, const char* path);
 bool messageListLoadWithBaseOffset(MessageList* msg, const char* path, int baseId);
 bool messageListLoadCombined(MessageList* messageList, const char* path,
-                             uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold);
+    uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold);
 
 } // namespace fallout
 
