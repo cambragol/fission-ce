@@ -262,7 +262,7 @@ typedef struct CityInfo {
     int labelFid;
     int entrancesLength;
     EntranceInfo entrances[ENTRANCE_LIST_CAPACITY];
-    int firstEntranceOffset;   // global offset within mod's message block (-1 = not used)
+    int firstEntranceOffset; // global offset within mod's message block (-1 = not used)
 } CityInfo;
 
 // separate array for mod names (indexed by area index)
@@ -3091,7 +3091,7 @@ static int wmAreaLoadModFile(const char* filename)
     int areasLoaded = 0;
     int areasOverridden = 0;
     int areaIndexInThisMod = 0;
-    int currentOffset = 0;   // global offset for entrances in this mod
+    int currentOffset = 0; // global offset for entrances in this mod
 
     // Process all sections in the mod file
     for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
@@ -3158,7 +3158,7 @@ static int wmAreaLoadModFile(const char* filename)
         // Initialize the area
         CityInfo* city = &wmAreaInfoList[targetSlot];
         bool isNewSlot = (city->name[0] == '\0');
-        
+
         if (isNewSlot) {
             wmAreaSlotInit(city);
             city->state = CITY_STATE_KNOWN;
@@ -3171,7 +3171,7 @@ static int wmAreaLoadModFile(const char* filename)
         if (isNewSlot) {
             city->firstEntranceOffset = currentOffset;
             currentOffset += city->entrancesLength;
-        } 
+        }
 
         gModAreaIndex[targetSlot] = areaIndexInThisMod;
 
