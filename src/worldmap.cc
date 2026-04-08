@@ -262,6 +262,7 @@ typedef struct CityInfo {
     int labelFid;
     int entrancesLength;
     EntranceInfo entrances[ENTRANCE_LIST_CAPACITY];
+    int firstEntranceOffset;   // global offset within mod's message block (-1 = not used)
 } CityInfo;
 
 // separate array for mod names (indexed by area index)
@@ -2794,6 +2795,7 @@ static int wmAreaSlotInit(CityInfo* area)
     area->mapFid = -1;
     area->labelFid = -1;
     area->entrancesLength = 0;
+    area->firstEntranceOffset = -1;
 
     return 0;
 }
@@ -3089,6 +3091,7 @@ static int wmAreaLoadModFile(const char* filename)
     int areasLoaded = 0;
     int areasOverridden = 0;
     int areaIndexInThisMod = 0;
+    int currentOffset = 0;   // global offset for entrances in this mod
 
     // Process all sections in the mod file
     for (int sectionIdx = 0; sectionIdx < 1000; sectionIdx++) {
@@ -3122,6 +3125,8 @@ static int wmAreaLoadModFile(const char* filename)
                 wmAreaUpdateFromConfig(&wmAreaInfoList[i], &config, section);
                 overrodeBase = true;
                 areasOverridden++;
+                // Overridden base area: set offset to -1 (unused)
+                wmAreaInfoList[i].firstEntranceOffset = -1;
                 break;
             }
         }
@@ -3136,7 +3141,6 @@ static int wmAreaLoadModFile(const char* filename)
 
         // Check for slot collisions with different areas
         if (wmAreaInfoList[targetSlot].name[0] != '\0' && strcmp(wmAreaInfoList[targetSlot].name, areaNameStr) != 0) {
-
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
                 "AREA SLOT COLLISION DETECTED!\n\n"
@@ -3147,26 +3151,31 @@ static int wmAreaLoadModFile(const char* filename)
                 "To resolve: Rename your mod file to change its namespace.",
                 filename, areaNameStr, targetSlot, wmAreaInfoList[targetSlot].name);
             showMesageBox(errorMsg);
-
             areaIndexInThisMod++;
             continue;
         }
 
         // Initialize the area
         CityInfo* city = &wmAreaInfoList[targetSlot];
-        wmAreaSlotInit(city);
-        city->state = CITY_STATE_KNOWN;
-        city->visitedState = 0;
-
-        if (city->name[0] == '\0') {
+        bool isNewSlot = (city->name[0] == '\0');
+        
+        if (isNewSlot) {
+            wmAreaSlotInit(city);
+            city->state = CITY_STATE_KNOWN;
+            city->visitedState = 0;
             wmAreaInitFromConfig(city, &config, section, targetSlot);
         } else {
             wmAreaUpdateFromConfig(city, &config, section);
         }
 
+        if (isNewSlot) {
+            city->firstEntranceOffset = currentOffset;
+            currentOffset += city->entrancesLength;
+        } 
+
         gModAreaIndex[targetSlot] = areaIndexInThisMod;
 
-        // Compute the final message ID for this area
+        // Compute the final message ID for this area (used by scripts)
         uint32_t areaBaseId = generate_mod_block_base_id(MOD_BLOCK_AREA, mod_name, "areas");
         if (areaBaseId != 0) {
             wmAreaInfoList[targetSlot].areaId = areaBaseId + areaIndexInThisMod;
@@ -3175,12 +3184,6 @@ static int wmAreaLoadModFile(const char* filename)
         // Store mod name
         strncpy(gAreaModNames[targetSlot], mod_name, sizeof(gAreaModNames[targetSlot]) - 1);
         gAreaModNames[targetSlot][sizeof(gAreaModNames[targetSlot]) - 1] = '\0';
-
-        // Generate area message ID
-        /*char areaKey[256];
-        snprintf(areaKey, sizeof(areaKey), "area_name:%s", areaNameStr);
-        uint32_t message_id = generate_mod_message_id(MESSAGE_LIST_MAP, mod_name, areaKey);
-        city->areaId = message_id;*/
 
         areasLoaded++;
         areaIndexInThisMod++;
@@ -7753,7 +7756,6 @@ static int wmTownMapInit()
 
 // Mod areas use dynamic message IDs, vanilla areas use original 200 + 10*area + entrance formula
 // 0x4C4DA4 -> Refresh the town map display with support for both vanilla and mod areas
-// 0x4C4DA4 -> Refresh the town map display with support for both vanilla and mod areas
 static int wmTownMapRefresh()
 {
     // Render town grid background (handles widescreen adjustments)
@@ -7791,20 +7793,21 @@ static int wmTownMapRefresh()
         MessageListItem messageListItem;
         const char* displayText = nullptr;
 
-        // Check if this is a mod area (has a mod name)
-        const char* modName = wmGetAreaModName(wmTownMapCurArea);
-        if (modName && modName[0] != '\0') {
-            // Get the base ID for this mod's entrance block
-            uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
-            if (baseId != 0) {
-                messageListItem.num = baseId + index; // entrance index offset
-                if (messageListGetItem(&wmMsgFile, &messageListItem)) {
-                    displayText = messageListItem.text;
+        // Check if this area has a valid offset (mod area with sequential offsets)
+        if (city->firstEntranceOffset >= 0) {
+            const char* modName = wmGetAreaModName(wmGenData.currentAreaId);
+            if (modName && modName[0] != '\0') {
+                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+                if (baseId != 0) {
+                    messageListItem.num = baseId + city->firstEntranceOffset + index;
+                    if (messageListGetItem(&wmMsgFile, &messageListItem)) {
+                        displayText = messageListItem.text;
+                    }
                 }
             }
-        } else if (wmTownMapCurArea < BASE_AREA_MAX) {
+        } else if (wmGenData.currentAreaId < BASE_AREA_MAX) {
             // Vanilla area: use original formula (200 + 10*area + entrance index)
-            messageListItem.num = 200 + 10 * wmTownMapCurArea + index;
+            messageListItem.num = 200 + 10 * wmGenData.currentAreaId + index;
             if (messageListGetItem(&wmMsgFile, &messageListItem)) {
                 displayText = messageListItem.text;
             }
