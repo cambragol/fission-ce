@@ -65,13 +65,14 @@ static const ListInfo gListBases[] = {
 // Define the ID ranges and block sizes for each mod block type.
 const ModBlockRange gModBlockRanges[] = {
     { MOD_BLOCK_MAP,      5000,   100000,  1000 },   // area names
-    { MOD_BLOCK_MAP,      5000,   500000,  3 },      // map names (3 elevations per map)
-    { MOD_BLOCK_AREA,     500001, 1000000, 1 },    // area names (1 ID per area)
+    { MOD_BLOCK_MAP,      5000,   500000,  100 },      // map names (3 elevations per map)
+    { MOD_BLOCK_AREA,     500001, 1000000, 30 },    // area names
     { MOD_BLOCK_PROTO,    5000,   1000000, 1000 },   // proto messages
     { MOD_BLOCK_PIPBOY,   100000, 1000000, 100 },    // Pip-Boy texts (holodisks: 100 lines each)
     { MOD_BLOCK_COMBAT,   30000,  1000000, 1000 },   // combat messages
     { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 },   // combat AI messages
     { MOD_BLOCK_QUESTS,   20000,  1000000, 100 },   // quest descriptions, 100 IDs per mod block
+    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 30 },   // entrance names per town
 };
 
 const int gModBlockRangesCount = sizeof(gModBlockRanges) / sizeof(gModBlockRanges[0]);
@@ -110,7 +111,6 @@ static char* gMessageErrorStr = _Error_1;
 // Temporary message list item text used during filtering badwords.
 static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
-static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
 
 static const ListInfo* findListInfo(const char* name)
@@ -778,63 +778,6 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
     }
 }
 
-// ============================================================================
-// Mod Proto Message System
-// ============================================================================
-
-/**
- * Adds a custom proto message for a specific object prototype ID.
- * Used by mods to add custom text for game objects without editing base files.
- *
- * @param pid The prototype ID of the object
- * @param message_type 0 for short name, 1 for long description
- * @param text The custom text to associate with the proto
- * @return true if successful, false otherwise
- */
-bool messageListAddModProtoMessage(int pid, int message_type, const char* text)
-{
-    if (message_type < 0 || message_type > 1) return false;
-    auto& messages = _modProtoMessages[pid];
-    if (messages[message_type]) internal_free(messages[message_type]);
-    messages[message_type] = internal_strdup(text);
-    return messages[message_type] != nullptr;
-}
-
-/**
- * Retrieves a custom proto message added by a mod.
- *
- * @param pid The prototype ID to look up
- * @param message_type 0 for short name, 1 for long description
- * @return The custom text if found, nullptr otherwise
- */
-char* messageListGetModProtoMessage(int pid, int message_type)
-{
-    if (message_type < 0 || message_type > 1) return nullptr;
-    auto it = _modProtoMessages.find(pid);
-    if (it != _modProtoMessages.end()) {
-        return it->second[message_type];
-    }
-    return nullptr;
-}
-
-/**
- * Frees all custom proto messages loaded by mods.
- * Called during game shutdown or mod unloading.
- */
-void messageListFreeModProtoMessages()
-{
-    for (auto& pair : _modProtoMessages) {
-        for (int i = 0; i < 2; i++) {
-            if (pair.second[i]) internal_free(pair.second[i]);
-        }
-    }
-    _modProtoMessages.clear();
-}
-
-// ============================================================================
-// Mod File Loading System (depends on core functions)
-// ============================================================================
-
 /**
  * Case-insensitive DJB2 hash function for generating stable message IDs.
  * Ensures consistent IDs across different systems and runs.
@@ -1288,8 +1231,6 @@ void messageListRepositoryReset()
 
 void messageListRepositoryExit()
 {
-    messageListFreeModProtoMessages();
-
     if (_messageListRepositoryState != nullptr) {
         for (auto& pair : _messageListRepositoryState->temporaryMessageLists) {
             messageListFree(pair.second);
@@ -1394,6 +1335,67 @@ bool _message_make_path(char* dest, size_t size, const char* path)
     snprintf(dest, size, "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
 
     return true;
+}
+
+// Load a message file where entries are added with one of two base IDs based on offset threshold.
+// Offsets below threshold use baseIdFirst; offsets >= threshold use baseIdSecond (with threshold subtracted).
+bool messageListLoadCombined(MessageList* messageList, const char* path,
+                             uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold)
+{
+    char localized_path[COMPAT_MAX_PATH];
+    File* file_ptr;
+    char num[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char audio[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char text[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    int rc;
+    bool success;
+    MessageListItem entry;
+
+    success = false;
+
+    if (messageList == nullptr) return false;
+    if (path == nullptr) return false;
+
+    snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
+    file_ptr = fileOpen(localized_path, "rt");
+    if (file_ptr == nullptr) {
+        if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", ENGLISH, path);
+            file_ptr = fileOpen(localized_path, "rt");
+        }
+    }
+    if (file_ptr == nullptr) return false;
+
+    entry.audio = audio;
+    entry.text = text;
+
+    while (1) {
+        rc = _messageListLoadField(file_ptr, num);
+        if (rc != 0) break;
+
+        if (_messageListLoadField(file_ptr, audio) != 0) goto err;
+        if (_messageListLoadField(file_ptr, text) != 0) goto err;
+
+        int offset;
+        if (!_messageListParseNumber(&offset, num)) goto err;
+
+        if (offset < threshold) {
+            entry.num = baseIdFirst + offset;
+        } else {
+            entry.num = baseIdSecond + (offset - threshold);
+        }
+
+        if (!_messageListAdd(messageList, &entry)) goto err;
+    }
+
+    if (rc == 1) success = true;
+
+err:
+    if (!success) {
+        debugPrint("Error loading combined message file %s at offset %x.", localized_path, fileTell(file_ptr));
+    }
+    fileClose(file_ptr);
+    return success;
 }
 
 } // namespace fallout

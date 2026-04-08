@@ -115,6 +115,7 @@ typedef struct ModProtoEntry {
     char* proto_name;
     char* proto_path;
     int type;
+    int message_offset;
     // overrides until mod tools catch up
     int override_fid; // ground FID override (0 if not used)
     bool has_override_fid;
@@ -174,8 +175,6 @@ void _proto_remove_all();
 int protoGetProto(int pid, Proto** protoPtr);
 int _ResetPlayer();
 int proto_max_id(int type);
-
-void load_mod_proto_messages();
 
 static bool isExitGridPid(int pid)
 {

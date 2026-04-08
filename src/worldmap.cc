@@ -595,6 +595,12 @@ static void wmGenerateMapListDebug();
 
 static char _aErrorF2[] = "ERROR! F2";
 
+// Per-mod map name offset (3 IDs per map, stored as offset = map_index_in_mod * 3)
+int gModMapNameOffset[MOD_MAP_MAX];
+
+// Per-mod area index (0,1,2,...)
+int gModAreaIndex[MOD_AREA_MAX];
+
 // 0x4BC860
 static const int _can_rest_here[ELEVATION_COUNT] = {
     MAP_CAN_REST_ELEVATION_0,
@@ -1083,6 +1089,49 @@ static void wmSetFlags(int* flagsPtr, int flag, int value)
     }
 }
 
+static void wmLoadModWorldmapMsgFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "text%c%s%cgame%cworldmap_*.msg",
+             DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+
+    char** msgFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &msgFiles);
+
+    for (int i = 0; i < fileCount; i++) {
+        // Extract mod name: worldmap_MyMod.msg ? "MyMod"
+        char modName[64] = {0};
+        const char* prefix = "worldmap_";
+        const char* suffix = ".msg";
+        if (strncmp(msgFiles[i], prefix, strlen(prefix)) == 0) {
+            size_t nameLen = strlen(msgFiles[i]) - strlen(prefix) - strlen(suffix);
+            if (nameLen > 0 && nameLen < sizeof(modName)) {
+                strncpy(modName, msgFiles[i] + strlen(prefix), nameLen);
+                modName[nameLen] = '\0';
+            }
+        }
+
+        // Compute base ID for this mod's entrance block
+        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+        if (baseId == 0) {
+            debugPrint("ERROR: Base ID is zero for worldmap mod '%s' (modName='%s'). Check MOD_BLOCK_WORLDMAP in gModBlockRanges.\n", msgFiles[i], modName);
+            continue;
+        }
+
+        // Build relative path: "game/worldmap_xxx.msg" (messageListLoadWithBaseOffset will prepend text/language)
+        char relativePath[COMPAT_MAX_PATH];
+        snprintf(relativePath, sizeof(relativePath), "game%c%s", DIR_SEPARATOR, msgFiles[i]);
+
+        if (!messageListLoadWithBaseOffset(&wmMsgFile, relativePath, baseId)) {
+            debugPrint("ERROR: Failed to load worldmap mod file '%s' (base ID %u)\n", relativePath, baseId);
+        } else {
+            debugPrint("Loaded worldmap mod file '%s' with base ID %u\n", relativePath, baseId);
+        }
+    }
+
+    if (fileCount > 0) fileNameListFree(&msgFiles, 0);
+}
+
 // 0x4BC89C
 int wmWorldMap_init()
 {
@@ -1098,9 +1147,12 @@ int wmWorldMap_init()
 
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "worldmap.msg");
 
-    if (!messageListLoadWithMods(&wmMsgFile, path, MESSAGE_LIST_WORLDMAP)) {
+    if (!messageListLoad(&wmMsgFile, path)) {
         return -1;
     }
+
+    // Load mod worldmap_*.msg files
+    wmLoadModWorldmapMsgFiles();
 
     if (wmConfigInit() == -1) {
         return -1;
@@ -3112,6 +3164,14 @@ static int wmAreaLoadModFile(const char* filename)
             wmAreaUpdateFromConfig(city, &config, section);
         }
 
+        gModAreaIndex[targetSlot] = areaIndexInThisMod;
+
+        // Compute the final message ID for this area
+        uint32_t areaBaseId = generate_mod_block_base_id(MOD_BLOCK_AREA, mod_name, "areas");
+        if (areaBaseId != 0) {
+            wmAreaInfoList[targetSlot].areaId = areaBaseId + areaIndexInThisMod;
+        }
+
         // Store mod name
         strncpy(gAreaModNames[targetSlot], mod_name, sizeof(gAreaModNames[targetSlot]) - 1);
         gAreaModNames[targetSlot][sizeof(gAreaModNames[targetSlot]) - 1] = '\0';
@@ -3128,41 +3188,6 @@ static int wmAreaLoadModFile(const char* filename)
 
     configFree(&config);
     return 0;
-}
-
-// Load area name message files for mod areas
-static void wmLoadModAreaMessages()
-{
-    for (int areaIdx = MOD_AREA_START; areaIdx < wmMaxAreaNum; areaIdx++) {
-        CityInfo* area = &wmAreaInfoList[areaIdx];
-        if (area->name[0] == '\0') continue; // empty slot
-
-        const char* modName = wmGetAreaModName(areaIdx);
-        if (modName == nullptr || modName[0] == '\0') continue;
-
-        // Build filename: areas_<ModName>_<AreaName>.msg
-        char filename[COMPAT_MAX_PATH];
-        snprintf(filename, sizeof(filename), "areas_%s_%s.msg", modName, area->name);
-
-        // Compute base ID for this area (block size = 1)
-        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_AREA, modName, area->name);
-        if (baseId == 0) continue;
-
-        // Relative path for messageListLoadWithBaseOffset
-        char relPath[COMPAT_MAX_PATH];
-        snprintf(relPath, sizeof(relPath), "game%c%s", DIR_SEPARATOR, filename);
-
-        // Load the message file
-        if (!messageListLoadWithBaseOffset(&gMapMessageList, relPath, baseId)) {
-            // Optionally log error
-            char msg[256];
-            snprintf(msg, sizeof(msg), "Failed to load area message file: %s", relPath);
-            showMesageBox(msg);
-        } else {
-            // Store the message ID in area->areaId for later lookup
-            area->areaId = baseId;
-        }
-    }
 }
 
 // Load additional area files (city_*.txt) after base city.txt
@@ -3447,6 +3472,10 @@ static int wmAreaInit()
         wmAreaSlotInit(&wmAreaInfoList[i]);
     }
 
+    for (int i = 0; i < MOD_AREA_MAX; i++) {
+        gModAreaIndex[i] = -1;
+    }
+
     // Initialize base area override tracking
     memset(gBaseAreaOverrides, 0, sizeof(gBaseAreaOverrides));
 
@@ -3468,9 +3497,6 @@ static int wmAreaInit()
     // Load mod files with hash-based allocation
     wmAreaLoadModFiles();
     debugPrint("\nwmAreaInit: Mod areas loaded");
-
-    // Load area name message files for mod areas
-    wmLoadModAreaMessages();
 
     // Generate debug area_list.txt file
     wmGenerateAreaListDebug();
@@ -3974,6 +4000,8 @@ static int wmMapLoadModFile(const char* filename)
         // Calculate consistent slot for this mod map
         uint16_t targetSlot = wmCalculateModMapSlot(lookupNameStr, modNamespace, mapIndexInThisMod);
 
+        gModMapNameOffset[targetSlot] = mapIndexInThisMod * 3;
+
         // Check for slot collisions with different maps
         if (wmMapInfoList[targetSlot].lookupName[0] != '\0' && strcmp(wmMapInfoList[targetSlot].lookupName, lookupNameStr) != 0) {
 
@@ -4235,6 +4263,10 @@ static int wmMapInit()
     // Initialize all slots as empty
     for (int i = 0; i < wmMaxMapNum; i++) {
         wmMapSlotInit(&wmMapInfoList[i]);
+    }
+
+    for (int i = 0; i < MOD_MAP_MAX; i++) {
+        gModMapNameOffset[i] = -1;
     }
 
     // Initialize base map override tracking
@@ -7719,8 +7751,9 @@ static int wmTownMapInit()
     return 0;
 }
 
-// Refresh the town map display with support for both vanilla and mod areas
 // Mod areas use dynamic message IDs, vanilla areas use original 200 + 10*area + entrance formula
+// 0x4C4DA4 -> Refresh the town map display with support for both vanilla and mod areas
+// 0x4C4DA4 -> Refresh the town map display with support for both vanilla and mod areas
 static int wmTownMapRefresh()
 {
     // Render town grid background (handles widescreen adjustments)
@@ -7758,43 +7791,40 @@ static int wmTownMapRefresh()
         MessageListItem messageListItem;
         const char* displayText = nullptr;
 
-        // Determine if this is a mod area (in mod slot range)
-        bool isModArea = (wmTownMapCurArea >= MOD_AREA_START && wmTownMapCurArea < MOD_AREA_MAX);
-
-        if (isModArea) {
-            // Mod area: Generate message ID from mod name and composite key
-            const char* modName = wmGetAreaModName(wmTownMapCurArea);
-
-            char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "entrance_%d:%s", index, city->name);
-
-            uint32_t messageId = generate_mod_message_id(MESSAGE_LIST_WORLDMAP, modName, compositeKey);
-            displayText = getmsg(&wmMsgFile, &messageListItem, messageId);
-        } else {
-            // Vanilla area: Use original formula (200 + 10*area + entrance index)
+        // Check if this is a mod area (has a mod name)
+        const char* modName = wmGetAreaModName(wmTownMapCurArea);
+        if (modName && modName[0] != '\0') {
+            // Get the base ID for this mod's entrance block
+            uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+            if (baseId != 0) {
+                messageListItem.num = baseId + index;   // entrance index offset
+                if (messageListGetItem(&wmMsgFile, &messageListItem)) {
+                    displayText = messageListItem.text;
+                }
+            }
+        } else if (wmTownMapCurArea < BASE_AREA_MAX) {
+            // Vanilla area: use original formula (200 + 10*area + entrance index)
             messageListItem.num = 200 + 10 * wmTownMapCurArea + index;
             if (messageListGetItem(&wmMsgFile, &messageListItem)) {
                 displayText = messageListItem.text;
             }
         }
 
-        // Fallback for missing mod messages
+        // Fallback for missing messages
         if (!displayText) {
             displayText = "Location";
         }
 
-        // Draw entrance label if we have text
-        if (displayText != nullptr) {
-            int width = fontGetStringWidth(displayText);
-            windowDrawText(wmBkWin,
-                displayText,
-                width,
-                wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x
-                    + gOffsets.townMapLabelXOffset - width / 2,
-                wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y
-                    + gOffsets.townMapLabelYOffset,
-                _colorTable[992] | 0x2000000 | FONT_SHADOW);
-        }
+        // Draw entrance label
+        int width = fontGetStringWidth(displayText);
+        windowDrawText(wmBkWin,
+            displayText,
+            width,
+            wmGenData.hotspotNormalFrmImage.getWidth() / 2 + entrance->x
+                + gOffsets.townMapLabelXOffset - width / 2,
+            wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y
+                + gOffsets.townMapLabelYOffset,
+            _colorTable[992] | 0x2000000 | FONT_SHADOW);
     }
 
     windowRefresh(wmBkWin);
@@ -8528,32 +8558,6 @@ int wmGetMapScriptOverride(const char* mapFileName)
         }
     }
     return -1;
-}
-
-void wmReloadAreaMessages()
-{
-    for (int areaIdx = MOD_AREA_START; areaIdx < wmMaxAreaNum; areaIdx++) {
-        CityInfo* area = &wmAreaInfoList[areaIdx];
-        if (area->name[0] == '\0') continue;
-
-        const char* modName = wmGetAreaModName(areaIdx);
-        if (modName == nullptr || modName[0] == '\0') continue;
-
-        char filename[COMPAT_MAX_PATH];
-        snprintf(filename, sizeof(filename), "areas_%s_%s.msg", modName, area->name);
-
-        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_AREA, modName, area->name);
-        if (baseId == 0) continue;
-
-        char relPath[COMPAT_MAX_PATH];
-        snprintf(relPath, sizeof(relPath), "game%c%s", DIR_SEPARATOR, filename);
-
-        // Load the message file (adds entries to gMapMessageList)
-        messageListLoadWithBaseOffset(&gMapMessageList, relPath, baseId);
-
-        // Ensure areaId is set (for lookup)
-        area->areaId = baseId;
-    }
 }
 
 } // namespace fallout

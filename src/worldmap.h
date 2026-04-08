@@ -237,6 +237,9 @@ typedef enum Map {
 
 extern unsigned char* circleBlendTable;
 
+extern int gModMapNameOffset[];
+extern int gModAreaIndex[];
+
 // Accessor functions for map system
 int wmGetAreaId(int areaIndex);
 int wmGetAreaVisitedState(int areaIndex);
@@ -306,7 +309,6 @@ const char* wmGetAreaNameById(int city);
 
 // Get stored message ID for area (for mod areas)
 int wmGetAreaMessageId(int city);
-void wmReloadAreaMessages();
 
 } // namespace fallout
 
