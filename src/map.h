@@ -18,6 +18,11 @@ namespace fallout {
 #define MOD_MAP_START 200
 #define MOD_MAP_MAX 2000
 
+// Fallout .MAP versions: 19 = classic, 20 = extended ladder fields, 21 = up to 5 elevation layers.
+#define MAP_VERSION_VANILLA (19)
+#define MAP_VERSION_EXTENDED_LADDER (20)
+#define MAP_VERSION_ELEVATIONS_5 (21)
+
 // TODO: Probably not needed -> replace with array?
 typedef struct TileData {
     int field_0[SQUARE_GRID_SIZE];

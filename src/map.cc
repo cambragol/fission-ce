@@ -72,7 +72,7 @@ static int mapLocalVariablesLoad(File* stream);
 static void _map_place_dude_and_mouse();
 static void square_init();
 static void _square_reset();
-static int _square_load(File* stream, int a2);
+static int _square_load(File* stream, int flags, int mapVersion);
 static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
 
@@ -87,9 +87,17 @@ static IsoWindowRefreshProc* _map_scroll_refresh = isoWindowRefreshRectGame;
 
 // 0x519544
 static const int _map_data_elev_flags[ELEVATION_COUNT] = {
-    2,
-    4,
-    8,
+    0x02,
+    0x04,
+    0x08,
+    0x10,
+    0x20,
+};
+
+static const int _map_data_elev_flags_legacy[3] = {
+    0x02,
+    0x04,
+    0x08,
 };
 
 // 0x519550
@@ -538,8 +546,12 @@ char* mapGetName(int map, int elevation)
         }
         return nullptr;
     } else {
-        // Vanilla map: use original formula (map * 3 + elevation + 200)
-        int messageId = map * 3 + elevation + 200;
+        // Vanilla map.msg only defines three names per map (elev 0–2). Reuse top floor for 3–4.
+        int msgElev = elevation;
+        if (msgElev > 2) {
+            msgElev = 2;
+        }
+        int messageId = map * 3 + msgElev + 200;
         return getmsg(&gMapMessageList, &messageListItem, messageId);
     }
 }
@@ -830,7 +842,7 @@ void mapNewMap()
     gMapHeader.enteringElevation = 0;
     gMapHeader.enteringRotation = 0;
     gMapHeader.localVariablesCount = 0;
-    gMapHeader.version = 20;
+    gMapHeader.version = MAP_VERSION_ELEVATIONS_5;
     gMapHeader.name[0] = '\0';
     gMapHeader.enteringTile = 20100;
     _obj_remove_all();
@@ -980,7 +992,8 @@ static int mapLoad(File* stream)
     }
 
     error = "Invalid map version";
-    if (gMapHeader.version != 19 && gMapHeader.version != 20) {
+    if (gMapHeader.version != MAP_VERSION_VANILLA && gMapHeader.version != MAP_VERSION_EXTENDED_LADDER
+        && gMapHeader.version != MAP_VERSION_ELEVATIONS_5) {
         goto err;
     }
 
@@ -1023,7 +1036,7 @@ static int mapLoad(File* stream)
         goto err;
     }
 
-    if (_square_load(stream, gMapHeader.flags) != 0) {
+    if (_square_load(stream, gMapHeader.flags, gMapHeader.version) != 0) {
         goto err;
     }
 
@@ -1178,7 +1191,7 @@ err:
 
     gameMovieFadeOut();
 
-    gMapHeader.version = 20;
+    gMapHeader.version = MAP_VERSION_ELEVATIONS_5;
 
     return rc;
 }
@@ -1526,6 +1539,7 @@ static int _map_save_file(File* stream)
     gMapHeader.localVariablesCount = gMapLocalVarsLength;
     gMapHeader.globalVariablesCount = gMapGlobalVarsLength;
     gMapHeader.darkness = 1;
+    gMapHeader.version = MAP_VERSION_ELEVATIONS_5;
 
     mapHeaderWrite(&gMapHeader, stream);
 
@@ -1842,7 +1856,7 @@ static void _square_reset()
 }
 
 // 0x48431C
-static int _square_load(File* stream, int flags)
+static int _square_load(File* stream, int flags, int mapVersion)
 {
     int v6;
     int v7;
@@ -1851,8 +1865,20 @@ static int _square_load(File* stream, int flags)
 
     _square_reset();
 
-    for (int elevation = 0; elevation < ELEVATION_COUNT; elevation++) {
-        if ((flags & _map_data_elev_flags[elevation]) == 0) {
+    int elevCount;
+    const int* elevFlags;
+    if (mapVersion == MAP_VERSION_VANILLA || mapVersion == MAP_VERSION_EXTENDED_LADDER) {
+        elevCount = 3;
+        elevFlags = _map_data_elev_flags_legacy;
+    } else if (mapVersion >= MAP_VERSION_ELEVATIONS_5) {
+        elevCount = ELEVATION_COUNT;
+        elevFlags = _map_data_elev_flags;
+    } else {
+        return -1;
+    }
+
+    for (int elevation = 0; elevation < elevCount; elevation++) {
+        if ((flags & elevFlags[elevation]) == 0) {
             int* arr = _square[elevation]->field_0;
             if (_db_freadIntCount(stream, arr, SQUARE_GRID_SIZE) != 0) {
                 return -1;

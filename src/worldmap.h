@@ -14,6 +14,8 @@ typedef enum MapFlags {
     MAP_CAN_REST_ELEVATION_0 = 0x08,
     MAP_CAN_REST_ELEVATION_1 = 0x10,
     MAP_CAN_REST_ELEVATION_2 = 0x20,
+    MAP_CAN_REST_ELEVATION_3 = 0x40,
+    MAP_CAN_REST_ELEVATION_4 = 0x80,
 } MapFlags;
 
 typedef enum CityState {

@@ -1,5 +1,7 @@
 #include "worldmap.h"
 
+#include "map_defs.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <math.h>
@@ -597,6 +599,8 @@ static const int _can_rest_here[ELEVATION_COUNT] = {
     MAP_CAN_REST_ELEVATION_0,
     MAP_CAN_REST_ELEVATION_1,
     MAP_CAN_REST_ELEVATION_2,
+    MAP_CAN_REST_ELEVATION_3,
+    MAP_CAN_REST_ELEVATION_4,
 };
 
 // 0x4BC86C
@@ -3499,6 +3503,18 @@ static void wmMapInitFromConfig(MapInfo* map, Config* config, const char* sectio
             return;
         }
         wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_2, num);
+
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_3, num);
+            if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, num);
+            } else {
+                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, 0);
+            }
+        } else {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_3, 0);
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, 0);
+        }
     }
 
     // Optional field: pipboy_active
@@ -3618,6 +3634,17 @@ static void wmMapUpdateFromConfig(MapInfo* map, Config* config, const char* sect
         }
         if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
             wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_2, num);
+        }
+        if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_3, num);
+            if (strParseStrFromList(&str, &num, wmYesNoStrs, 2) != -1) {
+                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, num);
+            } else {
+                wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, 0);
+            }
+        } else {
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_3, 0);
+            wmSetFlags(&(map->flags), MAP_CAN_REST_ELEVATION_4, 0);
         }
         debugPrint("\nwmMapUpdateFromConfig: Updated can_rest_here flags");
     }
@@ -4236,9 +4263,11 @@ bool wmMapDeadBodiesAge()
 // 0x4BFABC
 bool wmMapCanRestHere(int elevation)
 {
-    int flags[3];
+    if (!elevationIsValid(elevation)) {
+        return false;
+    }
 
-    // NOTE: I'm not sure why they're copied.
+    int flags[ELEVATION_COUNT];
     memcpy(flags, _can_rest_here, sizeof(flags));
 
     MapInfo* map = &(wmMapInfoList[gMapHeader.index]);

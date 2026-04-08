@@ -114,7 +114,7 @@ void sfall_lists_fill(int type, std::vector<Object*>& objects)
         }
     } else {
         // CE: Implementation is slightly different. Sfall manually loops thru
-        // elevations (3) and hexes (40000) and use |objectFindFirstAtLocation|
+        // elevations (ELEVATION_COUNT) and hexes (40000) and use |objectFindFirstAtLocation|
         // (originally |obj_find_first_at_tile|) to obtain next object. This
         // functionality is already implemented in |objectFindFirst| and
         // |objectFindNext|.
