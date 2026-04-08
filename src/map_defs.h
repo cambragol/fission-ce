@@ -3,7 +3,7 @@
 
 namespace fallout {
 
-#define ELEVATION_COUNT (3)
+#define ELEVATION_COUNT (5)
 
 #define SQUARE_GRID_WIDTH (100)
 #define SQUARE_GRID_HEIGHT (100)

@@ -14,6 +14,7 @@
 #include "inventory.h"
 #include "kb.h"
 #include "loadsave.h"
+#include "map.h"
 #include "mapper/map_func.h"
 #include "mapper/mp_proto.h"
 #include "mapper/mp_targt.h"
@@ -1645,12 +1646,13 @@ void handle_new_map(int* a1, int* a2)
     rect.top = 62;
     rect.right = 50;
     rect.bottom = 88;
-    blitBufferToBuffer(e_num[gElevation],
-        19,
-        26,
-        19,
-        tool + rect.top * rectGetWidth(&_scr_size) + rect.left,
-        rectGetWidth(&_scr_size));
+
+    char elevBuf[12];
+    snprintf(elevBuf, sizeof(elevBuf), "%d", gElevation);
+    int toolStride = rectGetWidth(&_scr_size);
+    unsigned char bg = tool[rect.top * toolStride + rect.left];
+    windowFill(tool_win, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, bg);
+    windowDrawText(tool_win, elevBuf, rect.right - rect.left, rect.left + 2, rect.top + 6, 0x2010104);
     windowRefreshRect(tool_win, &rect);
 
     if (*a1 < 0 || *a1 > 6) {
