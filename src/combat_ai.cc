@@ -656,63 +656,63 @@ static int processAiConfig(Config* config, const char* sourceName, const char* m
         if (!configGetInt(config, sectionEntry->key, "run_start", &temp)) goto err;
         ai->run.start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "run_end", &temp)) goto err;
-        ai->run.end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->run.end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "move_start", &temp)) goto err;
         ai->move.start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "move_end", &temp)) goto err;
-        ai->move.end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->move.end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "attack_start", &temp)) goto err;
         ai->attack.start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "attack_end", &temp)) goto err;
-        ai->attack.end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->attack.end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "miss_start", &temp)) goto err;
         ai->miss.start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "miss_end", &temp)) goto err;
-        ai->miss.end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->miss.end = (baseId != 0) ? (baseId + temp) : temp;
 
         // Hit locations (specific)
         if (!configGetInt(config, sectionEntry->key, "hit_head_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_HEAD].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_head_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_HEAD].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_HEAD].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_left_arm_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_LEFT_ARM].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_left_arm_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_LEFT_ARM].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_LEFT_ARM].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_right_arm_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_RIGHT_ARM].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_right_arm_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_RIGHT_ARM].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_RIGHT_ARM].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_torso_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_TORSO].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_torso_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_TORSO].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_TORSO].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_right_leg_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_RIGHT_LEG].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_right_leg_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_RIGHT_LEG].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_RIGHT_LEG].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_left_leg_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_LEFT_LEG].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_left_leg_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_LEFT_LEG].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_LEFT_LEG].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_eyes_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_EYES].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_eyes_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_EYES].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_EYES].end = (baseId != 0) ? (baseId + temp) : temp;
 
         if (!configGetInt(config, sectionEntry->key, "hit_groin_start", &temp)) goto err;
         ai->hit[HIT_LOCATION_GROIN].start = (baseId != 0) ? (baseId + temp) : temp;
         if (!configGetInt(config, sectionEntry->key, "hit_groin_end", &temp)) goto err;
-        ai->hit[HIT_LOCATION_GROIN].end   = (baseId != 0) ? (baseId + temp) : temp;
+        ai->hit[HIT_LOCATION_GROIN].end = (baseId != 0) ? (baseId + temp) : temp;
 
         // area_attack_mode
         if (configGetString(config, sectionEntry->key, "area_attack_mode", &stringValue)) {
@@ -4064,7 +4064,7 @@ static void loadModCombatAiMsgFiles()
 
     for (int i = 0; i < fileCount; i++) {
         // Extract mod name: combatai_MyMod.msg -> "MyMod"
-        char modName[64] = {0};
+        char modName[64] = { 0 };
         const char* prefix = "combatai_";
         const char* suffix = ".msg";
         if (strncmp(msgFiles[i], prefix, strlen(prefix)) == 0) {
