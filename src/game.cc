@@ -1046,7 +1046,7 @@ static int parseGVarLine(char* line, char* symbol, int* defaultValue)
     // If there's a colon immediately before the '=', skip it for symbol extraction
     char* symEnd = eq;
     if (symEnd > p && symEnd[-1] == ':') {
-        symEnd--;  // move end back before the colon
+        symEnd--; // move end back before the colon
     }
     // Trim trailing spaces before the end
     while (symEnd > p && isspace((unsigned char)symEnd[-1]))
