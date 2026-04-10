@@ -1028,6 +1028,7 @@ static uint32_t hashModString(const char* modName, const char* symbol)
 
 // Parse a line from a gvar definition file (vault13.gam format - handles vanilla and mod (gvar_xxx.txt) formats)
 // Returns 1 if a valid GVAR definition was found, 0 otherwise.
+// Parse a line from a gvar definition file (supports both "=" and ":=")
 static int parseGVarLine(char* line, char* symbol, int* defaultValue)
 {
     // Skip leading whitespace
@@ -1038,14 +1039,19 @@ static int parseGVarLine(char* line, char* symbol, int* defaultValue)
     // Skip C++ style comment "//"
     if (p[0] == '/' && p[1] == '/') return 0;
 
-    // Find '='
+    // Find '=' (or ":=")
     char* eq = strchr(p, '=');
     if (!eq) return 0;
 
-    // Extract symbol (trim trailing spaces before '=')
+    // If there's a colon immediately before the '=', skip it for symbol extraction
     char* symEnd = eq;
+    if (symEnd > p && symEnd[-1] == ':') {
+        symEnd--;  // move end back before the colon
+    }
+    // Trim trailing spaces before the end
     while (symEnd > p && isspace((unsigned char)symEnd[-1]))
         symEnd--;
+
     size_t symLen = symEnd - p;
     if (symLen == 0 || symLen >= 128) return 0;
     strncpy(symbol, p, symLen);
