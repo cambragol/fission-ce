@@ -306,7 +306,7 @@ void mapInit()
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
         // modified for mods
-        if (!messageListLoadWithMods(&gMapMessageList, path, MESSAGE_LIST_MAP)) {
+        if (!messageListLoad(&gMapMessageList, path)) {
             debugPrint("\nError loading map_msg_file!");
         }
 

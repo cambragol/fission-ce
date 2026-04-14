@@ -486,8 +486,6 @@ void wmSetScriptWorldMapMulti(float value)
     gScriptWorldMapMulti = value;
 }
 
-extern uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
-
 static void wmSetFlags(int* flagsPtr, int flag, int value);
 static int wmGenDataInit();
 static int wmGenDataReset();

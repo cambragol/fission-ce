@@ -938,7 +938,7 @@ int pipboyMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
 
-    if (!(messageListLoadWithMods(&gPipboyMessageList, path, MESSAGE_LIST_PIPBOY))) {
+    if (!(messageListLoad(&gPipboyMessageList, path))) {
         return -1;
     }
 
@@ -4347,8 +4347,7 @@ static int questInit()
     }
 
     // Load base and mod quest messages
-    // Changed from messageListLoad to messageListLoadWithMods
-    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", MESSAGE_LIST_QUESTS)) {
+    if (!messageListLoad(&gQuestsMessageList, "game\\quests.msg")) {
         return -1;
     }
 
