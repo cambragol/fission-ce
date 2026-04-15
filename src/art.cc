@@ -25,12 +25,6 @@ namespace fallout {
 
 const int MAX_ART_INDICES = 8192;
 
-static inline int artGetIndex(int fid)
-{
-    int base_index = fid & 0xFFF;
-    return (fid & 0x80000000) ? base_index + 4096 : base_index;
-}
-
 typedef struct ArtListDescription {
     int flags;
     char name[16];
@@ -191,7 +185,7 @@ static void getBaseNameWithoutExtension(char* dest, const char* path, size_t siz
  * - Predictable FID generation
  * - No conflicts with vanilla/variant assets
  */
-static int artGetStableIndex(const char* filename, int vanillaCount, int variantCount)
+int artGetStableIndex(const char* filename)
 {
     // Step 1: Filename normalization
     // ------------------------------
@@ -337,7 +331,7 @@ static void artProcessVariants(ArtListDescription* desc)
 
     // Find all matching variant files in this category
     char** foundFiles = NULL;
-    int fileCount = fileNameListInit(pattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(pattern, &foundFiles);
 
     // Create a set to track which base assets already have variants
     bool* hasVariant = nullptr;
@@ -478,7 +472,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
     // Find all .lst files in this category directory
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
 
     // Initialize mod tracking
     desc->modCount = 0;
@@ -496,7 +490,6 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
         // Sort to ensure fission.lst is processed first (highest priority)
         for (int i = 0; i < fileCount; i++) {
             if (strcmp(foundFiles[i], "fission.lst") == 0) {
-                // Move fission.lst to the front
                 char* temp = foundFiles[0];
                 foundFiles[0] = foundFiles[i];
                 foundFiles[i] = temp;
@@ -527,11 +520,11 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 
             // Extract mod name for logging
             const char* modName = "FISSION";
+            char cleanModName[256] = { 0 };
             if (isCategoryModFile) {
                 modName = filename + strlen(desc->name) + 1; // Skip "[category]_"
 
                 // Remove .lst extension
-                char cleanModName[256];
                 strncpy(cleanModName, modName, sizeof(cleanModName) - 1);
                 char* dot = strrchr(cleanModName, '.');
                 if (dot) {
@@ -620,10 +613,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     getBaseNameWithoutExtension(baseName, modAssetName, sizeof(baseName));
 
                     // Calculate stable index position
-                    int index = artGetStableIndex(
-                        baseName,
-                        desc->vanillaCount,
-                        desc->variantCount);
+                    int index = artGetStableIndex(baseName);
 
                     // Handle category capacity overflow
                     if (index == -1) {
@@ -647,68 +637,63 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         continue;
                     }
 
-                    // Check for index collision with existing assets
-                    if (desc->usedIndices[index]) {
-                        // Only report collision if the slot actually has content
-                        char* existingSlot = desc->fileNames + index * FILENAME_LENGTH;
-                        if (existingSlot[0] != '\0') {
-                            const char* existing = existingSlot;
-                            char existingBase[FILENAME_LENGTH] = { 0 };
-                            getBaseNameWithoutExtension(existingBase, existing, sizeof(existingBase));
-
-                            // Extract base name of new asset
-                            char currentBase[FILENAME_LENGTH] = { 0 };
-                            getBaseNameWithoutExtension(currentBase, modAssetName, sizeof(currentBase));
-
-                            // Show error popup for collision
-                            char errorMsg[512];
-                            snprintf(errorMsg, sizeof(errorMsg),
-                                "ART SLOT COLLISION DETECTED!\n\n"
-                                "New asset: %s\n"
-                                "Target slot: %d\n"
-                                "Existing asset: %s\n\n"
-                                "To resolve: Rename your art file to change its namespace.\n\n"
-                                "The asset '%s' will NOT be loaded.",
-                                modAssetName, index, existing, modAssetName);
-                            showMesageBox(errorMsg);
-
-                            debugPrint("\n  Collision: skipping art asset '%s' (slot %d occupied by '%s')",
-                                modAssetName, index, existing);
-
-                            // Record collision but don't overwrite
-                            snprintf(desc->collisionDetails[index], sizeof(desc->collisionDetails[index]),
-                                "COLLISION: %s (existing) vs %s (new) - SKIPPED", existing, modAssetName);
-                            desc->collisionOccurred = true;
-                        } else {
-                            // Slot was marked as used but is actually empty - this should not happen
-                            debugPrint("Warning: Slot %d marked as used but empty, loading asset anyway\n", index);
+                    // Ensure the fileNames array is large enough
+                    if (index >= desc->fileNamesLength) {
+                        int newLength = index + 1;
+                        char* newNames = (char*)internal_realloc(desc->fileNames,
+                            newLength * FILENAME_LENGTH);
+                        if (!newNames) {
+                            debugPrint("Failed to expand array for %s\n", desc->name);
+                            continue;
                         }
+                        // Initialize new slots to empty
+                        for (int k = desc->fileNamesLength; k < newLength; k++) {
+                            char* slot = newNames + k * FILENAME_LENGTH;
+                            *slot = '\0';
+                        }
+                        desc->fileNames = newNames;
+                        desc->fileNamesLength = newLength;
                     }
 
-                    // If slot is not used OR slot is marked used but empty, we can use it
-                    if (!desc->usedIndices[index] || (desc->usedIndices[index] && desc->fileNames[index * FILENAME_LENGTH] == '\0')) {
+                    char* slot = desc->fileNames + index * FILENAME_LENGTH;
+                    bool slotOccupied = (desc->usedIndices[index] && slot[0] != '\0');
 
-                        // Expand asset array if needed
-                        if (index >= desc->fileNamesLength) {
-                            int newLength = index + 1;
-                            char* newNames = (char*)internal_realloc(desc->fileNames, newLength * FILENAME_LENGTH);
-                            if (newNames) {
-                                // Initialize new slots as empty
-                                for (int k = desc->fileNamesLength; k < newLength; k++) {
-                                    char* slot = newNames + k * FILENAME_LENGTH;
-                                    *slot = '\0';
-                                }
-                                desc->fileNames = newNames;
-                                desc->fileNamesLength = newLength;
-                            }
+                    if (slotOccupied) {
+                        // --- Overwrite existing asset ---
+                        char oldAsset[FILENAME_LENGTH];
+                        strncpy(oldAsset, slot, FILENAME_LENGTH - 1);
+                        oldAsset[FILENAME_LENGTH - 1] = '\0';
+
+                        // Build overwrite message
+                        char message[256];
+                        snprintf(message, sizeof(message),
+                            "OVERWRITTEN: %s -> %s (from %s)",
+                            oldAsset, modAssetName, modName);
+
+                        // Append to collisionDetails (multi?line history)
+                        if (desc->collisionDetails[index][0] == '\0') {
+                            strncpy(desc->collisionDetails[index], message,
+                                sizeof(desc->collisionDetails[index]) - 1);
+                        } else {
+                            strncat(desc->collisionDetails[index], "\n",
+                                sizeof(desc->collisionDetails[index]) - strlen(desc->collisionDetails[index]) - 1);
+                            strncat(desc->collisionDetails[index], message,
+                                sizeof(desc->collisionDetails[index]) - strlen(desc->collisionDetails[index]) - 1);
                         }
+                        desc->collisionDetails[index][sizeof(desc->collisionDetails[index]) - 1] = '\0';
+                        desc->collisionOccurred = true;
 
-                        // Store asset at calculated index
-                        char* slot = desc->fileNames + index * FILENAME_LENGTH;
+                        // Replace the filename
                         strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
                         slot[FILENAME_LENGTH - 1] = '\0';
 
-                        // Update tracking information
+                        debugPrint("  Overwrote asset: %s -> slot %d (was %s)\n",
+                            modAssetName, index, oldAsset);
+                        // modCount unchanged
+                    } else {
+                        // --- New asset ---
+                        strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
+                        slot[FILENAME_LENGTH - 1] = '\0';
                         desc->usedIndices[index] = true;
                         desc->modCount++;
 
@@ -854,17 +839,31 @@ static void artGenerateReport()
             // Add collision/remap details
             if (desc->collisionOccurred) {
                 fputs("\n  --- CONFLICT DETAILS ---\n", artListFile);
-                for (int i = 0; i < 4096; i++) {
+                for (int i = 0; i < MAX_ART_INDICES; i++) {
                     if (desc->collisionDetails[i][0] != '\0') {
-                        // Different prefix for remap vs collision
-                        const char* prefix = "! ";
-                        if (strstr(desc->collisionDetails[i], "REMAP:")) {
-                            prefix = "» ";
-                        } else if (strstr(desc->collisionDetails[i], "COLLISION:")) {
-                            prefix = "# ";
-                        }
+                        char* line = desc->collisionDetails[i];
+                        char* line_start = line;
+                        char* newline;
+                        do {
+                            newline = strchr(line_start, '\n');
+                            if (newline) *newline = '\0';
 
-                        fprintf(artListFile, "  %s%5d: %s\n", prefix, i, desc->collisionDetails[i]);
+                            const char* prefix = "  ! ";
+                            if (strstr(line_start, "REMAP:")) {
+                                prefix = "  @ ";
+                            } else if (strstr(line_start, "OVERWRITTEN:")) {
+                                prefix = "  O ";
+                            } else if (strstr(line_start, "COLLISION:")) {
+                                prefix = "  # ";
+                            }
+
+                            fprintf(artListFile, "  %s%5d: %s\n", prefix, i, line_start);
+
+                            if (newline) {
+                                *newline = '\n';
+                                line_start = newline + 1;
+                            }
+                        } while (newline && *line_start);
                     }
                 }
             }
@@ -915,6 +914,160 @@ static void artGenerateReport()
     }
 }
 
+static void artLoadModCritterData()
+{
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_CRITTER];
+
+    // Build search pattern for all .lst files in the critters directory
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sart%c%s%c*.lst",
+        _cd_path_base,
+        DIR_SEPARATOR,
+        desc->name,
+        DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
+    if (fileCount <= 0)
+        return;
+
+    // Ensure fission.lst is processed first (same order as artLoadModAssets)
+    for (int i = 0; i < fileCount; i++) {
+        if (strcmp(foundFiles[i], "fission.lst") == 0) {
+            char* temp = foundFiles[0];
+            foundFiles[0] = foundFiles[i];
+            foundFiles[i] = temp;
+            break;
+        }
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* lstFilename = foundFiles[i];
+
+        // Skip the main vanilla list - it was already handled
+        char vanillaListName[64];
+        snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
+        if (compat_stricmp(lstFilename, vanillaListName) == 0)
+            continue;
+
+        // Build full path to the .lst file
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "%sart%c%s%c%s",
+            _cd_path_base,
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR,
+            lstFilename);
+
+        File* stream = fileOpen(fullPath, "rt");
+        if (!stream) {
+            debugPrint("Warning: Could not open mod list %s\n", fullPath);
+            continue;
+        }
+
+        debugPrint("Loading critter alias data from %s\n", lstFilename);
+
+        char line[256];
+        while (fileReadString(line, sizeof(line), stream)) {
+            // Trim leading/trailing whitespace
+            char* p = line;
+            while (*p && isspace((unsigned char)*p))
+                p++;
+            if (*p == '\0' || *p == '#')
+                continue; // skip empty lines and comments
+
+            char* filename = p;
+            char* comma1 = strchr(p, ',');
+            if (!comma1) {
+                // No comma - assume no extra data, default to 0,0
+                int alias = 0;
+                int runFlag = 0;
+
+                // Find the index of this filename
+                int index = -1;
+                for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                    const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                    if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                        index = idx;
+                        break;
+                    }
+                }
+                if (index != -1) {
+                    _anon_alias[index] = alias;
+                    gArtCritterFidShoudRunData[index] = runFlag;
+                }
+                continue;
+            }
+
+            *comma1 = '\0';
+            char* aliasStr = comma1 + 1;
+
+            char* comma2 = strchr(aliasStr, ',');
+            if (!comma2) {
+                // Only one comma: filename,alias (runFlag defaults to 0)
+                int alias = atoi(aliasStr);
+                int runFlag = 0;
+
+                int index = -1;
+                for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                    const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                    if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                        index = idx;
+                        break;
+                    }
+                }
+                if (index != -1) {
+                    _anon_alias[index] = alias;
+                    gArtCritterFidShoudRunData[index] = runFlag;
+                }
+                continue;
+            }
+
+            *comma2 = '\0';
+            char* runFlagStr = comma2 + 1;
+
+            // Trim each part (helper lambda)
+            auto trim = [](char* s) -> char* {
+                while (*s && isspace((unsigned char)*s))
+                    s++;
+                char* end = s + strlen(s) - 1;
+                while (end > s && isspace((unsigned char)*end))
+                    end--;
+                *(end + 1) = '\0';
+                return s;
+            };
+            filename = trim(filename);
+            aliasStr = trim(aliasStr);
+            runFlagStr = trim(runFlagStr);
+
+            int alias = atoi(aliasStr);
+            int runFlag = atoi(runFlagStr);
+
+            // Find the index
+            int index = -1;
+            for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                    index = idx;
+                    break;
+                }
+            }
+
+            if (index != -1) {
+                _anon_alias[index] = alias;
+                gArtCritterFidShoudRunData[index] = runFlag;
+            } else {
+                debugPrint("  Warning: Could not find critter filename '%s' from mod list\n", filename);
+            }
+        }
+
+        fileClose(stream);
+    }
+
+    fileNameListFree(&foundFiles, fileCount);
+}
+
 // Helper function to initialize critter data
 static int artInitCritterData()
 {
@@ -924,6 +1077,7 @@ static int artInitCritterData()
         debugPrint("Out of memory for anon_alias in art_init\n");
         return -1;
     }
+    memset(_anon_alias, 0, MAX_ART_INDICES * sizeof(int));
 
     gArtCritterFidShoudRunData = (int*)internal_malloc(MAX_ART_INDICES * sizeof(int));
     if (gArtCritterFidShoudRunData == nullptr) {
@@ -931,6 +1085,7 @@ static int artInitCritterData()
         debugPrint("Out of memory for artCritterFidShouldRunData in art_init\n");
         return -1;
     }
+    memset(gArtCritterFidShoudRunData, 0, MAX_ART_INDICES * sizeof(int));
 
     for (int critterIndex = 0; critterIndex < gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength; critterIndex++) {
         gArtCritterFidShoudRunData[critterIndex] = 0;
@@ -991,22 +1146,169 @@ static int artInitCritterData()
         }
     }
 
+    artLoadModCritterData();
+
     fileClose(stream);
     return 0;
+}
+
+// Helper function to load mod head data
+static void artLoadModHeadData(ArtListDescription* desc)
+{
+    // Build search pattern for all .lst files in the heads directory
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "%sart%c%s%c*.lst",
+        _cd_path_base,
+        DIR_SEPARATOR,
+        desc->name,
+        DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
+    if (fileCount <= 0)
+        return;
+
+    // Ensure fission.lst is processed first (highest priority)
+    for (int i = 0; i < fileCount; i++) {
+        if (strcmp(foundFiles[i], "fission.lst") == 0) {
+            char* temp = foundFiles[0];
+            foundFiles[0] = foundFiles[i];
+            foundFiles[i] = temp;
+            break;
+        }
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* lstFilename = foundFiles[i];
+
+        // Skip the main vanilla list - it was already handled
+        char vanillaListName[64];
+        snprintf(vanillaListName, sizeof(vanillaListName), "%s.lst", desc->name);
+        if (compat_stricmp(lstFilename, vanillaListName) == 0)
+            continue;
+
+        // Build full path to the .lst file
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "%sart%c%s%c%s",
+            _cd_path_base,
+            DIR_SEPARATOR,
+            desc->name,
+            DIR_SEPARATOR,
+            lstFilename);
+
+        File* stream = fileOpen(fullPath, "rt");
+        if (!stream) {
+            debugPrint("Warning: Could not open mod head list %s\n", fullPath);
+            continue;
+        }
+
+        debugPrint("Loading head fidget data from %s\n", lstFilename);
+
+        char line[256];
+        while (fileReadString(line, sizeof(line), stream)) {
+            // Trim leading/trailing whitespace
+            char* p = line;
+            while (*p && isspace((unsigned char)*p))
+                p++;
+            if (*p == '\0' || *p == '#')
+                continue; // skip empty lines and comments
+
+            // Format: filename,good,neutral,bad
+            char* filename = p;
+            char* comma1 = strchr(p, ',');
+            if (!comma1) {
+                debugPrint("  Warning: Invalid line (missing commas): %s\n", line);
+                continue;
+            }
+            *comma1 = '\0';
+            char* goodStr = comma1 + 1;
+
+            char* comma2 = strchr(goodStr, ',');
+            if (!comma2) {
+                debugPrint("  Warning: Invalid line (missing second comma): %s\n", line);
+                continue;
+            }
+            *comma2 = '\0';
+            char* neutralStr = comma2 + 1;
+
+            char* comma3 = strchr(neutralStr, ',');
+            if (!comma3) {
+                debugPrint("  Warning: Invalid line (missing third comma): %s\n", line);
+                continue;
+            }
+            *comma3 = '\0';
+            char* badStr = comma3 + 1;
+
+            // Trim each part
+            auto trim = [](char* s) -> char* {
+                while (*s && isspace((unsigned char)*s))
+                    s++;
+                char* end = s + strlen(s) - 1;
+                while (end > s && isspace((unsigned char)*end))
+                    end--;
+                *(end + 1) = '\0';
+                return s;
+            };
+            filename = trim(filename);
+            goodStr = trim(goodStr);
+            neutralStr = trim(neutralStr);
+            badStr = trim(badStr);
+
+            int good = atoi(goodStr);
+            int neutral = atoi(neutralStr);
+            int bad = atoi(badStr);
+
+            // Find the index of this filename in the head list
+            int index = -1;
+            for (int idx = 0; idx < MAX_ART_INDICES; idx++) {
+                const char* stored = desc->fileNames + idx * FILENAME_LENGTH;
+                if (stored[0] != '\0' && compat_stricmp(stored, filename) == 0) {
+                    index = idx;
+                    break;
+                }
+            }
+
+            if (index != -1) {
+                gHeadDescriptions[index].goodFidgetCount = good;
+                gHeadDescriptions[index].neutralFidgetCount = neutral;
+                gHeadDescriptions[index].badFidgetCount = bad;
+                debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
+                    index, filename, good, neutral, bad);
+            } else {
+                debugPrint("  Warning: Could not find head filename '%s' from mod list\n", filename);
+            }
+        }
+
+        fileClose(stream);
+    }
+
+    fileNameListFree(&foundFiles, fileCount);
 }
 
 // Helper function to initialize head data
 static int artInitHeadData()
 {
-    gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength);
+    // Declare desc
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_HEAD];
+
+    // Allocate gHeadDescriptions for MAX_ART_INDICES (8192)
+    gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * MAX_ART_INDICES);
     if (gHeadDescriptions == nullptr) {
-        gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength = 0;
         debugPrint("Out of memory for head_info in art_init\n");
         return -1;
     }
 
+    // Initialize all to default counts (0)
+    for (int i = 0; i < MAX_ART_INDICES; i++) {
+        gHeadDescriptions[i].goodFidgetCount = 0;
+        gHeadDescriptions[i].neutralFidgetCount = 0;
+        gHeadDescriptions[i].badFidgetCount = 0;
+    }
+
+    // Load vanilla heads.lst
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", gArtListDescriptions[OBJ_TYPE_HEAD].name, gArtListDescriptions[OBJ_TYPE_HEAD].name);
+    snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", desc->name, desc->name);
 
     File* stream = fileOpen(path, "rt");
     if (stream == nullptr) {
@@ -1015,11 +1317,12 @@ static int artInitHeadData()
     }
 
     char string[200];
-    for (int headIndex = 0; headIndex < gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength; headIndex++) {
+    for (int headIndex = 0; headIndex < desc->vanillaCount; headIndex++) {
         if (!fileReadString(string, sizeof(string), stream)) {
             break;
         }
 
+        // Parse line: filename,good,neutral,bad (or just filename with defaults)
         char* sep1 = strchr(string, ',');
         if (sep1 != nullptr) {
             *sep1 = '\0';
@@ -1054,6 +1357,10 @@ static int artInitHeadData()
     }
 
     fileClose(stream);
+
+    // Now load mod head data
+    artLoadModHeadData(desc);
+
     return 0;
 }
 
@@ -1082,10 +1389,10 @@ int artInit()
         ArtListDescription* desc = &gArtListDescriptions[objectType];
         desc->flags = 0;
 
-        // Initialize collision tracking
+        // Initialize collision tracking for all indices
         desc->collisionOccurred = false;
-        for (int i = 0; i < 4096; i++) {
-            desc->collisionDetails[i][0] = '\0'; // Clear any previous messages
+        for (int i = 0; i < MAX_ART_INDICES; i++) { // 8192
+            desc->collisionDetails[i][0] = '\0';
         }
 
         // 1. Load VANILLA assets
@@ -1199,7 +1506,7 @@ int artGetFidgetCount(int headFid)
         return 0;
     }
 
-    int head = headFid & 0xFFF;
+    int head = artGetIndex(headFid);
 
     if (head > gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength) {
         return 0;
@@ -1376,72 +1683,72 @@ int artCopyFileName(int objectType, int id, char* dest)
 }
 
 // 0x419314
-int _art_get_code(int animation, int weaponType, char* a3, char* a4)
+int _art_get_code(int animation, int weaponType, char* weaponCodePtr, char* animationCodePtr)
 {
     if (weaponType < 0 || weaponType >= WEAPON_ANIMATION_COUNT) {
         return -1;
     }
 
     if (animation >= ANIM_TAKE_OUT && animation <= ANIM_FIRE_CONTINUOUS) {
-        *a4 = 'c' + (animation - ANIM_TAKE_OUT);
+        *animationCodePtr = 'c' + (animation - ANIM_TAKE_OUT);
         if (weaponType == WEAPON_ANIMATION_NONE) {
             return -1;
         }
 
-        *a3 = 'd' + (weaponType - 1);
+        *weaponCodePtr = 'd' + (weaponType - 1);
         return 0;
     } else if (animation == ANIM_PRONE_TO_STANDING) {
-        *a4 = 'h';
-        *a3 = 'c';
+        *animationCodePtr = 'h';
+        *weaponCodePtr = 'c';
         return 0;
     } else if (animation == ANIM_BACK_TO_STANDING) {
-        *a4 = 'j';
-        *a3 = 'c';
+        *animationCodePtr = 'j';
+        *weaponCodePtr = 'c';
         return 0;
     } else if (animation == ANIM_CALLED_SHOT_PIC) {
-        *a4 = 'a';
-        *a3 = 'n';
+        *animationCodePtr = 'a';
+        *weaponCodePtr = 'n';
         return 0;
     } else if (animation >= FIRST_SF_DEATH_ANIM) {
-        *a4 = 'a' + (animation - FIRST_SF_DEATH_ANIM);
-        *a3 = 'r';
+        *animationCodePtr = 'a' + (animation - FIRST_SF_DEATH_ANIM);
+        *weaponCodePtr = 'r';
         return 0;
     } else if (animation >= FIRST_KNOCKDOWN_AND_DEATH_ANIM) {
-        *a4 = 'a' + (animation - FIRST_KNOCKDOWN_AND_DEATH_ANIM);
-        *a3 = 'b';
+        *animationCodePtr = 'a' + (animation - FIRST_KNOCKDOWN_AND_DEATH_ANIM);
+        *weaponCodePtr = 'b';
         return 0;
     } else if (animation == ANIM_THROW_ANIM) {
         if (weaponType == WEAPON_ANIMATION_KNIFE) {
             // knife
-            *a3 = 'd';
-            *a4 = 'm';
+            *weaponCodePtr = 'd';
+            *animationCodePtr = 'm';
         } else if (weaponType == WEAPON_ANIMATION_SPEAR) {
             // spear
-            *a3 = 'g';
-            *a4 = 'm';
+            *weaponCodePtr = 'g';
+            *animationCodePtr = 'm';
         } else {
             // other -> probably rock or grenade
-            *a3 = 'a';
-            *a4 = 's';
+            *weaponCodePtr = 'a';
+            *animationCodePtr = 's';
         }
         return 0;
     } else if (animation == ANIM_DODGE_ANIM) {
         if (weaponType <= 0) {
-            *a3 = 'a';
-            *a4 = 'n';
+            *weaponCodePtr = 'a';
+            *animationCodePtr = 'n';
         } else {
-            *a3 = 'd' + (weaponType - 1);
-            *a4 = 'e';
+            *weaponCodePtr = 'd' + (weaponType - 1);
+            *animationCodePtr = 'e';
         }
         return 0;
     }
 
-    *a4 = 'a' + animation;
+    *animationCodePtr = 'a' + animation;
     if (animation <= ANIM_WALK && weaponType > 0) {
-        *a3 = 'd' + (weaponType - 1);
+        *weaponCodePtr = 'd' + (weaponType - 1);
         return 0;
     }
-    *a3 = 'a';
+    *weaponCodePtr = 'a';
 
     return 0;
 }
@@ -1837,7 +2144,7 @@ int _art_alias_num(int index)
 int artCritterFidShouldRun(int fid)
 {
     if (FID_TYPE(fid) == OBJ_TYPE_CRITTER) {
-        return gArtCritterFidShoudRunData[fid & 0xFFF];
+        return gArtCritterFidShoudRunData[artGetIndex(fid)];
     }
 
     return 0;
@@ -1849,9 +2156,6 @@ int artAliasFid(int fid)
     int type = FID_TYPE(fid);
     int anim = FID_ANIM_TYPE(fid);
 
-    // Preserve extended flag
-    unsigned int ext_flag = fid & 0x80000000;
-
     if (type == OBJ_TYPE_CRITTER) {
         if (anim == ANIM_ELECTRIFY
             || anim == ANIM_BURNED_TO_NOTHING
@@ -1861,8 +2165,11 @@ int artAliasFid(int fid)
             || anim == ANIM_ELECTRIFIED_TO_NOTHING_SF
             || anim == ANIM_FIRE_DANCE
             || anim == ANIM_CALLED_SHOT_PIC) {
-            // Preserve extended flag in the aliased FID
-            return ext_flag | (fid & 0x70000000) | ((anim << 16) & 0xFF0000) | 0x1000000 | (fid & 0xF000) | (_anon_alias[fid & 0xFFF] & 0xFFF);
+
+            int aliasIndex = _anon_alias[artGetIndex(fid)];
+            // Build a new FID with the alias index, preserving rotation, weapon code, and animation.
+            int newFid = buildFid(type, aliasIndex, anim, (fid & 0xF000) >> 12, FID_ROTATION(fid));
+            return newFid;
         }
     }
 

@@ -159,6 +159,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GAME_SPEED, true);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_PUSH, true);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, false);
+    configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, 1);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");
@@ -183,7 +184,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     compat_resolve_path(alternativeMusicPath);
 
     char** acms;
-    int acmsLength = fileNameListInit(alternativeMusicPath, &acms, 0, 0);
+    int acmsLength = fileNameListInit(alternativeMusicPath, &acms);
     if (acmsLength != -1) {
         if (acmsLength > 0) {
             configSetString(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, "data\\sound\\music\\");
@@ -299,10 +300,28 @@ bool gameConfigExit(bool shouldSave)
 
 static void gameConfigResolvePath(const char* section, const char* key)
 {
-    char* path;
-    configGetString(&gGameConfig, section, key, &path);
-    compat_windows_path_to_native(path);
-    compat_resolve_path(path);
+    char* originalPath;
+    if (!configGetString(&gGameConfig, section, key, &originalPath)) {
+        return; // Key doesn't exist, nothing to resolve
+    }
+
+    // Work on a temporary buffer
+    char resolvedPath[COMPAT_MAX_PATH];
+    if (strlen(originalPath) >= COMPAT_MAX_PATH) {
+        // Path too long - truncate
+        strncpy(resolvedPath, originalPath, COMPAT_MAX_PATH - 1);
+        resolvedPath[COMPAT_MAX_PATH - 1] = '\0';
+    } else {
+        strcpy(resolvedPath, originalPath);
+    }
+
+    compat_windows_path_to_native(resolvedPath);
+    compat_resolve_path(resolvedPath);
+
+    // Only write back if the path actually changed
+    if (strcmp(originalPath, resolvedPath) != 0) {
+        configSetString(&gGameConfig, section, key, resolvedPath);
+    }
 }
 
 } // namespace fallout

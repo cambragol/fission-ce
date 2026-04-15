@@ -6,6 +6,7 @@
 
 #define DIR_SEPARATOR '/'
 
+#include "animation.h"
 #include "art.h"
 #include "character_editor.h"
 #include "combat.h"
@@ -62,8 +63,6 @@ static int name_to_pid_registry_find(const char* key);
 static void load_single_mod_proto_list(const char* list_path, const char* mod_name,
     int proto_type, const char* proto_type_name);
 static void load_mod_proto_list(int proto_type, const char* proto_type_name);
-static void load_mod_proto_messages_from_file(const char* full_path, const char* filename);
-void load_mod_proto_messages(); // Public API
 int protoGetModPid(const char* mod_name, const char* proto_name, int proto_type); // Public API
 
 // Debug/Reporting
@@ -410,9 +409,9 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationBuiltTile)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(scenery_data->stairs.field_4)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->stairs.destinationMap)) == -1)
             return -1;
 
         return 0;
@@ -425,12 +424,12 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileReadInt32(stream, &(scenery_data->ladder.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->ladder.destinationMap)) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileReadInt32(stream, &(scenery_data->generic.field_0)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->generic.genericFlags)) == -1)
             return -1;
 
         return 0;
@@ -474,7 +473,7 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->item.inventoryFid)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->item.field_80)) == -1)
+        if (fileReadUInt8(stream, &(proto->item.soundId)) == -1)
             return -1;
         if (protoItemDataRead(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -515,9 +514,9 @@ static int protoRead(Proto* proto, File* stream)
             return -1;
         if (fileReadInt32(stream, &(proto->scenery.type)) == -1)
             return -1;
-        if (fileReadInt32(stream, &(proto->scenery.field_2C)) == -1)
+        if (fileReadInt32(stream, &(proto->scenery.material)) == -1)
             return -1;
-        if (fileReadUInt8(stream, &(proto->scenery.field_34)) == -1)
+        if (fileReadUInt8(stream, &(proto->scenery.soundId)) == -1)
             return -1;
         if (protoSceneryDataRead(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -698,9 +697,9 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
 
         return 0;
     case SCENERY_TYPE_STAIRS:
-        if (fileWriteInt32(stream, scenery_data->stairs.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationBuiltTile) == -1)
             return -1;
-        if (fileWriteInt32(stream, scenery_data->stairs.field_4) == -1)
+        if (fileWriteInt32(stream, scenery_data->stairs.destinationMap) == -1)
             return -1;
 
         return 0;
@@ -713,12 +712,12 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileWriteInt32(stream, scenery_data->ladder.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->ladder.destinationMap) == -1)
             return -1;
 
         return 0;
     case SCENERY_TYPE_GENERIC:
-        if (fileWriteInt32(stream, scenery_data->generic.field_0) == -1)
+        if (fileWriteInt32(stream, scenery_data->generic.genericFlags) == -1)
             return -1;
 
         return 0;
@@ -761,7 +760,7 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->item.inventoryFid) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->item.field_80) == -1)
+        if (fileWriteUInt8(stream, proto->item.soundId) == -1)
             return -1;
         if (protoItemDataWrite(&(proto->item.data), proto->item.type, stream) == -1)
             return -1;
@@ -801,9 +800,9 @@ static int protoWrite(Proto* proto, File* stream)
             return -1;
         if (fileWriteInt32(stream, proto->scenery.type) == -1)
             return -1;
-        if (fileWriteInt32(stream, proto->scenery.field_2C) == -1)
+        if (fileWriteInt32(stream, proto->scenery.material) == -1)
             return -1;
-        if (fileWriteUInt8(stream, proto->scenery.field_34) == -1)
+        if (fileWriteUInt8(stream, proto->scenery.soundId) == -1)
             return -1;
         if (protoSceneryDataWrite(&(proto->scenery.data), proto->scenery.type, stream) == -1)
             return -1;
@@ -1069,8 +1068,8 @@ static int _proto_update_gen(Object* obj)
             data->scenery.door.openFlags = proto->scenery.data.door.openFlags;
             break;
         case SCENERY_TYPE_STAIRS:
-            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.field_0;
-            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.field_4;
+            data->scenery.stairs.destinationBuiltTile = proto->scenery.data.stairs.destinationBuiltTile;
+            data->scenery.stairs.destinationMap = proto->scenery.data.stairs.destinationMap;
             break;
         case SCENERY_TYPE_ELEVATOR:
             data->scenery.elevator.type = proto->scenery.data.elevator.type;
@@ -1078,7 +1077,7 @@ static int _proto_update_gen(Object* obj)
             break;
         case SCENERY_TYPE_LADDER_UP:
         case SCENERY_TYPE_LADDER_DOWN:
-            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.field_0;
+            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.destinationMap;
             break;
         }
         break;
@@ -1102,20 +1101,20 @@ static int _proto_update_gen(Object* obj)
 // ============================================================================
 
 // 0x49EB2C
-int proto_item_init(Proto* proto, int a2)
+int proto_item_init(Proto* proto, int pid)
 {
-    int v1 = a2 & 0xFFFFFF;
+    int protoNum = pid & 0xFFFFFF;
 
     proto->item.pid = -1;
-    proto->item.messageId = 100 * v1;
-    proto->item.fid = buildFid(OBJ_TYPE_ITEM, v1 - 1, 0, 0, 0);
+    proto->item.messageId = 100 * protoNum;
+    proto->item.fid = buildFid(OBJ_TYPE_ITEM, protoNum - 1, 0, 0, 0);
     if (!artExists(proto->item.fid)) {
         proto->item.fid = buildFid(OBJ_TYPE_ITEM, 0, 0, 0, 0);
     }
     proto->item.lightDistance = 0;
     proto->item.lightIntensity = 0;
-    proto->item.flags = 0xA0000008;
-    proto->item.extendedFlags = 0xA000;
+    proto->item.flags = PROTO_FLAG_FLAT | PROTO_FLAG_LIGHT_THRU | PROTO_FLAG_SHOOT_THRU;
+    proto->item.extendedFlags = PROTO_EXT_FLAG_LOOK | PROTO_EXT_FLAG_CAN_PICK_UP;
     proto->item.sid = -1;
     proto->item.type = ITEM_TYPE_MISC;
     proto_item_subdata_init(proto, proto->item.type);
@@ -1124,7 +1123,7 @@ int proto_item_init(Proto* proto, int a2)
     proto->item.weight = 10;
     proto->item.cost = 0;
     proto->item.inventoryFid = -1;
-    proto->item.field_80 = '0';
+    proto->item.soundId = '0';
 
     return 0;
 }
@@ -1150,7 +1149,7 @@ int proto_item_subdata_init(Proto* proto, int type)
     case ITEM_TYPE_CONTAINER:
         proto->item.data.container.openFlags = 0;
         proto->item.data.container.maxSize = 250;
-        proto->item.extendedFlags |= 0x800;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case ITEM_TYPE_DRUG:
         proto->item.data.drug.stat[0] = STAT_STRENGTH;
@@ -1170,7 +1169,7 @@ int proto_item_subdata_init(Proto* proto, int type)
         proto->item.data.drug.addictionChance = 0;
         proto->item.data.drug.withdrawalEffect = 0;
         proto->item.data.drug.withdrawalOnset = 0;
-        proto->item.extendedFlags |= 0x1000;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE_ON;
         break;
     case ITEM_TYPE_WEAPON:
         proto->item.data.weapon.animationCode = 0;
@@ -1205,7 +1204,7 @@ int proto_item_subdata_init(Proto* proto, int type)
         break;
     case ITEM_TYPE_KEY:
         proto->item.data.key.keyCode = -1;
-        proto->item.extendedFlags |= 0x1000;
+        proto->item.extendedFlags |= PROTO_EXT_FLAG_CAN_USE_ON;
         break;
     }
 
@@ -1226,8 +1225,8 @@ int proto_critter_init(Proto* proto, int pid)
     proto->fid = buildFid(OBJ_TYPE_CRITTER, num - 1, 0, 0, 0);
     proto->critter.lightDistance = 0;
     proto->critter.lightIntensity = 0;
-    proto->critter.flags = 0x20000000;
-    proto->critter.extendedFlags = 0x6000;
+    proto->critter.flags = PROTO_FLAG_LIGHT_THRU;
+    proto->critter.extendedFlags = PROTO_EXT_FLAG_LOOK | PROTO_EXT_FLAG_CAN_TALK_TO;
     proto->critter.sid = -1;
     proto->critter.data.flags = 0;
     proto->critter.data.bodyType = 0;
@@ -1261,12 +1260,12 @@ int proto_scenery_init(Proto* proto, int pid)
     proto->scenery.lightDistance = 0;
     proto->scenery.lightIntensity = 0;
     proto->scenery.flags = 0;
-    proto->scenery.extendedFlags = 0x2000;
+    proto->scenery.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->scenery.sid = -1;
     proto->scenery.type = SCENERY_TYPE_GENERIC;
     proto_scenery_subdata_init(proto, proto->scenery.type);
-    proto->scenery.field_2C = -1;
-    proto->scenery.field_34 = '0';
+    proto->scenery.material = -1;
+    proto->scenery.soundId = '0';
 
     return 0;
 }
@@ -1277,25 +1276,25 @@ int proto_scenery_subdata_init(Proto* proto, int type)
     switch (type) {
     case SCENERY_TYPE_DOOR:
         proto->scenery.data.door.openFlags = 0;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_STAIRS:
-        proto->scenery.data.stairs.field_0 = -1;
-        proto->scenery.data.stairs.field_4 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.stairs.destinationBuiltTile = -1;
+        proto->scenery.data.stairs.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_ELEVATOR:
         proto->scenery.data.elevator.type = -1;
         proto->scenery.data.elevator.level = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_UP:
-        proto->scenery.data.ladder.field_0 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_DOWN:
-        proto->scenery.data.ladder.field_0 = -1;
-        proto->scenery.extendedFlags |= 0x800;
+        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     }
 
@@ -1316,7 +1315,7 @@ int proto_wall_init(Proto* proto, int pid)
     proto->wall.lightDistance = 0;
     proto->wall.lightIntensity = 0;
     proto->wall.flags = 0;
-    proto->wall.extendedFlags = 0x2000;
+    proto->wall.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->wall.sid = -1;
     proto->wall.material = 1;
 
@@ -1335,7 +1334,7 @@ int proto_tile_init(Proto* proto, int pid)
         proto->tile.fid = buildFid(OBJ_TYPE_TILE, 0, 0, 0, 0);
     }
     proto->tile.flags = 0;
-    proto->tile.extendedFlags = 0x2000;
+    proto->tile.extendedFlags = PROTO_EXT_FLAG_LOOK;
     proto->tile.sid = -1;
     proto->tile.material = 1;
 
@@ -1552,7 +1551,7 @@ int protoGetDataMember(int pid, int member, ProtoDataMemberValue* value)
             value->integerValue = proto->scenery.type;
             break;
         case SCENERY_DATA_MEMBER_MATERIAL:
-            value->integerValue = proto->scenery.field_2C;
+            value->integerValue = proto->scenery.material;
             break;
         default:
             debugPrint("\n\tError: Unimp'd data member in member in proto_data_member!");
@@ -1668,7 +1667,7 @@ int objectDataRead(Object* obj, File* stream)
         return -1;
 
     if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
-        if (fileReadInt32(stream, &(obj->data.critter.field_0)) == -1)
+        if (fileReadInt32(stream, &(obj->data.critter.reaction)) == -1)
             return -1;
         if (objectCritterCombatDataRead(&(obj->data.critter.combat), stream) == -1)
             return -1;
@@ -2200,35 +2199,13 @@ int _proto_action_can_pickup(int pid)
     return true;
 }
 
-/**
- * @brief Retrieves a message for a proto with mod support.
- *
- * Extended version that first checks mod proto messages before falling back
- * to vanilla message lookup. This allows mods to override or add messages
- * for their protos.
- *
- * @param pid The PID to get a message for.
- * @param message The message type (PROTOTYPE_MESSAGE_NAME or DESCRIPTION).
- * @return Pointer to the message string, or _proto_none_str if not found.
- */
 char* protoGetMessage(int pid, int message)
 {
-
-    // First, try to get from mod proto message system
-    if (pid_is_modded(pid)) {
-        char* mod_msg = messageListGetModProtoMessage(pid, message);
-
-        if (mod_msg) {
-            return mod_msg;
-        }
-    }
     char* v1 = _proto_none_str;
-
     Proto* proto;
     if (protoGetProto(pid, &proto) != -1) {
         if (proto->messageId != -1) {
             MessageList* messageList = &(_proto_msg_files[PID_TYPE(pid)]);
-
             MessageListItem messageListItem;
             messageListItem.num = proto->messageId + message;
             if (messageListGetItem(messageList, &messageListItem)) {
@@ -2236,7 +2213,6 @@ char* protoGetMessage(int pid, int message)
             }
         }
     }
-
     return v1;
 }
 
@@ -2282,13 +2258,11 @@ int protoGetProto(int pid, Proto** protoPtr)
 
     // Check if it's a mod PID
     if (pid_is_modded(pid)) {
-        // Look up in mod registry
+        // Look up mod entry first
         ModProtoEntry* entry = mod_proto_registry_find_by_pid(pid);
-        if (!entry) {
-            return -1; // Mod proto not found
-        }
+        if (!entry) return -1;
 
-        // Try to find in existing cache first
+        // Try cache
         ProtoList* protoList = &(_protoLists[PID_TYPE(pid)]);
         ProtoListExtent* protoListExtent = protoList->head;
         while (protoListExtent != nullptr) {
@@ -2302,26 +2276,120 @@ int protoGetProto(int pid, Proto** protoPtr)
             protoListExtent = protoListExtent->next;
         }
 
-        // Not in cache, load from mod file
+        // Not in cache, load from file
         File* stream = fileOpen(entry->proto_path, "rb");
         if (stream == nullptr) {
             debugPrint("Error: Can't open mod proto file: %s\n", entry->proto_path);
             return -1;
         }
 
-        // Find or allocate cache slot
         if (_proto_find_free_subnode(PID_TYPE(pid), protoPtr) == -1) {
             fileClose(stream);
             return -1;
         }
 
-        // Read proto data
         if (protoRead(*protoPtr, stream) != 0) {
             fileClose(stream);
             return -1;
         }
-
         fileClose(stream);
+
+        // Apply ground FID override
+        if (entry->has_override_fid) {
+            int new_index = entry->override_fid;
+            int old_fid = (*protoPtr)->fid;
+            int rotation = FID_ROTATION(old_fid);
+            int animType = FID_ANIM_TYPE(old_fid);
+            int weaponCode = (old_fid >> 12) & 0xF;
+            int objectType = FID_TYPE(old_fid);
+            int new_fid = buildFid(objectType, new_index, animType, weaponCode, rotation);
+            (*protoPtr)->fid = new_fid;
+            if (!artExists(new_fid)) {
+                debugPrint("Warning: FID 0x%08X for mod proto %s:%s does not exist.\n",
+                    new_fid, entry->mod_name, entry->proto_name);
+            }
+        }
+
+        // Apply inventory FID override (only for items)
+        if (entry->has_override_inventory_fid && PID_TYPE(pid) == OBJ_TYPE_ITEM) {
+            int inv_raw = entry->override_inventory_fid;
+            int inv_fid;
+            if (inv_raw < 0x01000000) {
+                inv_fid = buildFid(OBJ_TYPE_INVENTORY, inv_raw, 0, 0, 0);
+            } else {
+                inv_fid = inv_raw;
+            }
+            (*protoPtr)->item.inventoryFid = inv_fid;
+            if (!artExists(inv_fid)) {
+                debugPrint("Warning: Inventory FID 0x%08X for mod proto %s:%s does not exist.\n",
+                    inv_fid, entry->mod_name, entry->proto_name);
+            }
+        }
+
+        // Apply AI packet override (only for critters)
+        if (entry->has_override_ai_packet && PID_TYPE(pid) == OBJ_TYPE_CRITTER) {
+            (*protoPtr)->critter.aiPacket = entry->override_ai_packet;
+        }
+
+        // Apply script override (sid)
+        if (entry->has_override_script) {
+            int script_id = entry->override_script;
+            if (script_id > 0) {
+                script_id--; // convert from 1-indexed to 0-indexed
+            }
+            switch (PID_TYPE(pid)) {
+            case OBJ_TYPE_ITEM:
+                (*protoPtr)->item.sid = script_id;
+                break;
+            case OBJ_TYPE_CRITTER:
+                (*protoPtr)->critter.sid = script_id;
+                break;
+            case OBJ_TYPE_SCENERY:
+                (*protoPtr)->scenery.sid = script_id;
+                break;
+            case OBJ_TYPE_WALL:
+                (*protoPtr)->wall.sid = script_id;
+                break;
+            case OBJ_TYPE_TILE:
+                (*protoPtr)->tile.sid = script_id;
+                break;
+            case OBJ_TYPE_MISC:
+                debugPrint("Warning: script override ignored for misc proto %s:%s (PID 0x%08X)\n",
+                    entry->mod_name, entry->proto_name, pid);
+                break;
+            default:
+                break;
+            }
+        }
+
+        // Set messageId: reserve two IDs per proto (name + description)
+        const char* type_key;
+        switch (PID_TYPE(pid)) {
+        case OBJ_TYPE_ITEM:
+            type_key = "item";
+            break;
+        case OBJ_TYPE_CRITTER:
+            type_key = "crit";
+            break;
+        case OBJ_TYPE_SCENERY:
+            type_key = "scen";
+            break;
+        case OBJ_TYPE_WALL:
+            type_key = "wall";
+            break;
+        case OBJ_TYPE_TILE:
+            type_key = "tile";
+            break;
+        case OBJ_TYPE_MISC:
+            type_key = "misc";
+            break;
+        default:
+            type_key = "unknown";
+        }
+        uint32_t base_id = generate_mod_block_base_id(MOD_BLOCK_PROTO, entry->mod_name, type_key);
+        (*protoPtr)->messageId = base_id + (entry->message_offset * 2);
+
+        (*protoPtr)->pid = pid;
         return 0;
     }
 
@@ -2604,17 +2672,6 @@ static int name_to_pid_registry_find(const char* key)
 // Mod Loading Functions
 // ============================================================================
 
-/**
- * @brief Loads a single mod proto list file.
- *
- * Parses a mod-specific .lst file (e.g., items_testmod.lst) to discover
- * mod protos. Each line contains a proto filename (without .pro extension).
- *
- * @param list_path Full path to the .lst file.
- * @param mod_name Name of the mod (extracted from filename).
- * @param proto_type Object type (OBJ_TYPE_ITEM, etc.).
- * @param proto_type_name String name of the type (for debugging).
- */
 static void load_single_mod_proto_list(const char* list_path, const char* mod_name,
     int proto_type, const char* proto_type_name)
 {
@@ -2625,11 +2682,9 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
     }
 
     char line[256];
-    int line_num = 0;
+    int proto_counter = 0; // 0-based offset for each valid proto
 
     while (fileReadString(line, sizeof(line), stream)) {
-        line_num++;
-
         // Remove line endings
         char* newline = strchr(line, '\n');
         if (newline) *newline = '\0';
@@ -2641,56 +2696,90 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
             continue;
         }
 
-        // Parse proto name - JUST the filename, no display name
-        char proto_name[128] = { 0 };
-        strncpy(proto_name, line, sizeof(proto_name) - 1);
+        // --- Parse line: first token is proto name, then optional key=value pairs ---
+        char* p = line;
+        while (*p && isspace(*p))
+            p++;
+        if (!*p) continue;
 
-        // Remove .pro extension if present
+        char* token_start = p;
+        while (*p && !isspace(*p))
+            p++;
+        if (*p) *p++ = '\0';
+
+        char proto_name[128];
+        strncpy(proto_name, token_start, sizeof(proto_name) - 1);
+        proto_name[sizeof(proto_name) - 1] = '\0';
+
+        // Remove .pro extension
         char* dot = strrchr(proto_name, '.');
         if (dot && (strcmp(dot, ".pro") == 0 || strcmp(dot, ".PRO") == 0)) {
             *dot = '\0';
         }
 
-        // Also remove any trailing spaces
+        // Trim trailing spaces
         char* end = proto_name + strlen(proto_name) - 1;
-        while (end > proto_name && isspace(*end)) {
-            *end = '\0';
-            end--;
-        }
+        while (end > proto_name && isspace(*end))
+            *end-- = '\0';
 
-        // Generate PID for this mod proto
-        int pid = generate_mod_proto_pid(mod_name, proto_name, proto_type);
+        // Parse optional overrides (fid, inventory_fid, ai, script) - same as before
+        int desired_fid = 0;
+        bool has_fid = false;
+        int desired_inventory_fid = 0;
+        bool has_inventory_fid = false;
+        int desired_ai = 0;
+        bool has_ai = false;
+        int desired_script = 0;
+        bool has_script = false;
 
-        // Check for hash collisions with existing mod protos
-        ModProtoEntry* existing_entry = mod_proto_registry_find_by_pid(pid);
-        if (existing_entry != nullptr) {
-            // HASH COLLISION DETECTED - CRITICAL WARNING
-            char collision_msg[512];
-            snprintf(collision_msg, sizeof(collision_msg),
-                "HASH COLLISION WARNING!\n\n"
-                "Your mod '%s' proto '%s'\n"
-                "generated PID 0x%08X which is already used by:\n"
-                "Mod '%s' proto '%s'\n\n"
-                "This proto will be skipped.\n"
-                "Rename your mod or proto to fix.",
-                mod_name, proto_name, pid,
-                existing_entry->mod_name, existing_entry->proto_name);
+        char* rest = p;
+        while (*rest) {
+            while (*rest && isspace(*rest))
+                rest++;
+            if (!*rest) break;
 
-            showMesageBox(collision_msg);
+            char* eq = strchr(rest, '=');
+            if (!eq) {
+                while (*rest && !isspace(*rest))
+                    rest++;
+                continue;
+            }
 
-            // Log for the report
-            _mod_proto_collision_count++;
-            char log_entry[256];
-            snprintf(log_entry, sizeof(log_entry),
-                "COLLISION: Mod '%s' proto '%s' (PID: 0x%08X) conflicts with Mod '%s' proto '%s'\n",
-                mod_name, proto_name, pid,
-                existing_entry->mod_name, existing_entry->proto_name);
-            strncat(_mod_proto_collision_log, log_entry,
-                sizeof(_mod_proto_collision_log) - strlen(_mod_proto_collision_log) - 1);
+            char* key_start = rest;
+            char* key_end = eq;
+            while (key_end > key_start && isspace(*(key_end - 1)))
+                key_end--;
+            char saved = *key_end;
+            *key_end = '\0';
+            char* key = key_start;
 
-            debugPrint("Hash collision! Skipping %s:%s (PID: 0x%08X)\n",
-                mod_name, proto_name, pid);
-            continue; // Skip this proto due to collision
+            char* value_start = eq + 1;
+            while (*value_start && isspace(*value_start))
+                value_start++;
+            char* value_end = value_start;
+            while (*value_end && !isspace(*value_end))
+                value_end++;
+            saved = *value_end;
+            *value_end = '\0';
+            char* value = value_start;
+
+            if (strcmp(key, "fid") == 0) {
+                desired_fid = atoi(value);
+                has_fid = true;
+            } else if (strcmp(key, "inventory_fid") == 0) {
+                desired_inventory_fid = atoi(value);
+                has_inventory_fid = true;
+            } else if (strcmp(key, "ai") == 0) {
+                desired_ai = atoi(value);
+                has_ai = true;
+            } else if (strcmp(key, "script") == 0) {
+                desired_script = atoi(value);
+                has_script = true;
+            }
+
+            *value_end = saved;
+            rest = value_end;
+            if (*rest) rest++;
         }
 
         // Build path to .pro file
@@ -2698,10 +2787,7 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         char list_dir[COMPAT_MAX_PATH];
         strcpy(list_dir, list_path);
         char* last_slash = strrchr(list_dir, DIR_SEPARATOR);
-        if (last_slash) {
-            *(last_slash + 1) = '\0';
-        }
-
+        if (last_slash) *(last_slash + 1) = '\0';
         snprintf(pro_path, sizeof(pro_path), "%s%s.pro", list_dir, proto_name);
 
         // Check if .pro file exists
@@ -2712,21 +2798,45 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         }
         fileClose(pro_test);
 
-        // Create and store entry
+        // Generate PID
+        int pid = generate_mod_proto_pid(mod_name, proto_name, proto_type);
+
+        // Check for collision (same as before)
+        ModProtoEntry* existing = mod_proto_registry_find_by_pid(pid);
+        if (existing) {
+            char msg[512];
+            snprintf(msg, sizeof(msg),
+                "HASH COLLISION!\nMod '%s' proto '%s'\nPID 0x%08X conflicts with\nMod '%s' proto '%s'\nSkipping.",
+                mod_name, proto_name, pid, existing->mod_name, existing->proto_name);
+            showMesageBox(msg);
+            continue;
+        }
+
+        // Create entry
         ModProtoEntry entry;
         entry.pid = pid;
         entry.mod_name = internal_strdup(mod_name);
         entry.proto_name = internal_strdup(proto_name);
         entry.proto_path = internal_strdup(pro_path);
         entry.type = proto_type;
+        entry.message_offset = proto_counter;
+        entry.override_fid = desired_fid;
+        entry.has_override_fid = has_fid;
+        entry.override_inventory_fid = desired_inventory_fid;
+        entry.has_override_inventory_fid = has_inventory_fid;
+        entry.override_ai_packet = desired_ai;
+        entry.has_override_ai_packet = has_ai;
+        entry.override_script = desired_script;
+        entry.has_override_script = has_script;
 
-        // Add to registry
         mod_proto_registry_add(&entry);
 
-        // Create composite key for reverse lookup
+        // Register name-to-PID mapping for message lookup
         char composite_key[256];
         snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, proto_name);
         name_to_pid_registry_add(composite_key, pid);
+
+        proto_counter++; // only increment for successfully added protos
     }
 
     fileClose(stream);
@@ -2755,7 +2865,7 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
         path, DIR_SEPARATOR, proto_type_name);
 
     char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
+    int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
         // Extract mod name from filename: {type}_{modname}.lst -> {modname}
@@ -2797,226 +2907,6 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
 }
 
 /**
- * @brief Parses a mod message file for proto messages.
- *
- * Reads a mod-specific message file (messages_*.txt) and extracts
- * name/description messages for mod protos. Messages are added to
- * the message repository for later lookup.
- *
- * @param full_path Full path to the message file.
- * @param filename Just the filename (for mod name extraction).
- */
-static void load_mod_proto_messages_from_file(const char* full_path, const char* filename)
-{
-    File* stream = fileOpen(full_path, "rt");
-    if (!stream) {
-        char msg[256];
-        snprintf(msg, sizeof(msg), "Could not open mod proto messages file: %s", full_path);
-        showMesageBox(msg);
-        return;
-    }
-
-    // Extract mod name from filename (messages_xxx.txt -> xxx)
-    char mod_name[64] = { 0 };
-    const char* prefix = "messages_";
-    const char* suffix = ".txt";
-
-    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
-        size_t filename_len = strlen(filename);
-        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
-
-        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
-            strncpy(mod_name, filename + strlen(prefix), mod_name_len);
-            mod_name[mod_name_len] = '\0';
-        }
-    }
-
-    char line[256];
-    char current_section[64] = "";
-    bool in_proto_section = false;
-
-    while (fileReadString(line, sizeof(line) - 1, stream)) {
-        // Remove line endings
-        char* newline = strchr(line, '\n');
-        if (newline) *newline = '\0';
-        char* cr = strchr(line, '\r');
-        if (cr) *cr = '\0';
-
-        // Skip empty lines and comments
-        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
-            continue;
-        }
-
-        // Check for section header
-        if (line[0] == '[') {
-            char* line_end = line + strlen(line) - 1;
-            while (line_end > line && isspace(*line_end)) {
-                *line_end = '\0';
-                line_end--;
-            }
-
-            if (*line_end == ']') {
-                // Extract section name
-                char section_name[64];
-                strncpy(section_name, line + 1, line_end - line - 1);
-                section_name[line_end - line - 1] = '\0';
-
-                // Trim whitespace
-                char* start = section_name;
-                while (*start && isspace(*start))
-                    start++;
-                char* end = start + strlen(start) - 1;
-                while (end > start && isspace(*end))
-                    *end-- = '\0';
-
-                strncpy(current_section, start, sizeof(current_section) - 1);
-
-                // Check if this is a proto section
-                in_proto_section = (strstr(current_section, "proto") != nullptr) || (strstr(current_section, "pro_") != nullptr);
-
-                continue;
-            }
-        }
-
-        // Only process if we're in a proto section
-        if (!in_proto_section) {
-            continue;
-        }
-
-        // Parse key=value line for proto messages
-        char* separator = strchr(line, '=');
-        if (!separator) {
-            continue;
-        }
-
-        *separator = '\0';
-        char* key = line;
-        char* value = separator + 1;
-
-        // Trim whitespace
-        while (*key && isspace(*key))
-            key++;
-        while (*value && isspace(*value))
-            value++;
-
-        char* end = key + strlen(key) - 1;
-        while (end > key && isspace(*end))
-            *end-- = '\0';
-
-        end = value + strlen(value) - 1;
-        while (end > value && isspace(*end))
-            *end-- = '\0';
-
-        if (*key && *value) {
-            // Parse key format: could be "testitem:name" or "testmod:testitem:name"
-            char* colon1 = strchr(key, ':');
-            if (!colon1) {
-                continue;
-            }
-
-            *colon1 = '\0';
-            char* colon2 = strchr(colon1 + 1, ':');
-
-            char key_mod_name[64] = { 0 };
-            char proto_name[128] = { 0 };
-            char message_type_str[16] = { 0 };
-
-            if (colon2) {
-                // Format: mod:proto:type
-                *colon2 = '\0';
-                strncpy(key_mod_name, key, sizeof(key_mod_name) - 1);
-                strncpy(proto_name, colon1 + 1, sizeof(proto_name) - 1);
-                strncpy(message_type_str, colon2 + 1, sizeof(message_type_str) - 1);
-            } else {
-                // Format: proto:type (use file's mod name)
-                strncpy(key_mod_name, mod_name, sizeof(key_mod_name) - 1);
-                strncpy(proto_name, key, sizeof(proto_name) - 1);
-                strncpy(message_type_str, colon1 + 1, sizeof(message_type_str) - 1);
-            }
-
-            // Determine message type
-            int message_type = -1;
-            if (strcmp(message_type_str, "name") == 0 || strcmp(message_type_str, "0") == 0) {
-                message_type = PROTOTYPE_MESSAGE_NAME;
-            } else if (strcmp(message_type_str, "desc") == 0 || strcmp(message_type_str, "1") == 0) {
-                message_type = PROTOTYPE_MESSAGE_DESCRIPTION;
-            } else {
-                continue;
-            }
-
-            if (message_type >= 0 && key_mod_name[0] && proto_name[0]) {
-                // Look up PID for this mod proto
-                char composite_key[256];
-                snprintf(composite_key, sizeof(composite_key), "%s:%s", key_mod_name, proto_name);
-
-                int pid = name_to_pid_registry_find(composite_key);
-                if (pid != -1) {
-                    // Add message to repository
-                    messageListAddModProtoMessage(pid, message_type, value);
-                }
-            }
-        }
-    }
-
-    fileClose(stream);
-}
-
-/**
- * @brief Loads mod proto messages separately from other mod messages.
- *
- * Proto messages are handled differently than other mod messages because:
- * 1. They use a special key format: {modname}:{protoname}:name/desc
- * 2. They're stored in a separate repository indexed by PID
- * 3. They're looked up via protoGetMessage() not regular message lists
- *
- * This function should NOT be merged into messageListLoadWithMods()
- * because the loading mechanism is fundamentally different.
- */
-void load_mod_proto_messages()
-{
-    char search_pattern[COMPAT_MAX_PATH];
-
-    // Use the same pattern as messageListLoad but with wildcard
-    snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
-        DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR);
-
-    char** mod_files = nullptr;
-    int file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
-
-    for (int i = 0; i < file_count; i++) {
-        // Build full path (same pattern as messageListLoad)
-        char full_path[COMPAT_MAX_PATH];
-        snprintf(full_path, sizeof(full_path), "text%c%s%cgame%c%s",
-            DIR_SEPARATOR, ENGLISH, DIR_SEPARATOR, DIR_SEPARATOR, mod_files[i]);
-        load_mod_proto_messages_from_file(full_path, mod_files[i]);
-    }
-
-    if (file_count > 0) {
-        fileNameListFree(&mod_files, 0);
-    }
-
-    // Current language override
-    if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
-        snprintf(search_pattern, sizeof(search_pattern), "text%c%s%cgame%cmessages_*.txt",
-            DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
-
-        file_count = fileNameListInit(search_pattern, &mod_files, 0, 0);
-
-        for (int i = 0; i < file_count; i++) {
-            char full_path[COMPAT_MAX_PATH];
-            snprintf(full_path, sizeof(full_path), "text%c%s%cgame%c%s",
-                DIR_SEPARATOR, settings.system.language.c_str(),
-                DIR_SEPARATOR, DIR_SEPARATOR, mod_files[i]);
-            load_mod_proto_messages_from_file(full_path, mod_files[i]);
-        }
-
-        if (file_count > 0) {
-            fileNameListFree(&mod_files, 0);
-        }
-    }
-}
-
-/**
  * @brief Gets a PID for a mod proto by name.
  *
  * Public API function that mods/scripts can use to get the PID for a
@@ -3041,9 +2931,56 @@ int protoGetModPid(const char* mod_name, const char* proto_name, int proto_type)
     return generate_mod_proto_pid(mod_name, proto_name, proto_type);
 }
 
-// ============================================================================
-// Initialization & Cleanup
-// ============================================================================
+static void load_mod_proto_msg_files()
+{
+    const char* type_names[] = { "item", "crit", "scen", "wall", "tile", "misc" };
+    const int num_types = 6;
+
+    for (int type = 0; type < num_types; type++) {
+        char search_pattern[COMPAT_MAX_PATH];
+        snprintf(search_pattern, sizeof(search_pattern),
+            "text%c%s%cgame%cpro_%s_*.msg",
+            DIR_SEPARATOR, settings.system.language.c_str(),
+            DIR_SEPARATOR, DIR_SEPARATOR, type_names[type]);
+
+        char** msg_files = nullptr;
+        int file_count = fileNameListInit(search_pattern, &msg_files);
+
+        for (int i = 0; i < file_count; i++) {
+            // Extract mod name: pro_item_mymod.msg -> "mymod"
+            char mod_name[64] = { 0 };
+            const char* first_underscore = strchr(msg_files[i], '_');
+            if (first_underscore) {
+                const char* second_underscore = strchr(first_underscore + 1, '_');
+                if (second_underscore) {
+                    const char* suffix = ".msg";
+                    size_t mod_len = strlen(second_underscore + 1) - strlen(suffix);
+                    if (mod_len > 0 && mod_len < sizeof(mod_name)) {
+                        strncpy(mod_name, second_underscore + 1, mod_len);
+                        mod_name[mod_len] = '\0';
+                    }
+                }
+            }
+
+            if (strlen(mod_name) == 0) continue;
+
+            uint32_t base_id = generate_mod_block_base_id(MOD_BLOCK_PROTO, mod_name, type_names[type]);
+            if (base_id == 0) {
+                debugPrint("Failed to get base ID for proto mod %s type %s\n", mod_name, type_names[type]);
+                continue;
+            }
+
+            char relative_path[COMPAT_MAX_PATH];
+            snprintf(relative_path, sizeof(relative_path), "game%c%s", DIR_SEPARATOR, msg_files[i]);
+
+            if (!messageListLoadWithBaseOffset(&_proto_msg_files[type], relative_path, base_id)) {
+                debugPrint("Failed to load mod proto msg file: %s\n", relative_path);
+            }
+        }
+
+        if (file_count > 0) fileNameListFree(&msg_files, 0);
+    }
+}
 
 // proto_init
 // 0x4A0390
@@ -3108,11 +3045,8 @@ int protoInit()
         }
     }
 
-    // SPECIAL: Load mod proto messages separately because:
-    // 1. They use different key format (mod:proto:name vs area_name:NAME)
-    // 2. They go to a special mod proto message repository
-    // 3. They're looked up by PID, not message ID
-    load_mod_proto_messages();
+    // Load mod proto message files (.msg)
+    load_mod_proto_msg_files();
 
     // Generate debug report
     protoGenerateModProtoListDebug();
@@ -3412,10 +3346,27 @@ static void protoGenerateModProtoListDebug()
             else
                 fileName = entry->proto_path;
 
-            fprintf(debugStream, "  PID: 0x%08X (%d)\n", entry->pid, entry->pid);
+            fprintf(debugStream, "  PID: %d\n", entry->pid); // removed hex number display
             fprintf(debugStream, "    Mod:      %s\n", entry->mod_name);
             fprintf(debugStream, "    Proto:    %s\n", entry->proto_name);
             fprintf(debugStream, "    File:     %s\n", fileName);
+            // Overrides
+            if (entry->has_override_fid) {
+                fprintf(debugStream, "    Override FID: %d\n", entry->override_fid);
+            }
+            if (entry->has_override_inventory_fid) {
+                fprintf(debugStream, "    Override Inventory FID: %d\n", entry->override_inventory_fid);
+            }
+            if (entry->has_override_ai_packet) {
+                fprintf(debugStream, "    Override AI Packet: %d\n", entry->override_ai_packet);
+            }
+            if (entry->has_override_script) {
+                int internal_script = entry->override_script;
+                if (internal_script > 0) {
+                    internal_script--;
+                }
+                fprintf(debugStream, "    Override Script: %d (internal: %d)\n", entry->override_script, internal_script);
+            }
 
             if (protoLoaded) {
                 fprintf(debugStream, "    Message:  ID %d\n", proto->messageId);
@@ -3465,7 +3416,7 @@ static void protoGenerateModProtoListDebug()
     fputc('\n', debugStream);
 
     for (int i = 0; i < _name_to_pid_entries_size; i++) {
-        fprintf(debugStream, "  %-40s -> 0x%08X\n",
+        fprintf(debugStream, "  %-40s -> %d\n",
             _name_to_pid_entries[i].key,
             _name_to_pid_entries[i].pid);
     }

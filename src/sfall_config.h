@@ -2,6 +2,7 @@
 #define MOD_CONFIG_H
 
 #include "config.h"
+#include "platform_compat.h"
 
 namespace fallout {
 
@@ -160,11 +161,37 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_TWEAKS_FILE ""
 #define MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX 1
 
+// Mod metadata
+#define MOD_INFO_MAX_NAME 128
+#define MOD_INFO_MAX_DESC 512
+#define MOD_INFO_MAX_AUTHOR 128
+#define MOD_INFO_MAX_ICON 128
+#define MOD_INFO_MAX_DEP_NAME 64
+#define MOD_INFO_MAX_DEP 16
+#define MAX_LOADED_MODS 64
+
+typedef struct ModInfo {
+    char name[MOD_INFO_MAX_NAME];
+    char description[MOD_INFO_MAX_DESC];
+    char author[MOD_INFO_MAX_AUTHOR];
+    char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];
+    int dependencyCount;
+    int icon_index;
+    char filePath[COMPAT_MAX_PATH];
+    char datName[MOD_INFO_MAX_NAME];
+} ModInfo;
+
+// Global list of loaded mods
+extern ModInfo gLoadedMods[MAX_LOADED_MODS];
+extern int gLoadedModsCount;
+
 extern bool gModConfigInitialized;
 extern Config gModConfig;
 
 bool modConfigInit(int argc, char** argv);
 void modConfigExit();
+
+void modConfigWriteOrderFromLoadedMods();
 
 } // namespace fallout
 

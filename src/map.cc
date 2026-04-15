@@ -49,6 +49,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 #define BASE_AREA_MAX 200
 #define MOD_AREA_START 200
 #define MOD_AREA_MAX 1000
@@ -72,15 +74,20 @@ static int mapLocalVariablesLoad(File* stream);
 static void _map_place_dude_and_mouse();
 static void square_init();
 static void _square_reset();
-static int _square_load(File* stream, int a2);
+static int _square_load(File* stream, int flags);
 static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
+
+static void loadModMapMessages();
 
 // 0x50B058
 static char byte_50B058[] = "";
 
 // 0x50B30C
 static char _aErrorF2[] = "ERROR! F2";
+
+extern int gModMapNameOffset[];
+extern int gModAreaIndex[];
 
 // 0x519540
 static IsoWindowRefreshProc* _map_scroll_refresh = isoWindowRefreshRectGame;
@@ -299,9 +306,13 @@ void mapInit()
         snprintf(path, sizeof(path), "%smap.msg", asc_5186C8);
 
         // modified for mods
-        if (!messageListLoadWithMods(&gMapMessageList, path, "MAP")) {
+        if (!messageListLoad(&gMapMessageList, path)) {
             debugPrint("\nError loading map_msg_file!");
         }
+
+        // Load mod map name messages
+        loadModMapMessages();
+
     } else {
         debugPrint("\nError initing map_msg_file!");
     }
@@ -523,20 +534,22 @@ char* mapGetName(int map, int elevation)
     MessageListItem messageListItem;
 
     if (map >= MOD_MAP_START && map < MOD_MAP_MAX) {
-        // Mod map: generate message ID using mod name and lookup name
-        const char* lookupName = wmGetMapLookupName(map);
-        int areaIndex = wmGetAreaContainingMap(map);
-
-        if (areaIndex != -1 && lookupName != nullptr) {
-            const char* modName = wmGetAreaModName(areaIndex);
-
-            char compositeKey[256];
-            snprintf(compositeKey, sizeof(compositeKey), "lookup_name:%s:%d", lookupName, elevation);
-
-            uint32_t messageId = generate_mod_message_id(modName, compositeKey);
-            return getmsg(&gMapMessageList, &messageListItem, messageId);
+        int offset = gModMapNameOffset[map];
+        if (offset >= 0) {
+            // Get the area containing this map to retrieve the mod name
+            int areaIdx = wmGetAreaContainingMap(map);
+            if (areaIdx != -1) {
+                const char* modName = wmGetAreaModName(areaIdx);
+                if (modName && modName[0] != '\0') {
+                    uint32_t mapBaseId = generate_mod_block_base_id(MOD_BLOCK_MAP, modName, "maps");
+                    if (mapBaseId != 0) {
+                        uint32_t msgId = mapBaseId + offset + elevation;
+                        return getmsg(&gMapMessageList, &messageListItem, msgId);
+                    }
+                }
+            }
         }
-        return nullptr;
+        return _aErrorF2;
     } else {
         // Vanilla map: use original formula (map * 3 + elevation + 200)
         int messageId = map * 3 + elevation + 200;
@@ -665,10 +678,18 @@ char* mapGetCityName(int map)
     MessageListItem messageListItem;
 
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
-        // Mod area: use the area's message ID (already set during loading)
-        messageListItem.num = wmGetAreaId(city);
-        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
-        return name ? name : _aErrorF2;
+        int idx = gModAreaIndex[city];
+        if (idx >= 0) {
+            const char* modName = wmGetAreaModName(city);
+            if (modName && modName[0] != '\0') {
+                uint32_t areaBaseId = generate_mod_block_base_id(MOD_BLOCK_AREA, modName, "areas");
+                if (areaBaseId != 0) {
+                    uint32_t msgId = areaBaseId + idx;
+                    return getmsg(&gMapMessageList, &messageListItem, msgId);
+                }
+            }
+        }
+        return _aErrorF2;
     } else {
         // Vanilla area: use original formula (1500 + city)
         messageListItem.num = 1500 + city;
@@ -716,11 +737,11 @@ int mapScroll(int dx, int dy)
 
     int centerScreenX;
     int centerScreenY;
-    tileToScreenXY(gCenterTile, &centerScreenX, &centerScreenY, gElevation);
+    tileToScreenXY(gCenterTile, &centerScreenX, &centerScreenY);
     centerScreenX += screenDx + 16;
     centerScreenY += screenDy + 8;
 
-    int newCenterTile = tileFromScreenXY(centerScreenX, centerScreenY, gElevation);
+    int newCenterTile = tileFromScreenXY(centerScreenX, centerScreenY);
     if (newCenterTile == -1) {
         return -1;
     }
@@ -942,7 +963,7 @@ static int mapLoad(File* stream)
     _map_save_in_game(true);
     if (backgoundSoundIsPlaying() && (settings.enhancements.strict_vanilla || !settings.enhancements.gapless_music)) {
         // playing the loading sound might interrupt continuous music playback
-        backgroundSoundLoad("wind2", 12, 13, 16);
+        backgroundSoundLoad("wind2", GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_LOOP);
     }
     isoDisable();
     _partyMemberPrepLoad();
@@ -954,6 +975,9 @@ static int mapLoad(File* stream)
     tileDisable();
 
     int rc = 0;
+    int overrideScript = -1; // declare early
+    char baseNameForOverride[16];
+    char* dot = nullptr;
 
     windowFill(gIsoWindow,
         0,
@@ -987,6 +1011,19 @@ static int mapLoad(File* stream)
     if (gEnteringElevation == -1) {
         // NOTE: Uninline.
         mapSetEnteringLocation(gMapHeader.enteringElevation, gMapHeader.enteringTile, gMapHeader.enteringRotation);
+    }
+
+    // Strip extension and get override
+    strncpy(baseNameForOverride, gMapHeader.name, sizeof(baseNameForOverride));
+    baseNameForOverride[sizeof(baseNameForOverride) - 1] = '\0';
+    dot = strchr(baseNameForOverride, '.');
+    if (dot) *dot = '\0';
+    compat_strlwr(baseNameForOverride);
+
+    overrideScript = wmGetMapScriptOverride(baseNameForOverride);
+    if (overrideScript != -1) {
+        // Convert 0-based config value to 1-based header value
+        gMapHeader.scriptIndex = overrideScript + 1;
     }
 
     _obj_remove_all();
@@ -1096,8 +1133,8 @@ static int mapLoad(File* stream)
 
         Script* script;
         scriptGetScript(gMapSid, &script);
-        script->index = gMapHeader.scriptIndex - 1;
-        script->flags |= SCRIPT_FLAG_0x08;
+        script->index = gMapHeader.scriptIndex - 1; // convert to 0-based
+        script->flags |= SCRIPT_FLAG_NO_SAVE;
         object->id = scriptsNewObjectId();
         script->ownerId = object->id;
         script->owner = object;
@@ -1207,14 +1244,14 @@ int mapLoadSaved(char* fileName)
     if (!wmMapIsSaveable()) {
         debugPrint("\nDestroying RANDOM encounter map.");
 
-        char v15[16];
-        strcpy(v15, gMapHeader.name);
+        char mapName[16];
+        strcpy(mapName, gMapHeader.name);
 
-        _strmfe(gMapHeader.name, v15, "SAV");
+        _strmfe(gMapHeader.name, mapName, "SAV");
 
         _MapDirEraseFile_("MAPS\\", gMapHeader.name);
 
-        strcpy(gMapHeader.name, v15);
+        strcpy(gMapHeader.name, mapName);
     }
 
     return rc;
@@ -1561,7 +1598,7 @@ static int _map_save_file(File* stream)
 }
 
 // 0x483C98
-int _map_save_in_game(bool a1)
+int _map_save_in_game(bool isLeavingMap)
 {
     if (gMapHeader.name[0] == '\0') {
         return 0;
@@ -1570,7 +1607,7 @@ int _map_save_in_game(bool a1)
     animationStop();
     _partyMemberSaveProtos();
 
-    if (a1) {
+    if (isLeavingMap) {
         _queue_leaving_map();
         _partyMemberPrepLoad();
         _partyMemberPrepItemSaveAll();
@@ -1590,7 +1627,7 @@ int _map_save_in_game(bool a1)
 
     char name[16];
 
-    if (a1 && !wmMapIsSaveable()) {
+    if (isLeavingMap && !wmMapIsSaveable()) {
         debugPrint("\nNot saving RANDOM encounter map.");
 
         strcpy(name, gMapHeader.name);
@@ -1610,7 +1647,7 @@ int _map_save_in_game(bool a1)
 
         automapSaveCurrent();
 
-        if (a1) {
+        if (isLeavingMap) {
             gMapHeader.name[0] = '\0';
             _obj_remove_all();
             _proto_remove_all();
@@ -1632,6 +1669,67 @@ static void mapMakeMapsDirectory()
 
     strcat(path, "\\MAPS");
     compat_mkdir(path);
+}
+
+static void loadModMapMessages()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "text%c%s%cgame%cmap_*.msg",
+        DIR_SEPARATOR, settings.system.language.c_str(), DIR_SEPARATOR, DIR_SEPARATOR);
+
+    char** foundFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
+    if (fileCount == 0) {
+        // Fallback to English if current language has no mod map files
+        if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(searchPattern, sizeof(searchPattern), "text%cenglish%cgame%cmap_*.msg",
+                DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
+            fileCount = fileNameListInit(searchPattern, &foundFiles);
+        }
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* filename = foundFiles[i];
+        // Extract mod name from filename: map_<ModName>.msg
+        char mod_name[64] = { 0 };
+        const char* prefix = "map_";
+        if (strncmp(filename, prefix, strlen(prefix)) != 0) {
+            continue;
+        }
+        const char* dot = strchr(filename + strlen(prefix), '.');
+        if (!dot) {
+            continue;
+        }
+        size_t mod_len = dot - (filename + strlen(prefix));
+        if (mod_len == 0 || mod_len >= sizeof(mod_name)) {
+            continue;
+        }
+        strncpy(mod_name, filename + strlen(prefix), mod_len);
+        mod_name[mod_len] = '\0';
+
+        // Compute base IDs for maps and areas
+        uint32_t mapBaseId = generate_mod_block_base_id(MOD_BLOCK_MAP, mod_name, "maps");
+        uint32_t areaBaseId = generate_mod_block_base_id(MOD_BLOCK_AREA, mod_name, "areas");
+        if (mapBaseId == 0 || areaBaseId == 0) {
+            debugPrint("Failed to generate base IDs for mod %s\n", mod_name);
+            continue;
+        }
+
+        // Relative path for messageListLoadCombined
+        char relPath[COMPAT_MAX_PATH];
+        snprintf(relPath, sizeof(relPath), "game%c%s", DIR_SEPARATOR, filename);
+
+        // Load the combined file (threshold 1500)
+        if (!messageListLoadCombined(&gMapMessageList, relPath, mapBaseId, areaBaseId, 1500)) {
+            debugPrint("Failed to load combined map file: %s\n", relPath);
+        } else {
+            debugPrint("Loaded combined map file: %s (mapBase=%u, areaBase=%u)\n", filename, mapBaseId, areaBaseId);
+        }
+    }
+
+    if (fileCount > 0) {
+        fileNameListFree(&foundFiles, 0);
+    }
 }
 
 // 0x483ED0
@@ -1785,7 +1883,7 @@ static void _map_place_dude_and_mouse()
     if (gDude != nullptr) {
         if (FID_ANIM_TYPE(gDude->fid) != ANIM_STAND) {
             objectSetFrame(gDude, 0, nullptr);
-            gDude->fid = buildFid(OBJ_TYPE_CRITTER, gDude->fid & 0xFFF, ANIM_STAND, (gDude->fid & 0xF000) >> 12, gDude->rotation + 1);
+            gDude->fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(gDude->fid), ANIM_STAND, (gDude->fid & 0xF000) >> 12, gDude->rotation + 1);
         }
 
         if (gDude->tile == -1) {
@@ -1828,12 +1926,12 @@ static void _square_reset()
                 *p = (((buildFid(OBJ_TYPE_TILE, 1, 0, 0, 0) & 0xFFF) | (((fid >> 16) & 0xF000) >> 12)) << 16) | (fid & 0xFFFF);
 
                 fid = *p;
-                int v3 = (fid & 0xF000) >> 12;
-                int v4 = (buildFid(OBJ_TYPE_TILE, 1, 0, 0, 0) & 0xFFF) | v3;
+                int tileFlags = (fid & 0xF000) >> 12;
+                int updatedLowerTile = (buildFid(OBJ_TYPE_TILE, 1, 0, 0, 0) & 0xFFF) | tileFlags;
 
                 fid &= ~0xFFFF;
 
-                *p = v4 | ((fid >> 16) << 16);
+                *p = updatedLowerTile | ((fid >> 16) << 16);
 
                 p++;
             }
@@ -1844,10 +1942,10 @@ static void _square_reset()
 // 0x48431C
 static int _square_load(File* stream, int flags)
 {
-    int v6;
-    int v7;
-    int v8;
-    int v9;
+    int upperTileWord;
+    int upperTileFlags;
+    int upperTileArtId;
+    int lowerTileWord;
 
     _square_reset();
 
@@ -1859,16 +1957,16 @@ static int _square_load(File* stream, int flags)
             }
 
             for (int tile = 0; tile < SQUARE_GRID_SIZE; tile++) {
-                v6 = arr[tile];
-                v6 &= ~(0xFFFF);
-                v6 >>= 16;
+                upperTileWord = arr[tile];
+                upperTileWord &= ~(0xFFFF);
+                upperTileWord >>= 16;
 
-                v7 = (v6 & 0xF000) >> 12;
-                v7 &= ~(0x01);
+                upperTileFlags = (upperTileWord & 0xF000) >> 12;
+                upperTileFlags &= ~(0x01);
 
-                v8 = v6 & 0xFFF;
-                v9 = arr[tile] & 0xFFFF;
-                arr[tile] = ((v8 | (v7 << 12)) << 16) | v9;
+                upperTileArtId = upperTileWord & 0xFFF;
+                lowerTileWord = arr[tile] & 0xFFFF;
+                arr[tile] = ((upperTileArtId | (upperTileFlags << 12)) << 16) | lowerTileWord;
             }
         }
     }

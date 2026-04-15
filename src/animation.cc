@@ -781,7 +781,7 @@ int animationRegisterMoveToObject(Object* owner, Object* destination, int action
     animationDescription->actionPoints = actionPoints;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -821,7 +821,7 @@ int animationRegisterRunToObject(Object* owner, Object* destination, int actionP
 
     if ((FID_TYPE(owner->fid) == OBJ_TYPE_CRITTER && (owner->data.critter.combat.results & DAM_CRIP_LEG_ANY) != 0)
         || (owner == gDude && dudeHasState(DUDE_STATE_SNEAKING) && !perkGetRank(gDude, PERK_SILENT_RUNNING))
-        || !artExists(buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, ANIM_RUNNING, 0, owner->rotation + 1))) {
+        || !artExists(buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), ANIM_RUNNING, 0, owner->rotation + 1))) {
         animationDescription->anim = ANIM_WALK;
     } else {
         animationDescription->anim = ANIM_RUNNING;
@@ -830,7 +830,7 @@ int animationRegisterRunToObject(Object* owner, Object* destination, int actionP
     animationDescription->actionPoints = actionPoints;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -863,7 +863,7 @@ int animationRegisterMoveToTile(Object* owner, int tile, int elevation, int acti
     animationDescription->actionPoints = actionPoints;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -904,7 +904,7 @@ int animationRegisterRunToTile(Object* owner, int tile, int elevation, int actio
 
     if ((FID_TYPE(owner->fid) == OBJ_TYPE_CRITTER && (owner->data.critter.combat.results & DAM_CRIP_LEG_ANY) != 0)
         || (owner == gDude && dudeHasState(DUDE_STATE_SNEAKING) && !perkGetRank(gDude, PERK_SILENT_RUNNING))
-        || !artExists(buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, ANIM_RUNNING, 0, owner->rotation + 1))) {
+        || !artExists(buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), ANIM_RUNNING, 0, owner->rotation + 1))) {
         animationDescription->anim = ANIM_WALK;
     } else {
         animationDescription->anim = ANIM_RUNNING;
@@ -913,7 +913,7 @@ int animationRegisterRunToTile(Object* owner, int tile, int elevation, int actio
     animationDescription->actionPoints = actionPoints;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -948,7 +948,7 @@ int animationRegisterMoveToTileStraight(Object* object, int tile, int elevation,
     animationDescription->anim = anim;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(object->fid), object->fid & 0xFFF, animationDescription->anim, (object->fid & 0xF000) >> 12, object->rotation + 1);
+    int fid = buildFid(FID_TYPE(object->fid), artGetIndex(object->fid), animationDescription->anim, (object->fid & 0xF000) >> 12, object->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(object, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -982,7 +982,7 @@ int animationRegisterMoveToTileStraightAndWaitForComplete(Object* owner, int til
     animationDescription->anim = anim;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1010,7 +1010,7 @@ int animationRegisterAnimate(Object* owner, int anim, int delay)
     animationDescription->anim = anim;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1039,7 +1039,7 @@ int animationRegisterAnimateReversed(Object* owner, int anim, int delay)
     animationDescription->delay = delay;
     animationDescription->artCacheKey = nullptr;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), animationDescription->anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1068,7 +1068,7 @@ int animationRegisterAnimateAndHide(Object* owner, int anim, int delay)
     animationDescription->delay = delay;
     animationDescription->artCacheKey = nullptr;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1355,7 +1355,7 @@ int animationRegisterTakeOutWeapon(Object* owner, int weaponAnimationCode, int d
     animationDescription->owner = owner;
     animationDescription->weaponAnimationCode = weaponAnimationCode;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, ANIM_TAKE_OUT, weaponAnimationCode, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), ANIM_TAKE_OUT, weaponAnimationCode, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1459,7 +1459,7 @@ int animationRegisterAnimateForever(Object* owner, int anim, int delay)
     animationDescription->anim = anim;
     animationDescription->delay = delay;
 
-    int fid = buildFid(FID_TYPE(owner->fid), owner->fid & 0xFFF, anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
+    int fid = buildFid(FID_TYPE(owner->fid), artGetIndex(owner->fid), anim, (owner->fid & 0xF000) >> 12, owner->rotation + 1);
 
     // NOTE: Uninline.
     if (_anim_preload(owner, fid, &(animationDescription->artCacheKey)) == -1) {
@@ -1906,7 +1906,7 @@ int pathfinderFindPath(Object* object, int from, int to, unsigned char* rotation
 
     int toScreenX;
     int toScreenY;
-    tileToScreenXY(to, &toScreenX, &toScreenY, object->elevation);
+    tileToScreenXY(to, &toScreenX, &toScreenY);
 
     int closedPathNodeListLength = 0;
     int openPathNodeListLength = 1;
@@ -1991,7 +1991,7 @@ int pathfinderFindPath(Object* object, int from, int to, unsigned char* rotation
 
             int newX;
             int newY;
-            tileToScreenXY(tile, &newX, &newY, object->elevation);
+            tileToScreenXY(tile, &newX, &newY);
 
             v27->estimate = _idist(newX, newY, toScreenX, toScreenY);
             v27->cost = temp.cost + 50;
@@ -2098,11 +2098,11 @@ static int _tile_idistance(int tile1, int tile2)
 {
     int x1;
     int y1;
-    tileToScreenXY(tile1, &x1, &y1, gElevation);
+    tileToScreenXY(tile1, &x1, &y1);
 
     int x2;
     int y2;
-    tileToScreenXY(tile2, &x2, &y2, gElevation);
+    tileToScreenXY(tile2, &x2, &y2);
 
     return _idist(x1, y1, x2, y2);
 }
@@ -2135,13 +2135,13 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
 
     int fromX;
     int fromY;
-    tileToScreenXY(from, &fromX, &fromY, obj->elevation);
+    tileToScreenXY(from, &fromX, &fromY);
     fromX += 16;
     fromY += 8;
 
     int toX;
     int toY;
-    tileToScreenXY(to, &toX, &toY, obj->elevation);
+    tileToScreenXY(to, &toX, &toY);
     toX += 16;
     toY += 8;
 
@@ -2179,7 +2179,7 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
     if (ddx <= ddy) {
         int middle = ddx - ddy / 2;
         while (true) {
-            tile = tileFromScreenXY(tileX, tileY, obj->elevation);
+            tile = tileFromScreenXY(tileX, tileY);
 
             v22 += 1;
             if (v22 == a6) {
@@ -2192,7 +2192,7 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
                     pathNode->tile = tile;
                     pathNode->elevation = obj->elevation;
 
-                    tileToScreenXY(tile, &fromX, &fromY, obj->elevation);
+                    tileToScreenXY(tile, &fromX, &fromY);
                     pathNode->x = tileX - fromX - 16;
                     pathNode->y = tileY - fromY - 8;
                 }
@@ -2232,7 +2232,7 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
     } else {
         int middle = ddy - ddx / 2;
         while (true) {
-            tile = tileFromScreenXY(tileX, tileY, obj->elevation);
+            tile = tileFromScreenXY(tileX, tileY);
 
             v22 += 1;
             if (v22 == a6) {
@@ -2245,7 +2245,7 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
                     pathNode->tile = tile;
                     pathNode->elevation = obj->elevation;
 
-                    tileToScreenXY(tile, &fromX, &fromY, obj->elevation);
+                    tileToScreenXY(tile, &fromX, &fromY);
                     pathNode->x = tileX - fromX - 16;
                     pathNode->y = tileY - fromY - 8;
                 }
@@ -2294,7 +2294,7 @@ int _make_straight_path_func(Object* obj, int from, int to, StraightPathNode* st
             pathNode->tile = tile;
             pathNode->elevation = obj->elevation;
 
-            tileToScreenXY(tile, &fromX, &fromY, obj->elevation);
+            tileToScreenXY(tile, &fromX, &fromY);
             pathNode->x = tileX - fromX - 16;
             pathNode->y = tileY - fromY - 8;
         }
@@ -2359,13 +2359,13 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
 
     int fromX;
     int fromY;
-    tileToScreenXY(from, &fromX, &fromY, fromElevation);
+    tileToScreenXY(from, &fromX, &fromY);
     fromX += 16;
     fromY += 8;
 
     int toX;
     int toY;
-    tileToScreenXY(to, &toX, &toY, toElevation);
+    tileToScreenXY(to, &toX, &toY);
     toX += 16;
     toY += 8;
 
@@ -2408,7 +2408,7 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
     if (ddx > ddy) {
         int middle = ddy - ddx / 2;
         while (true) {
-            tile = tileFromScreenXY(tileX, tileY, elevation);
+            tile = tileFromScreenXY(tileX, tileY);
 
             iteration += 1;
             if (iteration == 16) {
@@ -2421,7 +2421,7 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
                     pathNode->tile = tile;
                     pathNode->elevation = elevation;
 
-                    tileToScreenXY(tile, &fromX, &fromY, elevation);
+                    tileToScreenXY(tile, &fromX, &fromY);
                     pathNode->x = tileX - fromX - 16;
                     pathNode->y = tileY - fromY - 8;
                 }
@@ -2455,7 +2455,7 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
     } else {
         int middle = ddx - ddy / 2;
         while (true) {
-            tile = tileFromScreenXY(tileX, tileY, elevation);
+            tile = tileFromScreenXY(tileX, tileY);
 
             iteration += 1;
             if (iteration == 16) {
@@ -2468,7 +2468,7 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
                     pathNode->tile = tile;
                     pathNode->elevation = elevation;
 
-                    tileToScreenXY(tile, &fromX, &fromY, elevation);
+                    tileToScreenXY(tile, &fromX, &fromY);
                     pathNode->x = tileX - fromX - 16;
                     pathNode->y = tileY - fromY - 8;
                 }
@@ -2511,7 +2511,7 @@ int _make_stair_path(Object* object, int from, int fromElevation, int to, int to
             pathNode->tile = tile;
             pathNode->elevation = elevation;
 
-            tileToScreenXY(tile, &fromX, &fromY, elevation);
+            tileToScreenXY(tile, &fromX, &fromY);
             pathNode->x = tileX - fromX - 16;
             pathNode->y = tileY - fromY - 8;
         }
@@ -2570,7 +2570,7 @@ static int _anim_move(Object* obj, int tile, int elev, int a3, int anim, int a5,
     }
 
     sad->step = SAD_INIT;
-    sad->fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+    sad->fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     sad->animationTimestamp = 0;
     sad->ticksPerFrame = animationComputeTicksPerFrame(obj, sad->fid);
     sad->targetTile = tile;
@@ -2606,7 +2606,7 @@ static int animateMoveObjectToTileStraight(Object* obj, int tile, int elevation,
         sad->fid = obj->fid;
         sad->flags |= ANIM_SAD_NO_ANIM;
     } else {
-        sad->fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        sad->fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     }
     sad->step = SAD_INIT;
     sad->animationTimestamp = 0;
@@ -2648,7 +2648,7 @@ static int _anim_move_on_stairs(Object* obj, int tile, int elevation, int anim, 
         sad->fid = obj->fid;
         sad->flags |= ANIM_SAD_NO_ANIM;
     } else {
-        sad->fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        sad->fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     }
     sad->step = SAD_INIT;
     sad->animationTimestamp = 0;
@@ -2683,7 +2683,7 @@ static int _check_for_falling(Object* obj, int anim, int a3)
         sad->fid = obj->fid;
         sad->flags |= ANIM_SAD_NO_ANIM;
     } else {
-        sad->fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        sad->fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     }
     sad->step = SAD_INIT;
     sad->animationTimestamp = 0;
@@ -2718,7 +2718,7 @@ static void _object_move(int index)
         objectSetRotation(object, sad->rotations[0], &tempRect);
         rectUnion(&dirtyRect, &tempRect, &dirtyRect);
 
-        int fid = buildFid(FID_TYPE(object->fid), object->fid & 0xFFF, sad->anim, (object->fid & 0xF000) >> 12, object->rotation + 1);
+        int fid = buildFid(FID_TYPE(object->fid), artGetIndex(object->fid), sad->anim, (object->fid & 0xF000) >> 12, object->rotation + 1);
         objectSetFid(object, fid, &tempRect);
         rectUnion(&dirtyRect, &tempRect, &dirtyRect);
 
@@ -2953,10 +2953,10 @@ static int _anim_animate(Object* obj, int anim, int animationSequenceIndex, int 
     int fid;
     if (anim == ANIM_TAKE_OUT) {
         sad->flags = 0;
-        fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, ANIM_TAKE_OUT, flags, obj->rotation + 1);
+        fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), ANIM_TAKE_OUT, flags, obj->rotation + 1);
     } else {
         sad->flags = flags;
-        fid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        fid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     }
 
     if (!artExists(fid)) {
@@ -3185,7 +3185,7 @@ int _check_move(int* actionPointsPtr)
     int y;
     mouseGetPosition(&x, &y);
 
-    int tile = tileFromScreenXY(x, y, gElevation);
+    int tile = tileFromScreenXY(x, y);
     if (tile == -1) {
         return -1;
     }
@@ -3323,7 +3323,7 @@ void _dude_fidget()
         } else {
             char fileName[16];
             fileName[0] = '\0';
-            artCopyFileName(1, object->fid & 0xFFF, fileName);
+            artCopyFileName(1, artGetIndex(object->fid), fileName);
             if (fileName[0] == 'm' || fileName[0] == 'M') {
                 if (objectGetDistanceBetween(object, gDude) < critterGetStat(gDude, STAT_PERCEPTION) * 2) {
                     shoudPlaySound = true;
@@ -3366,7 +3366,7 @@ void _dude_stand(Object* obj, int rotation, int fid)
     int weaponAnimationCode = (obj->fid & 0xF000) >> 12;
     if (weaponAnimationCode != 0) {
         if (fid == -1) {
-            int takeOutFid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, ANIM_TAKE_OUT, weaponAnimationCode, obj->rotation + 1);
+            int takeOutFid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), ANIM_TAKE_OUT, weaponAnimationCode, obj->rotation + 1);
             CacheEntry* takeOutFrmHandle;
             Art* takeOutFrm = artLock(takeOutFid, &takeOutFrmHandle);
             if (takeOutFrm != nullptr) {
@@ -3381,7 +3381,7 @@ void _dude_stand(Object* obj, int rotation, int fid)
                 artUnlock(takeOutFrmHandle);
 
                 CacheEntry* standFrmHandle;
-                int standFid = buildFid(FID_TYPE(obj->fid), obj->fid & 0xFFF, ANIM_STAND, 0, obj->rotation + 1);
+                int standFid = buildFid(FID_TYPE(obj->fid), artGetIndex(obj->fid), ANIM_STAND, 0, obj->rotation + 1);
                 Art* standFrm = artLock(standFid, &standFrmHandle);
                 if (standFrm != nullptr) {
                     int offsetX;
@@ -3403,7 +3403,7 @@ void _dude_stand(Object* obj, int rotation, int fid)
         } else {
             anim = ANIM_STAND;
         }
-        fid = buildFid(FID_TYPE(obj->fid), (obj->fid & 0xFFF), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
+        fid = buildFid(FID_TYPE(obj->fid), (artGetIndex(obj->fid)), anim, (obj->fid & 0xF000) >> 12, obj->rotation + 1);
     }
 
     Rect temp;
@@ -3516,7 +3516,7 @@ static int _check_gravity(int tile, int elevation)
     for (; elevation > 0; elevation--) {
         int x;
         int y;
-        tileToScreenXY(tile, &x, &y, elevation);
+        tileToScreenXY(tile, &x, &y);
 
         int squareTile = squareTileFromScreenXY(x + 2, y + 8, elevation);
         int fid = buildFid(OBJ_TYPE_TILE, _square[elevation]->field_0[squareTile] & 0xFFF, 0, 0, 0);

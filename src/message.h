@@ -7,8 +7,17 @@
 namespace fallout {
 
 #define MESSAGE_LIST_ITEM_TEXT_FILTERED 0x01
-
 #define MESSAGE_LIST_ITEM_FIELD_MAX_SIZE 1024
+
+// Mod block range identifiers (use these as listId in generate_mod_block_base_id)
+#define MOD_BLOCK_MAP 1
+#define MOD_BLOCK_WORLDMAP 2
+#define MOD_BLOCK_PROTO 3
+#define MOD_BLOCK_PIPBOY 4
+#define MOD_BLOCK_COMBAT 5
+#define MOD_BLOCK_COMBATAI 6
+#define MOD_BLOCK_QUESTS 7
+#define MOD_BLOCK_AREA 8 // world map location names
 
 // CE: Working with standard message lists is tricky in Sfall. Many message
 // lists are initialized only for the duration of appropriate modal window. This
@@ -73,6 +82,18 @@ typedef struct MessageList {
     MessageListItem* entries;
 } MessageList;
 
+// Structure to define a block-allocated ID range for a specific mod block type
+struct ModBlockRange {
+    int listId; // one of MOD_BLOCK_* constants
+    int startId; // first ID in the range (inclusive)
+    int maxId; // last ID in the range (inclusive)
+    int blockSize; // number of consecutive IDs per mod item (e.g., 100 for holodisks)
+};
+
+// Global array of ranges for mod block allocation
+extern const ModBlockRange gModBlockRanges[];
+extern const int gModBlockRangesCount;
+
 int badwordsInit();
 void badwordsExit();
 bool messageListInit(MessageList* msg);
@@ -93,13 +114,15 @@ void messageListRepositorySetProtoMessageList(int messageListId, MessageList* me
 int messageListRepositoryAddExtra(int messageListId, const char* path);
 char* messageListRepositoryGetMsg(int messageListId, int messageId);
 
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
-bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 bool messageListAddEntry(MessageList* msg, int num, const char* text);
 
-bool messageListAddModProtoMessage(int pid, int message_type, const char* text);
-char* messageListRepositoryGetProtoMsg(int pid, int message_type);
-char* messageListGetModProtoMessage(int pid, int message_type);
+// Generate the base ID (start of a block) for a mod item within the given block type
+uint32_t generate_mod_block_base_id(int listId, const char* mod_name, const char* block_key);
+
+bool messageListLoad(MessageList* msg, const char* path);
+bool messageListLoadWithBaseOffset(MessageList* msg, const char* path, int baseId);
+bool messageListLoadCombined(MessageList* messageList, const char* path,
+    uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold);
 
 } // namespace fallout
 
