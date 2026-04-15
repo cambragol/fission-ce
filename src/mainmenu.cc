@@ -220,7 +220,7 @@ int mainMenuWindowInit()
     // Set widescreen - must be wider in both axis and set to widescreen
     const bool isWidescreen = gameIsWidescreen();
 
-    // Check if we should write defaults
+    // Check if we should write defaults or not
     int writeOffsets = 0;
     if (configGetInt(&gGameConfig, "debug", "write_offsets", &writeOffsets) && writeOffsets) {
         // Write BOTH sets of defaults
