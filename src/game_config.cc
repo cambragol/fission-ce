@@ -300,10 +300,28 @@ bool gameConfigExit(bool shouldSave)
 
 static void gameConfigResolvePath(const char* section, const char* key)
 {
-    char* path;
-    configGetString(&gGameConfig, section, key, &path);
-    compat_windows_path_to_native(path);
-    compat_resolve_path(path);
+    char* originalPath;
+    if (!configGetString(&gGameConfig, section, key, &originalPath)) {
+        return;  // Key doesn't exist, nothing to resolve
+    }
+    
+    // Work on a temporary buffer
+    char resolvedPath[COMPAT_MAX_PATH];
+    if (strlen(originalPath) >= COMPAT_MAX_PATH) {
+        // Path too long - truncate
+        strncpy(resolvedPath, originalPath, COMPAT_MAX_PATH - 1);
+        resolvedPath[COMPAT_MAX_PATH - 1] = '\0';
+    } else {
+        strcpy(resolvedPath, originalPath);
+    }
+    
+    compat_windows_path_to_native(resolvedPath);
+    compat_resolve_path(resolvedPath);
+    
+    // Only write back if the path actually changed
+    if (strcmp(originalPath, resolvedPath) != 0) {
+        configSetString(&gGameConfig, section, key, resolvedPath);
+    }
 }
 
 } // namespace fallout

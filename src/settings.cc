@@ -155,6 +155,9 @@ static void settingsFromConfig()
 // read in modConfig setting (no writing back, just reading)
 void settingsFromModConfig()
 {
+    if (!gModConfigInitialized) {
+        return;
+    }
     // Mod Settings
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_female);
