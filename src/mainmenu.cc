@@ -1045,7 +1045,8 @@ static int modListHandleInput(int count)
                 /*if (gModListCurrentLine == gModListPreviousCurrentLine) {
                     soundPlayFile("ib1p1xx1");
                     rc = 1;
-                }*/ // no click exit for now
+                }*/
+                // no click exit for now
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
