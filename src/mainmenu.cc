@@ -1013,7 +1013,6 @@ static int modListHandleInput(int count)
 
         if (keyCode == 500 || keyCode == KEY_RETURN) {
             if (gModListOrderChanged) {
-                // temporary handling - messages must be updated in fission.msg
                 const char* title = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 510);
                 const char* bodyText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 511);
                 const char* bodyLines[] = { bodyText };
@@ -1043,10 +1042,10 @@ static int modListHandleInput(int count)
             int clickedLine = (mouseY - MOD_LIST_Y) / lineHeight;
             if (clickedLine >= 0 && clickedLine < MOD_MAX_MOD_LINES && (gModListTopLine + clickedLine) < count) {
                 gModListCurrentLine = clickedLine;
-                if (gModListCurrentLine == gModListPreviousCurrentLine) {
+                /*if (gModListCurrentLine == gModListPreviousCurrentLine) {
                     soundPlayFile("ib1p1xx1");
                     rc = 1;
-                }
+                }*/ // no click exit for now
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
