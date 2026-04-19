@@ -3243,10 +3243,10 @@ static void wmGenerateAreaListDebug()
         "- Mod area positions use mod filename + area name hash for consistency\n"
         "- The Area ID for mod areas is a message ID in range 0x8000-0xFFFF\n"
         "==============================================================================\n\n",
-        BASE_AREA_MAX - 1,          // last base slot
-        MOD_AREA_START,             // first mod slot
-        MOD_AREA_MAX - 1,           // last mod slot
-        BASE_AREA_MAX - 1,          // again for the ranges line
+        BASE_AREA_MAX - 1, // last base slot
+        MOD_AREA_START, // first mod slot
+        MOD_AREA_MAX - 1, // last mod slot
+        BASE_AREA_MAX - 1, // again for the ranges line
         MOD_AREA_START,
         MOD_AREA_MAX - 1);
 
@@ -3416,7 +3416,8 @@ static void wmGenerateAreaListDebug()
             fprintf(debugStream, "  World Position: %d,%d\n", city->x, city->y);
             fprintf(debugStream, "  State: %s, Size: %s\n",
                 (city->state == 0) ? "Off" : "On",
-                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium" : "Large");
+                (city->size == 0) ? "Small" : (city->size == 1) ? "Medium"
+                                                                : "Large");
             fprintf(debugStream, "  Area ID: %d (use in scripts)\n", city->areaId);
             if (i < BASE_AREA_MAX && gBaseAreaOverrides[i][0] != '\0') {
                 const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
