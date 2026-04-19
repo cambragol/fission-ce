@@ -675,27 +675,9 @@ char* mapGetCityName(int map)
         return _aErrorF2;
     }
 
-    MessageListItem messageListItem;
-
-    if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
-        int idx = gModAreaIndex[city];
-        if (idx >= 0) {
-            const char* modName = wmGetAreaModName(city);
-            if (modName && modName[0] != '\0') {
-                uint32_t areaBaseId = generate_mod_block_base_id(MOD_BLOCK_AREA, modName, "areas");
-                if (areaBaseId != 0) {
-                    uint32_t msgId = areaBaseId + idx;
-                    return getmsg(&gMapMessageList, &messageListItem, msgId);
-                }
-            }
-        }
-        return _aErrorF2;
-    } else {
-        // Vanilla area: use original formula (1500 + city)
-        messageListItem.num = 1500 + city;
-        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
-        return name ? name : _aErrorF2;
-    }
+    static char name[40];
+    wmGetAreaIdxName(city, name);
+    return name;
 }
 
 // 0x48268C

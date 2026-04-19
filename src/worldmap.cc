@@ -111,14 +111,9 @@ namespace fallout {
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
 
-#define BASE_MAP_MAX 200
-#define MOD_MAP_START 200
-#define MOD_MAP_MAX 2000
-#define TOTAL_MAP_MAX MOD_MAP_MAX
-
 #define BASE_AREA_MAX 200
 #define MOD_AREA_START 200
-#define MOD_AREA_MAX 1000
+#define MOD_AREA_MAX 5000
 #define TOTAL_AREA_MAX MOD_AREA_MAX
 
 typedef enum EncounterFormationType {
@@ -3222,27 +3217,38 @@ static void wmGenerateAreaListDebug()
         return;
     }
 
-    // Write header
-    const char* header = "==============================================================================\n"
-                         "Fallout 2 Fission - World Area Report\n"
-                         "==============================================================================\n"
-                         "This report shows how world areas are loaded - essential for mod debugging and\n"
-                         "finding area IDs for mod development.\n\n"
+    // Build dynamic header with actual slot ranges
+    char header[2048];
+    snprintf(header, sizeof(header),
+        "==============================================================================\n"
+        "Fallout 2 Fission - World Area Report\n"
+        "==============================================================================\n"
+        "This report shows how world areas are loaded - essential for mod debugging and\n"
+        "finding area IDs for mod development.\n\n"
 
-                         "Key Features:\n"
-                         "- Base areas: Protected in lower slots (0-199)\n"
-                         "- Mod areas: Your content in remaining slots (200-4095) via deterministic hashing\n"
-                         "- Base areas can be overridden by mods (replacing the original area)\n"
-                         "- Hash collisions trigger popup warnings and the area is skipped\n\n"
+        "Key Features:\n"
+        "- Base areas: Protected in lower slots (0-%d)\n"
+        "- Mod areas: Your content in slots %d-%d via deterministic hashing\n"
+        "- Base areas can be overridden by mods (replacing the original area)\n"
+        "- For mod areas, the Slot (array index) and Area ID (script value) are DIFFERENT.\n"
+        "- ALWAYS use the Area ID in scripts (wmAreaIsKnown, wmGetAreaName, etc.)\n\n"
 
-                         "Usage Notes:\n"
-                         "- Use these area indices when referencing areas in:\n"
-                         "  • Scripts (call travel_to, etc.)\n"
-                         "  • World map travel events\n"
-                         "  • City state management\n"
-                         "- Area positions are STABLE between game sessions\n"
-                         "- Mod area positions use mod filename + area name hash for consistency\n"
-                         "==============================================================================\n\n";
+        "Slot Ranges:\n"
+        "  Base: 0-%d\n"
+        "  Mods: %d-%d\n\n"
+
+        "Usage Notes:\n"
+        "- Use Area IDs (not Slots) when referencing areas in scripts\n"
+        "- Area positions are STABLE between game sessions\n"
+        "- Mod area positions use mod filename + area name hash for consistency\n"
+        "- The Area ID for mod areas is a message ID in range 0x8000-0xFFFF\n"
+        "==============================================================================\n\n",
+        BASE_AREA_MAX - 1, // last base slot
+        MOD_AREA_START, // first mod slot
+        MOD_AREA_MAX - 1, // last mod slot
+        BASE_AREA_MAX - 1, // again for the ranges line
+        MOD_AREA_START,
+        MOD_AREA_MAX - 1);
 
     fputs(header, debugStream);
 
@@ -3302,7 +3308,7 @@ static void wmGenerateAreaListDebug()
         wmMaxAreaNum, wmMaxAreaNum - 1,
         maxUsedIndex);
 
-    // Slot ranges
+    // Slot ranges line (already in header, but keep for completeness)
     fputs("------------------------------------------------------------\n", debugStream);
     fputs("Slot Ranges:\n", debugStream);
     fprintf(debugStream,
@@ -3412,7 +3418,12 @@ static void wmGenerateAreaListDebug()
                 (city->state == 0) ? "Off" : "On",
                 (city->size == 0) ? "Small" : (city->size == 1) ? "Medium"
                                                                 : "Large");
-            fprintf(debugStream, "  Map FID: %d, Label FID: %d\n", city->areaId, city->labelFid);
+            fprintf(debugStream, "  Area ID: %d (use in scripts)\n", city->areaId);
+            if (i < BASE_AREA_MAX && gBaseAreaOverrides[i][0] != '\0') {
+                const char* lastSlash = strrchr(gBaseAreaOverrides[i], DIR_SEPARATOR);
+                const char* modName = lastSlash ? lastSlash + 1 : gBaseAreaOverrides[i];
+                fprintf(debugStream, "  (overridden by %s)\n", modName);
+            }
             fprintf(debugStream, "  Entrances: %d\n", city->entrancesLength);
 
             for (int j = 0; j < city->entrancesLength; j++) {
@@ -3444,7 +3455,7 @@ static void wmGenerateAreaListDebug()
 
     fputs("- Area positions are STABLE - they won't change between game sessions\n", debugStream);
     fputs("- Mod area positions use mod filename + area name hash for consistency\n", debugStream);
-    fputs("- Hash collisions show popup warnings and skip the conflicting area\n", debugStream);
+    fputs("- Hash collisions trigger popup warnings and skip the conflicting area\n", debugStream);
     fputs("- Reference these exact numbers in your scripts and world travel events\n", debugStream);
     fputs("- Use 'city_*.txt' naming pattern for area mods\n", debugStream);
 
@@ -8248,7 +8259,7 @@ static int wmMakeTabsLabelList(int** quickDestinationsPtr, int* quickDestination
 
     int quickDestinationsLength = *quickDestinationsLengthPtr;
     for (int index = 0; index < wmMaxAreaNum; index++) {
-        if (wmAreaIsKnown(index) && wmAreaInfoList[index].labelFid != -1) {
+        if (wmAreaIsKnown(wmAreaInfoList[index].areaId) && wmAreaInfoList[index].labelFid != -1) {
             quickDestinationsLength++;
             *quickDestinationsLengthPtr = quickDestinationsLength;
 
