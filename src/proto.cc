@@ -3203,12 +3203,11 @@ void protoExit()
  *
  * Creates a detailed report file (data/lists/proto_list.txt) showing:
  * - All loaded mod protos organized by type
- * - Generated PIDs with hex and decimal representations
+ * - Generated PIDs with decimal representation
  * - Mod name and proto name for each entry
- * - File paths and message IDs
+ * - Block?allocated message IDs (base + offset)
+ * - File paths and override information
  * - Statistics and collision warnings
- *
- * This report is essential for mod debugging and script integration.
  */
 static void protoGenerateModProtoListDebug()
 {
@@ -3216,7 +3215,6 @@ static void protoGenerateModProtoListDebug()
     snprintf(debugPath, sizeof(debugPath), "./data%clists%cproto_list.txt",
         DIR_SEPARATOR, DIR_SEPARATOR);
 
-    // Ensure directory exists
     char dirPath[COMPAT_MAX_PATH];
     snprintf(dirPath, sizeof(dirPath), "./data%clists", DIR_SEPARATOR);
     compat_mkdir(dirPath);
@@ -3227,181 +3225,139 @@ static void protoGenerateModProtoListDebug()
         return;
     }
 
-    // Write header
-    const char* header = "==============================================================================\n"
-                         "Fallout 2 FISSION - Mod Proto Report\n"
-                         "==============================================================================\n"
-                         "This report shows all mod protos loaded by the engine - essential for mod debugging\n"
-                         "and finding PIDs for mod development.\n\n"
+    const char* header =
+        "==============================================================================\n"
+        "Fallout 2 FISSION - Mod Proto Report\n"
+        "==============================================================================\n"
+        "This report shows all mod protos loaded by the engine.\n\n"
 
-                         "KEY CONCEPTS:\n"
-                         "- Vanilla protos: Use indices 0-199 (0x000000-0x0000C7) in lower 24 bits\n"
-                         "- Mod protos: Use indices 200-16777215 (0x0000C8-0xFFFFFF) via deterministic hashing\n"
-                         "- PID format: (type << 24) | index (e.g., 0x00DB240E = item type with index 0xDB240E)\n"
-                         "- Index >= 0x0000C8 (200) indicates a mod proto\n"
-                         "- Hash collisions trigger warnings and the colliding proto is skipped\n\n"
+        "KEY CONCEPTS:\n"
+        "- Vanilla protos: lower 24 bits 0-199\n"
+        "- Mod protos: lower 24 bits 200-16777215 via deterministic hashing\n"
+        "- PID format: (type << 24) | index\n"
+        "  Types: 0=Item, 1=Critter, 2=Scenery, 3=Wall, 4=Tile, 5=Misc\n\n"
 
-                         "CRITICAL - HOW MOD PIDS ARE GENERATED:\n"
-                         "- PIDs are generated from mod name + proto name hash (e.g., 'testmod:testitem')\n"
-                         "- The PID stored in the .pro file (first 4 bytes) is IGNORED for mod protos\n"
-                         "- Always use the PIDs shown in this report, NOT what's in the .pro file\n"
-                         "- Same mod+proto names = same PID across all installations (STABLE)\n\n"
+        "BLOCK ALLOCATION FOR MESSAGES:\n"
+        "- Each mod receives a base ID for each proto type (items, critters, etc.)\n"
+        "- Base ID = generate_mod_block_base_id(MOD_BLOCK_PROTO, mod_name, type_key)\n"
+        "- Each proto in the mod's .lst file reserves 2 consecutive message IDs:\n"
+        "    Name ID        = base_id + (index * 2)\n"
+        "    Description ID = base_id + (index * 2) + 1\n\n"
 
-                         "USAGE NOTES:\n"
-                         "- Use these PIDs when referencing mod protos in:\n"
-                         "  * Scripts (create_object, add_obj_to_inven, etc.)\n"
-                         "  * Map files (PROTO item entries)\n"
-                         "  * Message files (for name/description)\n"
-                         "- Mod PIDs are STABLE between game sessions\n"
-                         "- Proto messages are loaded from text/{lang}/game/messages_{modname}.txt\n"
-                         "- Message file format: [proto_{modname}] section with keys:\n"
-                         "    {modname}:{protoname}:name = Display Name\n"
-                         "    {modname}:{protoname}:desc = Description Text\n"
-                         "  Alternative (short) format:\n"
-                         "    {protoname}:name = Display Name\n"
-                         "    {protoname}:desc = Description Text\n"
-                         "==============================================================================\n\n";
+        "MESSAGE FILE FORMAT:\n"
+        "Files are located in: text/{language}/game/pro_{type}_{modname}.msg\n"
+        "Example: text/english/game/pro_item_mymod.msg\n\n"
+        "Use standard numeric entries with relative offsets:\n"
+        "  {0}{}{Name Text}\n"
+        "  {1}{}{Description Text}\n"
+        "The engine adds the base_id automatically.\n\n"
+        "Example for two items:\n"
+        "  {0}{}{Rusty Knife}\n"
+        "  {1}{}{A badly rusted knife.}\n"
+        "  {2}{}{Clean Knife}\n"
+        "  {3}{}{A well-maintained hunting knife.}\n\n"
+
+        "USAGE NOTES:\n"
+        "- Use the PIDs shown below in scripts and map files\n"
+        "- Mod PIDs and message IDs are STABLE between game sessions\n"
+        "- Hash collisions trigger a popup warning and the proto is skipped\n"
+        "==============================================================================\n\n";
 
     fputs(header, debugStream);
 
-    // Write timestamp
     time_t now = time(nullptr);
     struct tm* t = localtime(&now);
     fprintf(debugStream, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
         t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
         t->tm_hour, t->tm_min, t->tm_sec);
 
-    // Add collision section if any collisions occurred
     if (_mod_proto_collision_count > 0) {
-        fprintf(debugStream, "\n=== HASH COLLISIONS DETECTED ===\n");
-        fprintf(debugStream, "Total hash collisions: %d (protos skipped)\n\n", _mod_proto_collision_count);
-
+        fprintf(debugStream, "=== HASH COLLISIONS DETECTED ===\n");
+        fprintf(debugStream, "Total collisions: %d (protos skipped)\n", _mod_proto_collision_count);
         if (strlen(_mod_proto_collision_log) > 0) {
-            fprintf(debugStream, "Collision details:\n");
-            fprintf(debugStream, "%s", _mod_proto_collision_log);
+            fprintf(debugStream, "Details:\n%s\n", _mod_proto_collision_log);
         }
-
-        fprintf(debugStream, "\nTo fix collisions, rename your mod or proto files.\n");
+        fprintf(debugStream, "\n");
     }
 
-    // Statistics
     int totalModProtos = _mod_proto_entries_size;
-    int protosByType[OBJ_TYPE_COUNT] = { 0 };
-
-    // Count mod protos by type
+    int protosByType[OBJ_TYPE_COUNT] = {0};
     for (int i = 0; i < _mod_proto_entries_size; i++) {
         int type = _mod_proto_entries[i].type;
-        if (type >= 0 && type < OBJ_TYPE_COUNT) {
-            protosByType[type]++;
-        }
+        if (type >= 0 && type < OBJ_TYPE_COUNT) protosByType[type]++;
     }
 
-    // Summary section
     fprintf(debugStream, "MOD PROTO STATISTICS:\n");
-    fprintf(debugStream, "---------------------\n");
-    fprintf(debugStream, "Total Mod Protos: %d\n", totalModProtos);
+    fprintf(debugStream, "Total: %d\n", totalModProtos);
     fprintf(debugStream, "\nBy Type:\n");
     for (int i = 0; i < OBJ_TYPE_COUNT; i++) {
         if (protosByType[i] > 0) {
-            fprintf(debugStream, "  %-8s: %d\n",
-                artGetObjectTypeName(i), protosByType[i]);
+            fprintf(debugStream, "  %-8s: %d\n", artGetObjectTypeName(i), protosByType[i]);
         }
     }
     fprintf(debugStream, "\n");
 
-    // PID Ranges
     fprintf(debugStream, "PID RANGES:\n");
-    fprintf(debugStream, "-----------\n");
-    fprintf(debugStream, "Vanilla: 0x00000000 - 0x00FFFFFF (lower 24 bits: 0x000000-0x0000C7)\n");
-    fprintf(debugStream, "Mod:     0x00000000 - 0xFFFFFFFF (lower 24 bits: 0x0000C8-0xFFFFFF)\n");
-    fprintf(debugStream, "\nType Bits (bits 24-31):\n");
-    fprintf(debugStream, "  0x00 = Items, 0x01 = Critters, 0x02 = Scenery,\n");
-    fprintf(debugStream, "  0x03 = Walls,  0x04 = Tiles,   0x05 = Misc\n");
-    fprintf(debugStream, "\nExample: 0x00DB240E = Item (type 0) with mod index 0xDB240E\n");
-    fprintf(debugStream, "\n");
+    fprintf(debugStream, "  Vanilla: lower 24 bits 0-199\n");
+    fprintf(debugStream, "  Mod:     lower 24 bits 200-16777215\n");
+    fprintf(debugStream, "  Type bits: 0=Item,1=Critter,2=Scenery,3=Wall,4=Tile,5=Misc\n\n");
 
-    // Detailed mod proto listing by type
     for (int type = 0; type < OBJ_TYPE_COUNT; type++) {
         if (protosByType[type] == 0) continue;
 
         fprintf(debugStream, "%s MOD PROTOS:\n", artGetObjectTypeName(type));
-        for (int i = 0; i < strlen(artGetObjectTypeName(type)) + 12; i++) {
-            fputc('-', debugStream);
-        }
+        for (size_t i = 0; i < strlen(artGetObjectTypeName(type)) + 12; i++) fputc('-', debugStream);
         fputc('\n', debugStream);
 
         for (int i = 0; i < _mod_proto_entries_size; i++) {
             if (_mod_proto_entries[i].type != type) continue;
 
             ModProtoEntry* entry = &_mod_proto_entries[i];
-
-            // Get proto data to display additional info
             Proto* proto = nullptr;
             bool protoLoaded = (protoGetProto(entry->pid, &proto) == 0);
 
-            // Extract file name from path
             const char* fileName = strrchr(entry->proto_path, DIR_SEPARATOR);
-            if (fileName)
-                fileName++;
-            else
-                fileName = entry->proto_path;
+            if (fileName) fileName++; else fileName = entry->proto_path;
 
-            fprintf(debugStream, "  PID: %d\n", entry->pid); // removed hex number display
-            fprintf(debugStream, "    Mod:      %s\n", entry->mod_name);
-            fprintf(debugStream, "    Proto:    %s\n", entry->proto_name);
-            fprintf(debugStream, "    File:     %s\n", fileName);
-            // Overrides
-            if (entry->has_override_fid) {
+            fprintf(debugStream, "  PID: %d\n", entry->pid);
+            fprintf(debugStream, "    Mod:   %s\n", entry->mod_name);
+            fprintf(debugStream, "    Proto: %s\n", entry->proto_name);
+            fprintf(debugStream, "    File:  %s\n", fileName);
+
+            if (entry->has_override_fid)
                 fprintf(debugStream, "    Override FID: %d\n", entry->override_fid);
-            }
-            if (entry->has_override_inventory_fid) {
+            if (entry->has_override_inventory_fid)
                 fprintf(debugStream, "    Override Inventory FID: %d\n", entry->override_inventory_fid);
-            }
-            if (entry->has_override_ai_packet) {
+            if (entry->has_override_ai_packet)
                 fprintf(debugStream, "    Override AI Packet: %d\n", entry->override_ai_packet);
-            }
             if (entry->has_override_script) {
-                int internal_script = entry->override_script;
-                if (internal_script > 0) {
-                    internal_script--;
-                }
+                int internal_script = entry->override_script > 0 ? entry->override_script - 1 : entry->override_script;
                 fprintf(debugStream, "    Override Script: %d (internal: %d)\n", entry->override_script, internal_script);
             }
 
             if (protoLoaded) {
-                fprintf(debugStream, "    Message:  ID %d\n", proto->messageId);
+                fprintf(debugStream, "    Message IDs: Name = %d, Description = %d\n",
+                    proto->messageId, proto->messageId + 1);
 
-                // Try to get name and description
                 char* name = protoGetName(entry->pid);
                 char* desc = protoGetDescription(entry->pid);
-
-                if (name && name != _proto_none_str) {
+                if (name && name != _proto_none_str)
                     fprintf(debugStream, "    Name:     %s\n", name);
-                }
                 if (desc && desc != _proto_none_str) {
-                    // Truncate description for readability
                     char shortDesc[128];
-                    strncpy(shortDesc, desc, sizeof(shortDesc) - 1);
-                    shortDesc[sizeof(shortDesc) - 1] = '\0';
-                    if (strlen(desc) > sizeof(shortDesc) - 1) {
-                        strcpy(shortDesc + sizeof(shortDesc) - 4, "...");
-                    }
+                    strncpy(shortDesc, desc, sizeof(shortDesc)-1);
+                    shortDesc[sizeof(shortDesc)-1] = '\0';
+                    if (strlen(desc) > sizeof(shortDesc)-1)
+                        strcpy(shortDesc + sizeof(shortDesc)-4, "...");
                     fprintf(debugStream, "    Desc:     %s\n", shortDesc);
                 }
 
-                // Type-specific info
-                switch (type) {
-                case OBJ_TYPE_ITEM:
+                if (type == OBJ_TYPE_ITEM) {
                     fprintf(debugStream, "    Item Type: %s\n",
                         proto->item.type < ITEM_TYPE_COUNT ? gItemTypeNames[proto->item.type] : "Unknown");
-                    fprintf(debugStream, "    Weight:    %d, Cost: %d\n",
-                        proto->item.weight, proto->item.cost);
-                    break;
-                case OBJ_TYPE_CRITTER:
-                    fprintf(debugStream, "    FID:       0x%08X\n", proto->fid);
-                    break;
-                default:
-                    break;
+                    fprintf(debugStream, "    Weight: %d, Cost: %d\n", proto->item.weight, proto->item.cost);
+                } else if (type == OBJ_TYPE_CRITTER) {
+                    fprintf(debugStream, "    FID: 0x%08X\n", proto->fid);
                 }
             }
             fprintf(debugStream, "\n");
@@ -3409,47 +3365,25 @@ static void protoGenerateModProtoListDebug()
         fprintf(debugStream, "\n");
     }
 
-    // Name-to-PID Registry Section
-    fprintf(debugStream, "NAME-TO-PID REGISTRY (for message file parsing):\n");
-    for (int i = 0; i < 60; i++)
-        fputc('-', debugStream);
+    // Name-to-PID registry (used for message loading, not needed by modders but kept for completeness)
+    fprintf(debugStream, "NAME-TO-PID REGISTRY (internal use):\n");
+    for (int i = 0; i < 60; i++) fputc('-', debugStream);
     fputc('\n', debugStream);
-
     for (int i = 0; i < _name_to_pid_entries_size; i++) {
-        fprintf(debugStream, "  %-40s -> %d\n",
-            _name_to_pid_entries[i].key,
-            _name_to_pid_entries[i].pid);
+        fprintf(debugStream, "  %-40s -> %d\n", _name_to_pid_entries[i].key, _name_to_pid_entries[i].pid);
     }
     fprintf(debugStream, "\n");
 
-    // Message Loading Section
-    fprintf(debugStream, "MESSAGE LOADING:\n");
-    for (int i = 0; i < 16; i++)
-        fputc('-', debugStream);
-    fputc('\n', debugStream);
-
-    fprintf(debugStream, "Message files should be in: text/{language}/game/messages_{modname}.txt\n");
-    fprintf(debugStream, "Format in message files:\n");
-    fprintf(debugStream, "  [proto_{modname}]  (or any section containing 'proto' or 'pro_')\n");
-    fprintf(debugStream, "  {modname}:{protoname}:name = Name Text\n");
-    fprintf(debugStream, "  {modname}:{protoname}:desc = Description Text\n");
-    fprintf(debugStream, "Alternative format (using filename mod name):\n");
-    fprintf(debugStream, "  {protoname}:name = Name Text  (uses filename for mod name)\n");
-    fprintf(debugStream, "\n");
-
-    // Important notes footer
+    // Final notes
     fputs("=== IMPORTANT NOTES ===\n", debugStream);
-    fputs("- Mod proto PIDs are STABLE - they won't change between game sessions\n", debugStream);
-    fputs("- Hash collisions show warnings and skip the conflicting proto\n", debugStream);
-    fputs("- Reference these exact PIDs in your scripts and map files\n", debugStream);
-    fputs("- Use 'modname:protoname' format in message files for mod proto messages\n", debugStream);
-    fputs("- Test message loading by checking the name/description in the report above\n", debugStream);
-    fputs("- Mod .lst files should be named: {type}_{modname}.lst (e.g., items_mymod.lst)\n", debugStream);
+    fputs("- Mod PIDs and message IDs are STABLE across game sessions\n", debugStream);
+    fputs("- Use the PIDs shown above in scripts (create_object, add_obj_to_inven, etc.)\n", debugStream);
+    fputs("- Message files use numeric offsets as shown in the example\n", debugStream);
+    fputs("- Mod .lst files must be named: {type}_{modname}.lst (e.g., items_mymod.lst)\n", debugStream);
+    fputs("- The .pro file's internal PID is ignored for mod protos; use the generated PID\n", debugStream);
 
-    // Close file
     fclose(debugStream);
-    debugPrint("\nprotoGenerateModProtoListDebug: Generated proto_list.txt with %d mod protos",
-        totalModProtos);
+    debugPrint("\nprotoGenerateModProtoListDebug: Generated proto_list.txt with %d mod protos", totalModProtos);
 }
 
 } // namespace fallout
