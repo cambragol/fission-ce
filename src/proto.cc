@@ -3225,43 +3225,42 @@ static void protoGenerateModProtoListDebug()
         return;
     }
 
-    const char* header =
-        "==============================================================================\n"
-        "Fallout 2 FISSION - Mod Proto Report\n"
-        "==============================================================================\n"
-        "This report shows all mod protos loaded by the engine.\n\n"
+    const char* header = "==============================================================================\n"
+                         "Fallout 2 FISSION - Mod Proto Report\n"
+                         "==============================================================================\n"
+                         "This report shows all mod protos loaded by the engine.\n\n"
 
-        "KEY CONCEPTS:\n"
-        "- Vanilla protos: lower 24 bits 0-199\n"
-        "- Mod protos: lower 24 bits 200-16777215 via deterministic hashing\n"
-        "- PID format: (type << 24) | index\n"
-        "  Types: 0=Item, 1=Critter, 2=Scenery, 3=Wall, 4=Tile, 5=Misc\n\n"
+                         "KEY CONCEPTS:\n"
+                         "- Vanilla protos: lower 24 bits 0-199\n"
+                         "- Mod protos: lower 24 bits 200-16777215 via deterministic hashing\n"
+                         "- PID format: (type << 24) | index\n"
+                         "  Types: 0=Item, 1=Critter, 2=Scenery, 3=Wall, 4=Tile, 5=Misc\n\n"
 
-        "BLOCK ALLOCATION FOR MESSAGES:\n"
-        "- Each mod receives a base ID for each proto type (items, critters, etc.)\n"
-        "- Base ID = generate_mod_block_base_id(MOD_BLOCK_PROTO, mod_name, type_key)\n"
-        "- Each proto in the mod's .lst file reserves 2 consecutive message IDs:\n"
-        "    Name ID        = base_id + (index * 2)\n"
-        "    Description ID = base_id + (index * 2) + 1\n\n"
+                         "BLOCK ALLOCATION FOR MESSAGES:\n"
+                         "- Each mod receives a base ID for each proto type (items, critters, etc.)\n"
+                         "- Base ID = generate_mod_block_base_id(MOD_BLOCK_PROTO, mod_name, type_key)\n"
+                         "- Each proto in the mod's .lst file reserves 2 consecutive message IDs:\n"
+                         "    Name ID        = base_id + (index * 2)\n"
+                         "    Description ID = base_id + (index * 2) + 1\n\n"
 
-        "MESSAGE FILE FORMAT:\n"
-        "Files are located in: text/{language}/game/pro_{type}_{modname}.msg\n"
-        "Example: text/english/game/pro_item_mymod.msg\n\n"
-        "Use standard numeric entries with relative offsets:\n"
-        "  {0}{}{Name Text}\n"
-        "  {1}{}{Description Text}\n"
-        "The engine adds the base_id automatically.\n\n"
-        "Example for two items:\n"
-        "  {0}{}{Rusty Knife}\n"
-        "  {1}{}{A badly rusted knife.}\n"
-        "  {2}{}{Clean Knife}\n"
-        "  {3}{}{A well-maintained hunting knife.}\n\n"
+                         "MESSAGE FILE FORMAT:\n"
+                         "Files are located in: text/{language}/game/pro_{type}_{modname}.msg\n"
+                         "Example: text/english/game/pro_item_mymod.msg\n\n"
+                         "Use standard numeric entries with relative offsets:\n"
+                         "  {0}{}{Name Text}\n"
+                         "  {1}{}{Description Text}\n"
+                         "The engine adds the base_id automatically.\n\n"
+                         "Example for two items:\n"
+                         "  {0}{}{Rusty Knife}\n"
+                         "  {1}{}{A badly rusted knife.}\n"
+                         "  {2}{}{Clean Knife}\n"
+                         "  {3}{}{A well-maintained hunting knife.}\n\n"
 
-        "USAGE NOTES:\n"
-        "- Use the PIDs shown below in scripts and map files\n"
-        "- Mod PIDs and message IDs are STABLE between game sessions\n"
-        "- Hash collisions trigger a popup warning and the proto is skipped\n"
-        "==============================================================================\n\n";
+                         "USAGE NOTES:\n"
+                         "- Use the PIDs shown below in scripts and map files\n"
+                         "- Mod PIDs and message IDs are STABLE between game sessions\n"
+                         "- Hash collisions trigger a popup warning and the proto is skipped\n"
+                         "==============================================================================\n\n";
 
     fputs(header, debugStream);
 
@@ -3281,7 +3280,7 @@ static void protoGenerateModProtoListDebug()
     }
 
     int totalModProtos = _mod_proto_entries_size;
-    int protosByType[OBJ_TYPE_COUNT] = {0};
+    int protosByType[OBJ_TYPE_COUNT] = { 0 };
     for (int i = 0; i < _mod_proto_entries_size; i++) {
         int type = _mod_proto_entries[i].type;
         if (type >= 0 && type < OBJ_TYPE_COUNT) protosByType[type]++;
@@ -3306,7 +3305,8 @@ static void protoGenerateModProtoListDebug()
         if (protosByType[type] == 0) continue;
 
         fprintf(debugStream, "%s MOD PROTOS:\n", artGetObjectTypeName(type));
-        for (size_t i = 0; i < strlen(artGetObjectTypeName(type)) + 12; i++) fputc('-', debugStream);
+        for (size_t i = 0; i < strlen(artGetObjectTypeName(type)) + 12; i++)
+            fputc('-', debugStream);
         fputc('\n', debugStream);
 
         for (int i = 0; i < _mod_proto_entries_size; i++) {
@@ -3317,7 +3317,10 @@ static void protoGenerateModProtoListDebug()
             bool protoLoaded = (protoGetProto(entry->pid, &proto) == 0);
 
             const char* fileName = strrchr(entry->proto_path, DIR_SEPARATOR);
-            if (fileName) fileName++; else fileName = entry->proto_path;
+            if (fileName)
+                fileName++;
+            else
+                fileName = entry->proto_path;
 
             fprintf(debugStream, "  PID: %d\n", entry->pid);
             fprintf(debugStream, "    Mod:   %s\n", entry->mod_name);
@@ -3345,10 +3348,10 @@ static void protoGenerateModProtoListDebug()
                     fprintf(debugStream, "    Name:     %s\n", name);
                 if (desc && desc != _proto_none_str) {
                     char shortDesc[128];
-                    strncpy(shortDesc, desc, sizeof(shortDesc)-1);
-                    shortDesc[sizeof(shortDesc)-1] = '\0';
-                    if (strlen(desc) > sizeof(shortDesc)-1)
-                        strcpy(shortDesc + sizeof(shortDesc)-4, "...");
+                    strncpy(shortDesc, desc, sizeof(shortDesc) - 1);
+                    shortDesc[sizeof(shortDesc) - 1] = '\0';
+                    if (strlen(desc) > sizeof(shortDesc) - 1)
+                        strcpy(shortDesc + sizeof(shortDesc) - 4, "...");
                     fprintf(debugStream, "    Desc:     %s\n", shortDesc);
                 }
 
@@ -3367,7 +3370,8 @@ static void protoGenerateModProtoListDebug()
 
     // Name-to-PID registry (used for message loading, not needed by modders but kept for completeness)
     fprintf(debugStream, "NAME-TO-PID REGISTRY (internal use):\n");
-    for (int i = 0; i < 60; i++) fputc('-', debugStream);
+    for (int i = 0; i < 60; i++)
+        fputc('-', debugStream);
     fputc('\n', debugStream);
     for (int i = 0; i < _name_to_pid_entries_size; i++) {
         fprintf(debugStream, "  %-40s -> %d\n", _name_to_pid_entries[i].key, _name_to_pid_entries[i].pid);
