@@ -834,7 +834,7 @@ static int modListDrawList()
             color = _colorTable[32767];
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-            gModListTempMods[i].name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+            gModListTempMods[i].display_name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
 
@@ -868,10 +868,10 @@ static void modListDrawDetails(int selectedIndex)
 
     // Mod Name
     fontSetCurrent(102);
-    int nameWidth = fontGetStringWidth(info->name);
+    int nameWidth = fontGetStringWidth(info->display_name);
     int nameLineHeight = fontGetLineHeight();
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
-        info->name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        info->display_name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Mod Author
     fontSetCurrent(101);
