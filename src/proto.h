@@ -175,6 +175,7 @@ void _proto_remove_all();
 int protoGetProto(int pid, Proto** protoPtr);
 int _ResetPlayer();
 int proto_max_id(int type);
+int protoFindTileProtoForFloorFid(int fid, Proto** protoOut);
 
 static bool isExitGridPid(int pid)
 {

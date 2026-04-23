@@ -39,6 +39,10 @@ namespace fallout {
 
 #define MAX_KNOCKDOWN_DISTANCE 20
 
+#define ICE_SLIDE_CHANCE_PERCENT 33
+#define ICE_SLIDE_DISTANCE_MIN 3
+#define ICE_SLIDE_DISTANCE_MAX 12
+
 typedef enum ScienceRepairTargetType {
     SCIENCE_REPAIR_TARGET_TYPE_DEFAULT,
     SCIENCE_REPAIR_TARGET_TYPE_DUDE,
@@ -75,7 +79,7 @@ static const int gMaximumBloodDeathAnimations[DAMAGE_TYPE_COUNT] = {
 
 // Note: some of these are callbacks that always take two Object*, but may not use them.
 // Ignored parameters are marked with underscores.
-static int actionKnockdown(Object* obj, int* anim, int maxDistance, int rotation, int delay);
+static int critterKnockdownSlide(Object* obj, int* anim, int maxDistance, int rotation, int delay);
 static int _action_blood(Object* obj, int anim, int delay);
 static int _pick_death(Object* attacker, Object* defender, Object* weapon, int damage, int attackerAnimation, bool hitFromFront);
 static int _check_death(Object* obj, int anim, int minViolenceLevel, bool hitFromFront);
@@ -101,7 +105,7 @@ static int _compute_dmg_damage(int min, int max, Object* obj, int* knockbackDist
 static int hideProjectile(void* _, void* projectile);
 
 // 0x410468
-int actionKnockdown(Object* obj, int* anim, int maxDistance, int rotation, int delay)
+static int critterKnockdownSlide(Object* obj, int* anim, int maxDistance, int rotation, int delay)
 {
     if (critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
         return -1;
@@ -153,6 +157,74 @@ int actionKnockdown(Object* obj, int* anim, int maxDistance, int rotation, int d
     }
 
     return tile;
+}
+
+static int actionKnockdown(Object* obj, int* anim, int maxDistance, int rotation, int delay)
+{
+    return critterKnockdownSlide(obj, anim, maxDistance, rotation, delay);
+}
+
+void actionTileWalkIceSlide(Object* obj, int fromTile, int toTile)
+{
+    if (obj == nullptr || obj != gDude) {
+        return;
+    }
+
+    if (FID_TYPE(obj->fid) != OBJ_TYPE_CRITTER || critterIsDead(obj)) {
+        return;
+    }
+
+    if (critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
+        return;
+    }
+
+    if ((obj->flags & OBJECT_MULTIHEX) != 0) {
+        return;
+    }
+
+    if (isInCombat()) {
+        return;
+    }
+
+    int frmIdx = _square[obj->elevation]->field_0[toTile] & 0xFFF;
+    int fid = buildFid(OBJ_TYPE_TILE, frmIdx, 0, 0, 0);
+
+    Proto* tileProto;
+    if (protoFindTileProtoForFloorFid(fid, &tileProto) != 0) {
+        return;
+    }
+
+    if ((tileProto->tile.extendedFlags & PROTO_TILE_EXT_FLAG_ICE_SLIDE) == 0) {
+        return;
+    }
+
+    if (randomBetween(0, 99) >= ICE_SLIDE_CHANCE_PERCENT) {
+        return;
+    }
+
+    int distance = randomBetween(ICE_SLIDE_DISTANCE_MIN, ICE_SLIDE_DISTANCE_MAX);
+    if (distance > MAX_KNOCKDOWN_DISTANCE) {
+        distance = MAX_KNOCKDOWN_DISTANCE;
+    }
+
+    int slideRotation = tileGetRotationTo(fromTile, toTile);
+
+    if (reg_anim_clear(obj) == -2) {
+        return;
+    }
+
+    reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+
+    int anim = ANIM_FALL_FRONT;
+    critterKnockdownSlide(obj, &anim, distance, slideRotation, 0);
+
+    if (anim == ANIM_FALL_BACK) {
+        animationRegisterAnimate(obj, ANIM_BACK_TO_STANDING, -1);
+    } else {
+        animationRegisterAnimate(obj, ANIM_PRONE_TO_STANDING, -1);
+    }
+
+    reg_anim_end();
 }
 
 // 0x410568
