@@ -27,3 +27,11 @@ INVBOX4.FRM         ; 4 column inventory
 MODWIN.FRM          ; Mod List window background
 BOXBON.FRM          ; Mod List sort button on
 BOXBOFF.FRM         ; Mod List sort button off
+WMBOX_T.FRM         ; WorldMap Border Top
+WMBOX_B.FRM         ; WorldMap Border Bottom
+WMBOX_L.FRM         ; WorldMap Border Left
+WMBOX_R.FRM         ; WorldMap Border Right
+WMBOX_TL.FRM        ; WorldMap Border Top Left
+WMBOX_TR.FRM        ; WorldMap Border Top Right
+WMBOX_BL.FRM        ; WorldMap Border Bottom Left
+WMBOX_BR.FRM        ; WorldMap Border Bottom Right
