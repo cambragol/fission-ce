@@ -4435,7 +4435,6 @@ static int wmMapInit()
         scaleWorldmapOffsets800(screenGetWidth(), screenGetHeight());
     }
 
-
     // Generate debug maps_list.txt file
     wmGenerateMapListDebug();
 
@@ -6158,9 +6157,9 @@ static void wmInterfaceScrollTabsUpdate()
 }
 
 static void drawRepeating(unsigned char* dest, int destPitch,
-                          const unsigned char* src, int srcWidth, int srcHeight,
-                          int destX, int destY, int destWidth, int destHeight,
-                          bool horizontal)
+    const unsigned char* src, int srcWidth, int srcHeight,
+    int destX, int destY, int destWidth, int destHeight,
+    bool horizontal)
 {
     if (horizontal) {
         for (int x = 0; x < destWidth; x += srcWidth) {
@@ -6215,7 +6214,7 @@ static int wmInterfaceInit()
         buildFid(OBJ_TYPE_INTERFACE, 7271, 0, 0, 0), // BR
         buildFid(OBJ_TYPE_INTERFACE, 4411, 0, 0, 0), // B
         buildFid(OBJ_TYPE_INTERFACE, 7265, 0, 0, 0), // BL
-        buildFid(OBJ_TYPE_INTERFACE, 4421, 0, 0, 0)  // L
+        buildFid(OBJ_TYPE_INTERFACE, 4421, 0, 0, 0) // L
     };
 
     for (int i = 0; i < 8; i++) {
@@ -7885,7 +7884,7 @@ static int wmTownMapFunc(int* mapIdxPtr)
             }
         }
         if (wmGenData.isWalking) {
-            *mapIdxPtr = -1;   // no map to load – just go back to world map
+            *mapIdxPtr = -1; // no map to load – just go back to world map
             break;
         }
 
@@ -8261,28 +8260,28 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
     // Top edge (horizontal)
     if (winWidth > 0) {
         drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
-                    gWorldMapBorder[1].getData(), gWorldMapBorder[1].getWidth(), gWorldMapBorder[1].getHeight(),
-                    0, 0, winWidth, gWorldMapBorder[1].getHeight(), true);
+            gWorldMapBorder[1].getData(), gWorldMapBorder[1].getWidth(), gWorldMapBorder[1].getHeight(),
+            0, 0, winWidth, gWorldMapBorder[1].getHeight(), true);
     }
     // Bottom edge
     if (winWidth > 0) {
         drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
-                    gWorldMapBorder[5].getData(), gWorldMapBorder[5].getWidth(), gWorldMapBorder[5].getHeight(),
-                    0, winHeight - gWorldMapBorder[5].getHeight(),
-                    winWidth, gWorldMapBorder[5].getHeight(), true);
+            gWorldMapBorder[5].getData(), gWorldMapBorder[5].getWidth(), gWorldMapBorder[5].getHeight(),
+            0, winHeight - gWorldMapBorder[5].getHeight(),
+            winWidth, gWorldMapBorder[5].getHeight(), true);
     }
     // Left edge
     if (winHeight > 0) {
         drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
-                    gWorldMapBorder[7].getData(), gWorldMapBorder[7].getWidth(), gWorldMapBorder[7].getHeight(),
-                    0, 0, gWorldMapBorder[7].getWidth(), winHeight, false);
+            gWorldMapBorder[7].getData(), gWorldMapBorder[7].getWidth(), gWorldMapBorder[7].getHeight(),
+            0, 0, gWorldMapBorder[7].getWidth(), winHeight, false);
     }
     // Right edge
     if (winHeight > 0) {
         drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
-                    gWorldMapBorder[3].getData(), gWorldMapBorder[3].getWidth(), gWorldMapBorder[3].getHeight(),
-                    winWidth - gWorldMapBorder[3].getWidth(), 0,
-                    gWorldMapBorder[3].getWidth(), winHeight, false);
+            gWorldMapBorder[3].getData(), gWorldMapBorder[3].getWidth(), gWorldMapBorder[3].getHeight(),
+            winWidth - gWorldMapBorder[3].getWidth(), 0,
+            gWorldMapBorder[3].getWidth(), winHeight, false);
     }
 
     // Draw corners on top (with transparency)
@@ -8379,8 +8378,8 @@ static int wmRefreshTabs()
     CityInfo* city;
     FrmImage labelFrm;
 
-    int labelX = gOffsets.destListX + 22;      // x position for labels
-    int labelY = gOffsets.destListFirstY;      // y position for first label
+    int labelX = gOffsets.destListX + 22; // x position for labels
+    int labelY = gOffsets.destListFirstY; // y position for first label
 
     // Background tile dimensions (from tabsBackgroundFrmImage)
     int bgWidth = wmGenData.tabsBackgroundFrmImage.getWidth();
@@ -8399,9 +8398,9 @@ static int wmRefreshTabs()
     for (int y = 0; y < totalListHeight; y += bgHeight) {
         int blockHeight = (y + bgHeight <= totalListHeight) ? bgHeight : totalListHeight - y;
         blitBufferToBuffer(bgData,
-                           bgWidth, blockHeight, bgWidth,
-                           wmBkWinBuf + (destStartY + y) * destPitch + destStartX,
-                           destPitch);
+            bgWidth, blockHeight, bgWidth,
+            wmBkWinBuf + (destStartY + y) * destPitch + destStartX,
+            destPitch);
     }
 
     // Draw the right border pieces using original positions (anchored to screen right edge)
@@ -8421,9 +8420,9 @@ static int wmRefreshTabs()
 
     // Top‑right corner (transparent)
     blitBufferToBufferTrans(const_cast<unsigned char*>(topRightImg->getData()),
-                            topW, topH, topW,
-                            wmBkWinBuf + 0 * gOffsets.windowWidth + (screenWidth - topW),
-                            gOffsets.windowWidth);
+        topW, topH, topW,
+        wmBkWinBuf + 0 * gOffsets.windowWidth + (screenWidth - topW),
+        gOffsets.windowWidth);
 
     // Right edge – tile from top of list area to bottom of list area
     int startY = gOffsets.scrollAreaY;
@@ -8431,17 +8430,17 @@ static int wmRefreshTabs()
     for (int y = startY; y < endY; y += edgeH) {
         int blockH = (y + edgeH <= endY) ? edgeH : endY - y;
         blitBufferToBufferTrans(const_cast<unsigned char*>(rightEdgeImg->getData()),
-                                edgeW, blockH, edgeW,
-                                wmBkWinBuf + y * gOffsets.windowWidth + (screenWidth - edgeW),
-                                gOffsets.windowWidth);
+            edgeW, blockH, edgeW,
+            wmBkWinBuf + y * gOffsets.windowWidth + (screenWidth - edgeW),
+            gOffsets.windowWidth);
     }
 
     // Bottom‑right corner (transparent)
     int bottomY = screenHeight - bottomH;
     blitBufferToBufferTrans(const_cast<unsigned char*>(bottomRightImg->getData()),
-                            bottomW, bottomH, bottomW,
-                            wmBkWinBuf + bottomY * gOffsets.windowWidth + (screenWidth - bottomW),
-                            gOffsets.windowWidth);
+        bottomW, bottomH, bottomW,
+        wmBkWinBuf + bottomY * gOffsets.windowWidth + (screenWidth - bottomW),
+        gOffsets.windowWidth);
 
     // Labels: draw the visible subset
     v0 = wmBkWinBuf + gOffsets.windowWidth * labelY + labelX;
@@ -8458,11 +8457,11 @@ static int wmRefreshTabs()
                 }
                 unsigned char* dest = labelBase + i * gOffsets.destListSpacing * gOffsets.windowWidth;
                 blitBufferToBuffer(labelFrm.getData(),
-                                   labelFrm.getWidth(),
-                                   labelFrm.getHeight(),
-                                   labelFrm.getWidth(),
-                                   dest,
-                                   gOffsets.windowWidth);
+                    labelFrm.getWidth(),
+                    labelFrm.getHeight(),
+                    labelFrm.getWidth(),
+                    dest,
+                    gOffsets.windowWidth);
                 labelFrm.unlock();
             }
         }
