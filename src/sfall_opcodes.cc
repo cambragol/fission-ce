@@ -1065,6 +1065,14 @@ static void op_art_exists(Program* program)
     programStackPushInteger(program, artExists(fid));
 }
 
+static void op_art_exists_by_index(Program* program)
+{
+    int index = programStackPopInteger(program);
+    int objectType = programStackPopInteger(program);
+    int fid = buildFid(objectType, index, 0, 0, ROTATION_NE);
+    programStackPushInteger(program, artExists(fid) ? 1 : 0);
+}
+
 // sfall_func0
 static void op_sfall_func0(Program* program)
 {
@@ -1815,6 +1823,8 @@ void sfallOpcodesInit()
     // 0x827d - void register_hook_proc_spec(int hook, procedure proc)
     interpreterRegisterOpcode(0x827d, op_register_hook_proc);
     // 0x827e - void reg_anim_callback(procedure proc)
+    interpreterRegisterOpcode(0x827f, op_art_exists);
+    // 0x827f - int obj_is_carrying_obj(object invenObj, object itemObj)
 }
 
 void sfallOpcodesExit()
