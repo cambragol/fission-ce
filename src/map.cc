@@ -671,7 +671,7 @@ char* mapGetCityName(int map)
         return _aErrorF2;
     }
 
-     MessageListItem messageListItem;
+    MessageListItem messageListItem;
 
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
         int idx = gModAreaIndex[city];
