@@ -2530,7 +2530,7 @@ int _gdCreateHeadWindow()
     int windowWidth = GAME_DIALOG_WINDOW_WIDTH;
 
     if (gameIsWidescreen()) {
-        int backdropWidth = GAME_DIALOG_WINDOW_WIDTH + 66;   // 706
+        int backdropWidth = GAME_DIALOG_WINDOW_WIDTH + 66; // 706
         int backdropHeight = GAME_DIALOG_WINDOW_HEIGHT + 20; // 500
         int backdropX = (screenGetWidth() - backdropWidth) / 2 - 2;
         int backdropY = (screenGetHeight() - backdropHeight) / 2;
@@ -2545,7 +2545,7 @@ int _gdCreateHeadWindow()
             int fid = buildFid(OBJ_TYPE_INTERFACE, 6944, 0, 0, 0);
             if (backdropFrm.lock(fid)) {
                 blitBufferToBuffer(backdropFrm.getData(), backdropWidth, backdropHeight,
-                                backdropWidth, buf, backdropWidth);
+                    backdropWidth, buf, backdropWidth);
                 backdropFrm.unlock();
             }
             windowRefresh(gGameDialogBackdropWindow);
