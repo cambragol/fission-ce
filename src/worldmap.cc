@@ -8115,7 +8115,7 @@ static void wmInterfaceRefreshCarFuel()
 
     for (int index = gOffsets.carFuelBarHeight; index > ratio; index--) {
         *dest = 14;
-        dest += 640;
+        dest += gOffsets.windowWidth;
     }
 
     while (ratio > 0) {
