@@ -548,8 +548,8 @@ void mf_floor2(Program* program, int args)
 
 static void mf_art_exists_by_index(Program* program, int args)
 {
-    int artIndex = programStackPopInteger(program);
     int objectType = programStackPopInteger(program);
+    int artIndex   = programStackPopInteger(program);
     int fid = buildFid(objectType, artIndex, 0, 0, ROTATION_NE);
     programStackPushInteger(program, artExists(fid) ? 1 : 0);
 }
