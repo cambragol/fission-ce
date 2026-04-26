@@ -27,3 +27,4 @@ INVBOX4.FRM         ; 4 column inventory
 MODWIN.FRM          ; Mod List window background
 BOXBON.FRM          ; Mod List sort button on
 BOXBOFF.FRM         ; Mod List sort button off
+ALLTLKBK.FRM        ; Dialog background for widescreen
