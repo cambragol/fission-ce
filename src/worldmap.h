@@ -5,6 +5,11 @@
 
 namespace fallout {
 
+#define BASE_AREA_MAX 200
+#define MOD_AREA_START 200
+#define MOD_AREA_MAX 5000
+#define TOTAL_AREA_MAX MOD_AREA_MAX
+
 #define CAR_FUEL_MAX (80000)
 
 typedef enum MapFlags {
