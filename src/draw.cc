@@ -1,7 +1,7 @@
 #include "draw.h"
 
-#include <string.h>
 #include <climits>
+#include <string.h>
 
 #include "color.h"
 #include "svga.h"
@@ -177,7 +177,7 @@ void blitBufferToBufferStretch(unsigned char* src, int srcWidth, int srcHeight, 
 }
 
 void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
-                                    unsigned char* dest, int destWidth, int destHeight, int destPitch)
+    unsigned char* dest, int destWidth, int destHeight, int destPitch)
 {
     // Calculate source rectangle size for each destination pixel (box filter)
     int stepX = (srcWidth << 16) / destWidth;
@@ -215,7 +215,7 @@ void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHei
             }
 
             if (opaqueCount == 0) {
-                continue;   // fully transparent block – leave destination unchanged
+                continue; // fully transparent block – leave destination unchanged
             }
 
             int r = (int)(totalR / opaqueCount);
@@ -223,9 +223,18 @@ void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHei
             int b = (int)(totalB / opaqueCount);
 
             // Clamp (values are already 0?252, but safe)
-            if (r < 0) r = 0; else if (r > 255) r = 255;
-            if (g < 0) g = 0; else if (g > 255) g = 255;
-            if (b < 0) b = 0; else if (b > 255) b = 255;
+            if (r < 0)
+                r = 0;
+            else if (r > 255)
+                r = 255;
+            if (g < 0)
+                g = 0;
+            else if (g > 255)
+                g = 255;
+            if (b < 0)
+                b = 0;
+            else if (b > 255)
+                b = 255;
 
             // Find nearest palette colour
             int bestIdx = 0;
@@ -237,7 +246,7 @@ void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHei
                 int dr = r - pr;
                 int dg = g - pg;
                 int db = b - pb;
-                int dist = dr*dr + dg*dg + db*db;
+                int dist = dr * dr + dg * dg + db * db;
                 if (dist < bestDist) {
                     bestDist = dist;
                     bestIdx = i;
