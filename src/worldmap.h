@@ -5,6 +5,11 @@
 
 namespace fallout {
 
+#define BASE_AREA_MAX 200
+#define MOD_AREA_START 200
+#define MOD_AREA_MAX 5000
+#define TOTAL_AREA_MAX MOD_AREA_MAX
+
 #define CAR_FUEL_MAX (80000)
 
 typedef enum MapFlags {
@@ -237,6 +242,9 @@ typedef enum Map {
 
 extern unsigned char* circleBlendTable;
 
+extern int gModMapNameOffset[];
+extern int gModAreaIndex[];
+
 // Accessor functions for map system
 int wmGetAreaId(int areaIndex);
 int wmGetAreaVisitedState(int areaIndex);
@@ -299,6 +307,13 @@ void wmSetScriptWorldMapMulti(float value);
 
 int wmGetAreaMessageId(int areaIndex);
 int wmGetMapEntranceMessageId(int mapIndex, int elevation);
+int wmGetMapScriptOverride(const char* mapFileName);
+
+// Get area name by city index
+const char* wmGetAreaNameById(int city);
+
+// Get stored message ID for area (for mod areas)
+int wmGetAreaMessageId(int city);
 
 } // namespace fallout
 

@@ -48,6 +48,7 @@
 #include "random.h"
 #include "scripts.h"
 #include "settings.h"
+#include "sfall_callbacks.h"
 #include "sfall_config.h"
 #include "sfall_global_scripts.h"
 #include "sfall_global_vars.h"
@@ -2242,6 +2243,9 @@ static int lsgLoadGameInSlot(int slot)
 
     // SFALL: Start global scripts.
     sfall_gl_scr_exec_start_proc();
+    // SFALL: Call "after start" event
+    sfallOnAfterGameStarted();
+    gGameLoaded = true;
 
     return 0;
 }
@@ -2386,11 +2390,12 @@ static int lsgLoadHeaderInSlot(int slot)
         return -1;
     }
 
-    if (ptr->versionMinor != 1 || ptr->versionMajor != 2 || ptr->versionRelease != 'R') {
+    // Any point to this?
+    /*if (ptr->versionMinor != 1 || ptr->versionMajor != 2 || ptr->versionRelease != 'R') {
         debugPrint("\nLOADSAVE: Load slot #%d Version: %d.%d%c\n", slot, ptr->versionMinor, ptr->versionMajor, ptr->versionRelease);
         _ls_error_code = 1;
         return -1;
-    }
+    }*/
 
     if (fileRead(ptr->characterName, 32, 1, _flptr) != 1) {
         return -1;
@@ -3012,7 +3017,7 @@ static int _GameMap2Slot(File* stream)
     snprintf(_str0, sizeof(_str0), "%s\\*.%s", "MAPS", "SAV");
 
     char** fileNameList;
-    int fileNameListLength = fileNameListInit(_str0, &fileNameList, 0, 0);
+    int fileNameListLength = fileNameListInit(_str0, &fileNameList);
     if (fileNameListLength == -1) {
         return -1;
     }
@@ -3301,7 +3306,7 @@ int MapDirErase(const char* relativePath, const char* extension)
     snprintf(path, sizeof(path), "%s*.%s", relativePath, extension);
 
     char** fileList;
-    int fileListLength = fileNameListInit(path, &fileList, 0, 0);
+    int fileListLength = fileNameListInit(path, &fileList);
     while (--fileListLength >= 0) {
         snprintf(path, sizeof(path), "%s\\%s%s", _patches, relativePath, fileList[fileListLength]);
         compat_remove(path);
@@ -3348,7 +3353,7 @@ static int _SaveBackup()
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "SAV");
 
     char** fileList;
-    int fileListLength = fileNameListInit(_str0, &fileList, 0, 0);
+    int fileListLength = fileNameListInit(_str0, &fileList);
     if (fileListLength == -1) {
         return -1;
     }
@@ -3417,7 +3422,7 @@ static int _RestoreSave()
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "BAK");
 
     char** fileList;
-    int fileListLength = fileNameListInit(_str0, &fileList, 0, 0);
+    int fileListLength = fileNameListInit(_str0, &fileList);
     if (fileListLength == -1) {
         return -1;
     }
@@ -3499,7 +3504,7 @@ static int _EraseSave()
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "SAV");
 
     char** fileList;
-    int fileListLength = fileNameListInit(_str0, &fileList, 0, 0);
+    int fileListLength = fileNameListInit(_str0, &fileList);
     if (fileListLength == -1) {
         return -1;
     }

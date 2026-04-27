@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
+#include "combat_defs.h"
 #include "object.h"
 #include <setjmp.h>
 
@@ -102,16 +103,20 @@ typedef enum ProcedureFlags {
 
 typedef enum ProgramFlags {
     PROGRAM_FLAG_EXITED = 0x01,
-    PROGRAM_FLAG_0x02 = 0x02,
+    PROGRAM_FLAG_RUNNING = 0x02,
     PROGRAM_FLAG_0x04 = 0x04,
     PROGRAM_FLAG_STOPPED = 0x08,
 
     // Program is in waiting state with `checkWaitFunc` set.
     PROGRAM_IS_WAITING = 0x10,
-    PROGRAM_FLAG_0x20 = 0x20,
-    PROGRAM_FLAG_0x40 = 0x40,
+    // Program has an attached child created via O_CALLSTART.
+    // Also set in many opcodes that might trigger event procedures (probably to prevent them from disrupting current execution).
+    PROGRAM_FLAG_CHILD_CALL = 0x20,
+    // Set when current synchronous procedure call is finished.
+    PROGRAM_FLAG_FINISHED = 0x40,
     PROGRAM_FLAG_CRITICAL_SECTION = 0x80,
-    PROGRAM_FLAG_0x0100 = 0x0100,
+    // Program has an attached child created via O_SPAWN.
+    PROGRAM_FLAG_CHILD_SPAWN = 0x0100,
 } ProgramFlags;
 
 enum RawValueType {
@@ -146,6 +151,8 @@ public:
     ProgramValue();
     ProgramValue(int value);
     ProgramValue(Object* value);
+    // TODO: better approach for supporting different object types?
+    ProgramValue(Attack* value);
 
     opcode_t opcode;
     union {
@@ -185,13 +192,15 @@ typedef struct Program {
     jmp_buf env;
     unsigned int waitEnd; // end time of timer (field_74 + wait time)
     unsigned int waitStart; // time when wait was called
-    int field_78; // time when program begin execution (for the first time)?, -1 - program never executed
+    int startTime; // time when program begin execution (for the first time), in seconds, -1 - program never executed; not used
     InterpretCheckWaitFunc* checkWaitFunc;
     int flags; // flags
     int windowId;
     bool exited;
     ProgramStack* stackValues;
     ProgramStack* returnStackValues;
+
+    int procedureCount() const;
 } Program;
 
 typedef unsigned int(InterpretTimerFunc)();
@@ -205,7 +214,8 @@ char* _interpretMangleName(char* s);
 void _interpretOutputFunc(int (*func)(char*));
 int _interpretOutput(const char* format, ...);
 [[noreturn]] void programFatalError(const char* str, ...);
-void _interpretDecStringRef(Program* program, opcode_t a2, int a3);
+void programPrintError(const char* format, ...);
+void interpreterStringRefCountDecrease(Program* program, opcode_t a2, int a3);
 void programFree(Program* program);
 Program* programCreateByPath(const char* path);
 char* programGetString(Program* program, opcode_t opcode, int offset);
@@ -213,10 +223,12 @@ char* programGetIdentifier(Program* program, int offset);
 int programPushString(Program* program, const char* const string);
 void interpreterRegisterOpcodeHandlers();
 void _interpretClose();
-void _interpret(Program* program, int a2);
-void _executeProc(Program* program, int procedureIndex);
+// Runs interpreter for a given number of instructions.
+// For a typical script, if instructionPointer is 0 and numInstructions < 0, will execute script header, then 'start' procedure and then exit via O_EXIT_PROG.
+void programInterpret(Program* program, int numInstructions);
+void programExecuteProcedureAsync(Program* program, int procedureIndex);
 int programFindProcedure(Program* prg, const char* name);
-void _executeProcedure(Program* program, int procedureIndex);
+void programExecuteProcedure(Program* program, int procedureIndex);
 void programListNodeCreate(Program* program);
 void runProgram(Program* program);
 Program* runScript(char* name);
@@ -224,7 +236,7 @@ void _updatePrograms();
 void programListFree();
 void interpreterRegisterOpcode(int opcode, OpcodeHandler* handler);
 
-void programStackPushValue(Program* program, ProgramValue& programValue);
+void programStackPushValue(Program* program, const ProgramValue& programValue);
 void programStackPushInteger(Program* program, int value);
 void programStackPushFloat(Program* program, float value);
 void programStackPushString(Program* program, const char* const string);

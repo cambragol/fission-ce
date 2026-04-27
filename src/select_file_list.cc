@@ -10,16 +10,16 @@ namespace fallout {
 // 0x4AA250
 int _compare(const void* a, const void* b)
 {
-    const char* v1 = *(const char**)a;
-    const char* v2 = *(const char**)b;
-    return strcmp(v1, v2);
+    const char* c1 = *(const char**)a;
+    const char* c2 = *(const char**)b;
+    return strcmp(c1, c2);
 }
 
 // 0x4AA2A4
 char** _getFileList(const char* pattern, int* fileNameListLengthPtr)
 {
     char** fileNameList;
-    int fileNameListLength = fileNameListInit(pattern, &fileNameList, 0, 0);
+    int fileNameListLength = fileNameListInit(pattern, &fileNameList);
     *fileNameListLengthPtr = fileNameListLength;
     if (fileNameListLength == 0) {
         return nullptr;
