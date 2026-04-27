@@ -30,6 +30,8 @@ extern int gGameGlobalVarsVanillaCount;
 
 extern MessageList gMiscMessageList;
 
+extern bool gGameLoaded;
+
 int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int flags, int argc, char** argv);
 void gameReset();
 void gameExit();

@@ -45,18 +45,31 @@ struct MessageListRepositoryState {
     int nextTemporaryMessageListId = kFirstTemporaryMessageListId;
 };
 
+struct ListInfo {
+    const char* name;
+    uint32_t base;
+    uint32_t range; // size of mod ID space for this list
+};
+
+// Define the ID ranges and block sizes for each mod block type.
+const ModBlockRange gModBlockRanges[] = {
+    { MOD_BLOCK_MAP, 5000, 500000, 100 }, // map names (3 elevations per map)
+    { MOD_BLOCK_AREA, 500001, 1000000, 30 }, // area names
+    { MOD_BLOCK_PROTO, 5000, 1000000, 1000 }, // proto messages
+    { MOD_BLOCK_PIPBOY, 100000, 1000000, 200 }, // Pip-Boy texts (holodisks: 200 lines each)
+    { MOD_BLOCK_COMBAT, 30000, 1000000, 1000 }, // combat messages
+    { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 }, // combat AI messages
+    { MOD_BLOCK_QUESTS, 20000, 1000000, 100 }, // quest descriptions, 100 IDs per mod block
+    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 30 }, // entrance names per town
+};
+
+const int gModBlockRangesCount = sizeof(gModBlockRanges) / sizeof(gModBlockRanges[0]);
+
 // Extends message loading to support mod message files (messages_*.txt)
 // Mod message IDs use range 0x8000-0xFFFF (32768-65535).
 
 static uint32_t stable_hash(const char* str);
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key);
 void generateMessageReport(MessageList* messageList, const char* msg_type);
-
-// Mod file loading
-static void loadModFileWithSections(MessageList* messageList, const char* fullPath,
-    const char* filename, const char* target_section);
-static void loadModMessagesForType(MessageList* messageList, const char* msg_type);
-bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type);
 
 // 0x50B79C
 static char _Error_1[] = "Error";
@@ -79,7 +92,6 @@ static char* gMessageErrorStr = _Error_1;
 // Temporary message list item text used during filtering badwords.
 static char _bad_copy[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
 
-static std::unordered_map<int, std::array<char*, 2>> _modProtoMessages;
 static MessageListRepositoryState* _messageListRepositoryState;
 
 // ============================================================================
@@ -404,6 +416,94 @@ err:
     return success;
 }
 
+// Load a message file where entry numbers are offsets from a base ID.
+// Example: if baseId = 1000 and file contains {0}{audio}{text}, the entry is added with ID = 1000 + 0.
+bool messageListLoadWithBaseOffset(MessageList* messageList, const char* path, int baseId)
+{
+    char localized_path[COMPAT_MAX_PATH];
+    File* file_ptr;
+    char num[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char audio[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char text[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    int rc;
+    bool success;
+    MessageListItem entry;
+
+    success = false;
+
+    if (messageList == nullptr) {
+        return false;
+    }
+
+    if (path == nullptr) {
+        return false;
+    }
+
+    snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
+
+    file_ptr = fileOpen(localized_path, "rt");
+
+    // Fallback to english if requested localization does not exist.
+    if (file_ptr == nullptr) {
+        if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", ENGLISH, path);
+            file_ptr = fileOpen(localized_path, "rt");
+        }
+    }
+
+    if (file_ptr == nullptr) {
+        return false;
+    }
+
+    entry.num = 0;
+    entry.audio = audio;
+    entry.text = text;
+
+    while (1) {
+        rc = _messageListLoadField(file_ptr, num);
+        if (rc != 0) {
+            break;
+        }
+
+        if (_messageListLoadField(file_ptr, audio) != 0) {
+            debugPrint("\nError loading audio field.\n", localized_path);
+            goto err;
+        }
+
+        if (_messageListLoadField(file_ptr, text) != 0) {
+            debugPrint("\nError loading text field.\n", localized_path);
+            goto err;
+        }
+
+        int offset;
+        if (!_messageListParseNumber(&offset, num)) {
+            debugPrint("\nError parsing number.\n", localized_path);
+            goto err;
+        }
+
+        entry.num = baseId + offset;
+
+        if (!_messageListAdd(messageList, &entry)) {
+            debugPrint("\nError adding message.\n", localized_path);
+            goto err;
+        }
+    }
+
+    if (rc == 1) {
+        success = true;
+    }
+
+err:
+
+    if (!success) {
+        debugPrint("Error loading message file %s at offset %x.", localized_path, fileTell(file_ptr));
+    }
+
+    fileClose(file_ptr);
+
+    return success;
+}
+
 // 0x484C30
 bool messageListGetItem(MessageList* msg, MessageListItem* entry)
 {
@@ -649,63 +749,6 @@ void messageListFilterGenderWords(MessageList* messageList, int gender)
     }
 }
 
-// ============================================================================
-// Mod Proto Message System
-// ============================================================================
-
-/**
- * Adds a custom proto message for a specific object prototype ID.
- * Used by mods to add custom text for game objects without editing base files.
- *
- * @param pid The prototype ID of the object
- * @param message_type 0 for short name, 1 for long description
- * @param text The custom text to associate with the proto
- * @return true if successful, false otherwise
- */
-bool messageListAddModProtoMessage(int pid, int message_type, const char* text)
-{
-    if (message_type < 0 || message_type > 1) return false;
-    auto& messages = _modProtoMessages[pid];
-    if (messages[message_type]) internal_free(messages[message_type]);
-    messages[message_type] = internal_strdup(text);
-    return messages[message_type] != nullptr;
-}
-
-/**
- * Retrieves a custom proto message added by a mod.
- *
- * @param pid The prototype ID to look up
- * @param message_type 0 for short name, 1 for long description
- * @return The custom text if found, nullptr otherwise
- */
-char* messageListGetModProtoMessage(int pid, int message_type)
-{
-    if (message_type < 0 || message_type > 1) return nullptr;
-    auto it = _modProtoMessages.find(pid);
-    if (it != _modProtoMessages.end()) {
-        return it->second[message_type];
-    }
-    return nullptr;
-}
-
-/**
- * Frees all custom proto messages loaded by mods.
- * Called during game shutdown or mod unloading.
- */
-void messageListFreeModProtoMessages()
-{
-    for (auto& pair : _modProtoMessages) {
-        for (int i = 0; i < 2; i++) {
-            if (pair.second[i]) internal_free(pair.second[i]);
-        }
-    }
-    _modProtoMessages.clear();
-}
-
-// ============================================================================
-// Mod File Loading System (depends on core functions)
-// ============================================================================
-
 /**
  * Case-insensitive DJB2 hash function for generating stable message IDs.
  * Ensures consistent IDs across different systems and runs.
@@ -725,307 +768,42 @@ static uint32_t stable_hash(const char* str)
     return hash;
 }
 
-/**
- * Generates a stable message ID in the mod range (0x8000-0xFFFF).
- * Combines mod name and message key to create unique, reproducible IDs.
- *
- * @param mod_name Name of the mod (from filename)
- * @param message_key Unique key within the mod's message file
- * @return Message ID in range 32768-65535
- */
-uint32_t generate_mod_message_id(const char* mod_name, const char* message_key)
+uint32_t generate_mod_block_base_id(int listId, const char* mod_name, const char* block_key)
 {
+    // Find the range for the requested listId
+    const ModBlockRange* range = nullptr;
+    for (int i = 0; i < gModBlockRangesCount; i++) {
+        if (gModBlockRanges[i].listId == listId) {
+            range = &gModBlockRanges[i];
+            break;
+        }
+    }
+    if (range == nullptr) {
+        debugPrint("ERROR: No mod block range defined for listId %d\n", listId);
+        return 0;
+    }
+
+    // Compute how many blocks fit in the range
+    uint32_t range_size = range->maxId - range->startId + 1;
+    uint32_t block_count = range_size / range->blockSize;
+    if (block_count == 0) {
+        debugPrint("ERROR: Block size %d larger than range %d-%d\n",
+            range->blockSize, range->startId, range->maxId);
+        return 0;
+    }
+
+    // Create composite key from mod name and block key
     char composite_key[256];
-    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, message_key);
+    snprintf(composite_key, sizeof(composite_key), "%s:%s", mod_name, block_key);
+
+    // Get a stable hash (case-insensitive DJB2)
     uint32_t hash = stable_hash(composite_key);
-    return 0x8000 + (hash % 0x7FFF); // 0x8000-0xFFFF range
-}
 
-// Load mod messages from a file with section headers
-static void loadModFileWithSections(MessageList* messageList, const char* fullPath, const char* filename, const char* target_section)
-{
-    File* stream = fileOpen(fullPath, "rt");
-    if (!stream) {
-        return;
-    }
+    // Map hash to a block index
+    uint32_t block_index = hash % block_count;
 
-    // Extract mod name from filename (messages_xxx.txt -> xxx)
-    char mod_name[64] = { 0 };
-    const char* prefix = "messages_";
-    const char* suffix = ".txt";
-
-    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
-        size_t filename_len = strlen(filename);
-        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
-
-        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
-            strncpy(mod_name, filename + strlen(prefix), mod_name_len);
-            mod_name[mod_name_len] = '\0';
-        }
-    }
-
-    char line[256];
-    int messages_loaded = 0;
-    char current_section[64] = "";
-    bool in_correct_section = false;
-
-    while (fileReadString(line, sizeof(line) - 1, stream)) {
-        // Remove line endings
-        char* newline = strchr(line, '\n');
-        if (newline) *newline = '\0';
-        char* cr = strchr(line, '\r');
-        if (cr) *cr = '\0';
-
-        // Skip empty lines and comments
-        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
-            continue;
-        }
-
-        // Check for section header [section_name]
-        if (line[0] == '[') {
-            char* line_end = line + strlen(line) - 1;
-
-            // Trim trailing whitespace
-            while (line_end > line && isspace(*line_end)) {
-                *line_end = '\0';
-                line_end--;
-            }
-
-            if (*line_end == ']') {
-                // Extract section name (remove brackets)
-                char section_name[64];
-                strncpy(section_name, line + 1, line_end - line - 1);
-                section_name[line_end - line - 1] = '\0';
-
-                // Trim whitespace from section name
-                char* start = section_name;
-                while (*start && isspace(*start))
-                    start++;
-                char* end = start + strlen(start) - 1;
-                while (end > start && isspace(*end))
-                    *end-- = '\0';
-
-                strncpy(current_section, start, sizeof(current_section) - 1);
-                current_section[sizeof(current_section) - 1] = '\0';
-
-                // Convert to lowercase for case-insensitive comparison
-                char current_section_lower[64];
-                char target_section_lower[64];
-
-                strncpy(current_section_lower, current_section, sizeof(current_section_lower));
-                strncpy(target_section_lower, target_section, sizeof(target_section_lower));
-
-                for (char* p = current_section_lower; *p; ++p)
-                    *p = tolower(*p);
-                for (char* p = target_section_lower; *p; ++p)
-                    *p = tolower(*p);
-
-                in_correct_section = (strcmp(current_section_lower, target_section_lower) == 0);
-                continue;
-            }
-        }
-
-        // Only process key=value lines if we're in the correct section
-        if (!in_correct_section) {
-            continue;
-        }
-
-        char* separator = strchr(line, '=');
-        if (!separator) {
-            continue;
-        }
-
-        *separator = '\0';
-        char* key = line;
-        char* value = separator + 1;
-
-        // Trim whitespace
-        while (*key && isspace(*key))
-            key++;
-        while (*value && isspace(*value))
-            value++;
-
-        char* end = key + strlen(key) - 1;
-        while (end > key && isspace(*end))
-            *end-- = '\0';
-
-        end = value + strlen(value) - 1;
-        while (end > value && isspace(*end))
-            *end-- = '\0';
-
-        if (*key && *value) {
-            uint32_t message_id = generate_mod_message_id(mod_name, key);
-
-            MessageListItem item;
-            item.num = message_id;
-            item.text = internal_strdup(value);
-            item.audio = internal_strdup("");
-            item.flags = 0;
-
-            if (_messageListAdd(messageList, &item)) {
-                messages_loaded++;
-            } else {
-                // Clean up on failure
-                internal_free(item.text);
-                internal_free(item.audio);
-            }
-        }
-    }
-
-    fileClose(stream);
-}
-
-/**
- * Loads mod messages from files matching messages_*.txt pattern.
- * Searches both English (fallback) and current language directories.
- *
- * @param messageList MessageList to append mod messages to
- * @param msg_type Section name to load from mod files
- */
-static void loadModMessagesForType(MessageList* messageList, const char* msg_type)
-{
-    char searchPattern[COMPAT_MAX_PATH];
-    char fullPath[COMPAT_MAX_PATH];
-
-    // Always load English mods first (as base/fallback)
-    snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-        ENGLISH, DIR_SEPARATOR);
-
-    char** modFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-
-    for (int i = 0; i < modFileCount; i++) {
-        snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-            ENGLISH, DIR_SEPARATOR, modFiles[i]);
-        loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
-    }
-
-    if (modFileCount > 0) {
-        fileNameListFree(&modFiles, 0);
-    }
-
-    // Then load current language (overrides English for available translations)
-    if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
-        snprintf(searchPattern, sizeof(searchPattern), "data\\text\\%s\\game%cmessages_*.txt",
-            settings.system.language.c_str(), DIR_SEPARATOR);
-
-        modFileCount = fileNameListInit(searchPattern, &modFiles, 0, 0);
-
-        for (int i = 0; i < modFileCount; i++) {
-            snprintf(fullPath, sizeof(fullPath), "data\\text\\%s\\game%c%s",
-                settings.system.language.c_str(), DIR_SEPARATOR, modFiles[i]);
-            loadModFileWithSections(messageList, fullPath, modFiles[i], msg_type);
-        }
-
-        if (modFileCount > 0) {
-            fileNameListFree(&modFiles, 0);
-        }
-    }
-}
-
-/**
- * Generates a human-readable report of mod messages loaded.
- * Creates a text file listing all mod messages (IDs 32768-65535)
- * with their text previews, for modder reference.
- *
- * @param messageList The MessageList to report on
- * @param msg_type Message type name for the report filename
- */
-void generateMessageReport(MessageList* messageList, const char* msg_type)
-{
-    if (!messageList || !msg_type) return;
-
-    char reportPath[COMPAT_MAX_PATH];
-    snprintf(reportPath, sizeof(reportPath), "%sdata%clists%cmessages_%s_list.txt", _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, msg_type);
-
-    FILE* reportFile = compat_fopen(reportPath, "wt");
-    if (!reportFile) {
-        return;
-    }
-
-    // Write header
-    fprintf(reportFile,
-        "==============================================================================\n"
-        "Fallout Fission - %s Messages\n"
-        "==============================================================================\n"
-        "Generated IDs for mod message references in scripts.\n\n"
-        "Message ID Range: 32768-65535 (stable hash-based)\n"
-        "Usage: display_msg(ID);  // Reference in scripts\n"
-        "==============================================================================\n\n",
-        msg_type);
-
-    // Write timestamp
-    time_t now = time(0);
-    struct tm* t = localtime(&now);
-    fprintf(reportFile, "Report Generated: %04d-%02d-%02d %02d:%02d:%02d\n\n",
-        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-        t->tm_hour, t->tm_min, t->tm_sec);
-
-    // Count and list only mod messages (32768-65535 range)
-    int modMessageCount = 0;
-
-    fprintf(reportFile, "MOD MESSAGES (Custom Content):\n");
-    fprintf(reportFile, "ID      | Text Preview\n");
-    fprintf(reportFile, "--------|--------------------------------------------------\n");
-
-    for (int i = 0; i < messageList->entries_num; i++) {
-        MessageListItem* item = &messageList->entries[i];
-
-        // Only show mod messages in our range (32768-65535)
-        if (item->num >= 32768 && item->num <= 65535) {
-            modMessageCount++;
-
-            // Create shortened preview (first 60 chars)
-            char preview[61];
-            strncpy(preview, item->text, 60);
-            preview[60] = '\0';
-            if (strlen(item->text) > 60) {
-                strcpy(preview + 57, "...");
-            }
-
-            fprintf(reportFile, "%-7d | %s\n", item->num, preview);
-        }
-    }
-
-    // Add summary
-    fprintf(reportFile, "\nSUMMARY:\n");
-    fprintf(reportFile, "Total Mod Messages: %d\n", modMessageCount);
-    fprintf(reportFile, "Base Messages: %d\n", messageList->entries_num - modMessageCount);
-
-    // Modder guidance
-    fprintf(reportFile, "\nMODDER GUIDANCE:\n");
-    fprintf(reportFile, "1. Use the decimal IDs above in your scripts with display_msg()\n");
-    fprintf(reportFile, "2. IDs are stable - same mod+key always generates same ID\n");
-    fprintf(reportFile, "3. File location: data/text/<language>/game/messages_YourMod.txt\n");
-    fprintf(reportFile, "4. Format: unique_key = Your message text\n\n");
-
-    fclose(reportFile);
-}
-
-/**
- * Enhanced message loader that combines base messages with mod messages.
- * Loads base game messages first, then appends mod messages from
- * messages_*.txt files. Always generates a report file.
- *
- * @param msg MessageList to populate
- * @param path Path to base message file
- * @param msg_type Message type/section to load (for mod file sections)
- * @return true if base messages loaded successfully
- */
-bool messageListLoadWithMods(MessageList* msg, const char* path, const char* msg_type)
-{
-    // First load the base messages
-    if (!messageListLoad(msg, path)) {
-        return false;
-    }
-
-    // Then load and append mod messages
-    loadModMessagesForType(msg, msg_type);
-
-    // Generate a report of loaded mod messages
-    generateMessageReport(msg, msg_type);
-
-    return true;
+    // Return the start ID of that block
+    return range->startId + (block_index * range->blockSize);
 }
 
 // ============================================================================
@@ -1107,8 +885,6 @@ void messageListRepositoryReset()
 
 void messageListRepositoryExit()
 {
-    messageListFreeModProtoMessages();
-
     if (_messageListRepositoryState != nullptr) {
         for (auto& pair : _messageListRepositoryState->temporaryMessageLists) {
             messageListFree(pair.second);
@@ -1213,6 +989,67 @@ bool _message_make_path(char* dest, size_t size, const char* path)
     snprintf(dest, size, "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
 
     return true;
+}
+
+// Load a message file where entries are added with one of two base IDs based on offset threshold.
+// Offsets below threshold use baseIdFirst; offsets >= threshold use baseIdSecond (with threshold subtracted).
+bool messageListLoadCombined(MessageList* messageList, const char* path,
+    uint32_t baseIdFirst, uint32_t baseIdSecond, int threshold)
+{
+    char localized_path[COMPAT_MAX_PATH];
+    File* file_ptr;
+    char num[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char audio[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    char text[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    int rc;
+    bool success;
+    MessageListItem entry;
+
+    success = false;
+
+    if (messageList == nullptr) return false;
+    if (path == nullptr) return false;
+
+    snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
+    file_ptr = fileOpen(localized_path, "rt");
+    if (file_ptr == nullptr) {
+        if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
+            snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", ENGLISH, path);
+            file_ptr = fileOpen(localized_path, "rt");
+        }
+    }
+    if (file_ptr == nullptr) return false;
+
+    entry.audio = audio;
+    entry.text = text;
+
+    while (1) {
+        rc = _messageListLoadField(file_ptr, num);
+        if (rc != 0) break;
+
+        if (_messageListLoadField(file_ptr, audio) != 0) goto err;
+        if (_messageListLoadField(file_ptr, text) != 0) goto err;
+
+        int offset;
+        if (!_messageListParseNumber(&offset, num)) goto err;
+
+        if (offset < threshold) {
+            entry.num = baseIdFirst + offset;
+        } else {
+            entry.num = baseIdSecond + (offset - threshold);
+        }
+
+        if (!_messageListAdd(messageList, &entry)) goto err;
+    }
+
+    if (rc == 1) success = true;
+
+err:
+    if (!success) {
+        debugPrint("Error loading combined message file %s at offset %x.", localized_path, fileTell(file_ptr));
+    }
+    fileClose(file_ptr);
+    return success;
 }
 
 } // namespace fallout

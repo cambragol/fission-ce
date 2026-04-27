@@ -15,6 +15,8 @@
 
 namespace fallout {
 
+#define DIR_SEPARATOR '/'
+
 struct GlobalScript {
     Program* program = nullptr;
     int procs[SCRIPT_PROC_COUNT] = { 0 };
@@ -38,32 +40,27 @@ bool sfall_gl_scr_init()
         return false;
     }
 
-    const std::string& pathsStr = settings.mod_scripts.global_script_paths;
-    if (pathsStr.empty()) {
-        return true; // nothing to process, but state exists
-    }
+    // Hardcoded pattern (cross?platform) formerly used: settings.mod_scripts.global_script_paths;
+    char pattern[COMPAT_MAX_PATH];
+    snprintf(pattern, sizeof(pattern),
+        "scripts%cgl*.int",
+        DIR_SEPARATOR);
 
-    std::vector<std::string> tokens = splitString(pathsStr); // split by commas, trimmed
+    // Extract drive and directory from the pattern (before the wildcard)
+    char drive[COMPAT_MAX_DRIVE];
+    char dir[COMPAT_MAX_DIR];
+    compat_splitpath(pattern, drive, dir, nullptr, nullptr);
 
-    for (const std::string& token : tokens) {
-        if (token.empty()) {
-            continue; // skip empty tokens (though splitString shouldn't produce empty if trimmed)
+    // Get list of files matching the pattern
+    char** files;
+    int filesLength = fileNameListInit(pattern, &files);
+    if (filesLength != 0) {
+        for (int index = 0; index < filesLength; ++index) {
+            char path[COMPAT_MAX_PATH];
+            compat_makepath(path, drive, dir, files[index], nullptr);
+            state->paths.push_back(std::string(path));
         }
-
-        char drive[COMPAT_MAX_DRIVE];
-        char dir[COMPAT_MAX_DIR];
-        compat_splitpath(token.c_str(), drive, dir, nullptr, nullptr);
-
-        char** files;
-        int filesLength = fileNameListInit(token.c_str(), &files, 0, 0);
-        if (filesLength != 0) {
-            for (int index = 0; index < filesLength; ++index) {
-                char path[COMPAT_MAX_PATH];
-                compat_makepath(path, drive, dir, files[index], nullptr);
-                state->paths.push_back(std::string(path));
-            }
-            fileNameListFree(&files, 0);
-        }
+        fileNameListFree(&files, 0);
     }
 
     std::sort(state->paths.begin(), state->paths.end());
@@ -101,7 +98,7 @@ void sfall_gl_scr_exec_start_proc()
 
             state->globalScripts.push_back(std::move(scr));
 
-            _interpret(program, -1);
+            programInterpret(program, -1);
         }
     }
 
@@ -124,7 +121,7 @@ void sfall_gl_scr_exec_map_update_scripts(int action)
     for (auto& scr : state->globalScripts) {
         if (scr.mode == 0 || scr.mode == 3) {
             if (scr.procs[action] != -1) {
-                _executeProcedure(scr.program, scr.procs[action]);
+                programExecuteProcedure(scr.program, scr.procs[action]);
             }
         }
     }
@@ -136,7 +133,7 @@ static void sfall_gl_scr_process_simple(int mode1, int mode2)
         if (scr.repeat != 0 && (scr.mode == mode1 || scr.mode == mode2)) {
             scr.count++;
             if (scr.count >= scr.repeat) {
-                _executeProcedure(scr.program, scr.procs[SCRIPT_PROC_START]);
+                programExecuteProcedure(scr.program, scr.procs[SCRIPT_PROC_START]);
                 scr.count = 0;
             }
         }
@@ -207,7 +204,7 @@ bool sfall_gl_scr_is_loaded(Program* program)
 void sfall_gl_scr_update(int burstSize)
 {
     for (auto& scr : state->globalScripts) {
-        _interpret(scr.program, burstSize);
+        programInterpret(scr.program, burstSize);
     }
 }
 

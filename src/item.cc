@@ -30,6 +30,7 @@
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
+#include "sfall_script_hooks.h"
 #include "skill.h"
 #include "stat.h"
 #include "tile.h"
@@ -78,7 +79,7 @@ static void healingItemsInitCustom();
 typedef struct DrugDescription {
     int drugPid;
     int gvar;
-    int field_8;
+    int maxActiveEffects;
 } DrugDescription;
 
 typedef struct BookDescription {
@@ -572,7 +573,7 @@ int itemDropAll(Object* critter, int tile)
 {
     bool hasEquippedItems = false;
 
-    int frmId = critter->fid & 0xFFF;
+    int frmId = artGetIndex(critter->fid);
 
     Inventory* inventory = &(critter->data.inventory);
     while (inventory->length > 0) {
@@ -601,7 +602,7 @@ int itemDropAll(Object* critter, int tile)
                         return -1;
                     }
 
-                    frmId = proto->fid & 0xFFF;
+                    frmId = artGetIndex(proto->fid);
                     adjustCritterStatsOnArmorChange(critter, item, nullptr);
                 }
             }
@@ -1142,7 +1143,7 @@ bool itemIsHidden(Object* item)
         return false;
     }
 
-    return (proto->item.extendedFlags & ITEM_HIDDEN) != 0;
+    return (proto->item.extendedFlags & PROTO_EXT_FLAG_HIDDEN) != 0;
 }
 
 // 0x478280
@@ -1189,7 +1190,7 @@ int weaponGetSkillForHitMode(Object* weapon, int hitMode)
         if (damageType == DAMAGE_TYPE_LASER || damageType == DAMAGE_TYPE_PLASMA || damageType == DAMAGE_TYPE_ELECTRICAL) {
             skill = SKILL_ENERGY_WEAPONS;
         } else {
-            if ((proto->item.extendedFlags & ItemProtoExtendedFlags_BigGun) != 0) {
+            if ((proto->item.extendedFlags & PROTO_EXT_FLAG_BIG_GUN) != 0) {
                 skill = SKILL_BIG_GUNS;
             }
         }
@@ -1320,7 +1321,7 @@ int weaponIsTwoHanded(Object* weapon)
 
     protoGetProto(weapon->pid, &proto);
 
-    return (proto->item.extendedFlags & WEAPON_TWO_HAND) != 0;
+    return (proto->item.extendedFlags & PROTO_EXT_FLAG_IS_TWO_HANDED) != 0;
 }
 
 // 0x4785DC
@@ -2249,7 +2250,7 @@ bool miscItemUsesCharges(Object* miscItem)
 }
 
 // 0x4794A4
-int miscItemUseCharged(Object* critter, Object* miscItem)
+UseItemResultCode miscItemUseCharged(Object* critter, Object* miscItem)
 {
     int pid = miscItem->pid;
     if (pid == PROTO_ID_STEALTH_BOY_I
@@ -2281,7 +2282,7 @@ int miscItemUseCharged(Object* critter, Object* miscItem)
         }
     }
 
-    return 0;
+    return USE_ITEM_RESULT_OK;
 }
 
 // 0x4795A4
@@ -2757,7 +2758,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
         return true;
     }
 
-    if (drugDescription->field_8 == 0) {
+    if (drugDescription->maxActiveEffects == 0) {
         return true;
     }
 
@@ -2767,7 +2768,7 @@ static bool _drug_effect_allowed(Object* critter, int pid)
     while (drugEffectEvent != nullptr) {
         if (drugEffectEvent->drugPid == pid) {
             count++;
-            if (count >= drugDescription->field_8) {
+            if (count >= drugDescription->maxActiveEffects) {
                 return false;
             }
         }
@@ -2778,14 +2779,21 @@ static bool _drug_effect_allowed(Object* critter, int pid)
 }
 
 // 0x479F60
-int drugItemTakeDrug(Object* critter, Object* item)
+UseItemResultCode drugItemTakeDrug(Object* critter, Object* item)
 {
+    // This matches original HOOK_USEOBJON implementation from sfall.
+    // This was needed because normally objectUseItemOnInternal won't get called for drugs.
+    int hookResult = scriptHooks_UseItemOn(critter, critter, item);
+    if (hookResult != -1) {
+        return static_cast<UseItemResultCode>(hookResult);
+    }
+
     if (critterIsDead(critter)) {
-        return -1;
+        return USE_ITEM_RESULT_ERROR;
     }
 
     if (critterGetBodyType(critter) == BODY_TYPE_ROBOTIC) {
-        return -1;
+        return USE_ITEM_RESULT_ERROR;
     }
 
     Proto* proto;
@@ -2801,7 +2809,7 @@ int drugItemTakeDrug(Object* critter, Object* item)
             }
 
             // SFALL: Fix for Jet antidote not being removed.
-            return 1;
+            return USE_ITEM_RESULT_REMOVE;
         }
     }
 
@@ -2850,7 +2858,7 @@ int drugItemTakeDrug(Object* critter, Object* item)
         }
     }
 
-    return 1;
+    return USE_ITEM_RESULT_REMOVE;
 }
 
 // 0x47A178

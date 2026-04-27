@@ -16,7 +16,8 @@ namespace fallout {
 
 #define BASE_MAP_MAX 200
 #define MOD_MAP_START 200
-#define MOD_MAP_MAX 2000
+#define MOD_MAP_MAX 10000
+#define TOTAL_MAP_MAX MOD_MAP_MAX
 
 // TODO: Probably not needed -> replace with array?
 typedef struct TileData {
@@ -97,7 +98,7 @@ int mapGetGlobalVar(int var, ProgramValue& value);
 int mapSetLocalVar(int var, ProgramValue& value);
 int mapGetLocalVar(int var, ProgramValue& value);
 int mapAllocLocalVars(int numNewVars);
-void mapSetStart(int a1, int a2, int a3);
+void mapSetStart(int tile, int elevation, int rotation);
 char* mapGetName(int map_num, int elev);
 bool mapAreSameArea(int map_num1, int map_num2);
 int _get_map_idx_same(int map_num1, int map_num2);
@@ -105,7 +106,7 @@ char* mapGetCityName(int map_num);
 char* mapDescriptionById(int map_index);
 int mapGetCurrentMap();
 int mapScroll(int dx, int dy);
-int mapSetEnteringLocation(int a1, int a2, int a3);
+int mapSetEnteringLocation(int elevation, int tile, int rotation);
 void mapNewMap();
 int mapLoadByName(char* fileName);
 int mapLoadById(int map_index);
@@ -113,7 +114,7 @@ int mapLoadSaved(char* fileName);
 int mapGetLoadedAreaId();
 int mapSetTransition(MapTransition* transition);
 int mapHandleTransition();
-int _map_save_in_game(bool a1);
+int _map_save_in_game(bool isLeavingMap);
 
 } // namespace fallout
 

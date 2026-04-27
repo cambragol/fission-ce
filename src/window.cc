@@ -22,6 +22,26 @@
 #include "widget.h"
 #include "window_manager.h"
 
+// Managed window API layer.
+//
+// This module builds a higher-level named window system on top of the
+// low-level `window_manager` primitives (`window_manager.cc`), which operate on
+// raw integer window ids and drawing/input primitives.
+//
+// Key responsibilities here:
+// - Maintain a fixed pool of `ManagedWindow` entries keyed by window name.
+// - Track current managed-window context plus push/pop selection stack for
+//   interpreter-driven UI scripts.
+// - Provide higher-level helpers for formatted text output, regions, managed
+//   buttons, and movie integration.
+//
+// Naming conventions:
+// - `scriptWindowCreate(const char* name, ...)` creates/looks up a managed
+//   named window entry and internally calls low-level
+//   `windowCreate(int x, int y, ...)` from `window_manager`.
+// - Most `scriptWindow*` functions in this file operate on the current managed-window
+//   context (`gCurrentManagedWindowIndex`), not directly on raw window ids.
+
 namespace fallout {
 
 #define MANAGED_WINDOW_COUNT (16)
@@ -57,15 +77,15 @@ typedef struct ManagedWindow {
     Region** regions;
     int currentRegionIndex;
     int regionsLength;
-    int field_38;
+    int regionsVersion;
     ManagedButton* buttons;
     int buttonsLength;
-    int field_44;
-    int field_48;
-    int field_4C;
-    int field_50;
-    float field_54;
-    float field_58;
+    int cursorX;
+    int cursorY;
+    int field_4C; // probably a color, but unused
+    int field_50; // probably flags, but unused
+    float scaleX;
+    float scaleY;
 } ManagedWindow;
 
 typedef int (*INITVIDEOFN)();
@@ -216,42 +236,42 @@ int windowSetFont(int font)
 // NOTE: Unused.
 //
 // 0x4B6138
-void windowResetTextAttributes()
+void scriptWindowResetTextAttributes()
 {
     // NOTE: Uninline.
-    windowSetTextColor(1.0, 1.0, 1.0);
+    scriptWindowSetTextColor(1.0, 1.0, 1.0);
 
     // NOTE: Uninline.
-    windowSetTextFlags(0x2000000 | 0x10000);
+    scriptWindowSetTextFlags(0x2000000 | 0x10000);
 }
 
 // 0x4B6160
-int windowGetTextFlags()
+int scriptWindowGetTextFlags()
 {
     return gWidgetTextFlags;
 }
 
 // 0x4B6168
-int windowSetTextFlags(int flags)
+int scriptWindowSetTextFlags(int flags)
 {
     gWidgetTextFlags = flags;
     return 1;
 }
 
 // 0x4B6174
-unsigned char windowGetTextColor()
+unsigned char scriptWindowGetTextColor()
 {
     return _colorTable[_currentTextColorB | (_currentTextColorG << 5) | (_currentTextColorR << 10)];
 }
 
 // 0x4B6198
-unsigned char windowGetHighlightColor()
+unsigned char scriptWindowGetHighlightColor()
 {
     return _colorTable[_currentHighlightColorB | (_currentHighlightColorG << 5) | (_currentHighlightColorR << 10)];
 }
 
 // 0x4B61BC
-int windowSetTextColor(float r, float g, float b)
+int scriptWindowSetTextColor(float r, float g, float b)
 {
     _currentTextColorR = (int)(r * 31.0);
     _currentTextColorG = (int)(g * 31.0);
@@ -261,7 +281,7 @@ int windowSetTextColor(float r, float g, float b)
 }
 
 // 0x4B6208
-int windowSetHighlightColor(float r, float g, float b)
+int scriptWindowSetHighlightColor(float r, float g, float b)
 {
     _currentHighlightColorR = (int)(r * 31.0);
     _currentHighlightColorG = (int)(g * 31.0);
@@ -278,37 +298,37 @@ bool _checkRegion(int windowIndex, int mouseX, int mouseY, int mouseEvent)
 }
 
 // 0x4B6858
-bool windowCheckRegion(int windowIndex, int mouseX, int mouseY, int mouseEvent)
+bool scriptWindowCheckRegion(int windowIndex, int mouseX, int mouseY, int mouseEvent)
 {
     bool rc = _checkRegion(windowIndex, mouseX, mouseY, mouseEvent);
 
     ManagedWindow* managedWindow = &(gManagedWindows[windowIndex]);
-    int v1 = managedWindow->field_38;
+    int prevVersion = managedWindow->regionsVersion;
 
     for (int index = 0; index < managedWindow->regionsLength; index++) {
         Region* region = managedWindow->regions[index];
         if (region != nullptr) {
-            if (region->field_6C != 0) {
-                region->field_6C = 0;
+            if (region->mouseInside != 0) {
+                region->mouseInside = 0;
                 rc = true;
 
                 if (region->mouseEventCallback != nullptr) {
                     region->mouseEventCallback(region, region->mouseEventCallbackUserData, 2);
-                    if (v1 != managedWindow->field_38) {
+                    if (prevVersion != managedWindow->regionsVersion) {
                         return true;
                     }
                 }
 
                 if (region->rightMouseEventCallback != nullptr) {
                     region->rightMouseEventCallback(region, region->rightMouseEventCallbackUserData, 2);
-                    if (v1 != managedWindow->field_38) {
+                    if (prevVersion != managedWindow->regionsVersion) {
                         return true;
                     }
                 }
 
                 if (region->program != nullptr && region->procs[2] != 0) {
-                    _executeProc(region->program, region->procs[2]);
-                    if (v1 != managedWindow->field_38) {
+                    programExecuteProcedureAsync(region->program, region->procs[2]);
+                    if (prevVersion != managedWindow->regionsVersion) {
                         return true;
                     }
                 }
@@ -320,7 +340,7 @@ bool windowCheckRegion(int windowIndex, int mouseX, int mouseY, int mouseEvent)
 }
 
 // 0x4B69BC
-bool windowRefreshRegions()
+bool scriptWindowRefreshRegions()
 {
     int mouseX;
     int mouseY;
@@ -337,7 +357,7 @@ bool windowRefreshRegions()
             }
 
             int mouseEvent = mouseGetEvent();
-            return windowCheckRegion(windowIndex, mouseX, mouseY, mouseEvent);
+            return scriptWindowCheckRegion(windowIndex, mouseX, mouseY, mouseEvent);
         }
     }
 
@@ -363,7 +383,7 @@ bool _checkAllRegions()
         if (managedWindow->window != -1 && managedWindow->window == win) {
             if (_lastWin != -1 && _lastWin != windowIndex && gManagedWindows[_lastWin].window != -1) {
                 ManagedWindow* managedWindow = &(gManagedWindows[_lastWin]);
-                int v1 = managedWindow->field_38;
+                int prevVersion = managedWindow->regionsVersion;
 
                 for (int regionIndex = 0; regionIndex < managedWindow->regionsLength; regionIndex++) {
                     Region* region = managedWindow->regions[regionIndex];
@@ -371,21 +391,21 @@ bool _checkAllRegions()
                         region->rightProcs[3] = 0;
                         if (region->mouseEventCallback != nullptr) {
                             region->mouseEventCallback(region, region->mouseEventCallbackUserData, 3);
-                            if (v1 != managedWindow->field_38) {
+                            if (prevVersion != managedWindow->regionsVersion) {
                                 return true;
                             }
                         }
 
                         if (region->rightMouseEventCallback != nullptr) {
                             region->rightMouseEventCallback(region, region->rightMouseEventCallbackUserData, 3);
-                            if (v1 != managedWindow->field_38) {
+                            if (prevVersion != managedWindow->regionsVersion) {
                                 return true;
                             }
                         }
 
                         if (region->program != nullptr && region->procs[3] != 0) {
-                            _executeProc(region->program, region->procs[3]);
-                            if (v1 != managedWindow->field_38) {
+                            programExecuteProcedureAsync(region->program, region->procs[3]);
+                            if (prevVersion != managedWindow->regionsVersion) {
                                 return 1;
                             }
                         }
@@ -396,7 +416,7 @@ bool _checkAllRegions()
                 _lastWin = windowIndex;
             }
 
-            return windowCheckRegion(windowIndex, mouseX, mouseY, mouseEvent);
+            return scriptWindowCheckRegion(windowIndex, mouseX, mouseY, mouseEvent);
         }
     }
 
@@ -404,7 +424,7 @@ bool _checkAllRegions()
 }
 
 // 0x4B6C48
-void windowAddInputFunc(WindowInputHandler* handler)
+void scriptWindowAddInputFunc(WindowInputHandler* handler)
 {
     int index;
     for (index = 0; index < gWindowInputHandlersLength; index++) {
@@ -428,17 +448,17 @@ void windowAddInputFunc(WindowInputHandler* handler)
 // 0x4B6CE8
 void _doRegionRightFunc(Region* region, int mouseEvent)
 {
-    int v1 = gManagedWindows[gCurrentManagedWindowIndex].field_38;
+    int prevVersion = gManagedWindows[gCurrentManagedWindowIndex].regionsVersion;
     if (region->rightMouseEventCallback != nullptr) {
         region->rightMouseEventCallback(region, region->rightMouseEventCallbackUserData, mouseEvent);
-        if (v1 != gManagedWindows[gCurrentManagedWindowIndex].field_38) {
+        if (prevVersion != gManagedWindows[gCurrentManagedWindowIndex].regionsVersion) {
             return;
         }
     }
 
     if (mouseEvent < 4) {
         if (region->program != nullptr && region->rightProcs[mouseEvent] != 0) {
-            _executeProc(region->program, region->rightProcs[mouseEvent]);
+            programExecuteProcedureAsync(region->program, region->rightProcs[mouseEvent]);
         }
     }
 }
@@ -446,23 +466,23 @@ void _doRegionRightFunc(Region* region, int mouseEvent)
 // 0x4B6D68
 void _doRegionFunc(Region* region, int mouseEvent)
 {
-    int v1 = gManagedWindows[gCurrentManagedWindowIndex].field_38;
+    int prevVersion = gManagedWindows[gCurrentManagedWindowIndex].regionsVersion;
     if (region->mouseEventCallback != nullptr) {
         region->mouseEventCallback(region, region->mouseEventCallbackUserData, mouseEvent);
-        if (v1 != gManagedWindows[gCurrentManagedWindowIndex].field_38) {
+        if (prevVersion != gManagedWindows[gCurrentManagedWindowIndex].regionsVersion) {
             return;
         }
     }
 
     if (mouseEvent < 4) {
         if (region->program != nullptr && region->rightProcs[mouseEvent] != 0) {
-            _executeProc(region->program, region->rightProcs[mouseEvent]);
+            programExecuteProcedureAsync(region->program, region->rightProcs[mouseEvent]);
         }
     }
 }
 
 // 0x4B6DE8
-bool windowActivateRegion(const char* regionName, int mouseEvent)
+bool scriptWindowActivateRegion(const char* regionName, int mouseEvent)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -523,11 +543,11 @@ int _getInput()
 // 0x4B6F60
 void _doButtonOn(int btn, int keyCode)
 {
-    sub_4B6F68(btn, MANAGED_BUTTON_MOUSE_EVENT_ENTER);
+    scriptWindowDispatchButtonMouseEvent(btn, MANAGED_BUTTON_MOUSE_EVENT_ENTER);
 }
 
 // 0x4B6F68
-void sub_4B6F68(int btn, int mouseEvent)
+void scriptWindowDispatchButtonMouseEvent(int btn, int mouseEvent)
 {
     int win = _win_last_button_winID();
     if (win == -1) {
@@ -544,7 +564,7 @@ void sub_4B6F68(int btn, int mouseEvent)
                         _win_set_button_rest_state(managedButton->btn, 0, 0);
                     } else {
                         if (managedButton->program != nullptr && managedButton->procs[mouseEvent] != 0) {
-                            _executeProc(managedButton->program, managedButton->procs[mouseEvent]);
+                            programExecuteProcedureAsync(managedButton->program, managedButton->procs[mouseEvent]);
                         }
 
                         if (managedButton->mouseEventCallback != nullptr) {
@@ -560,19 +580,19 @@ void sub_4B6F68(int btn, int mouseEvent)
 // 0x4B7028
 void _doButtonOff(int btn, int keyCode)
 {
-    sub_4B6F68(btn, MANAGED_BUTTON_MOUSE_EVENT_EXIT);
+    scriptWindowDispatchButtonMouseEvent(btn, MANAGED_BUTTON_MOUSE_EVENT_EXIT);
 }
 
 // 0x4B7034
 void _doButtonPress(int btn, int keyCode)
 {
-    sub_4B6F68(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_DOWN);
+    scriptWindowDispatchButtonMouseEvent(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_DOWN);
 }
 
 // 0x4B703C
 void _doButtonRelease(int btn, int keyCode)
 {
-    sub_4B6F68(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_UP);
+    scriptWindowDispatchButtonMouseEvent(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_UP);
 }
 
 // NOTE: Unused.
@@ -580,13 +600,13 @@ void _doButtonRelease(int btn, int keyCode)
 // 0x4B7048
 void _doRightButtonPress(int btn, int keyCode)
 {
-    sub_4B704C(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_DOWN);
+    scriptWindowDispatchButtonRightMouseEvent(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_DOWN);
 }
 
 // NOTE: Unused.
 //
 // 0x4B704C
-void sub_4B704C(int btn, int mouseEvent)
+void scriptWindowDispatchButtonRightMouseEvent(int btn, int mouseEvent)
 {
     int win = _win_last_button_winID();
     if (win == -1) {
@@ -603,7 +623,7 @@ void sub_4B704C(int btn, int mouseEvent)
                         _win_set_button_rest_state(managedButton->btn, 0, 0);
                     } else {
                         if (managedButton->program != nullptr && managedButton->rightProcs[mouseEvent] != 0) {
-                            _executeProc(managedButton->program, managedButton->rightProcs[mouseEvent]);
+                            programExecuteProcedureAsync(managedButton->program, managedButton->rightProcs[mouseEvent]);
                         }
 
                         if (managedButton->rightMouseEventCallback != nullptr) {
@@ -621,7 +641,7 @@ void sub_4B704C(int btn, int mouseEvent)
 // 0x4B710C
 void _doRightButtonRelease(int btn, int keyCode)
 {
-    sub_4B704C(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_UP);
+    scriptWindowDispatchButtonRightMouseEvent(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_UP);
 }
 
 // Note: this used to have a third buffer parameter, but it was never used
@@ -658,7 +678,7 @@ static void redrawButton(ManagedButton* managedButton)
 }
 
 // 0x4B7610
-bool windowHide()
+bool scriptWindowHide()
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     if (managedWindow->window == -1) {
@@ -671,7 +691,7 @@ bool windowHide()
 }
 
 // 0x4B7648
-bool windowShow()
+bool scriptWindowShow()
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     if (managedWindow->window == -1) {
@@ -684,19 +704,19 @@ bool windowShow()
 }
 
 // 0x4B7734
-int windowWidth()
+int scriptWindowWidth()
 {
     return gManagedWindows[gCurrentManagedWindowIndex].width;
 }
 
 // 0x4B7754
-int windowHeight()
+int scriptWindowHeight()
 {
     return gManagedWindows[gCurrentManagedWindowIndex].height;
 }
 
 // 0x4B7680
-bool windowDraw()
+bool scriptWindowDraw()
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     if (managedWindow->window == -1) {
@@ -709,7 +729,7 @@ bool windowDraw()
 }
 
 // 0x4B78A4
-bool _deleteWindow(const char* windowName)
+bool scriptWindowDelete(const char* windowName)
 {
     int index;
     for (index = 0; index < MANAGED_WINDOW_COUNT; index++) {
@@ -772,21 +792,21 @@ bool _deleteWindow(const char* windowName)
 }
 
 // 0x4B7AC4
-int windowResize(const char* windowName, int x, int y, int width, int height)
+int scriptWindowResize(const char* windowName, int x, int y, int width, int height)
 {
     // TODO: Incomplete.
     return -1;
 }
 
 // 0x4B7E7C
-int windowScale(const char* windowName, int x, int y, int width, int height)
+int scriptWindowScale(const char* windowName, int x, int y, int width, int height)
 {
     // TODO: Incomplete.
     return -1;
 }
 
 // 0x4B7F3C
-int _createWindow(const char* windowName, int x, int y, int width, int height, int a6, int flags)
+int scriptWindowCreate(const char* windowName, int x, int y, int width, int height, int a6, int flags)
 {
     int windowIndex = -1;
 
@@ -798,7 +818,7 @@ int _createWindow(const char* windowName, int x, int y, int width, int height, i
             break;
         } else {
             if (compat_stricmp(managedWindow->name, windowName) == 0) {
-                _deleteWindow(windowName);
+                scriptWindowDelete(windowName);
                 windowIndex = index;
                 break;
             }
@@ -811,9 +831,9 @@ int _createWindow(const char* windowName, int x, int y, int width, int height, i
 
     ManagedWindow* managedWindow = &(gManagedWindows[windowIndex]);
     strncpy(managedWindow->name, windowName, 32);
-    managedWindow->field_54 = 1.0;
-    managedWindow->field_58 = 1.0;
-    managedWindow->field_38 = 0;
+    managedWindow->scaleX = 1.0;
+    managedWindow->scaleY = 1.0;
+    managedWindow->regionsVersion = 0;
     managedWindow->regions = nullptr;
     managedWindow->regionsLength = 0;
     managedWindow->width = width;
@@ -827,8 +847,8 @@ int _createWindow(const char* windowName, int x, int y, int width, int height, i
     }
 
     managedWindow->window = windowCreate(x, y, width, height, a6, flags);
-    managedWindow->field_48 = 0;
-    managedWindow->field_44 = 0;
+    managedWindow->cursorY = 0;
+    managedWindow->cursorX = 0;
     managedWindow->field_4C = a6;
     managedWindow->field_50 = flags;
 
@@ -836,7 +856,7 @@ int _createWindow(const char* windowName, int x, int y, int width, int height, i
 }
 
 // 0x4B80A4
-int windowOutput(char* string)
+int scriptWindowOutput(char* string)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return 0;
@@ -844,31 +864,31 @@ int windowOutput(char* string)
 
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
 
-    int x = (int)(managedWindow->field_44 * managedWindow->field_54);
-    int y = (int)(managedWindow->field_48 * managedWindow->field_58);
+    int x = (int)(managedWindow->cursorX * managedWindow->scaleX);
+    int y = (int)(managedWindow->cursorY * managedWindow->scaleY);
     // NOTE: Uses `add` at 0x4B810E, not bitwise `or`.
-    int flags = windowGetTextColor() + windowGetTextFlags();
+    int flags = scriptWindowGetTextColor() + scriptWindowGetTextFlags();
     windowDrawText(managedWindow->window, string, 0, x, y, flags);
 
     return 1;
 }
 
 // 0x4B814C
-bool windowGotoXY(int x, int y)
+bool scriptWindowGotoXY(int x, int y)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
-    managedWindow->field_44 = (int)(x * managedWindow->field_54);
-    managedWindow->field_48 = (int)(y * managedWindow->field_58);
+    managedWindow->cursorX = (int)(x * managedWindow->scaleX);
+    managedWindow->cursorY = (int)(y * managedWindow->scaleY);
 
     return true;
 }
 
 // 0x4B81C4
-bool _selectWindowID(int index)
+bool scriptWindowSelectId(int index)
 {
     if (index < 0 || index >= MANAGED_WINDOW_COUNT) {
         return false;
@@ -889,7 +909,7 @@ bool _selectWindowID(int index)
 }
 
 // 0x4B821C
-int _selectWindow(const char* windowName)
+int scriptWindowSelect(const char* windowName)
 {
     if (gCurrentManagedWindowIndex != -1) {
         ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
@@ -908,7 +928,7 @@ int _selectWindow(const char* windowName)
         }
     }
 
-    if (_selectWindowID(index)) {
+    if (scriptWindowSelectId(index)) {
         return index;
     }
 
@@ -916,7 +936,7 @@ int _selectWindow(const char* windowName)
 }
 
 // 0x4B82DC
-unsigned char* windowGetBuffer()
+unsigned char* scriptWindowGetBuffer()
 {
     if (gCurrentManagedWindowIndex != -1) {
         ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
@@ -927,7 +947,7 @@ unsigned char* windowGetBuffer()
 }
 
 // 0x4B8330
-int _pushWindow(const char* windowName)
+int scriptWindowPush(const char* windowName)
 {
     if (_winTOS >= MANAGED_WINDOW_COUNT) {
         return -1;
@@ -935,7 +955,7 @@ int _pushWindow(const char* windowName)
 
     int oldCurrentWindowIndex = gCurrentManagedWindowIndex;
 
-    int windowIndex = _selectWindow(windowName);
+    int windowIndex = scriptWindowSelect(windowName);
     if (windowIndex == -1) {
         return -1;
     }
@@ -965,7 +985,7 @@ int _popWindow()
     ManagedWindow* managedWindow = &(gManagedWindows[windowIndex]);
     _winTOS--;
 
-    return _selectWindow(managedWindow->name);
+    return scriptWindowSelect(managedWindow->name);
 }
 
 // 0x4B8414
@@ -1153,39 +1173,43 @@ void windowWrapLine(int win, char* string, int width, int height, int x, int y, 
 }
 
 // 0x4B8920
-bool windowPrintRect(char* string, int a2, int textAlignment)
+bool scriptWindowPrintRect(char* string, int wrapWidth, int textAlignment)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
-    int width = (int)(a2 * managedWindow->field_54);
+    int width = (int)(wrapWidth * managedWindow->scaleX);
     int height = windowGetHeight(managedWindow->window);
-    int x = managedWindow->field_44;
-    int y = managedWindow->field_48;
-    int flags = windowGetTextColor() | 0x2000000;
+    int x = managedWindow->cursorX;
+    int y = managedWindow->cursorY;
+    int flags = scriptWindowGetTextColor() | 0x2000000;
     windowWrapLineWithSpacing(managedWindow->window, string, width, height, x, y, flags, textAlignment, 0);
 
     return true;
 }
 
 // 0x4B89B0
-bool windowFormatMessage(char* string, int x, int y, int width, int height, int textAlignment)
+bool scriptWindowFormatMessage(char* string, int x, int y, int width, int height, int textAlignment)
 {
+    if (gCurrentManagedWindowIndex == -1) {
+        return false;
+    }
+
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
-    int flags = windowGetTextColor() | 0x2000000;
+    int flags = scriptWindowGetTextColor() | 0x2000000;
     windowWrapLineWithSpacing(managedWindow->window, string, width, height, x, y, flags, textAlignment, 0);
 
     return true;
 }
 
 // 0x4B8A60
-bool windowPrint(char* string, int width, int x, int y, int color)
+bool scriptWindowPrint(char* string, int width, int x, int y, int color)
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
-    x = (int)(x * managedWindow->field_54);
-    y = (int)(y * managedWindow->field_58);
+    x = (int)(x * managedWindow->scaleX);
+    y = (int)(y * managedWindow->scaleY);
 
     windowDrawText(managedWindow->window, string, width, x, y, color);
 
@@ -1209,22 +1233,22 @@ void _displayInWindow(unsigned char* data, int width, int height, int pitch)
 
     if (width == pitch) {
         // NOTE: Uninline.
-        if (pitch == windowWidth() && height == windowHeight()) {
+        if (pitch == scriptWindowWidth() && height == scriptWindowHeight()) {
             // NOTE: Uninline.
-            unsigned char* windowBuffer = windowGetBuffer();
+            unsigned char* windowBuffer = scriptWindowGetBuffer();
             memcpy(windowBuffer, data, height * width);
         } else {
             // NOTE: Uninline.
-            unsigned char* windowBuffer = windowGetBuffer();
-            _drawScaledBuf(windowBuffer, windowWidth(), windowHeight(), data, width, height);
+            unsigned char* windowBuffer = scriptWindowGetBuffer();
+            _drawScaledBuf(windowBuffer, scriptWindowWidth(), scriptWindowHeight(), data, width, height);
         }
     } else {
         // NOTE: Uninline.
-        unsigned char* windowBuffer = windowGetBuffer();
+        unsigned char* windowBuffer = scriptWindowGetBuffer();
         _drawScaled(windowBuffer,
-            windowWidth(),
-            windowHeight(),
-            windowWidth(),
+            scriptWindowWidth(),
+            scriptWindowHeight(),
+            scriptWindowWidth(),
             data,
             width,
             height,
@@ -1257,7 +1281,7 @@ void _displayFileRaw(char* fileName)
 }
 
 // 0x4B8E50
-bool windowDisplay(char* fileName, int x, int y, int width, int height)
+bool scriptWindowDisplay(char* fileName, int x, int y, int width, int height)
 {
     int imageWidth;
     int imageHeight;
@@ -1266,7 +1290,7 @@ bool windowDisplay(char* fileName, int x, int y, int width, int height)
         return false;
     }
 
-    windowDisplayBuf(imageData, imageWidth, imageHeight, x, y, width, height);
+    scriptWindowDisplayBuf(imageData, imageWidth, imageHeight, x, y, width, height);
 
     internal_free_safe(imageData, __FILE__, __LINE__); // "..\\int\\WINDOW.C", 1376
 
@@ -1274,7 +1298,7 @@ bool windowDisplay(char* fileName, int x, int y, int width, int height)
 }
 
 // 0x4B8EF0
-bool windowDisplayBuf(unsigned char* src, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight)
+bool scriptWindowDisplayBuf(unsigned char* src, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight)
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     unsigned char* windowBuffer = windowGetBuffer(managedWindow->window);
@@ -1335,7 +1359,7 @@ void _removeProgramReferences_3(Program* program)
 }
 
 // 0x4B9190
-void _initWindow(int resolution, int flags)
+void scriptWindowInit(int resolution, int flags)
 {
     char err[COMPAT_MAX_PATH];
     int rc;
@@ -1437,14 +1461,14 @@ void _initWindow(int resolution, int flags)
 }
 
 // 0x4B947C
-void windowClose()
+void scriptWindowClose()
 {
     // TODO: Incomplete, but required for graceful exit.
 
     for (int index = 0; index < MANAGED_WINDOW_COUNT; index++) {
         ManagedWindow* managedWindow = &(gManagedWindows[index]);
         if (managedWindow->window != -1) {
-            _deleteWindow(managedWindow->name);
+            scriptWindowDelete(managedWindow->name);
         }
     }
 
@@ -1453,17 +1477,18 @@ void windowClose()
     }
 
     mouseManagerExit();
-    dbExit();
+    dbCloseAll();
     windowManagerExit();
 }
 
 // Deletes button with the specified name or all buttons if it's NULL.
 //
 // 0x4B9548
-bool windowDeleteButton(const char* buttonName)
+bool scriptWindowDeleteButton(const char* buttonName)
 {
-    if (gCurrentManagedWindowIndex != -1) {
-        return false;
+    if (gCurrentManagedWindowIndex == -1) {
+        // note: returns true unlike other functions, since deletion is a no-op
+        return true;
     }
 
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
@@ -1497,7 +1522,7 @@ bool windowDeleteButton(const char* buttonName)
             }
 
             if (managedButton->field_50 != nullptr) {
-                internal_free_safe(managedButton->normal, __FILE__, __LINE__); // "..\int\WINDOW.C", 1652
+                internal_free_safe(managedButton->field_50, __FILE__, __LINE__); // "..\int\WINDOW.C", 1652
                 managedButton->field_50 = nullptr;
             }
         }
@@ -1556,9 +1581,9 @@ bool windowDeleteButton(const char* buttonName)
 }
 
 // 0x4B9928
-bool windowSetButtonFlag(const char* buttonName, int value)
+bool scriptWindowSetButtonFlag(const char* buttonName, int value)
 {
-    if (gCurrentManagedWindowIndex != -1) {
+    if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
@@ -1579,7 +1604,7 @@ bool windowSetButtonFlag(const char* buttonName, int value)
 }
 
 // 0x4B99C8
-bool windowAddButton(const char* buttonName, int x, int y, int width, int height, int flags)
+bool scriptWindowAddButton(const char* buttonName, int x, int y, int width, int height, int flags)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -1625,10 +1650,10 @@ bool windowAddButton(const char* buttonName, int x, int y, int width, int height
         managedWindow->buttonsLength += 1;
     }
 
-    x = (int)(x * managedWindow->field_54);
-    y = (int)(y * managedWindow->field_58);
-    width = (int)(width * managedWindow->field_54);
-    height = (int)(height * managedWindow->field_58);
+    x = (int)(x * managedWindow->scaleX);
+    y = (int)(y * managedWindow->scaleY);
+    width = (int)(width * managedWindow->scaleX);
+    height = (int)(height * managedWindow->scaleY);
 
     ManagedButton* managedButton = &(managedWindow->buttons[index]);
     strncpy(managedButton->name, buttonName, 31);
@@ -1683,7 +1708,7 @@ bool windowAddButton(const char* buttonName, int x, int y, int width, int height
     managedButton->field_18 = flags;
     managedButton->field_4C = nullptr;
     buttonSetMouseCallbacks(managedButton->btn, _doButtonOn, _doButtonOff, _doButtonPress, _doButtonRelease);
-    windowSetButtonFlag(buttonName, 1);
+    scriptWindowSetButtonFlag(buttonName, 1);
 
     if ((flags & BUTTON_FLAG_TRANSPARENT) != 0) {
         buttonSetMask(managedButton->btn, normal);
@@ -1693,7 +1718,7 @@ bool windowAddButton(const char* buttonName, int x, int y, int width, int height
 }
 
 // 0x4B9DD0
-bool windowAddButtonGfx(const char* buttonName, char* pressedFileName, char* normalFileName, char* hoverFileName)
+bool scriptWindowAddButtonGfx(const char* buttonName, char* pressedFileName, char* normalFileName, char* hoverFileName)
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     for (int index = 0; index < managedWindow->buttonsLength; index++) {
@@ -1719,6 +1744,7 @@ bool windowAddButtonGfx(const char* buttonName, char* pressedFileName, char* nor
             }
 
             if (hoverFileName != nullptr) {
+                // TODO: this almost certainly should be hoverFileName
                 unsigned char* hover = datafileRead(normalFileName, &width, &height);
                 if (hover != nullptr) {
                     if (managedButton->hover == nullptr) {
@@ -1745,7 +1771,7 @@ bool windowAddButtonGfx(const char* buttonName, char* pressedFileName, char* nor
 }
 
 // 0x4BA11C
-bool windowAddButtonProc(const char* buttonName, Program* program, int mouseEnterProc, int mouseExitProc, int mouseDownProc, int mouseUpProc)
+bool scriptWindowAddButtonProc(const char* buttonName, Program* program, int mouseEnterProc, int mouseExitProc, int mouseDownProc, int mouseUpProc)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -1772,9 +1798,9 @@ bool windowAddButtonProc(const char* buttonName, Program* program, int mouseEnte
 }
 
 // 0x4BA1B4
-bool windowAddButtonRightProc(const char* buttonName, Program* program, int rightMouseDownProc, int rightMouseUpProc)
+bool scriptWindowAddButtonRightProc(const char* buttonName, Program* program, int rightMouseDownProc, int rightMouseUpProc)
 {
-    if (gCurrentManagedWindowIndex != -1) {
+    if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
@@ -1799,9 +1825,9 @@ bool windowAddButtonRightProc(const char* buttonName, Program* program, int righ
 // NOTE: Unused.
 //
 // 0x4BA238
-bool windowAddButtonCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
+bool scriptWindowAddButtonCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
 {
-    if (gCurrentManagedWindowIndex != -1) {
+    if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
@@ -1825,9 +1851,9 @@ bool windowAddButtonCfunc(const char* buttonName, ManagedButtonMouseEventCallbac
 // NOTE: Unused.
 //
 // 0x4BA2B4
-bool windowAddButtonRightCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
+bool scriptWindowAddButtonRightCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
 {
-    if (gCurrentManagedWindowIndex != -1) {
+    if (gCurrentManagedWindowIndex == -1) {
         return false;
     }
 
@@ -1850,13 +1876,13 @@ bool windowAddButtonRightCfunc(const char* buttonName, ManagedButtonMouseEventCa
 }
 
 // 0x4BA34C
-bool windowAddButtonText(const char* buttonName, const char* text)
+bool scriptWindowAddButtonText(const char* buttonName, const char* text)
 {
-    return windowAddButtonTextWithOffsets(buttonName, text, 2, 2, 0, 0);
+    return scriptWindowAddButtonTextWithOffsets(buttonName, text, 2, 2, 0, 0);
 }
 
 // 0x4BA364
-bool windowAddButtonTextWithOffsets(const char* buttonName, const char* text, int pressedImageOffsetX, int pressedImageOffsetY, int normalImageOffsetX, int normalImageOffsetY)
+bool scriptWindowAddButtonTextWithOffsets(const char* buttonName, const char* text, int pressedImageOffsetX, int pressedImageOffsetY, int normalImageOffsetX, int normalImageOffsetY)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -1910,7 +1936,7 @@ bool windowAddButtonTextWithOffsets(const char* buttonName, const char* text, in
                 text,
                 normalImageWidth,
                 normalImageWidth,
-                windowGetTextColor() + windowGetTextFlags());
+                scriptWindowGetTextColor() + scriptWindowGetTextFlags());
 
             blitBufferToBufferTrans(buffer,
                 normalImageWidth,
@@ -1958,7 +1984,7 @@ bool windowAddButtonTextWithOffsets(const char* buttonName, const char* text, in
                 text,
                 pressedImageWidth,
                 pressedImageWidth,
-                windowGetTextColor() + windowGetTextFlags());
+                scriptWindowGetTextColor() + scriptWindowGetTextFlags());
 
             blitBufferToBufferTrans(buffer,
                 pressedImageWidth,
@@ -1984,7 +2010,7 @@ bool windowAddButtonTextWithOffsets(const char* buttonName, const char* text, in
 }
 
 // 0x4BA694
-bool windowFill(float r, float g, float b)
+bool scriptWindowFill(float r, float g, float b)
 {
     int colorIndex = ((int)(r * 31.0) << 10) | ((int)(g * 31.0) << 5) | (int)(b * 31.0);
 
@@ -1992,22 +2018,22 @@ bool windowFill(float r, float g, float b)
     windowFill(managedWindow->window,
         0,
         0,
-        windowWidth(),
-        windowHeight(),
+        scriptWindowWidth(),
+        scriptWindowHeight(),
         _colorTable[colorIndex]);
 
     return true;
 }
 
 // 0x4BA738
-bool windowFillRect(int x, int y, int width, int height, float r, float g, float b)
+bool scriptWindowFillRect(int x, int y, int width, int height, float r, float g, float b)
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
 
-    x = (int)(x * managedWindow->field_54);
-    y = (int)(y * managedWindow->field_58);
-    width = (int)(width * managedWindow->field_54);
-    height = (int)(height * managedWindow->field_58);
+    x = (int)(x * managedWindow->scaleX);
+    y = (int)(y * managedWindow->scaleY);
+    width = (int)(width * managedWindow->scaleX);
+    height = (int)(height * managedWindow->scaleY);
 
     int colorIndex = ((int)(r * 31.0) << 10) | ((int)(g * 31.0) << 5) | (int)(b * 31.0);
 
@@ -2027,16 +2053,16 @@ bool windowFillRect(int x, int y, int width, int height, float r, float g, float
 // value.
 //
 // 0x4BA844
-void windowEndRegion()
+void scriptWindowEndRegion()
 {
     ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
     Region* region = managedWindow->regions[managedWindow->currentRegionIndex];
-    windowAddRegionPoint(region->points->x, region->points->y, false);
+    scriptWindowAddRegionPoint(region->points->x, region->points->y, false);
     _regionSetBound(region);
 }
 
 // 0x4BA988
-bool windowCheckRegionExists(const char* regionName)
+bool scriptWindowCheckRegionExists(const char* regionName)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2060,7 +2086,7 @@ bool windowCheckRegionExists(const char* regionName)
 }
 
 // 0x4BA9FC
-bool windowStartRegion(int initialCapacity)
+bool scriptWindowStartRegion(int initialCapacity)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2101,7 +2127,7 @@ bool windowStartRegion(int initialCapacity)
 }
 
 // 0x4BAB68
-bool windowAddRegionPoint(int x, int y, bool a3)
+bool scriptWindowAddRegionPoint(int x, int y, bool a3)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2114,8 +2140,8 @@ bool windowAddRegionPoint(int x, int y, bool a3)
     }
 
     if (a3) {
-        x = (int)(x * managedWindow->field_54);
-        y = (int)(y * managedWindow->field_58);
+        x = (int)(x * managedWindow->scaleX);
+        y = (int)(y * managedWindow->scaleY);
     }
 
     regionAddPoint(region, x, y);
@@ -2124,7 +2150,7 @@ bool windowAddRegionPoint(int x, int y, bool a3)
 }
 
 // 0x4BADC0
-bool windowAddRegionProc(const char* regionName, Program* program, int a3, int a4, int a5, int a6)
+bool scriptWindowAddRegionProc(const char* regionName, Program* program, int a3, int a4, int a5, int a6)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2149,7 +2175,7 @@ bool windowAddRegionProc(const char* regionName, Program* program, int a3, int a
 }
 
 // 0x4BAE8C
-bool windowAddRegionRightProc(const char* regionName, Program* program, int a3, int a4)
+bool scriptWindowAddRegionRightProc(const char* regionName, Program* program, int a3, int a4)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2172,7 +2198,7 @@ bool windowAddRegionRightProc(const char* regionName, Program* program, int a3, 
 }
 
 // 0x4BAF2C
-bool windowSetRegionFlag(const char* regionName, int value)
+bool scriptWindowSetRegionFlag(const char* regionName, int value)
 {
     if (gCurrentManagedWindowIndex != -1) {
         ManagedWindow* managedWindow = &(gManagedWindows[gCurrentManagedWindowIndex]);
@@ -2191,7 +2217,7 @@ bool windowSetRegionFlag(const char* regionName, int value)
 }
 
 // 0x4BAFA8
-bool windowAddRegionName(const char* regionName)
+bool scriptWindowAddRegionName(const char* regionName)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2224,7 +2250,7 @@ bool windowAddRegionName(const char* regionName)
 // Delete region with the specified name or all regions if it's NULL.
 //
 // 0x4BB0A8
-bool windowDeleteRegion(const char* regionName)
+bool scriptWindowDeleteRegion(const char* regionName)
 {
     if (gCurrentManagedWindowIndex == -1) {
         return false;
@@ -2242,7 +2268,7 @@ bool windowDeleteRegion(const char* regionName)
                 if (compat_stricmp(regionGetName(region), regionName) == 0) {
                     regionDelete(region);
                     managedWindow->regions[index] = nullptr;
-                    managedWindow->field_38++;
+                    managedWindow->regionsVersion++;
                     return true;
                 }
             }
@@ -2250,7 +2276,7 @@ bool windowDeleteRegion(const char* regionName)
         return false;
     }
 
-    managedWindow->field_38++;
+    managedWindow->regionsVersion++;
 
     if (managedWindow->regions != nullptr) {
         for (int index = 0; index < managedWindow->regionsLength; index++) {
@@ -2270,7 +2296,7 @@ bool windowDeleteRegion(const char* regionName)
 }
 
 // 0x4BB220
-void windowUpdateAll()
+void scriptWindowUpdateAll()
 {
     _movieUpdate();
     mouseManagerUpdate();
@@ -2279,13 +2305,13 @@ void windowUpdateAll()
 }
 
 // 0x4BB234
-int windowMoviePlaying()
+int scriptWindowMoviePlaying()
 {
     return _moviePlaying();
 }
 
 // 0x4BB23C
-bool windowSetMovieFlags(int flags)
+bool scriptWindowSetMovieFlags(int flags)
 {
     if (movieSetFlags(flags) != 0) {
         return false;
@@ -2295,7 +2321,7 @@ bool windowSetMovieFlags(int flags)
 }
 
 // 0x4BB24C
-bool windowPlayMovie(char* filePath)
+bool scriptWindowPlayMovie(char* filePath)
 {
     if (_movieRun(gManagedWindows[gCurrentManagedWindowIndex].window, filePath) != 0) {
         return false;
@@ -2305,7 +2331,7 @@ bool windowPlayMovie(char* filePath)
 }
 
 // 0x4BB280
-bool windowPlayMovieRect(char* filePath, int x, int y, int w, int h)
+bool scriptWindowPlayMovieRect(char* filePath, int x, int y, int w, int h)
 {
     if (_movieRunRect(gManagedWindows[gCurrentManagedWindowIndex].window, filePath, x, y, w, h) != 0) {
         return false;
@@ -2315,7 +2341,7 @@ bool windowPlayMovieRect(char* filePath, int x, int y, int w, int h)
 }
 
 // 0x4BB2C4
-void windowStopMovie()
+void scriptWindowStopMovie()
 {
     _movieStop();
 }
@@ -2668,7 +2694,7 @@ void _fillBuf3x3(unsigned char* src, int srcWidth, int srcHeight, unsigned char*
         destWidth);
 }
 
-bool windowShowNamed(const char* windowName)
+bool scriptWindowShowNamed(const char* windowName)
 {
     for (int index = 0; index < MANAGED_WINDOW_COUNT; index++) {
         ManagedWindow* managedWindow = &(gManagedWindows[index]);

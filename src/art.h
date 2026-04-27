@@ -133,8 +133,8 @@ unsigned char* artLockFrameData(int fid, int frame, int direction, CacheEntry** 
 unsigned char* artLockFrameDataReturningSize(int fid, CacheEntry** out_cache_entry, int* widthPtr, int* heightPtr);
 int artUnlock(CacheEntry* cache_entry);
 int artCacheFlush();
-int artCopyFileName(int objectType, int id, char* a3);
-int _art_get_code(int animation, int weaponType, char* a3, char* a4);
+int artCopyFileName(int objectType, int id, char* dest);
+int _art_get_code(int animation, int weaponType, char* weaponCodePtr, char* animationCodePtr);
 char* artBuildFilePath(int fid);
 int artGetFramesPerSecond(Art* art);
 int artGetActionFrame(Art* art);
@@ -142,7 +142,7 @@ int artGetFrameCount(Art* art);
 int artGetWidth(Art* art, int frame, int direction);
 int artGetHeight(Art* art, int frame, int direction);
 int artGetSize(Art* art, int frame, int direction, int* out_width, int* out_height);
-int artGetFrameOffsets(Art* art, int frame, int direction, int* a4, int* a5);
+int artGetFrameOffsets(Art* art, int frame, int direction, int* xPtr, int* yPtr);
 int artGetRotationOffsets(Art* art, int rotation, int* out_offset_x, int* out_offset_y);
 unsigned char* artGetFrameData(Art* art, int frame, int direction);
 ArtFrame* artGetFrame(Art* art, int frame, int direction);
@@ -197,6 +197,13 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix);
  * @return int The final FID
  */
 int artGetFidWithVariant(int objectType, int baseId, bool useVariant);
+int artGetStableIndex(const char* filename);
+
+static inline int artGetIndex(int fid)
+{
+    int base_index = fid & 0xFFF;
+    return (fid & 0x80000000) ? base_index + 4096 : base_index;
+}
 
 } // namespace fallout
 

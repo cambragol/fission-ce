@@ -113,8 +113,18 @@ typedef struct ModProtoEntry {
     int pid;
     char* mod_name;
     char* proto_name;
-    char* proto_path; // Full path to .pro file
-    int type; // Proto type (OBJ_TYPE_ITEM, etc.)
+    char* proto_path;
+    int type;
+    int message_offset;
+    // overrides until mod tools catch up
+    int override_fid; // ground FID override (0 if not used)
+    bool has_override_fid;
+    int override_inventory_fid; // inventory FID override (0 if not used)
+    bool has_override_inventory_fid;
+    int override_ai_packet; // AI packet number (for critters)
+    bool has_override_ai_packet;
+    int override_script;
+    bool has_override_script;
 } ModProtoEntry;
 
 typedef struct NameToPidEntry {
@@ -165,8 +175,6 @@ void _proto_remove_all();
 int protoGetProto(int pid, Proto** protoPtr);
 int _ResetPlayer();
 int proto_max_id(int type);
-
-void load_mod_proto_messages();
 
 static bool isExitGridPid(int pid)
 {

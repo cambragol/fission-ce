@@ -1,6 +1,7 @@
 #include "game.h"
 #include "platform/git_version.h"
 
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -22,6 +23,7 @@
 #include "display_monitor.h"
 #include "draw.h"
 #include "endgame.h"
+#include "file_find.h"
 #include "font_manager.h"
 #include "game_dialog.h"
 #include "game_memory.h"
@@ -53,12 +55,14 @@
 #include "scripts.h"
 #include "settings.h"
 #include "sfall_arrays.h"
+#include "sfall_callbacks.h"
 #include "sfall_config.h"
 #include "sfall_ext.h"
 #include "sfall_global_scripts.h"
 #include "sfall_global_vars.h"
 #include "sfall_ini.h"
 #include "sfall_lists.h"
+#include "sfall_script_hooks.h"
 #include "skill.h"
 #include "skilldex.h"
 #include "stat.h"
@@ -139,6 +143,8 @@ static char gModGVarSlotOwners[MOD_GVAR_COUNT][128]; // for collision messages
 // 0x58E940
 MessageList gMiscMessageList;
 
+bool gGameLoaded = false;
+
 // CE: Sonora folks like to store objects in global variables.
 static void** gGameGlobalPointers = nullptr;
 
@@ -170,7 +176,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     messageListRepositoryInit();
 
     programWindowSetTitle(windowTitle);
-    _initWindow(1, flags);
+    scriptWindowInit(1, flags);
     paletteInit();
 
     const char* language = settings.system.language.c_str();
@@ -403,6 +409,10 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
         return -1;
     }
 
+    if (!scriptHooksInit()) {
+        debugPrint("Failed on scriptHooksInit");
+        return -1;
+    }
     const char* customConfigBasePath = settings.mod_scripts.ini_config_folder.empty() ? nullptr : settings.mod_scripts.ini_config_folder.c_str();
     sfall_ini_set_base_path(customConfigBasePath);
 
@@ -453,8 +463,11 @@ void gameReset()
     sfall_gl_vars_reset();
     sfallListsReset();
     messageListRepositoryReset();
+    scriptHooksReset();
     sfallArraysReset();
     sfall_gl_scr_reset();
+    sfallOnGameReset();
+    gGameLoaded = false;
 }
 
 // 0x442C34
@@ -462,7 +475,10 @@ void gameExit()
 {
     debugPrint("\nGame Exit\n");
 
+    sfallOnGameModeChange(1, GameMode::getCurrentGameMode());
+
     // SFALL
+    scriptHooksExit();
     sfall_gl_scr_exit();
     sfallArraysExit();
     sfallListsExit();
@@ -503,9 +519,9 @@ void gameExit()
     partyMembersExit();
     endgameDeathEndingExit();
     interfaceFontsExit();
-    windowClose();
+    scriptWindowClose();
     messageListRepositoryExit();
-    dbExit();
+    dbCloseAll();
     settingsExit(true);
     modConfigExit();
 }
@@ -1012,6 +1028,7 @@ static uint32_t hashModString(const char* modName, const char* symbol)
 
 // Parse a line from a gvar definition file (vault13.gam format - handles vanilla and mod (gvar_xxx.txt) formats)
 // Returns 1 if a valid GVAR definition was found, 0 otherwise.
+// Parse a line from a gvar definition file (supports both "=" and ":=")
 static int parseGVarLine(char* line, char* symbol, int* defaultValue)
 {
     // Skip leading whitespace
@@ -1022,14 +1039,19 @@ static int parseGVarLine(char* line, char* symbol, int* defaultValue)
     // Skip C++ style comment "//"
     if (p[0] == '/' && p[1] == '/') return 0;
 
-    // Find '='
+    // Find '=' (or ":=")
     char* eq = strchr(p, '=');
     if (!eq) return 0;
 
-    // Extract symbol (trim trailing spaces before '=')
+    // If there's a colon immediately before the '=', skip it for symbol extraction
     char* symEnd = eq;
+    if (symEnd > p && symEnd[-1] == ':') {
+        symEnd--; // move end back before the colon
+    }
+    // Trim trailing spaces before the end
     while (symEnd > p && isspace((unsigned char)symEnd[-1]))
         symEnd--;
+
     size_t symLen = symEnd - p;
     if (symLen == 0 || symLen >= 128) return 0;
     strncpy(symbol, p, symLen);
@@ -1218,7 +1240,7 @@ static int loadModGlobalVars()
 
     // Find all matching files
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount <= 0) {
         // No mod GVAR files - still generate an empty report...
         generateGVarReport();
@@ -1537,7 +1559,7 @@ int loadModGlobalVarsFromSave(File* stream)
         if (idx >= MOD_GVAR_BASE && idx < gGameGlobalVarsLength) {
             gGameGlobalVars[idx] = val;
         } else {
-            // Index out of range – perhaps a mod was removed; ignore.
+            // Index out of range - perhaps a mod was removed; ignore.
             debugPrint("Warning: mod GVAR index %d out of range - skipping.\n",
                 idx, gGameGlobalVarsLength - 1);
         }
@@ -1810,7 +1832,7 @@ static int gameDbInit()
         if (*patch_file_name == '\0') {
             patch_file_name = nullptr;
         }
-        int handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        int handle = dbOpen(main_file_name, patch_file_name);
         if (handle == -1) {
             showMesageBox(
                 "Could not find the fission datafile. "
@@ -1841,7 +1863,7 @@ static int gameDbInit()
             patch_file_name = nullptr;
         }
 
-        int master_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+        int master_db_handle = dbOpen(main_file_name, patch_file_name);
         if (master_db_handle == -1) {
             showMesageBox(
                 "Could not find the master datafile. "
@@ -1870,7 +1892,7 @@ static int gameDbInit()
         patch_file_name = nullptr;
     }
 
-    int critter_db_handle = dbOpen(main_file_name, 0, patch_file_name, 1);
+    int critter_db_handle = dbOpen(main_file_name, patch_file_name);
     if (critter_db_handle == -1) {
         showMesageBox(
             "Could not find the critter datafile. "
@@ -1885,12 +1907,53 @@ static int gameDbInit()
     for (patch_index = 0; patch_index < 1000; patch_index++) {
         snprintf(filename, sizeof(filename), path_file_name_template, patch_index);
         if (compat_access(filename, 0) == 0) {
-            dbOpen(filename, 0, nullptr, 1);
+            dbOpen(filename, nullptr);
         }
     }
 
+    // Load mods from the "mods" folder (order defined by mods_order.txt)
+    const char* modsPath = "mods";
+    const char* orderFilename = "mods_order.txt";
+    char orderFilePath[COMPAT_MAX_PATH];
+    compat_makepath(orderFilePath, nullptr, modsPath, orderFilename, nullptr);
+
+    compat_mkdir(modsPath);
+
+    File* stream = fileOpen(orderFilePath, "r");
+    if (stream) {
+        char line[COMPAT_MAX_PATH];
+        while (fileReadString(line, COMPAT_MAX_PATH, stream)) {
+            std::string entry(line);
+            if (entry.find_first_of(";#") != std::string::npos)
+                continue;
+
+            // Trim whitespace
+            entry.erase(entry.begin(),
+                std::find_if(entry.begin(), entry.end(),
+                    [](unsigned char ch) { return !isspace(ch); }));
+            entry.erase(std::find_if(entry.rbegin(), entry.rend(),
+                            [](unsigned char ch) { return !isspace(ch); })
+                            .base(),
+                entry.end());
+            if (entry.empty())
+                continue;
+
+            char fullPath[COMPAT_MAX_PATH];
+            compat_makepath(fullPath, nullptr, modsPath, entry.c_str(), nullptr);
+
+            if (compat_access(fullPath, 0) != 0) {
+                continue;
+            }
+
+            dbOpen(fullPath, nullptr);
+        }
+        fileClose(stream);
+    }
+
+    // Restore CWD to data by calling dbOpen again
+    int master_db_handle = dbOpen(nullptr, settings.system.master_patches_path.c_str());
+
     createListsFolder();
-    sfallLoadMods();
 
     return 0;
 }
@@ -2075,12 +2138,20 @@ int GameMode::currentGameMode = 0;
 
 void GameMode::enterGameMode(int gameMode)
 {
+    int previousGameMode = currentGameMode;
     currentGameMode |= gameMode;
+    if (currentGameMode != previousGameMode) {
+        sfallOnGameModeChange(0, previousGameMode);
+    }
 }
 
 void GameMode::exitGameMode(int gameMode)
 {
+    int previousGameMode = currentGameMode;
     currentGameMode &= ~gameMode;
+    if (currentGameMode != previousGameMode) {
+        sfallOnGameModeChange(0, previousGameMode);
+    }
 }
 
 bool GameMode::isInGameMode(int gameMode)
@@ -2097,6 +2168,29 @@ ScopedGameMode::ScopedGameMode(int gameMode)
 ScopedGameMode::~ScopedGameMode()
 {
     GameMode::exitGameMode(gameMode);
+}
+
+static std::vector<std::string> listModsInFolder(const char* modsPath)
+{
+    std::vector<std::string> results;
+
+    char pattern[COMPAT_MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s%c*", modsPath, DIR_SEPARATOR);
+
+    DirectoryFileFindData findData;
+    if (fileFindFirst(pattern, &findData)) {
+        do {
+            const char* name = fileFindGetName(&findData);
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+            size_t len = strlen(name);
+            if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
+                results.push_back(name);
+            }
+        } while (fileFindNext(&findData));
+        findFindClose(&findData);
+    }
+
+    return results;
 }
 
 } // namespace fallout

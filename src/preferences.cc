@@ -37,7 +37,7 @@ namespace fallout {
 static void _SetSystemPrefs();
 static void _SaveSettings();
 static void _RestoreSettings();
-static void preferencesSetDefaults(bool a1);
+static void preferencesSetDefaults(bool updateUi);
 static void _JustUpdate_();
 static void _UpdateThing(int index);
 int _SavePrefs(bool save);
@@ -46,25 +46,22 @@ static int preferencesWindowFree();
 static void _DoThing(int eventCode);
 
 // 0x50C168
-static const double dbl_50C168 = 1.17999267578125;
+static const double kBrightnessMax = 1.17999267578125;
 
 // 0x50C170
-static const double dbl_50C170 = 0.01124954223632812;
+static const double kBrightnessStep = 0.01124954223632812;
 
 // 0x50C178
-static const double dbl_50C178 = -0.01124954223632812;
-
-// 0x50C180
-static const double dbl_50C180 = 1.17999267578125;
+static const double kBrightnessStepNegative = -0.01124954223632812;
 
 // 0x50C2D0
-static const double dbl_50C2D0 = -1.0;
+static const double kTextLineDelayBaseOffset = -1.0;
 
 // 0x50C2D8
-static const double dbl_50C2D8 = 0.2;
+static const double kTextLineDelayScale = 0.2;
 
 // 0x50C2E0
-static const double dbl_50C2E0 = 2.0;
+static const double kTextLineDelayRange = 2.0;
 
 // 0x5197CC
 static const int gPreferencesWindowFrmIds[PREFERENCES_WINDOW_FRM_COUNT] = {
@@ -446,11 +443,11 @@ void applyPlayAreaResolution()
         int displayIndex = 0; // Primary display
 
         switch (gPreferencesPlayArea1) {
-        case 0: // Default
+        case 0: // Original
             settings.graphics.game_width = 640;
             settings.graphics.game_height = 480;
             break;
-        case 1: // Normal
+        case 1: // Default
             settings.graphics.game_width = 800;
             settings.graphics.game_height = 500;
             break;
@@ -616,7 +613,7 @@ static void _RestoreSettings()
 }
 
 // 0x492F60
-static void preferencesSetDefaults(bool a1)
+static void preferencesSetDefaults(bool updateUi)
 {
     gPreferencesGameDifficulty1 = 1;
     gPreferencesCombatDifficulty1 = COMBAT_DIFFICULTY_NORMAL;
@@ -650,7 +647,7 @@ static void preferencesSetDefaults(bool a1)
     gPreferencesSoundEffectsVolume1 = 22281;
     gPreferencesSpeechVolume1 = 22281;
 
-    if (a1) {
+    if (updateUi) {
         for (int index = 0; index < PREF_COUNT; index++) {
             _UpdateThing(index);
         }
@@ -1203,9 +1200,9 @@ int _SavePrefs(bool save)
     settings.preferences.combat_speed = gPreferencesCombatSpeed1;
     settings.preferences.text_base_delay = gPreferencesTextBaseDelay1;
 
-    double textLineDelay = (gPreferencesTextBaseDelay1 + dbl_50C2D0) * dbl_50C2D8 * dbl_50C2E0;
+    double textLineDelay = (gPreferencesTextBaseDelay1 + kTextLineDelayBaseOffset) * kTextLineDelayScale * kTextLineDelayRange;
     if (textLineDelay >= 0.0) {
-        if (textLineDelay > dbl_50C2E0) {
+        if (textLineDelay > kTextLineDelayRange) {
             textLineDelay = 2.0;
         }
 
@@ -1405,12 +1402,12 @@ err:
 // 0x4928E4
 void brightnessIncrease()
 {
-    if (gPreferencesBrightness1 < dbl_50C168) {
-        gPreferencesBrightness1 += dbl_50C170;
+    if (gPreferencesBrightness1 < kBrightnessMax) {
+        gPreferencesBrightness1 += kBrightnessStep;
 
         if (gPreferencesBrightness1 >= 1.0) {
-            if (gPreferencesBrightness1 > dbl_50C168) {
-                gPreferencesBrightness1 = dbl_50C168;
+            if (gPreferencesBrightness1 > kBrightnessMax) {
+                gPreferencesBrightness1 = kBrightnessMax;
             }
         } else {
             gPreferencesBrightness1 = 1.0;
@@ -1428,11 +1425,11 @@ void brightnessIncrease()
 void brightnessDecrease()
 {
     if (gPreferencesBrightness1 > 1.0) {
-        gPreferencesBrightness1 += dbl_50C178;
+        gPreferencesBrightness1 += kBrightnessStepNegative;
 
         if (gPreferencesBrightness1 >= 1.0) {
-            if (gPreferencesBrightness1 > dbl_50C180) {
-                gPreferencesBrightness1 = dbl_50C180;
+            if (gPreferencesBrightness1 > kBrightnessMax) {
+                gPreferencesBrightness1 = kBrightnessMax;
             }
         } else {
             gPreferencesBrightness1 = 1.0;
@@ -1684,7 +1681,7 @@ static int preferencesWindowInit()
         _preferencesFrmImages[PREFERENCES_WINDOW_FRM_CHECKBOX_OFF].getData(),
         _preferencesFrmImages[PREFERENCES_WINDOW_FRM_CHECKBOX_ON].getData(),
         nullptr,
-        BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01 | BUTTON_FLAG_0x02);
+        BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE | BUTTON_FLAG_CHECK_ON_DOWN);
     if (_plyrspdbid != -1) {
         _win_set_button_rest_state(_plyrspdbid, gPreferencesPlayerSpeedup1, 0);
     }
@@ -2002,7 +1999,6 @@ static void _DoThing(int eventCode)
         PreferenceDescription* meta = &(gPreferenceDescriptions[preferenceIndex]);
         Point pos = gOffsets.preferencePositions[preferenceIndex]; // Get position directly
         int* valuePtr = meta->valuePtr;
-        int value = *valuePtr;
         bool valueChanged = false;
 
         // Use hit detection offsets from struct with direct position
@@ -2269,7 +2265,7 @@ static void _DoThing(int eventCode)
                 newValue = ((double)v31 - (double)gOffsets.rangeSliderMinX) * (meta->maxValue - meta->minValue) / gOffsets.rangeSliderWidth + meta->minValue;
             }
 
-            int v52 = 0;
+            bool redrawLabels = false;
 
             switch (preferenceIndex) {
             case PREF_COMBAT_SPEED:
@@ -2281,17 +2277,17 @@ static void _DoThing(int eventCode)
             case PREF_MASTER_VOLUME:
                 *meta->valuePtr = (int)newValue;
                 gameSoundSetMasterVolume(gPreferencesMasterVolume1);
-                v52 = 1;
+                redrawLabels = true;
                 break;
             case PREF_MUSIC_VOLUME:
                 *meta->valuePtr = (int)newValue;
                 backgroundSoundSetVolume(gPreferencesMusicVolume1);
-                v52 = 1;
+                redrawLabels = true;
                 break;
             case PREF_SFX_VOLUME:
                 *meta->valuePtr = (int)newValue;
                 soundEffectsSetVolume(gPreferencesSoundEffectsVolume1);
-                v52 = 1;
+                redrawLabels = true;
                 if (sfxVolumeExample == 0) {
                     soundPlayFile("butin1");
                     sfxVolumeExample = 7;
@@ -2302,9 +2298,9 @@ static void _DoThing(int eventCode)
             case PREF_SPEECH_VOLUME:
                 *meta->valuePtr = (int)newValue;
                 speechSetVolume(gPreferencesSpeechVolume1);
-                v52 = 1;
+                redrawLabels = true;
                 if (speechVolumeExample == 0) {
-                    speechLoad("narrator\\options", 12, 13, 15);
+                    speechLoad("narrator\\options", GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_NO_LOOP);
                     speechVolumeExample = 40;
                 } else {
                     speechVolumeExample--;
@@ -2319,7 +2315,7 @@ static void _DoThing(int eventCode)
                 break;
             }
 
-            if (v52) {
+            if (redrawLabels) {
                 // Volume sliders - restore background including labels
                 int off = gOffsets.width * (pos.y - 12) + gOffsets.rangeStartX; // Use direct Y position
                 blitBufferToBuffer(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_BACKGROUND].getData() + off,

@@ -134,7 +134,7 @@ Fallout 2/
 
 -   F.I.S.S.I.O.N. does NOT include game data - you must own Fallout 2
 
--   Your existing saves will work - F.I.S.S.I.O.N. maintains full compatibility
+-   Your existing saves should work - F.I.S.S.I.O.N. maintains full compatibility
 
 -   Mods stay where they are - F.I.S.S.I.O.N. reads from existing `data/` structure
 

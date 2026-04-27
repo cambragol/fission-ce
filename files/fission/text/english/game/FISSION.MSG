@@ -100,3 +100,16 @@
 {460}{}{Your inventory is already "optimized."}
 {461}{}{There's a severe lack of sorting opportunities here.}
 
+#
+# Mod Loading Menu
+#
+
+# Titles
+{500}{}{LOADED MODS}
+{501}{}{DONE}
+{502}{}{CANCEL}
+{503}{}{by}
+
+# Restart popup
+{510}{}{Changes to Mod order will take}
+{511}{}{effect on restart.}

@@ -18,14 +18,15 @@
 namespace fallout {
 
 #define CRITTER_FLAG_COUNT 10
+#define SUBDATA_ROWS_PER_COLUMN 9
 
 #define YES 0
 #define NO 1
 
 static int proto_choose_container_flags(Proto* proto);
-static int proto_subdata_setup_int_button(const char* title, int key, int value, int min_value, int max_value, int* y, int a7);
-static int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, int a5);
-static int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, int a5);
+static int proto_subdata_setup_int_button(const char* title, int key, int value, int min_value, int max_value, int* y, int itemIndex);
+static int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, int itemIndex);
+static int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, int itemIndex);
 static void proto_critter_flags_redraw(int win, int pid);
 static int proto_critter_flags_modify(int pid);
 static int mp_pick_kill_type();
@@ -198,7 +199,7 @@ int proto_choose_container_flags(Proto* proto)
 
             windowRefresh(win);
         } else if (input == '2') {
-            proto->item.extendedFlags ^= 0x8000;
+            proto->item.extendedFlags ^= PROTO_EXT_FLAG_CAN_PICK_UP;
 
             if (_proto_action_can_pickup(proto->pid)) {
                 windowDrawText(win,
@@ -229,7 +230,7 @@ int proto_choose_container_flags(Proto* proto)
 }
 
 // 0x492A3C
-int proto_subdata_setup_int_button(const char* title, int key, int value, int min_value, int max_value, int* y, int a7)
+int proto_subdata_setup_int_button(const char* title, int key, int value, int min_value, int max_value, int* y, int itemIndex)
 {
     char text[36];
     int button_x;
@@ -238,11 +239,11 @@ int proto_subdata_setup_int_button(const char* title, int key, int value, int mi
     button_x = 10;
     value_offset_x = 90;
 
-    if (a7 == 9) {
+    if (itemIndex == SUBDATA_ROWS_PER_COLUMN) {
         *y -= 189;
     }
 
-    if (a7 > 8) {
+    if (itemIndex >= SUBDATA_ROWS_PER_COLUMN) {
         button_x = 165;
         value_offset_x -= 16;
     }
@@ -280,7 +281,7 @@ int proto_subdata_setup_int_button(const char* title, int key, int value, int mi
 }
 
 // 0x492B28
-int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, int a5)
+int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, int itemIndex)
 {
     char text[36];
     char* pch;
@@ -290,11 +291,11 @@ int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, 
     button_x = 10;
     value_offset_x = 90;
 
-    if (a5 == 9) {
+    if (itemIndex == SUBDATA_ROWS_PER_COLUMN) {
         *y -= 189;
     }
 
-    if (a5 > 8) {
+    if (itemIndex >= SUBDATA_ROWS_PER_COLUMN) {
         button_x = 165;
         value_offset_x -= 16;
     }
@@ -336,7 +337,7 @@ int proto_subdata_setup_fid_button(const char* title, int key, int fid, int* y, 
 }
 
 // 0x492C20
-int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, int a5)
+int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, int itemIndex)
 {
     int button_x;
     int value_offset_x;
@@ -344,11 +345,11 @@ int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, 
     button_x = 10;
     value_offset_x = 90;
 
-    if (a5 == 9) {
+    if (itemIndex == SUBDATA_ROWS_PER_COLUMN) {
         *y -= 189;
     }
 
-    if (a5 > 8) {
+    if (itemIndex >= SUBDATA_ROWS_PER_COLUMN) {
         button_x = 165;
         value_offset_x = 74;
     }
@@ -387,23 +388,23 @@ int proto_subdata_setup_pid_button(const char* title, int key, int pid, int* y, 
 // 0x495438
 const char* proto_wall_light_str(int flags)
 {
-    if ((flags & 0x8000000) != 0) {
+    if ((flags & PROTO_EXT_FLAG_HIDDEN) != 0) {
         return wall_light_strs[1];
     }
 
-    if ((flags & 0x10000000) != 0) {
+    if ((flags & PROTO_EXT_FLAG_NORTH_CORNER) != 0) {
         return wall_light_strs[2];
     }
 
-    if ((flags & 0x20000000) != 0) {
+    if ((flags & PROTO_EXT_FLAG_SOUTH_CORNER) != 0) {
         return wall_light_strs[3];
     }
 
-    if ((flags & 0x40000000) != 0) {
+    if ((flags & PROTO_EXT_FLAG_EAST_CORNER) != 0) {
         return wall_light_strs[4];
     }
 
-    if ((flags & 0x80000000) != 0) {
+    if ((flags & PROTO_EXT_FLAG_WEST_CORNER) != 0) {
         return wall_light_strs[5];
     }
 

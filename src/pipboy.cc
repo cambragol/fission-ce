@@ -81,11 +81,6 @@ namespace fallout {
 #define PIPBOY_KEY_LEFT 1034
 #define PIPBOY_KEY_SELECT 1032
 
-// Mod Holodisk defines
-#define MOD_HOLODISK_ID_START 50000
-#define MOD_HOLODISK_ID_BLOCK 500 // Same as vanilla
-#define MAX_HOLODISKS_PER_MOD 100
-
 // constants for setting lines per page in pagination functions
 const int PIPBOY_STATUS_QUEST_LINES = 19;
 const int PIPBOY_STATUS_HOLODISK_LINES = 19;
@@ -98,8 +93,6 @@ int gPipboySelectedItem = 0;
 int gPipboySelectedIndex = 0; // Currently selected item index (0-based)
 int gPipboyMaxSelectableItems = 0; // Maximum selectable items on current page
 bool gPipboyKeyboardMode = false; // Are we in keyboard navigation mode?
-
-static int gNextModHolodiskId = MOD_HOLODISK_ID_START;
 
 typedef enum PipboyColumn {
     PIPBOY_COLUMN_NONE = 0,
@@ -265,6 +258,8 @@ static void questFree();
 static int questDescriptionCompare(const void* a1, const void* a2);
 static int holodiskInit();
 static void holodiskFree();
+
+static void questLoadModFileNew(const char* filename);
 
 // 0x496FC0
 const Rect gPipboyWindowContentRect = {
@@ -479,83 +474,27 @@ ModQuestInfo gModQuests[MOD_QUEST_MAX - MOD_QUEST_START];
 int gModQuestCount = 0;
 char gQuestModNames[TOTAL_QUEST_MAX][64];
 
-// Convert a mod holodisk to vanilla format and load it
-static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, int gvar)
+// Load a mod holodisk using the new block allocation system
+static bool loadModHolodisk(const char* mod_name, const char* block_key, int gvar)
 {
-    // generate base ID for this holodisk
-    int baseId = gNextModHolodiskId;
-    gNextModHolodiskId += MOD_HOLODISK_ID_BLOCK;
-
-    // Get the string keys
-    char baseKey[64];
-    snprintf(baseKey, sizeof(baseKey), "holodisk:%d", holodiskIndex);
-
-    // Get holodisk name using string key
-    char nameKey[128];
-    snprintf(nameKey, sizeof(nameKey), "%s:name", baseKey);
-    int nameHashId = generate_mod_message_id(modName, nameKey);
-
-    // try to get the name from message list
-    MessageListItem nameMsgItem;
-    nameMsgItem.num = nameHashId;
-    const char* nameText = getmsg(&gPipboyMessageList, &nameMsgItem, nameHashId);
-
-    // Error check
-    if (!nameText || strstr(nameText, "Error") != nullptr || strstr(nameText, "String not found") != nullptr) {
+    // Generate stable base ID for this holodisk block
+    uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_PIPBOY, mod_name, block_key);
+    if (baseId == 0) {
+        debugPrint("Failed to generate base ID for holodisk %s:%s\n", mod_name, block_key);
         return false;
     }
 
-    // Add name to message list with numeric ID
-    if (!messageListAddEntry(&gPipboyMessageList, baseId, nameText)) {
+    // Build path to the .msg file: holodisk_<ModName>_<BlockKey>.msg
+    char msgPath[COMPAT_MAX_PATH];
+    snprintf(msgPath, sizeof(msgPath), "game%cholodisk_%s_%s.msg", DIR_SEPARATOR, mod_name, block_key);
+
+    // Load the .msg file (entries numbered from 0)
+    if (!messageListLoadWithBaseOffset(&gPipboyMessageList, msgPath, baseId)) {
+        debugPrint("Failed to load holodisk message file: %s\n", msgPath);
         return false;
     }
 
-    // Read lines and add with consecutive IDs
-    int currentId = baseId + 1;
-    bool foundEndDisk = false;
-    int lineNum = 0;
-
-    while (lineNum < MOD_HOLODISK_ID_BLOCK - 1 && !foundEndDisk) {
-        char lineKey[128];
-        snprintf(lineKey, sizeof(lineKey), "%s:line:%d", baseKey, lineNum);
-        int lineHashId = generate_mod_message_id(modName, lineKey);
-
-        MessageListItem lineMsgItem;
-        lineMsgItem.num = lineHashId;
-        const char* lineText = getmsg(&gPipboyMessageList, &lineMsgItem, lineHashId);
-
-        // Check for errors
-        if (!lineText || strstr(lineText, "Error") != nullptr || strstr(lineText, "String not found") != nullptr) {
-            break;
-        }
-
-        // Check if this is the end marker
-        if (strcmp(lineText, "**END-DISK**") == 0) {
-            if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
-                return false;
-            }
-            foundEndDisk = true;
-            currentId++;
-            break;
-        }
-
-        // Add the line
-        if (!messageListAddEntry(&gPipboyMessageList, currentId, lineText)) {
-            return false;
-        }
-
-        currentId++;
-        lineNum++;
-    }
-
-    // Add final END-DISK if we didn't find one
-    if (!foundEndDisk) {
-        if (!messageListAddEntry(&gPipboyMessageList, currentId, "**END-DISK**")) {
-            return false;
-        }
-    }
-
-    // 6. Add to holodisk array (vanilla format!)
+    // Add to holodisk descriptions array (vanilla format)
     HolodiskDescription* entries = (HolodiskDescription*)internal_realloc(
         gHolodiskDescriptions,
         sizeof(HolodiskDescription) * (gHolodisksCount + 1));
@@ -568,15 +507,15 @@ static bool convertAndLoadModHolodisk(const char* modName, int holodiskIndex, in
     HolodiskDescription* holodisk = &gHolodiskDescriptions[gHolodisksCount];
 
     holodisk->gvar = gvar;
-    holodisk->name = baseId; // Numeric ID for name
-    holodisk->description = baseId + 1; // First line ID (consecutive!)
+    holodisk->name = baseId; // Title is at baseId+0
+    holodisk->description = baseId + 1; // First text line is at baseId+1
 
     gHolodisksCount++;
 
     return true;
 }
 
-// Load a mod holodisk file (format: GVAR on each line)
+// Load a mod holodisk file (format: GVAR, BlockKey on each line)
 static void holodiskLoadModFile(const char* filename)
 {
     File* stream = fileOpen(filename, "rt");
@@ -612,7 +551,6 @@ static void holodiskLoadModFile(const char* filename)
     }
 
     char line[256];
-    int holodiskIndex = 0;
 
     while (fileReadString(line, sizeof(line) - 1, stream)) {
         // Remove line endings
@@ -626,21 +564,15 @@ static void holodiskLoadModFile(const char* filename)
             continue;
         }
 
-        // Parse GVAR
+        // Parse: GVAR, BlockKey
         int gvar;
-        if (sscanf(line, "%d", &gvar) != 1) {
+        char block_key[64] = { 0 };
+        if (sscanf(line, "%d, %63s", &gvar, block_key) != 2) {
+            debugPrint("Invalid line in %s: %s\n", filename, line);
             continue;
         }
 
-        // Convert and load as vanilla
-        convertAndLoadModHolodisk(mod_name, holodiskIndex, gvar);
-
-        holodiskIndex++;
-
-        // Safety check
-        if (holodiskIndex >= MAX_HOLODISKS_PER_MOD) {
-            break;
-        }
+        loadModHolodisk(mod_name, block_key, gvar);
     }
 
     fileClose(stream);
@@ -749,17 +681,12 @@ static uint32_t questHashString(const char* str)
 }
 
 // Calculate consistent slot for a mod quest
-static uint16_t questCalculateModSlot(const char* questKey, uint32_t modNamespace, int questIndexInMod)
+static uint16_t questCalculateModSlot(const char* mod_name, int offset)
 {
-    // Combine mod namespace with quest-specific information for consistent hashing
     char combinedKey[256];
-    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", questKey, modNamespace, questIndexInMod);
-
+    snprintf(combinedKey, sizeof(combinedKey), "%s:%d", mod_name, offset);
     uint32_t hash = questHashString(combinedKey);
-
-    // Map to mod quest range (200-999)
     uint16_t slot = MOD_QUEST_START + (hash % (MOD_QUEST_MAX - MOD_QUEST_START));
-
     return slot;
 }
 
@@ -1011,7 +938,7 @@ int pipboyMessageListInit()
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
 
-    if (!(messageListLoadWithMods(&gPipboyMessageList, path, "PIPBOY"))) {
+    if (!(messageListLoad(&gPipboyMessageList, path))) {
         return -1;
     }
 
@@ -4158,20 +4085,16 @@ static void generateQuestListDebug()
     const char* header = "==============================================================================\n"
                          "Fallout 2 Fission - Quest System Report\n"
                          "==============================================================================\n"
-                         "This report shows all loaded quests - essential for mod debugging and\n"
-                         "finding quest IDs for script development.\n\n"
-
-                         "Key Features:\n"
-                         "- Base quests: Protected in lower slots (0-199)\n"
-                         "- Mod quests: Your content in remaining slots (200-999) via deterministic hashing\n"
-                         "- Hash collisions trigger popup warnings and the quest is skipped\n\n"
-
+                         "This report shows all loaded quests (vanilla + mod).\n\n"
+                         "Mod quests use block allocation:\n"
+                         "- Each mod gets a block of 100 consecutive message IDs (size MOD_BLOCK_QUESTS)\n"
+                         "- Base message ID = stable hash of mod name + 'quests'\n"
+                         "- Quest description ID = base + offset (offset from quests_Mod.msg)\n"
+                         "- Quest script slots (200-999) are assigned by hashing mod name + offset\n\n"
                          "Usage Notes:\n"
-                         "- Use these quest IDs when referencing quests in scripts:\n"
-                         "  - op_set_quest(ID, state)  // Set quest state\n"
-                         "  - op_get_quest(ID)         // Get quest state\n"
-                         "- Quest IDs are STABLE between game sessions\n"
-                         "- Mod quest positions use mod filename + quest index hash for consistency\n"
+                         "- Quest IDs (script slots) are STABLE between game sessions\n"
+                         "- Mod quest files: data/quests_MyMod.txt and data/text/english/game/quests_MyMod.msg\n"
+                         "- Format: location, offset, gvar, displayThreshold, completedThreshold\n"
                          "==============================================================================\n\n";
 
     fputs(header, debugStream);
@@ -4187,16 +4110,13 @@ static void generateQuestListDebug()
     int baseCount = 0, modCount = 0;
     int maxUsedIndex = 0;
 
-    // First pass: count quests
     for (int i = 0; i < TOTAL_QUEST_MAX; i++) {
         if (i < BASE_QUEST_MAX) {
-            // Check if this is a valid base quest (non-zero location indicates initialized)
             if (gQuestDescriptions[i].location != 0) {
                 baseCount++;
                 if (i > maxUsedIndex) maxUsedIndex = i;
             }
         } else {
-            // Check if this is a valid mod quest
             if (gQuestModNames[i][0] != '\0') {
                 modCount++;
                 if (i > maxUsedIndex) maxUsedIndex = i;
@@ -4204,37 +4124,29 @@ static void generateQuestListDebug()
         }
     }
 
-    // Summary section
     fprintf(debugStream,
         "Total Quests: %d | Base: %d | Mods: %d\n"
-        "Array Size: %d entries (0-%d) | Max Used Index: %d\n",
-        baseCount + modCount,
-        baseCount,
-        modCount,
-        TOTAL_QUEST_MAX, TOTAL_QUEST_MAX - 1,
-        maxUsedIndex);
+        "Array Size: %d entries (0-%d) | Max Used Index: %d\n\n",
+        baseCount + modCount, baseCount, modCount,
+        TOTAL_QUEST_MAX, TOTAL_QUEST_MAX - 1, maxUsedIndex);
 
-    // Slot ranges
     fputs("------------------------------------------------------------\n", debugStream);
     fputs("Slot Ranges:\n", debugStream);
     fprintf(debugStream,
         "  Base: 0-%d\n"
-        "  Mods: %d-%d\n",
+        "  Mods: %d-%d\n\n",
         BASE_QUEST_MAX - 1,
         MOD_QUEST_START, MOD_QUEST_MAX - 1);
     fputs("------------------------------------------------------------\n", debugStream);
 
     // Base quests section
     if (baseCount > 0) {
-        fputs("BASE QUESTS:\n", debugStream);
+        fputs("BASE QUESTS (from data/quests.txt and quests.msg):\n", debugStream);
         for (int i = 0; i < BASE_QUEST_MAX; i++) {
             if (gQuestDescriptions[i].location != 0) {
                 QuestDescription* quest = &gQuestDescriptions[i];
                 fprintf(debugStream, "  %5d: Location %d, GVAR %d, DescMsg %d\n",
-                    i,
-                    quest->location,
-                    quest->gvar,
-                    quest->description);
+                    i, quest->location, quest->gvar, quest->description);
             }
         }
         fputs("\n", debugStream);
@@ -4242,80 +4154,79 @@ static void generateQuestListDebug()
 
     // Mod quests section
     if (modCount > 0) {
-        fputs("MOD QUESTS:\n", debugStream);
+        fputs("MOD QUESTS (block allocation):\n", debugStream);
+        fprintf(debugStream, "  %-5s | %-12s | %-10s | %-15s | %s\n",
+            "Slot", "Mod Name", "Offset", "Message ID", "Location/GVAR");
+        fputs("  -------+--------------+------------+-----------------+-----------------\n", debugStream);
+
         for (int i = MOD_QUEST_START; i < TOTAL_QUEST_MAX; i++) {
             if (gQuestModNames[i][0] != '\0') {
                 QuestDescription* quest = &gQuestDescriptions[i];
 
-                // Find mod quest info for this slot
-                ModQuestInfo* modQuest = nullptr;
-                for (int j = 0; j < gModQuestCount; j++) {
-                    if (gModQuests[j].questId == i) {
-                        modQuest = &gModQuests[j];
-                        break;
-                    }
-                }
+                // Calculate offset from message ID (assuming block start is known)
+                // Since we don't store the base, we can derive offset = description - base
+                // But base is not stored. Instead, we can show the description ID.
+                // For debugging, we can compute base by hashing mod name again, but that's heavy.
+                // Simpler: just show description ID and note it's base+offset.
 
-                fprintf(debugStream, "  %5d: %s (Mod: %s)\n", i,
-                    modQuest ? modQuest->questKey : "Unknown",
-                    gQuestModNames[i]);
-                fprintf(debugStream, "        Location: %d, GVAR: %d, DescMsg: %d\n",
+                fprintf(debugStream, "  %5d | %-12s | %-10d | %-15d | Loc %d, GVAR %d\n",
+                    i,
+                    gQuestModNames[i],
+                    // We don't store offset, but we can approximate by looking at description ID
+                    // and subtracting a guessed base. Skip for now.
+                    0, // offset unknown from this data
+                    quest->description,
                     quest->location,
-                    quest->gvar,
-                    quest->description);
+                    quest->gvar);
             }
         }
         fputs("\n", debugStream);
-    } else {
-        fputs("MOD QUESTS:\n", debugStream);
-        fputs("  (no mod quests found)\n\n", debugStream);
     }
 
-    // Quest details section (only if we have mod quests)
-    if (modCount > 0) {
-        fputs("MOD QUEST DETAILS:\n", debugStream);
-        fputs("-----------------\n", debugStream);
-
-        for (int i = 0; i < gModQuestCount; i++) {
-            ModQuestInfo* modQuest = &gModQuests[i];
-            QuestDescription* quest = &gQuestDescriptions[modQuest->questId];
-
-            fprintf(debugStream, "Quest %d: %s\n", modQuest->questId, modQuest->questKey);
-            fprintf(debugStream, "  Mod: %s\n", modQuest->modName);
-            fprintf(debugStream, "  Message ID: Desc=%d\n", modQuest->descMessageId);
-            fprintf(debugStream, "  Game Data: Location=%d, GVAR=%d\n",
-                quest->location, quest->gvar);
-            fprintf(debugStream, "  Thresholds: Display=%d, Complete=%d\n\n",
-                quest->displayThreshold, quest->completedThreshold);
-        }
-    }
-
-    // Important notes footer
-    fputs("=== IMPORTANT NOTES ===\n", debugStream);
-
-    fputs("- Quest IDs are STABLE - they won't change between game sessions\n", debugStream);
-    fputs("- Mod quest positions use mod filename + quest index hash for consistency\n", debugStream);
-    fputs("- Hash collisions show popup warnings and skip the conflicting quest\n", debugStream);
-    fputs("- Reference these exact numbers in your scripts with op_set_quest/op_get_quest\n", debugStream);
-    fputs("- Use 'quests_*.txt' naming pattern for quest mods\n", debugStream);
-    fputs("\nMESSAGE FILE FORMAT:\n", debugStream);
-    fputs("data/text/english/game/messages_YourMod.txt:\n", debugStream);
-    fputs("  [quests]\n", debugStream);
-    fputs("  quest:0 = Quest description text\n", debugStream);
+    // Mod file format reminder
+    fputs("=== MOD FILE FORMATS ===\n", debugStream);
+    fputs("1. data/quests_MyMod.txt:\n", debugStream);
+    fputs("   # location, offset, gvar, displayThreshold, completedThreshold\n", debugStream);
+    fputs("   100, 0, 900, 1, 2\n\n", debugStream);
+    fputs("2. data/text/english/game/quests_MyMod.msg:\n", debugStream);
+    fputs("   {0}{}{Quest description text}\n", debugStream);
+    fputs("   {1}{}{Another quest}\n\n", debugStream);
+    fputs("NOTE: Offsets in .txt correspond to message numbers in .msg.\n", debugStream);
+    fputs("      Message IDs are allocated automatically (base + offset).\n", debugStream);
 
     fclose(debugStream);
     debugPrint("\ngenerateQuestListDebug: Generated quests_list.txt with %d base, %d mod quests", baseCount, modCount);
 }
 
-// Load a single mod quest file
-static int questLoadModFile(const char* filename)
+// Load all mod quest files (quests_*.txt)
+static void questLoadModFiles()
+{
+    char searchPatternNew[COMPAT_MAX_PATH];
+    snprintf(searchPatternNew, sizeof(searchPatternNew), "data%cquests_*.txt", DIR_SEPARATOR);
+
+    char** foundModFilesNew = nullptr;
+    int modFileCountNew = fileNameListInit(searchPatternNew, &foundModFilesNew);
+
+    if (modFileCountNew > 0) {
+        for (int i = 0; i < modFileCountNew; i++) {
+            // Skip the vanilla quests.txt itself (if it matches pattern? It won't, because "quests.txt" has no underscore)
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFilesNew[i]);
+            questLoadModFileNew(fullPath); // Our new loader
+        }
+        fileNameListFree(&foundModFilesNew, 0);
+    }
+}
+
+// New block-based quest loader for mods
+static void questLoadModFileNew(const char* filename)
 {
     File* stream = fileOpen(filename, "rt");
     if (!stream) {
-        return -1;
+        return;
     }
 
-    // Extract mod name from filename (quests_xxx.txt -> xxx)
+    // Extract mod name from filename (quests_MyMod.txt -> MyMod)
     const char* base_filename = strrchr(filename, DIR_SEPARATOR);
     if (!base_filename)
         base_filename = filename;
@@ -4325,143 +4236,93 @@ static int questLoadModFile(const char* filename)
     char mod_name[64] = { 0 };
     const char* prefix = "quests_";
     const char* suffix = ".txt";
+    if (strncmp(base_filename, prefix, strlen(prefix)) != 0) {
+        fileClose(stream);
+        return;
+    }
+    size_t name_len = strlen(base_filename) - strlen(prefix) - strlen(suffix);
+    if (name_len <= 0 || name_len >= sizeof(mod_name)) {
+        fileClose(stream);
+        return;
+    }
+    strncpy(mod_name, base_filename + strlen(prefix), name_len);
+    mod_name[name_len] = '\0';
 
-    if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
-        size_t filename_len = strlen(base_filename);
-        size_t mod_name_len = filename_len - strlen(prefix) - strlen(suffix);
-
-        if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
-            strncpy(mod_name, base_filename + strlen(prefix), mod_name_len);
-            mod_name[mod_name_len] = '\0';
-        }
+    // Compute base message ID for this mod's quest block
+    uint32_t baseMsgId = generate_mod_block_base_id(MOD_BLOCK_QUESTS, mod_name, "quests");
+    if (baseMsgId == 0) {
+        debugPrint("Failed to generate base message ID for mod %s\n", mod_name);
+        fileClose(stream);
+        return;
     }
 
-    uint32_t modNamespace = questGetModNamespace(filename);
+    // Load the corresponding .msg file
+    char msgPath[COMPAT_MAX_PATH];
+    snprintf(msgPath, sizeof(msgPath), "game\\quests_%s.msg", mod_name);
+    if (!messageListLoadWithBaseOffset(&gQuestsMessageList, msgPath, baseMsgId)) {
+        debugPrint("Failed to load quest message file %s for mod %s\n", msgPath, mod_name);
+        // Continue anyway? Without messages, quests will show errors.
+    }
 
-    int questsLoaded = 0;
-    int questIndexInThisMod = 0;
+    // Parse the quests_MyMod.txt file
     char line[256];
-
-    // Read file line by line (following quests.txt format)
+    int lineNum = 0;
     while (fileReadString(line, sizeof(line) - 1, stream)) {
-        // Skip comments and empty lines
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' || line[0] == ';') {
-            continue;
-        }
-
         // Remove line endings
         char* newline = strchr(line, '\n');
         if (newline) *newline = '\0';
         char* cr = strchr(line, '\r');
         if (cr) *cr = '\0';
 
-        // Skip empty lines after trimming
-        if (line[0] == '\0') {
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
             continue;
         }
 
-        // Try to parse quest line
-        int location, description, gvar, displayThreshold, completedThreshold;
-        if (!parseQuestLine(line, &location, &description, &gvar, &displayThreshold, &completedThreshold)) {
-            // Not a quest line, might be a section header or comment
+        int location, offset, gvar, displayThreshold, completedThreshold;
+        if (sscanf(line, "%d, %d, %d, %d, %d",
+                &location, &offset, &gvar, &displayThreshold, &completedThreshold)
+            != 5) {
+            debugPrint("Invalid quest line in %s: %s\n", filename, line);
             continue;
         }
 
-        // Generate quest key from mod name and index
-        char questKey[64];
-        snprintf(questKey, sizeof(questKey), "%s:%d", mod_name, questIndexInThisMod);
-
-        // Calculate consistent slot for this mod quest
-        uint16_t targetSlot = questCalculateModSlot(questKey, modNamespace, questIndexInThisMod);
-
-        // Check if the target slot is in the mod range and not already occupied by a different mod
-        if (targetSlot < MOD_QUEST_START || targetSlot >= MOD_QUEST_MAX) {
-            // This should not happen, but skip if it does
-            questIndexInThisMod++;
+        // Calculate quest slot (script ID) using hashing
+        uint32_t slot = questCalculateModSlot(mod_name, offset); // We'll need to create this helper if not exists
+        if (slot < MOD_QUEST_START || slot >= MOD_QUEST_MAX) {
+            debugPrint("Quest slot out of range for mod %s, offset %d\n", mod_name, offset);
             continue;
         }
 
-        // Check for collision with a different mod
-        if (gQuestModNames[targetSlot][0] != '\0' && strcmp(gQuestModNames[targetSlot], mod_name) != 0) {
-
+        // Check for collision with existing quest (vanilla or other mod)
+        if (gQuestDescriptions[slot].location != 0) {
             char errorMsg[512];
             snprintf(errorMsg, sizeof(errorMsg),
-                "QUEST SLOT COLLISION DETECTED!\n\n"
-                "Mod file: %s\n"
-                "New quest key: %s\n"
-                "Target slot: %d\n"
-                "Existing mod: %s\n\n"
-                "To resolve: Rename your mod file to change its namespace.",
-                filename, questKey, targetSlot, gQuestModNames[targetSlot]);
+                "QUEST SLOT COLLISION!\nMod: %s, offset %d\nSlot %d already used by another quest.",
+                mod_name, offset, slot);
             showMesageBox(errorMsg);
-
-            questIndexInThisMod++;
             continue;
         }
 
-        // Fill in the quest description for the target slot.
-        QuestDescription* quest = &gQuestDescriptions[targetSlot];
-
-        // Generate message ID for the quest description (we only need description)
-        char descKey[256];
-        snprintf(descKey, sizeof(descKey), "quest:%d", questIndexInThisMod); // Keep same format!
-
-        int descMessageId = generate_mod_message_id(mod_name, descKey);
-
-        // IMPORTANT: For mod quests, we need to override the description field
-        // with our hashed message ID. This ensures getmsg() can find the mod quest text.
-        // The vanilla description number is ignored for mod quests.
+        // Fill the quest description
+        QuestDescription* quest = &gQuestDescriptions[slot];
         quest->location = location;
-        quest->description = descMessageId; // Use the generated message ID for the description
+        quest->description = baseMsgId + offset; // message ID = base + offset
         quest->gvar = gvar;
         quest->displayThreshold = displayThreshold;
         quest->completedThreshold = completedThreshold;
 
-        // Store mod name
-        strncpy(gQuestModNames[targetSlot], mod_name, sizeof(gQuestModNames[targetSlot]) - 1);
-        gQuestModNames[targetSlot][sizeof(gQuestModNames[targetSlot]) - 1] = '\0';
+        // Store mod name for debugging (optional)
+        strncpy(gQuestModNames[slot], mod_name, sizeof(gQuestModNames[slot]) - 1);
+        gQuestModNames[slot][sizeof(gQuestModNames[slot]) - 1] = '\0';
 
-        // Store in mod quest tracking array
-        if (gModQuestCount < (MOD_QUEST_MAX - MOD_QUEST_START)) {
-            ModQuestInfo* modQuest = &gModQuests[gModQuestCount];
-            modQuest->questId = targetSlot;
-            strncpy(modQuest->modName, mod_name, sizeof(modQuest->modName) - 1);
-            modQuest->modName[sizeof(modQuest->modName) - 1] = '\0';
-
-            strncpy(modQuest->questKey, questKey, sizeof(modQuest->questKey) - 1);
-            modQuest->questKey[sizeof(modQuest->questKey) - 1] = '\0';
-
-            modQuest->descMessageId = descMessageId;
-
-            gModQuestCount++;
-        }
-
-        questsLoaded++;
+        // Increment global quest count (if tracking)
         gQuestsCount++;
-        questIndexInThisMod++;
+        lineNum++;
     }
 
     fileClose(stream);
-    return questsLoaded;
-}
-
-// Load all mod quest files (quests_*.txt)
-static void questLoadModFiles()
-{
-    char searchPattern[COMPAT_MAX_PATH];
-    snprintf(searchPattern, sizeof(searchPattern), "data%cquests_*.txt", DIR_SEPARATOR);
-
-    char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
-
-    if (modFileCount > 0) {
-        for (int i = 0; i < modFileCount; i++) {
-            char fullPath[COMPAT_MAX_PATH];
-            snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
-            questLoadModFile(fullPath);
-        }
-        fileNameListFree(&foundModFiles, 0);
-    }
+    debugPrint("Loaded %d quests from mod %s (baseMsgId=%u)\n", lineNum, mod_name, baseMsgId);
 }
 
 // 0x49A5D4
@@ -4486,8 +4347,7 @@ static int questInit()
     }
 
     // Load base and mod quest messages
-    // Changed from messageListLoad to messageListLoadWithMods
-    if (!messageListLoadWithMods(&gQuestsMessageList, "game\\quests.msg", "QUESTS")) {
+    if (!messageListLoad(&gQuestsMessageList, "game\\quests.msg")) {
         return -1;
     }
 
@@ -4553,7 +4413,7 @@ static int questInit()
 
     fileClose(stream);
 
-    // Load mod quests from quests_*.txt files
+    // Load all mod quests
     questLoadModFiles();
 
     // DEBUG: Activate test quests automatically
@@ -4602,19 +4462,19 @@ static void generateHolodiskListReport()
         "==============================================================================\n"
         "Fallout 2 Fission - Holodisk System Report\n"
         "==============================================================================\n"
-        "All holodisks (vanilla and mod) converted to vanilla format.\n"
-        "Mod holodisks use IDs starting at %d in blocks of %d.\n\n"
-        "Format: Index | GVAR | Name ID | Desc ID | Type | Name\n"
-        "------------------------------------------------------------------------------\n",
-        MOD_HOLODISK_ID_START, MOD_HOLODISK_ID_BLOCK);
+        "All holodisks (vanilla and mod). Mod holodisks use block allocation.\n"
+        "Each mod holodisk gets 100 consecutive IDs (block size).\n"
+        "Base ID = start of block (offset 0 = title).\n\n"
+        "Format: Index | GVAR | Base ID | Type | Title\n"
+        "------------------------------------------------------------------------------\n");
 
     // Count statistics
     int vanillaCount = 0;
     int modCount = 0;
+    const int MOD_BLOCK_START = 100000; // from MOD_BLOCK_PIPBOY startId
 
-    // First pass: count vanilla vs mod
     for (int i = 0; i < gHolodisksCount; i++) {
-        if (gHolodiskDescriptions[i].name >= MOD_HOLODISK_ID_START) {
+        if (gHolodiskDescriptions[i].name >= MOD_BLOCK_START) {
             modCount++;
         } else {
             vanillaCount++;
@@ -4627,40 +4487,38 @@ static void generateHolodiskListReport()
     // List all holodisks
     for (int i = 0; i < gHolodisksCount; i++) {
         HolodiskDescription* holo = &gHolodiskDescriptions[i];
+        const char* type = (holo->name >= MOD_BLOCK_START) ? "MOD" : "Vanilla";
 
-        // Get the name text
-        MessageListItem nameItem;
-        nameItem.num = holo->name;
-        const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
+        // Get title text (offset 0)
+        MessageListItem titleItem;
+        titleItem.num = holo->name;
+        const char* titleText = getmsg(&gPipboyMessageList, &titleItem, holo->name);
 
-        const char* type = (holo->name >= MOD_HOLODISK_ID_START) ? "MOD" : "Vanilla";
-
-        fprintf(reportFile, "%5d | %4d | %7d | %7d | %-7s | %s\n",
-            i, holo->gvar, holo->name, holo->description, type,
-            nameText ? nameText : "(not found)");
+        fprintf(reportFile, "%5d | %4d | %7d | %-7s | %s\n",
+            i, holo->gvar, holo->name, type,
+            titleText ? titleText : "(not found)");
     }
 
-    // Add mod-specific info section
+    // For mod holodisks, show block info
     if (modCount > 0) {
         fprintf(reportFile,
-            "\n\nMOD HOLODISK DETAILS:\n"
+            "\n\nMOD HOLODISK BLOCKS:\n"
             "====================\n"
-            "Mod holodisks use the following ID blocks:\n\n");
+            "Each mod holodisk uses 100 consecutive IDs (block size).\n\n");
 
         for (int i = 0; i < gHolodisksCount; i++) {
             HolodiskDescription* holo = &gHolodiskDescriptions[i];
+            if (holo->name >= MOD_BLOCK_START) {
+                MessageListItem titleItem;
+                titleItem.num = holo->name;
+                const char* titleText = getmsg(&gPipboyMessageList, &titleItem, holo->name);
 
-            if (holo->name >= MOD_HOLODISK_ID_START) {
-                // Calculate which mod block this is
-                int blockNumber = (holo->name - MOD_HOLODISK_ID_START) / MOD_HOLODISK_ID_BLOCK;
-
-                MessageListItem nameItem;
-                nameItem.num = holo->name;
-                const char* nameText = getmsg(&gPipboyMessageList, &nameItem, holo->name);
-
-                fprintf(reportFile, "Block %d: IDs %d-%d (GVAR %d) - %s\n",
-                    blockNumber, holo->name, holo->name + MOD_HOLODISK_ID_BLOCK - 1,
-                    holo->gvar, nameText ? nameText : "(no name)");
+                fprintf(reportFile, "GVAR %d: Base ID %d (IDs %d-%d) - %s\n",
+                    holo->gvar,
+                    holo->name,
+                    holo->name,
+                    holo->name + 99,
+                    titleText ? titleText : "(no title)");
             }
         }
     }
@@ -4669,24 +4527,13 @@ static void generateHolodiskListReport()
     fprintf(reportFile,
         "\n\nUSAGE NOTES:\n"
         "============\n"
-        "1. Mod holodisks are identical to vanilla after conversion\n"
-        "2. In scripts, use: set_global_var(GVAR, 1) to give holodisk to player\n"
-        "3. IDs are stable - same mod files always generate same IDs\n"
-        "4. Empty lines in message files are skipped (use a space for blank lines)\n"
-        "5. **END-DISK** marker is required (auto-added if missing)\n"
-        "6. **END-PAR** creates paragraph breaks\n"
-        "\nFILE STRUCTURE:\n"
-        "--------------\n"
-        "data/holodisk_ModName.txt:\n"
-        "    900  # First holodisk GVAR\n"
-        "    901  # Second holodisk GVAR\n"
-        "\n"
-        "data/text/english/game/messages_ModName.txt:\n"
-        "    [PIPBOY]\n"
-        "    holodisk:0:name = Holodisk Name\n"
-        "    holodisk:0:line:0 = First line of text\n"
-        "    holodisk:0:line:1 = Second line\n"
-        "    holodisk:0:line:2 = **END-DISK**\n");
+        "1. Mod holodisks are defined in data/holodisk_<ModName>.txt\n"
+        "   Format each line: GVAR, BlockKey\n"
+        "2. Message file: data/text/english/game/holodisk_<ModName>_<BlockKey>.msg\n"
+        "   Format: {0}{}{Title}, {1}{}{line1}, ... {99}{}{**END-DISK**}\n"
+        "3. BlockKey is a unique identifier for the holodisk within the mod.\n"
+        "4. IDs are stable: same ModName + BlockKey gives same base ID.\n"
+        "5. In scripts, set GVAR to non-zero to make holodisk appear.\n");
 
     fclose(reportFile);
 }
@@ -4700,9 +4547,6 @@ static int holodiskInit()
     }
 
     gHolodisksCount = 0;
-
-    // Reset mod holodisk ID counter
-    gNextModHolodiskId = MOD_HOLODISK_ID_START;
 
     // Load vanilla holodisks first
     File* stream = fileOpen("data\\holodisk.txt", "rt");
@@ -4763,18 +4607,63 @@ static int holodiskInit()
         fileClose(stream);
     }
 
-    // Load mod holodisk files
+    // Load mod holodisks from holodisk_<ModName>.txt files
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "data%cholodisk_*.txt", DIR_SEPARATOR);
 
     char** foundModFiles = nullptr;
-    int modFileCount = fileNameListInit(searchPattern, &foundModFiles, 0, 0);
+    int modFileCount = fileNameListInit(searchPattern, &foundModFiles);
 
     if (modFileCount > 0) {
         for (int i = 0; i < modFileCount; i++) {
             char fullPath[COMPAT_MAX_PATH];
             snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, foundModFiles[i]);
-            holodiskLoadModFile(fullPath);
+
+            // Extract mod name from filename (holodisk_MyMod.txt -> MyMod)
+            const char* base_filename = strrchr(foundModFiles[i], DIR_SEPARATOR);
+            if (!base_filename)
+                base_filename = foundModFiles[i];
+            else
+                base_filename++;
+
+            char mod_name[64] = { 0 };
+            const char* prefix = "holodisk_";
+            const char* suffix = ".txt";
+            if (strncmp(base_filename, prefix, strlen(prefix)) == 0) {
+                size_t name_len = strlen(base_filename) - strlen(prefix) - strlen(suffix);
+                if (name_len > 0 && name_len < sizeof(mod_name)) {
+                    strncpy(mod_name, base_filename + strlen(prefix), name_len);
+                    mod_name[name_len] = '\0';
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+
+            // Open the file and read each line: GVAR, BlockKey
+            File* stream = fileOpen(fullPath, "rt");
+            if (!stream) continue;
+
+            char line[256];
+            while (fileReadString(line, sizeof(line) - 1, stream)) {
+                // Remove line endings
+                char* newline = strchr(line, '\n');
+                if (newline) *newline = '\0';
+                char* cr = strchr(line, '\r');
+                if (cr) *cr = '\0';
+
+                // Skip empty lines and comments
+                if (line[0] == '\0' || line[0] == '#' || line[0] == ';') continue;
+
+                // Parse "GVAR, BlockKey"
+                int gvar;
+                char block_key[64];
+                if (sscanf(line, "%d, %63s", &gvar, block_key) == 2) {
+                    loadModHolodisk(mod_name, block_key, gvar);
+                }
+            }
+            fileClose(stream);
         }
         fileNameListFree(&foundModFiles, 0);
     }

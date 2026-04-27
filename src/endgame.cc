@@ -262,7 +262,7 @@ void endgamePlayMovie()
     _endgame_maybe_done = 0;
     tickersAdd(_endgame_movie_bk_process);
     backgroundSoundSetEndCallback(_endgame_movie_callback);
-    backgroundSoundLoad("akiss", 12, 14, 15);
+    backgroundSoundLoad("akiss", GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
     inputPauseForTocks(3000);
 
     // NOTE: Result is ignored. I guess there was some kind of switch for male
@@ -733,7 +733,7 @@ static void endgameEndingVoiceOverInit(const char* fileBaseName)
         snprintf(path, sizeof(path), "narrator\\%s", fileBaseName);
     }
 
-    if (speechLoad(path, 10, 14, 15) != -1) {
+    if (speechLoad(path, GSOUND_LOAD_NO_PLAY, GSOUND_STREAM, GSOUND_NO_LOOP) != -1) {
         gEndgameEndingVoiceOverSpeechLoaded = true;
     }
 
@@ -942,7 +942,7 @@ static void _endgame_movie_callback()
 static void _endgame_movie_bk_process()
 {
     if (_endgame_maybe_done) {
-        backgroundSoundLoad("10labone", 11, 14, 16);
+        backgroundSoundLoad("10labone", GSOUND_LIMIT_BEFORE, GSOUND_STREAM, GSOUND_LOOP);
         backgroundSoundSetEndCallback(nullptr);
         tickersRemove(_endgame_movie_bk_process);
     }
@@ -1035,7 +1035,7 @@ static int endgameEndingInit()
         _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount > 0) {
         // Sort alphabetically for consistent load order
         for (int i = 0; i < fileCount - 1; i++) {
@@ -1182,7 +1182,7 @@ int endgameDeathEndingInit()
         _cd_path_base, DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles, 0, 0);
+    int fileCount = fileNameListInit(searchPattern, &foundFiles);
     if (fileCount > 0) {
         // Sort alphabetically for consistent load order
         for (int i = 0; i < fileCount - 1; i++) {

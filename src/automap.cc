@@ -811,7 +811,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
         -1, -1, switch1KeyUp, switch1KeyDown,
         gAutomapFrmImages[switchFrmUp].getData(),
         gAutomapFrmImages[switchFrmDown].getData(),
-        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (switchBtn1 != -1) {
         buttonSetCallbacks(switchBtn1, 0, 0);
         gDetailsButton = switchBtn1;
@@ -822,7 +822,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             -1, -1, switch2KeyUp, switch2KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
-            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
         if (switchBtn2 != -1) {
             buttonSetCallbacks(switchBtn2, 0, 0);
             gZoomButton = switchBtn2;
@@ -832,7 +832,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             -1, -1, switch3KeyUp, switch3KeyDown,
             gAutomapFrmImages[switchFrmUp].getData(),
             gAutomapFrmImages[switchFrmDown].getData(),
-            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_0x01);
+            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
         if (switchBtn3 != -1) {
             buttonSetCallbacks(switchBtn3, 0, 0);
             gProjectionButton = switchBtn3;
@@ -1267,8 +1267,8 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
         return -1;
     }
 
-    int v1 = 0;
-    unsigned char v2 = 0;
+    int bitsRemaining = 0; // Number of 2-bit tile entries left in `byte`.
+    unsigned char byte = 0;
     unsigned char* ptr = gAutomapEntry.data;
 
     // FIXME: This loop is implemented incorrectly. Automap requires 400x400 px,
@@ -1278,13 +1278,13 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
     // crash.
     for (int y = 0; y < HEX_GRID_HEIGHT; y++) {
         for (int x = 0; x < HEX_GRID_WIDTH; x++) {
-            v1 -= 1;
-            if (v1 <= 0) {
-                v1 = 4;
-                v2 = *ptr++;
+            bitsRemaining -= 1;
+            if (bitsRemaining <= 0) {
+                bitsRemaining = 4;
+                byte = *ptr++;
             }
 
-            switch ((v2 & 0xC0) >> 6) {
+            switch ((byte & 0xC0) >> 6) {
             case 1:
                 *windowBuffer++ = wallColor;
                 *windowBuffer++ = wallColor;
@@ -1298,7 +1298,7 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
                 break;
             }
 
-            v2 <<= 2;
+            byte <<= 2;
         }
 
         windowBuffer += 640 + 240;

@@ -124,6 +124,7 @@ struct EnhancementSettings {
     bool game_speed = true;
     bool auto_push = true;
     bool minimap = false;
+    int multi_column_inventory = 1;
 };
 
 struct ModSettings {

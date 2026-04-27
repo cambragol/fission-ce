@@ -38,6 +38,7 @@
 #include "settings.h"
 #include "sfall_config.h"
 #include "sfall_global_scripts.h"
+#include "sfall_script_hooks.h"
 #include "skill.h"
 #include "stat.h"
 #include "svga.h"
@@ -86,8 +87,8 @@ typedef struct DamageCalculationContext {
     int damageResistance;
     int damageThreshold;
     int damageBonus;
-    int bonusDamageMultiplier;
-    int combatDifficultyDamageModifier;
+    int baseDamageMult;
+    int difficultyDamagePercent;
 } DamageCalculationContext;
 
 static bool _combat_safety_invalidate_weapon_func(Object* attacker, Object* weapon, int hitMode, Object* defender, int* safeDistancePtr, Object* attackerFriend);
@@ -117,7 +118,7 @@ static int _attackFindInvalidFlags(Object* a1, Object* a2);
 static int attackComputeCriticalFailure(Attack* attack);
 static void _do_random_cripple(int* flagsPtr);
 static int attackDetermineToHit(Object* attacker, int tile, Object* defender, int hitLocation, int hitMode, bool useDistance);
-static void attackComputeDamage(Attack* attack, int ammoQuantity, int a3);
+static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMult);
 static void _check_for_death(Object* a1, int a2, int* a3);
 static void _set_new_results(Object* a1, int a2);
 static void _damage_object(Object* a1, int damage, bool animated, int a4, Object* a5);
@@ -2019,7 +2020,7 @@ int combatInit()
 
     snprintf(path, sizeof(path), "%s%s", asc_5186C8, "combat.msg");
 
-    if (!messageListLoad(&gCombatMessageList, path)) {
+    if (!(messageListLoad(&gCombatMessageList, path))) {
         return -1;
     }
 
@@ -3520,7 +3521,7 @@ void attackInit(Attack* attack, Object* attacker, Object* defender, int hitMode,
 int _combat_attack(Object* attacker, Object* defender, int hitMode, int hitLocation)
 {
     if (attacker != gDude && hitMode == HIT_MODE_PUNCH && randomBetween(1, 4) == 1) {
-        int fid = buildFid(OBJ_TYPE_CRITTER, attacker->fid & 0xFFF, ANIM_KICK_LEG, (attacker->fid & 0xF000) >> 12, FID_ROTATION(attacker->fid));
+        int fid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(attacker->fid), ANIM_KICK_LEG, (attacker->fid & 0xF000) >> 12, FID_ROTATION(attacker->fid));
         if (artExists(fid)) {
             hitMode = HIT_MODE_KICK;
         }
@@ -4256,8 +4257,8 @@ static int attackComputeCriticalFailure(Attack* attack)
     attack->attackerFlags &= ~v17;
 
     if ((attack->attackerFlags & DAM_HIT_SELF) != 0) {
-        int ammoQuantity = attackType == ATTACK_TYPE_RANGED ? attack->ammoQuantity : 1;
-        attackComputeDamage(attack, ammoQuantity, 2);
+        int rounds = attackType == ATTACK_TYPE_RANGED ? attack->ammoQuantity : 1;
+        attackComputeDamage(attack, rounds, 2);
     } else if ((attack->attackerFlags & DAM_EXPLODE) != 0) {
         attackComputeDamage(attack, 1, 2);
     }
@@ -4286,8 +4287,8 @@ static int attackComputeCriticalFailure(Attack* attack)
             attack->defenderHitLocation = HIT_LOCATION_TORSO;
             attack->attackerFlags &= ~DAM_CRITICAL;
 
-            int ammoQuantity = attackType == ATTACK_TYPE_RANGED ? attack->ammoQuantity : 1;
-            attackComputeDamage(attack, ammoQuantity, 2);
+            int rounds = attackType == ATTACK_TYPE_RANGED ? attack->ammoQuantity : 1;
+            attackComputeDamage(attack, rounds, 2);
         } else {
             attack->defender = attack->oops;
         }
@@ -4516,6 +4517,7 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
         }
     }
 
+    int toHitUncapped = toHit;
     if (toHit > 95) {
         toHit = 95;
     }
@@ -4524,11 +4526,12 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
         debugPrint("Whoa! Bad skill value in determine_to_hit!\n");
     }
 
+    toHit = scriptHooks_ToHit(attacker, defender, tile, hitMode, hitLocation, toHit, toHitUncapped, useDistance);
     return toHit;
 }
 
 // 0x4247B8
-static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamageMultiplier)
+static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMult)
 {
     int* damagePtr;
     Object* critter;
@@ -4550,6 +4553,8 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
     *damagePtr = 0;
 
     if (FID_TYPE(critter->fid) != OBJ_TYPE_CRITTER) {
+        // This is to match sfall behavior as it wraps attackComputeDamage call and always invokes hook, even in this case.
+        scriptHooks_ComputeDamage(attack, numRounds, baseDamageMult);
         return;
     }
 
@@ -4579,14 +4584,14 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
         damageBonus = 0;
     }
 
-    int combatDifficultyDamageModifier = 100;
+    int difficultyDamagePercent = 100;
     if (attack->attacker->data.critter.combat.team != gDude->data.critter.combat.team) {
         switch (settings.preferences.combat_difficulty) {
         case COMBAT_DIFFICULTY_EASY:
-            combatDifficultyDamageModifier = 75;
+            difficultyDamagePercent = 75;
             break;
         case COMBAT_DIFFICULTY_HARD:
-            combatDifficultyDamageModifier = 125;
+            difficultyDamagePercent = 125;
             break;
         }
     }
@@ -4598,9 +4603,9 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
     context.damageResistance = damageResistance;
     context.damageThreshold = damageThreshold;
     context.damageBonus = damageBonus;
-    context.bonusDamageMultiplier = bonusDamageMultiplier;
-    context.combatDifficultyDamageModifier = combatDifficultyDamageModifier;
-    context.ammoQuantity = ammoQuantity;
+    context.baseDamageMult = baseDamageMult;
+    context.difficultyDamagePercent = difficultyDamagePercent;
+    context.ammoQuantity = numRounds;
 
     if (gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ || gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ_WITH_DAMAGE_MULTIPLIER_TWEAK) {
         damageModCalculateGlovz(&context);
@@ -4614,10 +4619,10 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
             damageResistance = 0;
         }
 
-        int damageMultiplier = bonusDamageMultiplier * weaponGetAmmoDamageMultiplier(attack->weapon);
+        int damageMultiplier = baseDamageMult * weaponGetAmmoDamageMultiplier(attack->weapon);
         int damageDivisor = weaponGetAmmoDamageDivisor(attack->weapon);
 
-        for (int index = 0; index < ammoQuantity; index++) {
+        for (int index = 0; index < numRounds; index++) {
             int damage = weaponGetDamage(attack->attacker, attack->hitMode);
 
             damage += damageBonus;
@@ -4631,7 +4636,7 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
             // TODO: Why we're halving it?
             damage /= 2;
 
-            damage *= combatDifficultyDamageModifier;
+            damage *= difficultyDamagePercent;
             damage /= 100;
 
             damage -= damageThreshold;
@@ -4688,6 +4693,8 @@ static void attackComputeDamage(Attack* attack, int ammoQuantity, int bonusDamag
             }
         }
     }
+
+    scriptHooks_ComputeDamage(attack, numRounds, baseDamageMult);
 }
 
 // 0x424BAC
@@ -5465,10 +5472,11 @@ static void _print_tohit(unsigned char* dest, int destPitch, int accuracy)
 }
 
 // 0x42612C
+// need to update combatai.msg to allow for new critter hitlocation messages
 static char* hitLocationGetName(Object* critter, int hitLocation)
 {
     MessageListItem messageListItem;
-    messageListItem.num = 1000 + 10 * _art_alias_num(critter->fid & 0xFFF) + hitLocation;
+    messageListItem.num = 1000 + 10 * _art_alias_num(artGetIndex(critter->fid)) + hitLocation;
     if (messageListGetItem(&gCombatMessageList, &messageListItem)) {
         return messageListItem.text;
     }
@@ -5553,7 +5561,7 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
         CALLED_SHOT_WINDOW_WIDTH);
 
     FrmImage critterFrm;
-    int critterFid = buildFid(OBJ_TYPE_CRITTER, critter->fid & 0xFFF, ANIM_CALLED_SHOT_PIC, 0, 0);
+    int critterFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(critter->fid), ANIM_CALLED_SHOT_PIC, 0, 0);
     if (critterFrm.lock(critterFid)) {
         blitBufferToBuffer(critterFrm.getData(),
             170,
@@ -6705,9 +6713,9 @@ static void damageModCalculateGlovz(DamageCalculationContext* context)
 
     int calculatedDamageResistance = context->damageResistance;
     if (calculatedDamageResistance > 0) {
-        if (context->combatDifficultyDamageModifier > 100) {
+        if (context->difficultyDamagePercent > 100) {
             calculatedDamageResistance -= 20;
-        } else if (context->combatDifficultyDamageModifier < 100) {
+        } else if (context->difficultyDamagePercent < 100) {
             calculatedDamageResistance += 20;
         }
 
@@ -6753,9 +6761,9 @@ static void damageModCalculateGlovz(DamageCalculationContext* context)
         }
 
         if (gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ_WITH_DAMAGE_MULTIPLIER_TWEAK) {
-            damage += damageModGlovzDivRound(damage * context->bonusDamageMultiplier * 25, 100);
+            damage += damageModGlovzDivRound(damage * context->baseDamageMult * 25, 100);
         } else {
-            damage += damage * context->bonusDamageMultiplier / 2;
+            damage += damage * context->baseDamageMult / 2;
         }
 
         if (damage > 0) {
@@ -6788,7 +6796,7 @@ static int damageModGlovzDivRound(int dividend, int divisor)
 
 static void damageModCalculateYaam(DamageCalculationContext* context)
 {
-    int damageMultiplier = context->bonusDamageMultiplier * weaponGetAmmoDamageMultiplier(context->attack->weapon);
+    int damageMultiplier = context->baseDamageMult * weaponGetAmmoDamageMultiplier(context->attack->weapon);
     int damageDivisor = weaponGetAmmoDamageDivisor(context->attack->weapon);
 
     int ammoDamageResistance = weaponGetAmmoDamageResistanceModifier(context->attack->weapon);
@@ -6825,7 +6833,7 @@ static void damageModCalculateYaam(DamageCalculationContext* context)
         }
 
         damage /= 2;
-        damage *= context->combatDifficultyDamageModifier;
+        damage *= context->difficultyDamagePercent;
         damage /= 100;
 
         damage -= damage * damageResistance / 100;
