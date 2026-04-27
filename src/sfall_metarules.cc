@@ -6,6 +6,7 @@
 #include <string.h>
 #include <string>
 
+#include "art.h" // for buildFid, artExists, ROTATION_NE
 #include "color.h"
 #include "combat.h"
 #include "config.h" // For Config, configInit, configFree
@@ -60,6 +61,7 @@ static void mf_string_find(Program* program, int args);
 static void mf_string_to_case(Program* program, int args);
 static void mf_string_format(Program* program, int args);
 static void mf_floor2(Program* program, int args);
+static void mf_art_exists_by_index(Program* program, int args);
 
 static int currentMetaruleIndex;
 
@@ -80,6 +82,7 @@ const MetaruleInfo kMetarules[] = {
     // {"add_g_timer_event",         mf_add_g_timer_event,         2, 2, -1, {ARG_INT, ARG_INT}},
     // {"add_trait",                 mf_add_trait,                 1, 1, -1, {ARG_INT}},
     // {"art_cache_clear",           mf_art_cache_flush,           0, 0},
+    { "art_exists_by_index", mf_art_exists_by_index, 2, 2, 0, { ARG_INT, ARG_INT } },
     // {"art_frame_data",            mf_art_frame_data,            1, 3,  0, {ARG_INTSTR, ARG_INT, ARG_INT}},
     // {"attack_is_aimed",           mf_attack_is_aimed,           0, 0},
     { "car_gas_amount", mf_car_gas_amount, 0, 0 },
@@ -541,6 +544,14 @@ void mf_floor2(Program* program, int args)
 {
     ProgramValue programValue = programStackPopValue(program);
     programStackPushInteger(program, static_cast<int>(floor(programValue.asFloat())));
+}
+
+static void mf_art_exists_by_index(Program* program, int args)
+{
+    int objectType = programStackPopInteger(program);
+    int artIndex = programStackPopInteger(program);
+    int fid = buildFid(objectType, artIndex, 0, 0, ROTATION_NE);
+    programStackPushInteger(program, artExists(fid) ? 1 : 0);
 }
 
 void sprintf_lite(Program* program, int args, const char* infoOpcodeName)

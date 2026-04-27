@@ -171,7 +171,8 @@ namespace fallout {
 #define MAX_LOADED_MODS 64
 
 typedef struct ModInfo {
-    char name[MOD_INFO_MAX_NAME];
+    char name[MOD_INFO_MAX_NAME]; // internal name used for .dat etc.
+    char display_name[MOD_INFO_MAX_NAME]; // user-friendly name for loaded mods UI
     char description[MOD_INFO_MAX_DESC];
     char author[MOD_INFO_MAX_AUTHOR];
     char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];

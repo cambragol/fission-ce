@@ -193,6 +193,16 @@ static void extractModInfo(Config* config, ModInfo* info)
         info->name[MOD_INFO_MAX_NAME - 1] = '\0';
     }
 
+    char* displayName = nullptr;
+    if (configGetString(config, "mod_info", "display_name", &displayName) && displayName) {
+        strncpy(info->display_name, displayName, MOD_INFO_MAX_NAME - 1);
+        info->display_name[MOD_INFO_MAX_NAME - 1] = '\0';
+    } else {
+        // fallback to the internal name (which may be empty if no name was given)
+        strncpy(info->display_name, info->name, MOD_INFO_MAX_NAME - 1);
+        info->display_name[MOD_INFO_MAX_NAME - 1] = '\0';
+    }
+
     char* desc = nullptr;
     if (configGetString(config, "mod_info", "description", &desc) && desc) {
         strncpy(info->description, desc, MOD_INFO_MAX_DESC - 1);
@@ -245,6 +255,8 @@ static void syncModsOrderFile(void)
             memset(&defaultInfo, 0, sizeof(defaultInfo));
             strncpy(defaultInfo.name, base, MOD_INFO_MAX_NAME - 1);
             defaultInfo.name[MOD_INFO_MAX_NAME - 1] = '\0';
+            strncpy(defaultInfo.display_name, base, MOD_INFO_MAX_NAME - 1);
+            defaultInfo.display_name[MOD_INFO_MAX_NAME - 1] = '\0';
             strncpy(defaultInfo.description, "No description available", MOD_INFO_MAX_DESC - 1);
             strncpy(defaultInfo.author, "Unknown", MOD_INFO_MAX_AUTHOR - 1);
             strncpy(defaultInfo.datName, base, MOD_INFO_MAX_NAME - 1);

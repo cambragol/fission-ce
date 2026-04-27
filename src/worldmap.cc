@@ -111,11 +111,6 @@ namespace fallout {
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
 
-#define BASE_AREA_MAX 200
-#define MOD_AREA_START 200
-#define MOD_AREA_MAX 5000
-#define TOTAL_AREA_MAX MOD_AREA_MAX
-
 typedef enum EncounterFormationType {
     ENCOUNTER_FORMATION_TYPE_SURROUNDING,
     ENCOUNTER_FORMATION_TYPE_STRAIGHT_LINE,
@@ -8115,7 +8110,7 @@ static void wmInterfaceRefreshCarFuel()
 
     for (int index = gOffsets.carFuelBarHeight; index > ratio; index--) {
         *dest = 14;
-        dest += 640;
+        dest += gOffsets.windowWidth;
     }
 
     while (ratio > 0) {
