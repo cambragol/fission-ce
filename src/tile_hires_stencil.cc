@@ -416,4 +416,47 @@ void tile_hires_stencil_init()
     tileWindowRefresh();
 }
 
+bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int screenWidth, int screenHeight)
+{
+    if (!gIsTileHiresStencilEnabled) return true;
+
+    int centerX, centerY;
+    tileToScreenXY(tile, &centerX, &centerY);
+
+    int left   = centerX + 16 - screenWidth / 2;
+    int top    = centerY + 8  - screenHeight / 2;
+    int right  = left + screenWidth;
+    int bottom = top  + screenHeight;
+
+    const int safety_margin = 8;
+    left   -= safety_margin;
+    top    -= safety_margin;
+    right  += safety_margin;
+    bottom += safety_margin;
+
+    auto screen_diff = get_screen_diff();
+    int globalLeft   = left   - screen_diff.x;
+    int globalTop    = top    - screen_diff.y;
+    int globalRight  = right  - screen_diff.x;
+    int globalBottom = bottom - screen_diff.y;
+
+    if (globalLeft   < 0) globalLeft = 0;
+    if (globalTop    < 0) globalTop = 0;
+    if (globalRight  >= square_width * square_grid_width) globalRight = square_width * square_grid_width - 1;
+    if (globalBottom >= square_height * square_grid_height) globalBottom = square_height * square_grid_height - 1;
+
+    int minX = globalLeft   / square_width;
+    int minY = globalTop    / square_height;
+    int maxX = globalRight  / square_width;
+    int maxY = globalBottom / square_height;
+
+    for (int x = minX; x <= maxX; ++x) {
+        for (int y = minY; y <= maxY; ++y) {
+            if (!visible_squares[elevation][x][y])
+                return false;
+        }
+    }
+    return true;
+}
+
 } // namespace fallout
