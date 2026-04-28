@@ -622,7 +622,7 @@ static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
 static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
-// Computes layout based on number of columns
+// Computes layout based on number of columns and sets common elements
 static void inventoryUpdateLayout()
 {
     // Determine number of columns from settings
@@ -926,10 +926,6 @@ static bool _setup_inventory(int inventoryWindowType)
     _stack[0] = _inven_dude;
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
-        // MULTI-COLUMN: Update layout for normal inventory
-        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-            inventoryUpdateLayout();
-        }
 
         const InventoryWindowDescription* windowDescription = &(gInventoryWindowDescriptions[inventoryWindowType]);
 
@@ -2446,6 +2442,8 @@ static int inventoryCommonInit()
     if (inventoryMessageListInit() == -1) {
         return -1;
     }
+
+    inventoryUpdateLayout();
 
     _inven_ui_was_disabled = gameUiIsDisabled();
 
