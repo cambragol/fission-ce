@@ -578,7 +578,7 @@ int tileSetCenter(int tile, int flags)
         }
     }
 
-    if (!(flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS)) {
+    if (!(flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) && !tile_hires_stencil_is_map_small()) {
         if (!tile_hires_stencil_is_center_tile_allowed(tile, gElevation, gTileWindowWidth, gTileWindowHeight)) {
             return -1;
         }

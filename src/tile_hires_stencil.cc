@@ -4,6 +4,7 @@
 #include "geometry.h"
 #include "settings.h"
 #include "stdio.h"
+#include "svga.h"
 #include "tile.h"
 #include <string.h>
 #include <vector>
@@ -64,6 +65,7 @@ static_assert(screen_view_width % (2 * square_width) == 0);
 static_assert(screen_view_height % (2 * square_height) == 20);
 
 static bool gIsTileHiresStencilEnabled = true;
+static bool gMapIsSmall = false;
 
 static void clean_cache()
 {
@@ -74,6 +76,11 @@ static void clean_cache_for_elevation(int elevation)
 {
     memset(visited_tiles[elevation], 0, sizeof(visited_tiles[elevation]));
     memset(visible_squares[elevation], 0, sizeof(visible_squares[elevation]));
+}
+
+bool tile_hires_stencil_is_map_small(void)
+{
+    return gMapIsSmall;
 }
 
 static Point get_screen_diff()
@@ -318,6 +325,31 @@ void tile_hires_stencil_on_center_tile_or_elevation_change()
                                        tileScreenY + pixels_per_vertical_move + tile_center_offset_y,
                                        true),
             MarkOnlyPart::DOWN });
+    }
+
+        // Determine if the visible area is smaller than the screen
+    int minX = square_grid_width, maxX = -1;
+    int minY = square_grid_height, maxY = -1;
+    bool any = false;
+    for (int x = 0; x < square_grid_width; ++x) {
+        for (int y = 0; y < square_grid_height; ++y) {
+            if (visible_squares[gElevation][x][y]) {
+                any = true;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    if (any) {
+        int visWidthPx = (maxX - minX + 1) * square_width;
+        int visHeightPx = (maxY - minY + 1) * square_height;
+        int screenW = screenGetWidth();
+        int screenH = screenGetVisibleHeight();
+        gMapIsSmall = (visWidthPx < screenW || visHeightPx < screenH);
+    } else {
+        gMapIsSmall = true; // no visible squares (should not happen)
     }
 
     debugPrint("tile_hires_stencil_on_center_tile_or_elevation_change visited_tiles_count=%i\n", visited_tiles_count);

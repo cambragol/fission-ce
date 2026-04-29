@@ -13,6 +13,8 @@ void tile_hires_stencil_draw(Rect* rect, unsigned char* buffer, int windowWidth,
 
 bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int screenWidth, int screenHeight);
 
+bool tile_hires_stencil_is_map_small(void);
+
 } // namespace fallout
 
 #endif
