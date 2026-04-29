@@ -472,9 +472,9 @@ int mapSetElevation(int elevation)
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
-    if (gDude) {
-        mapAdjustCameraToValidArea();
-    }
+    // Hide map window to avoid showing incorrect camera
+    windowHide(gIsoWindow);
+    mapSetNeedCameraAdjust(true);
 
     return 0;
 }
