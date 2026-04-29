@@ -349,6 +349,9 @@ static void mainLoop()
     while (_game_user_wants_to_quit == 0) {
         sharedFpsLimiter.mark();
 
+        // Camera adjustment for saved games
+        mapProcessPendingCameraAdjust();
+
         int keyCode = inputGetInput();
 
         // SFALL: MainLoopHook.

@@ -116,6 +116,8 @@ int mapSetTransition(MapTransition* transition);
 int mapHandleTransition();
 int _map_save_in_game(bool isLeavingMap);
 
+void mapProcessPendingCameraAdjust(void);
+
 } // namespace fallout
 
 #endif /* MAP_H */

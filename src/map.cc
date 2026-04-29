@@ -134,6 +134,8 @@ int gMapGlobalVarsLength = 0;
 // 0x519578
 int gElevation = 0;
 
+bool gNeedCameraAdjust = false;
+
 // 0x51957C
 static char* _errMapName = byte_50B058;
 
@@ -181,6 +183,7 @@ static std::vector<void*> gMapGlobalPointers;
 // to store these pointers.
 static std::vector<void*> gMapLocalPointers;
 
+// Scroll blocking 'Camera' functions
 static void mapAdjustCameraToValidArea(void)
 {
     if (!gDude) return;
@@ -226,6 +229,20 @@ static void mapAdjustCameraToValidArea(void)
     // Rebuild stencil based on new camera position and refresh
     tile_hires_stencil_on_center_tile_or_elevation_change();
     tileWindowRefresh();
+}
+
+static void mapSetNeedCameraAdjust(bool need)
+{
+    gNeedCameraAdjust = need;
+}
+
+void mapProcessPendingCameraAdjust(void)
+{
+    if (gNeedCameraAdjust) {
+        gNeedCameraAdjust = false;
+        mapAdjustCameraToValidArea();
+        windowShow(gIsoWindow);
+    }
 }
 
 // iso_init
@@ -1303,7 +1320,9 @@ int mapLoadSaved(char* fileName)
         strcpy(gMapHeader.name, mapName);
     }
 
-    mapAdjustCameraToValidArea();
+    // Hide map window to avoid showing incorrect camera
+    windowHide(gIsoWindow);
+    mapSetNeedCameraAdjust(true);
 
     return rc;
 }
