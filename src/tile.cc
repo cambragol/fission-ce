@@ -579,10 +579,10 @@ int tileSetCenter(int tile, int flags)
     }
 
     if (!(flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS)) {
-    if (!tile_hires_stencil_is_center_tile_allowed(tile, gElevation, gTileWindowWidth, gTileWindowHeight)) {
-        return -1;
+        if (!tile_hires_stencil_is_center_tile_allowed(tile, gElevation, gTileWindowWidth, gTileWindowHeight)) {
+            return -1;
+        }
     }
-}
 
     _tile_y = tile_y;
     _tile_offx = (gTileWindowWidth - 32) / 2;
