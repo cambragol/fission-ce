@@ -181,6 +181,53 @@ static std::vector<void*> gMapGlobalPointers;
 // to store these pointers.
 static std::vector<void*> gMapLocalPointers;
 
+static void mapAdjustCameraToValidArea(void)
+{
+    if (!gDude) return;
+
+    // Ensure stencil is built for current elevation
+    tile_hires_stencil_on_center_tile_or_elevation_change();
+
+    int screenW = screenGetWidth();
+    int screenH = screenGetVisibleHeight();
+    int playerTile = gDude->tile;
+
+    // Find nearest valid center tile
+    int targetTile = playerTile;
+    if (!tile_hires_stencil_is_center_tile_allowed(playerTile, gElevation, screenW, screenH)) {
+        for (int radius = 1; radius < 100; ++radius) {
+            int found = -1;
+            for (int dy = -radius; dy <= radius && found == -1; ++dy) {
+                for (int dx = -radius; dx <= radius; ++dx) {
+                    if (abs(dx) + abs(dy) != radius) continue;
+                    int x = (playerTile % HEX_GRID_WIDTH) + dx;
+                    int y = (playerTile / HEX_GRID_WIDTH) + dy;
+                    if (x < 0 || x >= HEX_GRID_WIDTH || y < 0 || y >= HEX_GRID_HEIGHT) continue;
+                    int candidate = y * HEX_GRID_WIDTH + x;
+                    if (tile_hires_stencil_is_center_tile_allowed(candidate, gElevation, screenW, screenH)) {
+                        found = candidate;
+                        break;
+                    }
+                }
+            }
+            if (found != -1) {
+                targetTile = found;
+                break;
+            }
+        }
+    }
+
+    // Force camera to target tile (bypass all restrictions)
+    bool savedBorder = gTileBorderInitialized;
+    gTileBorderInitialized = false;
+    tileSetCenter(targetTile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
+    gTileBorderInitialized = savedBorder;
+
+    // Rebuild stencil based on new camera position and refresh
+    tile_hires_stencil_on_center_tile_or_elevation_change();
+    tileWindowRefresh();
+}
+
 // iso_init
 // 0x481CA0
 int isoInit()
@@ -407,6 +454,10 @@ int mapSetElevation(int elevation)
     }
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
+
+    if (gDude) {
+        mapAdjustCameraToValidArea();
+    }
 
     return 0;
 }
@@ -1175,6 +1226,8 @@ err:
     scriptsExecMapUpdateProc();
     tileEnable();
 
+    mapAdjustCameraToValidArea();
+
     if (gMapTransition.map > 0) {
         if (gMapTransition.rotation >= 0) {
             objectSetRotation(gDude, gMapTransition.rotation, nullptr);
@@ -1249,6 +1302,8 @@ int mapLoadSaved(char* fileName)
 
         strcpy(gMapHeader.name, mapName);
     }
+
+    mapAdjustCameraToValidArea();
 
     return rc;
 }

@@ -403,9 +403,9 @@ int screenGetVisibleHeight()
 {
     int windowBottomMargin = 0;
 
-    if (!settings.mod_settings.iface_bar_mode) {
+    //if (!settings.mod_settings.iface_bar_mode) {
         windowBottomMargin = INTERFACE_BAR_HEIGHT;
-    }
+    //}
     return screenGetHeight() - windowBottomMargin;
 }
 
