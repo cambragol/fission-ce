@@ -327,7 +327,7 @@ void tile_hires_stencil_on_center_tile_or_elevation_change()
             MarkOnlyPart::DOWN });
     }
 
-        // Determine if the visible area is smaller than the screen
+    // Determine if the visible area is smaller than the screen
     int minX = square_grid_width, maxX = -1;
     int minY = square_grid_height, maxY = -1;
     bool any = false;
