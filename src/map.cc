@@ -242,6 +242,8 @@ void mapProcessPendingCameraAdjust(void)
         gNeedCameraAdjust = false;
         mapAdjustCameraToValidArea();
         windowShow(gIsoWindow);
+        interfaceBarShow();
+        paletteFadeTo(_cmap);
     }
 }
 
@@ -472,9 +474,11 @@ int mapSetElevation(int elevation)
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
-    // Hide map window to avoid showing incorrect camera
-    windowHide(gIsoWindow);
-    mapSetNeedCameraAdjust(true);
+    // Hide map window to avoid showing camera movement when moving between maps 
+    if (!wmFaded) { // don't hide when fading from worldmap
+        windowHide(gIsoWindow); 
+        mapSetNeedCameraAdjust(true);
+    }
 
     return 0;
 }
@@ -1011,7 +1015,6 @@ int mapLoadById(int map)
     }
 
     _wmMapIdx = map;
-
     int rc = mapLoadByName(name);
 
     wmMapMusicStart();
@@ -1227,7 +1230,6 @@ err:
     }
 
     _partyMemberRecoverLoad();
-    interfaceBarShow();
     _proto_dude_update_gender();
     _map_place_dude_and_mouse();
     fileSetReadProgressHandler(nullptr, 0);
@@ -1242,8 +1244,6 @@ err:
     scriptsExecMapEnterProc();
     scriptsExecMapUpdateProc();
     tileEnable();
-
-    mapAdjustCameraToValidArea();
 
     if (gMapTransition.map > 0) {
         if (gMapTransition.rotation >= 0) {
@@ -1279,9 +1279,9 @@ err:
 
     tile_hires_stencil_init();
 
-    gameMovieFadeOut();
-
     gMapHeader.version = 20;
+
+    mapAdjustCameraToValidArea();
 
     return rc;
 }
@@ -1319,10 +1319,6 @@ int mapLoadSaved(char* fileName)
 
         strcpy(gMapHeader.name, mapName);
     }
-
-    // Hide map window to avoid showing incorrect camera
-    windowHide(gIsoWindow);
-    mapSetNeedCameraAdjust(true);
 
     return rc;
 }
