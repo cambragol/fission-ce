@@ -474,9 +474,9 @@ int mapSetElevation(int elevation)
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
-    // Hide map window to avoid showing camera movement when moving between maps 
+    // Hide map window to avoid showing camera movement when moving between maps
     if (!wmFaded) { // don't hide when fading from worldmap
-        windowHide(gIsoWindow); 
+        windowHide(gIsoWindow);
         mapSetNeedCameraAdjust(true);
     }
 

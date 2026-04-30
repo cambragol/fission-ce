@@ -169,7 +169,7 @@ int falloutMain(int argc, char** argv)
 
                         // fade in from white on entering loaded game
                         colorPaletteLoad("color.pal");
-                        
+
                         win = -1;
 
                         mainLoop();
