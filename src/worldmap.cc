@@ -865,7 +865,7 @@ static char gBaseAreaOverrides[BASE_AREA_MAX][COMPAT_MAX_PATH] = { 0 };
 static double gGameTimeIncRemainder = 0.0;
 static FrmImage _townFrmImage;
 static FrmImage _townBackgroundFrmImage;
-static bool wmFaded = false;
+bool wmFaded = false;
 static int wmForceEncounterMapId = -1;
 static unsigned int wmForceEncounterFlags = 0;
 

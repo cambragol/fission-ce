@@ -293,6 +293,8 @@ static bool gIsoWasEnabled = false;
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
 
+static bool gAutomapShouldReopenAfterCombat = false;
+
 // Button IDs for minimap toggles
 static int gDetailsButton = -1;
 static int gZoomButton = -1;
@@ -671,6 +673,11 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
  */
 void automapShow(bool isInGame, bool isUsingScanner)
 {
+    // Block minimap from opening during combat
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && isInCombat()) {
+        return;
+    }
+
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && gAutomapWindowOpen) {
         // Minimap already open - optionally bring to front
         return;
@@ -2061,6 +2068,11 @@ void automapClose()
 {
     if (!gAutomapWindowOpen) return;
 
+    // If we are closing because combat started, set to reopen later
+    if (isInCombat()) {
+        gAutomapShouldReopenAfterCombat = true;
+    }
+
     windowDestroy(gAutomapWindow);
     for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
         gAutomapFrmImages[i].unlock();
@@ -2077,6 +2089,15 @@ void automapClose()
     gDetailsButton = -1;
     gZoomButton = -1;
     gProjectionButton = -1;
+}
+
+void automapNotifyCombatEnded()
+{
+    if (gAutomapShouldReopenAfterCombat) {
+        gAutomapShouldReopenAfterCombat = false;
+        // "In game" is always true for minimap, scanner flag is stored in gAutomapFlags
+        automapShow(true, (gAutomapFlags & AUTOMAP_WITH_SCANNER) != 0);
+    }
 }
 
 static void automapUpdateButtonStates(bool playsound)

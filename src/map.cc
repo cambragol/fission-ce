@@ -134,6 +134,8 @@ int gMapGlobalVarsLength = 0;
 // 0x519578
 int gElevation = 0;
 
+bool gNeedCameraAdjust = false;
+
 // 0x51957C
 static char* _errMapName = byte_50B058;
 
@@ -180,6 +182,70 @@ static std::vector<void*> gMapGlobalPointers;
 // meaningless to save these pointers in file. As a workaround use second array
 // to store these pointers.
 static std::vector<void*> gMapLocalPointers;
+
+// Scroll blocking 'Camera' functions
+static void mapAdjustCameraToValidArea(void)
+{
+    if (!gDude) return;
+
+    // Ensure stencil is built for current elevation
+    tile_hires_stencil_on_center_tile_or_elevation_change();
+
+    int screenW = screenGetWidth();
+    int screenH = screenGetVisibleHeight();
+    int playerTile = gDude->tile;
+
+    // Find nearest valid center tile
+    int targetTile = playerTile;
+    if (!tile_hires_stencil_is_center_tile_allowed(playerTile, gElevation, screenW, screenH)) {
+        for (int radius = 1; radius < 100; ++radius) {
+            int found = -1;
+            for (int dy = -radius; dy <= radius && found == -1; ++dy) {
+                for (int dx = -radius; dx <= radius; ++dx) {
+                    if (abs(dx) + abs(dy) != radius) continue;
+                    int x = (playerTile % HEX_GRID_WIDTH) + dx;
+                    int y = (playerTile / HEX_GRID_WIDTH) + dy;
+                    if (x < 0 || x >= HEX_GRID_WIDTH || y < 0 || y >= HEX_GRID_HEIGHT) continue;
+                    int candidate = y * HEX_GRID_WIDTH + x;
+                    if (tile_hires_stencil_is_center_tile_allowed(candidate, gElevation, screenW, screenH)) {
+                        found = candidate;
+                        break;
+                    }
+                }
+            }
+            if (found != -1) {
+                targetTile = found;
+                break;
+            }
+        }
+    }
+
+    // Force camera to target tile (bypass all restrictions)
+    bool savedBorder = gTileBorderInitialized;
+    gTileBorderInitialized = false;
+    tileSetCenter(targetTile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
+    gTileBorderInitialized = savedBorder;
+
+    // Rebuild stencil based on new camera position and refresh
+    tile_hires_stencil_on_center_tile_or_elevation_change();
+    tileWindowRefresh();
+}
+
+static void mapSetNeedCameraAdjust(bool need)
+{
+    gNeedCameraAdjust = need;
+}
+
+void mapProcessPendingCameraAdjust(void)
+{
+    if (gNeedCameraAdjust) {
+        gNeedCameraAdjust = false;
+        mapAdjustCameraToValidArea();
+        windowShow(gIsoWindow);
+        interfaceBarShow();
+        paletteFadeTo(_cmap);
+    }
+}
 
 // iso_init
 // 0x481CA0
@@ -407,6 +473,12 @@ int mapSetElevation(int elevation)
     }
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
+
+    // Hide map window to avoid showing camera movement when moving between maps
+    if (!wmFaded) { // don't hide when fading from worldmap
+        windowHide(gIsoWindow);
+        mapSetNeedCameraAdjust(true);
+    }
 
     return 0;
 }
@@ -943,7 +1015,6 @@ int mapLoadById(int map)
     }
 
     _wmMapIdx = map;
-
     int rc = mapLoadByName(name);
 
     wmMapMusicStart();
@@ -1080,7 +1151,7 @@ static int mapLoad(File* stream)
     }
 
     error = "Error setting tile center";
-    if (tileSetCenter(gEnteringTile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) != 0) {
+    if (tileSetCenter(gEnteringTile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS | TILE_SET_CENTER_FLAG_IGNORE_STENCIL) != 0) {
         goto err;
     }
 
@@ -1159,7 +1230,6 @@ err:
     }
 
     _partyMemberRecoverLoad();
-    interfaceBarShow();
     _proto_dude_update_gender();
     _map_place_dude_and_mouse();
     fileSetReadProgressHandler(nullptr, 0);
@@ -1209,9 +1279,9 @@ err:
 
     tile_hires_stencil_init();
 
-    gameMovieFadeOut();
-
     gMapHeader.version = 20;
+
+    mapAdjustCameraToValidArea();
 
     return rc;
 }
