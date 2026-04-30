@@ -64,6 +64,7 @@ bool automapIsOpen();
 bool automapHandleKey(int keyCode);
 void automapUpdate();
 void automapClose();
+void automapNotifyCombatEnded();
 
 } // namespace fallout
 
