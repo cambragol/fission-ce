@@ -956,7 +956,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     int bgGvarIndex = getHeadBgGvarOverride(gGameDialogSpeaker->pid);
     if (bgGvarIndex != -1) {
         int bgValue = gameGetGlobalVar(bgGvarIndex);
-        if (bgValue != -1) {          // -1 means "no override"
+        if (bgValue != -1) { // -1 means "no override"
             gameDialogSetBackground(bgValue);
         }
     }

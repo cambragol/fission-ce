@@ -196,7 +196,8 @@ const char* artGetHeadNameForPid(int pid)
     return nullptr;
 }
 
-static void addHeadBgGvarMapping(int pid, int gvarIndex) {
+static void addHeadBgGvarMapping(int pid, int gvarIndex)
+{
     if (gHeadBgGvarMappingCount < MAX_BG_GVAR_MAPPINGS) {
         gHeadBgGvarMappings[gHeadBgGvarMappingCount].pid = pid;
         gHeadBgGvarMappings[gHeadBgGvarMappingCount].gvarIndex = gvarIndex;
@@ -206,7 +207,8 @@ static void addHeadBgGvarMapping(int pid, int gvarIndex) {
     }
 }
 
-int getHeadBgGvarOverride(int pid) {
+int getHeadBgGvarOverride(int pid)
+{
     for (int i = 0; i < gHeadBgGvarMappingCount; i++) {
         if (gHeadBgGvarMappings[i].pid == pid)
             return gHeadBgGvarMappings[i].gvarIndex;
@@ -1340,28 +1342,33 @@ static void artLoadModHeadData(ArtListDescription* desc)
             // Parse optional npc_pid= and bg_gvar= tokens from the remainder of the line
             char* rest = badStr;
             // Move past the third number
-            while (*rest && !isspace(*rest)) rest++;
-            while (*rest && isspace(*rest)) rest++;
+            while (*rest && !isspace(*rest))
+                rest++;
+            while (*rest && isspace(*rest))
+                rest++;
 
-            int current_pid = -1;  // last seen PID, used for bg_gvar
+            int current_pid = -1; // last seen PID, used for bg_gvar
 
             while (*rest) {
                 // Skip whitespace
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 if (!*rest) break;
 
                 // Look for '=' to separate key and value
                 char* eq = strchr(rest, '=');
                 if (!eq) {
                     // No '=', skip to next space
-                    while (*rest && !isspace(*rest)) rest++;
+                    while (*rest && !isspace(*rest))
+                        rest++;
                     continue;
                 }
 
                 // Extract key (before '=')
                 char* key_start = rest;
                 char* key_end = eq;
-                while (key_end > key_start && isspace(*(key_end-1))) key_end--;
+                while (key_end > key_start && isspace(*(key_end - 1)))
+                    key_end--;
                 size_t key_len = key_end - key_start;
                 char key[64];
                 strncpy(key, key_start, key_len);
@@ -1370,11 +1377,13 @@ static void artLoadModHeadData(ArtListDescription* desc)
                 // Move rest past '='
                 rest = eq + 1;
                 // Skip whitespace before value
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
 
                 // Extract value: stops at space or end of line
                 char* val_start = rest;
-                while (*rest && !isspace(*rest)) rest++;
+                while (*rest && !isspace(*rest))
+                    rest++;
                 char* val_end = rest;
                 // Save the current position to continue scanning after value
                 char saved = *val_end;
