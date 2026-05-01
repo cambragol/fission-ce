@@ -1327,7 +1327,7 @@ static void artLoadModHeadData(ArtListDescription* desc)
                 if (!*rest) break;
 
                 // Check for "npc_pid=" token (case-insensitive)
-                if (strncasecmp(rest, "npc_pid=", 8) == 0) {
+                if (strncmp(rest, "npc_pid=", 8) == 0) {
                     rest += 8;
                     // Parse PID (supports decimal or hex with 0x)
                     char* end;
