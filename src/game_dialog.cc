@@ -944,8 +944,8 @@ int _gdialogInitFromScript(int headFid, int reaction)
                 gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
             }
         } else {
-                // SFALL: Fix the music volume when entering the dialog.
-                gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
+            // SFALL: Fix the music volume when entering the dialog.
+            gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
         }
     } else {
         gGameDialogOldMusicVolume = -1;

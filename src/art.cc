@@ -167,7 +167,8 @@ void showFatalError(const char* message)
     exit(1);
 }
 
-static void addHeadPidMapping(int pid, const char* headName) {
+static void addHeadPidMapping(int pid, const char* headName)
+{
     if (gHeadPidMappingCount < MAX_HEAD_MAPPINGS) {
         gHeadPidMappings[gHeadPidMappingCount].pid = pid;
         strncpy(gHeadPidMappings[gHeadPidMappingCount].headName, headName, FILENAME_LENGTH - 1);
@@ -178,7 +179,8 @@ static void addHeadPidMapping(int pid, const char* headName) {
     }
 }
 
-const char* artGetHeadNameForPid(int pid) {
+const char* artGetHeadNameForPid(int pid)
+{
     for (int i = 0; i < gHeadPidMappingCount; i++) {
         if (gHeadPidMappings[i].pid == pid) {
             return gHeadPidMappings[i].headName;
@@ -1271,9 +1273,11 @@ static void artLoadModHeadData(ArtListDescription* desc)
 
             // Trim each part
             auto trim = [](char* s) -> char* {
-                while (*s && isspace(*s)) s++;
+                while (*s && isspace(*s))
+                    s++;
                 char* end = s + strlen(s) - 1;
-                while (end > s && isspace(*end)) end--;
+                while (end > s && isspace(*end))
+                    end--;
                 *(end + 1) = '\0';
                 return s;
             };
@@ -1311,12 +1315,15 @@ static void artLoadModHeadData(ArtListDescription* desc)
             // *** Parse optional npc_pid= tokens from the remainder of the line ***
             char* rest = badStr;
             // Move past the third number
-            while (*rest && !isspace(*rest)) rest++;
-            while (*rest && isspace(*rest)) rest++;
+            while (*rest && !isspace(*rest))
+                rest++;
+            while (*rest && isspace(*rest))
+                rest++;
 
             while (*rest) {
                 // Skip whitespace
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 if (!*rest) break;
 
                 // Check for "npc_pid=" token (case-insensitive)
@@ -1334,7 +1341,8 @@ static void artLoadModHeadData(ArtListDescription* desc)
                     }
                 } else {
                     // Unknown token - skip to next space
-                    while (*rest && !isspace(*rest)) rest++;
+                    while (*rest && !isspace(*rest))
+                        rest++;
                 }
             }
         }
