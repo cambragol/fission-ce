@@ -952,6 +952,15 @@ int _gdialogInitFromScript(int headFid, int reaction)
         backgroundSoundDelete();
     }
 
+    // If this NPC has a background GVAR override, read it and apply
+    int bgGvarIndex = getHeadBgGvarOverride(gGameDialogSpeaker->pid);
+    if (bgGvarIndex != -1) {
+        int bgValue = gameGetGlobalVar(bgGvarIndex);
+        if (bgValue != -1) {          // -1 means "no override"
+            gameDialogSetBackground(bgValue);
+        }
+    }
+
     animationStop();
 
     _boxesWereDisabled = indicatorBarHide();

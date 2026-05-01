@@ -27,6 +27,7 @@ const int MAX_ART_INDICES = 8192;
 
 // Maximum number of PID->head mappings
 #define MAX_HEAD_MAPPINGS 256
+#define MAX_BG_GVAR_MAPPINGS 256
 
 typedef struct ArtListDescription {
     int flags;
@@ -61,6 +62,12 @@ static struct {
     char headName[FILENAME_LENGTH];
 } gHeadPidMappings[MAX_HEAD_MAPPINGS];
 static int gHeadPidMappingCount = 0;
+
+static struct {
+    int pid;
+    int gvarIndex;
+} gHeadBgGvarMappings[MAX_BG_GVAR_MAPPINGS];
+static int gHeadBgGvarMappingCount = 0;
 
 static int artReadList(const char* path, char** out_arr, int* out_count);
 static int artCacheGetFileSizeImpl(int fid, int* out_size);
@@ -187,6 +194,24 @@ const char* artGetHeadNameForPid(int pid)
         }
     }
     return nullptr;
+}
+
+static void addHeadBgGvarMapping(int pid, int gvarIndex) {
+    if (gHeadBgGvarMappingCount < MAX_BG_GVAR_MAPPINGS) {
+        gHeadBgGvarMappings[gHeadBgGvarMappingCount].pid = pid;
+        gHeadBgGvarMappings[gHeadBgGvarMappingCount].gvarIndex = gvarIndex;
+        gHeadBgGvarMappingCount++;
+    } else {
+        debugPrint("WARNING: Background GVAR mapping table full for PID %d\n", pid);
+    }
+}
+
+int getHeadBgGvarOverride(int pid) {
+    for (int i = 0; i < gHeadBgGvarMappingCount; i++) {
+        if (gHeadBgGvarMappings[i].pid == pid)
+            return gHeadBgGvarMappings[i].gvarIndex;
+    }
+    return -1;
 }
 
 // Helper to extract base filename without extension
@@ -1312,38 +1337,71 @@ static void artLoadModHeadData(ArtListDescription* desc)
             debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
                 index, filename, good, neutral, bad);
 
-            // *** Parse optional npc_pid= tokens from the remainder of the line ***
+            // Parse optional npc_pid= and bg_gvar= tokens from the remainder of the line
             char* rest = badStr;
             // Move past the third number
-            while (*rest && !isspace(*rest))
-                rest++;
-            while (*rest && isspace(*rest))
-                rest++;
+            while (*rest && !isspace(*rest)) rest++;
+            while (*rest && isspace(*rest)) rest++;
+
+            int current_pid = -1;  // last seen PID, used for bg_gvar
 
             while (*rest) {
                 // Skip whitespace
-                while (*rest && isspace(*rest))
-                    rest++;
+                while (*rest && isspace(*rest)) rest++;
                 if (!*rest) break;
 
-                // Check for "npc_pid=" token (case-insensitive)
-                if (strncmp(rest, "npc_pid=", 8) == 0) {
-                    rest += 8;
-                    // Parse PID (supports decimal or hex with 0x)
-                    char* end;
-                    int pid = strtol(rest, &end, 0);
-                    if (end > rest) {
-                        addHeadPidMapping(pid, filename);
-                        debugPrint("    Mapping NPC PID 0x%X -> head '%s'\n", pid, filename);
-                        rest = end;
+                // Look for '=' to separate key and value
+                char* eq = strchr(rest, '=');
+                if (!eq) {
+                    // No '=', skip to next space
+                    while (*rest && !isspace(*rest)) rest++;
+                    continue;
+                }
+
+                // Extract key (before '=')
+                char* key_start = rest;
+                char* key_end = eq;
+                while (key_end > key_start && isspace(*(key_end-1))) key_end--;
+                size_t key_len = key_end - key_start;
+                char key[64];
+                strncpy(key, key_start, key_len);
+                key[key_len] = '\0';
+
+                // Move rest past '='
+                rest = eq + 1;
+                // Skip whitespace before value
+                while (*rest && isspace(*rest)) rest++;
+
+                // Extract value: stops at space or end of line
+                char* val_start = rest;
+                while (*rest && !isspace(*rest)) rest++;
+                char* val_end = rest;
+                // Save the current position to continue scanning after value
+                char saved = *val_end;
+                *val_end = '\0';
+
+                // Process key
+                if (strcmp(key, "npc_pid") == 0) {
+                    // Parse PID (hex or decimal)
+                    int pid = strtol(val_start, nullptr, 0);
+                    current_pid = pid;
+                    // Add mapping from PID to head (you already have addHeadPidMapping function)
+                    addHeadPidMapping(pid, filename);
+                    debugPrint("    Mapping NPC PID 0x%X -> head '%s'\n", pid, filename);
+                } else if (strcmp(key, "bg_gvar") == 0) {
+                    if (current_pid != -1) {
+                        int gvarIndex = atoi(val_start);
+                        addHeadBgGvarMapping(current_pid, gvarIndex);
+                        debugPrint("    Mapping background GVAR %d to PID 0x%X\n", gvarIndex, current_pid);
                     } else {
-                        debugPrint("    Invalid npc_pid= value: %s\n", rest);
+                        debugPrint("    bg_gvar without preceding npc_pid, ignoring\n");
                     }
                 } else {
-                    // Unknown token - skip to next space
-                    while (*rest && !isspace(*rest))
-                        rest++;
+                    debugPrint("    Unknown token: %s (ignored)\n", key);
                 }
+
+                // Restore the character and continue
+                *val_end = saved;
             }
         }
         fileClose(stream);
