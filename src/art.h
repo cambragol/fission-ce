@@ -156,6 +156,8 @@ Art* artLoad(const char* path);
 int artRead(const char* path, unsigned char* data);
 int artWrite(const char* path, unsigned char* data);
 
+const char* artGetHeadNameForPid(int pid);
+
 class FrmImage {
 public:
     FrmImage();

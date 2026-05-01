@@ -926,6 +926,32 @@ int _gdialogInitFromScript(int headFid, int reaction)
         return 0;
     }
 
+    // Check for PID->head override (loaded from heads_*.lst files)
+    if (headFid == -1) {
+        const char* headName = artGetHeadNameForPid(gGameDialogSpeaker->pid);
+        if (headName != nullptr) {
+            // Find the art index for this head filename
+            int headIndex = artFindVariant(OBJ_TYPE_HEAD, -1, headName);
+            if (headIndex != -1) {
+                // Build a valid head FID (neutral animation, rotation 0)
+                headFid = buildFid(OBJ_TYPE_HEAD, headIndex, 0, 0, 0);
+                // Override found – treat as if a head was provided
+                gGameDialogOldMusicVolume = -1;
+                backgroundSoundDelete();
+            } else {
+                debugPrint("Warning: Head '%s' not found for PID 0x%X\n", headName, gGameDialogSpeaker->pid);
+                // Fallback to original music volume adjustment
+                gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
+            }
+        } else {
+                // SFALL: Fix the music volume when entering the dialog.
+                gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
+        }
+    } else {
+        gGameDialogOldMusicVolume = -1;
+        backgroundSoundDelete();
+    }
+
     animationStop();
 
     _boxesWereDisabled = indicatorBarHide();
@@ -962,14 +988,6 @@ int _gdialogInitFromScript(int headFid, int reaction)
     _gdSetupFidget(headFid, reaction);
     _gdialog_state = GAME_DIALOG_ACTIVE;
     _gmouse_disable_scrolling();
-
-    if (headFid == -1) {
-        // SFALL: Fix the music volume when entering the dialog.
-        gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
-    } else {
-        gGameDialogOldMusicVolume = -1;
-        backgroundSoundDelete();
-    }
 
     _gdDialogWentOff = true;
 

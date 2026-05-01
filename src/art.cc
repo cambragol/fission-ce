@@ -25,6 +25,9 @@ namespace fallout {
 
 const int MAX_ART_INDICES = 8192;
 
+// Maximum number of PID->head mappings
+#define MAX_HEAD_MAPPINGS 256
+
 typedef struct ArtListDescription {
     int flags;
     char name[16];
@@ -52,6 +55,12 @@ typedef struct HeadDescription {
     int neutralFidgetCount;
     int badFidgetCount;
 } HeadDescription;
+
+static struct {
+    int pid;
+    char headName[FILENAME_LENGTH];
+} gHeadPidMappings[MAX_HEAD_MAPPINGS];
+static int gHeadPidMappingCount = 0;
 
 static int artReadList(const char* path, char** out_arr, int* out_count);
 static int artCacheGetFileSizeImpl(int fid, int* out_size);
@@ -156,6 +165,26 @@ void showFatalError(const char* message)
     debugPrint("FATAL ART ERROR: %s", message);
     showMesageBox(message); // Corrected spelling
     exit(1);
+}
+
+static void addHeadPidMapping(int pid, const char* headName) {
+    if (gHeadPidMappingCount < MAX_HEAD_MAPPINGS) {
+        gHeadPidMappings[gHeadPidMappingCount].pid = pid;
+        strncpy(gHeadPidMappings[gHeadPidMappingCount].headName, headName, FILENAME_LENGTH - 1);
+        gHeadPidMappings[gHeadPidMappingCount].headName[FILENAME_LENGTH - 1] = '\0';
+        gHeadPidMappingCount++;
+    } else {
+        debugPrint("WARNING: head PID mapping table full, ignoring mapping for PID %d\n", pid);
+    }
+}
+
+const char* artGetHeadNameForPid(int pid) {
+    for (int i = 0; i < gHeadPidMappingCount; i++) {
+        if (gHeadPidMappings[i].pid == pid) {
+            return gHeadPidMappings[i].headName;
+        }
+    }
+    return nullptr;
 }
 
 // Helper to extract base filename without extension
@@ -1214,7 +1243,7 @@ static void artLoadModHeadData(ArtListDescription* desc)
             if (*p == '\0' || *p == '#')
                 continue; // skip empty lines and comments
 
-            // Format: filename,good,neutral,bad
+            // Format: filename,good,neutral,bad override [casdy,3,3,3 npc_pid=0x1000059 ...]
             char* filename = p;
             char* comma1 = strchr(p, ',');
             if (!comma1) {
@@ -1242,11 +1271,9 @@ static void artLoadModHeadData(ArtListDescription* desc)
 
             // Trim each part
             auto trim = [](char* s) -> char* {
-                while (*s && isspace((unsigned char)*s))
-                    s++;
+                while (*s && isspace(*s)) s++;
                 char* end = s + strlen(s) - 1;
-                while (end > s && isspace((unsigned char)*end))
-                    end--;
+                while (end > s && isspace(*end)) end--;
                 *(end + 1) = '\0';
                 return s;
             };
@@ -1269,17 +1296,48 @@ static void artLoadModHeadData(ArtListDescription* desc)
                 }
             }
 
-            if (index != -1) {
-                gHeadDescriptions[index].goodFidgetCount = good;
-                gHeadDescriptions[index].neutralFidgetCount = neutral;
-                gHeadDescriptions[index].badFidgetCount = bad;
-                debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
-                    index, filename, good, neutral, bad);
-            } else {
+            if (index == -1) {
                 debugPrint("  Warning: Could not find head filename '%s' from mod list\n", filename);
+                continue;
+            }
+
+            // Store fidget counts
+            gHeadDescriptions[index].goodFidgetCount = good;
+            gHeadDescriptions[index].neutralFidgetCount = neutral;
+            gHeadDescriptions[index].badFidgetCount = bad;
+            debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
+                index, filename, good, neutral, bad);
+
+            // *** Parse optional npc_pid= tokens from the remainder of the line ***
+            char* rest = badStr;
+            // Move past the third number
+            while (*rest && !isspace(*rest)) rest++;
+            while (*rest && isspace(*rest)) rest++;
+
+            while (*rest) {
+                // Skip whitespace
+                while (*rest && isspace(*rest)) rest++;
+                if (!*rest) break;
+
+                // Check for "npc_pid=" token (case-insensitive)
+                if (strncasecmp(rest, "npc_pid=", 8) == 0) {
+                    rest += 8;
+                    // Parse PID (supports decimal or hex with 0x)
+                    char* end;
+                    int pid = strtol(rest, &end, 0);
+                    if (end > rest) {
+                        addHeadPidMapping(pid, filename);
+                        debugPrint("    Mapping NPC PID 0x%X -> head '%s'\n", pid, filename);
+                        rest = end;
+                    } else {
+                        debugPrint("    Invalid npc_pid= value: %s\n", rest);
+                    }
+                } else {
+                    // Unknown token - skip to next space
+                    while (*rest && !isspace(*rest)) rest++;
+                }
             }
         }
-
         fileClose(stream);
     }
 
