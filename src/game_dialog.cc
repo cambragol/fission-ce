@@ -992,6 +992,8 @@ int _gdialogInitFromScript(int headFid, int reaction)
     gameDialogRedButtonsInit();
     gameDialogLittleRedButtonsInit();
 
+    gGameDialogHeadFid = headFid;
+
     _gdCreateHeadWindow();
     tickersAdd(gameDialogTicker);
     _gdSetupFidget(headFid, reaction);
