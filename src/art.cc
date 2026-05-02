@@ -73,7 +73,7 @@ static int gHeadBgGvarMappingCount = 0;
 static struct {
     char script[64];
     char head[64];
-    int bgGvar;   // -1 = none
+    int bgGvar; // -1 = none
 } scriptMaps[MAX_SCRIPT_MAPS];
 static int scriptMapCount = 0;
 
@@ -224,18 +224,20 @@ int getHeadBgGvarOverride(int pid)
     return -1;
 }
 
-static int findScriptMap(const char* script) {
+static int findScriptMap(const char* script)
+{
     for (int i = 0; i < scriptMapCount; i++)
         if (compat_stricmp(scriptMaps[i].script, script) == 0)
             return i;
     return -1;
 }
 
-static void addScriptMap(const char* script, const char* head, int bgGvar) {
+static void addScriptMap(const char* script, const char* head, int bgGvar)
+{
     int idx = findScriptMap(script);
     if (idx != -1) {
         // Update existing entry (e.g., if same script appears again)
-        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head)-1);
+        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head) - 1);
         scriptMaps[idx].bgGvar = bgGvar;
         return;
     }
@@ -243,18 +245,20 @@ static void addScriptMap(const char* script, const char* head, int bgGvar) {
         debugPrint("WARNING: Script mapping table full\n");
         return;
     }
-    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script)-1);
-    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head)-1);
+    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script) - 1);
+    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head) - 1);
     scriptMaps[scriptMapCount].bgGvar = bgGvar;
     scriptMapCount++;
 }
 
-const char* getHeadForScript(const char* script) {
+const char* getHeadForScript(const char* script)
+{
     int idx = findScriptMap(script);
     return (idx != -1) ? scriptMaps[idx].head : nullptr;
 }
 
-int getBgGvarForScript(const char* script) {
+int getBgGvarForScript(const char* script)
+{
     int idx = findScriptMap(script);
     return (idx != -1) ? scriptMaps[idx].bgGvar : -1;
 }
@@ -1391,20 +1395,26 @@ static void artLoadModHeadData(ArtListDescription* desc)
                 rest++;
 
             int current_pid = -1;
-            char current_script[64] = {0};
+            char current_script[64] = { 0 };
             bool have_script = false;
 
             while (*rest) {
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 if (!*rest) break;
 
                 char* eq = strchr(rest, '=');
-                if (!eq) { while (*rest && !isspace(*rest)) rest++; continue; }
+                if (!eq) {
+                    while (*rest && !isspace(*rest))
+                        rest++;
+                    continue;
+                }
 
                 // Extract key
                 char* key_start = rest;
                 char* key_end = eq;
-                while (key_end > key_start && isspace(*(key_end-1))) key_end--;
+                while (key_end > key_start && isspace(*(key_end - 1)))
+                    key_end--;
                 size_t klen = key_end - key_start;
                 char key[64];
                 strncpy(key, key_start, klen);
@@ -1412,9 +1422,11 @@ static void artLoadModHeadData(ArtListDescription* desc)
 
                 // Move to value
                 rest = eq + 1;
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 char* val_start = rest;
-                while (*rest && !isspace(*rest)) rest++;
+                while (*rest && !isspace(*rest))
+                    rest++;
                 char saved = *rest;
                 *rest = '\0';
 
@@ -1423,8 +1435,8 @@ static void artLoadModHeadData(ArtListDescription* desc)
                     have_script = false;
                     addHeadPidMapping(current_pid, filename);
                 } else if (strcmp(key, "npc_script") == 0) {
-                    strncpy(current_script, val_start, sizeof(current_script)-1);
-                    current_script[sizeof(current_script)-1] = '\0';
+                    strncpy(current_script, val_start, sizeof(current_script) - 1);
+                    current_script[sizeof(current_script) - 1] = '\0';
                     have_script = true;
                     current_pid = -1;
                     // Add script mapping (bgGvar will be updated later if present)

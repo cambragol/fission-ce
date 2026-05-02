@@ -2550,7 +2550,8 @@ int scriptGetScript(int sid, Script** scriptPtr)
     return -1;
 }
 
-bool scriptGetBaseName(int sid, char* dest, int destSize) {
+bool scriptGetBaseName(int sid, char* dest, int destSize)
+{
     if (sid == -1) return false;
     Script* scr;
     if (scriptGetScript(sid, &scr) != 0) return false;
@@ -2562,7 +2563,10 @@ bool scriptGetBaseName(int sid, char* dest, int destSize) {
     const char* base = strrchr(full, '/');
     const char* base2 = strrchr(full, '\\');
     if (base2 > base) base = base2;
-    if (base) base++; else base = full;
+    if (base)
+        base++;
+    else
+        base = full;
 
     // Remove .int extension
     const char* dot = strrchr(base, '.');
