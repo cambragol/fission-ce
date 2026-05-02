@@ -2636,12 +2636,12 @@ void _gdSetupFidget(int headFid, int reaction)
 
     // Map Sonora reaction constants (49,50,51) to fidget groups (1,4,7) ---
     int fidgetGroup = reaction;
-    if (reaction == 49)      // HEAD_REACTION_GOOD
-        fidgetGroup = FIDGET_GOOD;           // 1
+    if (reaction == 49) // HEAD_REACTION_GOOD
+        fidgetGroup = FIDGET_GOOD; // 1
     else if (reaction == 50) // HEAD_REACTION_NEUTRAL
-        fidgetGroup = FIDGET_NEUTRAL;        // 4
-    else if (reaction == 51)  // HEAD_REACTION_BAD
-        fidgetGroup = FIDGET_BAD;            // 7
+        fidgetGroup = FIDGET_NEUTRAL; // 4
+    else if (reaction == 51) // HEAD_REACTION_BAD
+        fidgetGroup = FIDGET_BAD; // 7
 
     // Extract the actual head index from the FID (supports modded heads)
     int headFrmId = artGetIndex(headFid);
