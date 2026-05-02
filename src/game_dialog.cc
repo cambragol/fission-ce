@@ -926,40 +926,61 @@ int _gdialogInitFromScript(int headFid, int reaction)
         return 0;
     }
 
-    // Check for PID->head override (loaded from heads_*.lst files)
-    if (headFid == -1) {
-        const char* headName = artGetHeadNameForPid(gGameDialogSpeaker->pid);
+    // ====== HEAD OVERRIDE (script first, then PID) ======
+    bool scriptOverrideUsed = false;
+    char scriptBase[64];
+
+    if (gGameDialogSpeaker->sid != -1 && scriptGetBaseName(gGameDialogSpeaker->sid, scriptBase, sizeof(scriptBase))) {
+        const char* headName = getHeadForScript(scriptBase);
         if (headName != nullptr) {
-            // Find the art index for this head filename
             int headIndex = artFindVariant(OBJ_TYPE_HEAD, -1, headName);
             if (headIndex != -1) {
-                // Build a valid head FID (neutral animation, rotation 0)
                 headFid = buildFid(OBJ_TYPE_HEAD, headIndex, 0, 0, 0);
-                // Override found – treat as if a head was provided
                 gGameDialogOldMusicVolume = -1;
                 backgroundSoundDelete();
+                gGameDialogHeadFid = headFid;
+                scriptOverrideUsed = true;
+            }
+        }
+    }
+
+    if (!scriptOverrideUsed && headFid == -1) {
+        const char* headName = artGetHeadNameForPid(gGameDialogSpeaker->pid);
+        if (headName != nullptr) {
+            int headIndex = artFindVariant(OBJ_TYPE_HEAD, -1, headName);
+            if (headIndex != -1) {
+                headFid = buildFid(OBJ_TYPE_HEAD, headIndex, 0, 0, 0);
+                gGameDialogOldMusicVolume = -1;
+                backgroundSoundDelete();
+                gGameDialogHeadFid = headFid;
             } else {
-                debugPrint("Warning: Head '%s' not found for PID 0x%X\n", headName, gGameDialogSpeaker->pid);
-                // Fallback to original music volume adjustment
                 gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
             }
         } else {
-            // SFALL: Fix the music volume when entering the dialog.
             gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
         }
-    } else {
+    } else if (!scriptOverrideUsed && headFid != -1) {
         gGameDialogOldMusicVolume = -1;
         backgroundSoundDelete();
     }
 
-    // If this NPC has a background GVAR override, read it and apply
-    int bgGvarIndex = getHeadBgGvarOverride(gGameDialogSpeaker->pid);
-    if (bgGvarIndex != -1) {
-        int bgValue = gameGetGlobalVar(bgGvarIndex);
-        if (bgValue != -1) { // -1 means "no override"
-            gameDialogSetBackground(bgValue);
+    // Apply background GVAR override (script first, then PID)
+    if (headFid != -1) {
+        int bgGvar = -1;
+        if (gGameDialogSpeaker->sid != -1 && scriptGetBaseName(gGameDialogSpeaker->sid, scriptBase, sizeof(scriptBase))) {
+            bgGvar = getBgGvarForScript(scriptBase);
+        }
+        if (bgGvar == -1) {
+            bgGvar = getHeadBgGvarOverride(gGameDialogSpeaker->pid);
+        }
+        if (bgGvar != -1) {
+            int bgVal = gameGetGlobalVar(bgGvar);
+            if (bgVal != -1) {
+                gameDialogSetBackground(bgVal);
+            }
         }
     }
+    // ====== END OVERRIDE ======
 
     animationStop();
 

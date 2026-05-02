@@ -28,6 +28,7 @@ const int MAX_ART_INDICES = 8192;
 // Maximum number of PID->head mappings
 #define MAX_HEAD_MAPPINGS 256
 #define MAX_BG_GVAR_MAPPINGS 256
+#define MAX_SCRIPT_MAPS 256
 
 typedef struct ArtListDescription {
     int flags;
@@ -68,6 +69,13 @@ static struct {
     int gvarIndex;
 } gHeadBgGvarMappings[MAX_BG_GVAR_MAPPINGS];
 static int gHeadBgGvarMappingCount = 0;
+
+static struct {
+    char script[64];
+    char head[64];
+    int bgGvar;   // -1 = none
+} scriptMaps[MAX_SCRIPT_MAPS];
+static int scriptMapCount = 0;
 
 static int artReadList(const char* path, char** out_arr, int* out_count);
 static int artCacheGetFileSizeImpl(int fid, int* out_size);
@@ -214,6 +222,41 @@ int getHeadBgGvarOverride(int pid)
             return gHeadBgGvarMappings[i].gvarIndex;
     }
     return -1;
+}
+
+static int findScriptMap(const char* script) {
+    for (int i = 0; i < scriptMapCount; i++)
+        if (compat_stricmp(scriptMaps[i].script, script) == 0)
+            return i;
+    return -1;
+}
+
+static void addScriptMap(const char* script, const char* head, int bgGvar) {
+    int idx = findScriptMap(script);
+    if (idx != -1) {
+        // Update existing entry (e.g., if same script appears again)
+        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head)-1);
+        scriptMaps[idx].bgGvar = bgGvar;
+        return;
+    }
+    if (scriptMapCount >= MAX_SCRIPT_MAPS) {
+        debugPrint("WARNING: Script mapping table full\n");
+        return;
+    }
+    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script)-1);
+    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head)-1);
+    scriptMaps[scriptMapCount].bgGvar = bgGvar;
+    scriptMapCount++;
+}
+
+const char* getHeadForScript(const char* script) {
+    int idx = findScriptMap(script);
+    return (idx != -1) ? scriptMaps[idx].head : nullptr;
+}
+
+int getBgGvarForScript(const char* script) {
+    int idx = findScriptMap(script);
+    return (idx != -1) ? scriptMaps[idx].bgGvar : -1;
 }
 
 // Helper to extract base filename without extension
@@ -1347,70 +1390,63 @@ static void artLoadModHeadData(ArtListDescription* desc)
             while (*rest && isspace(*rest))
                 rest++;
 
-            int current_pid = -1; // last seen PID, used for bg_gvar
+            int current_pid = -1;
+            char current_script[64] = {0};
+            bool have_script = false;
 
             while (*rest) {
-                // Skip whitespace
-                while (*rest && isspace(*rest))
-                    rest++;
+                while (*rest && isspace(*rest)) rest++;
                 if (!*rest) break;
 
-                // Look for '=' to separate key and value
                 char* eq = strchr(rest, '=');
-                if (!eq) {
-                    // No '=', skip to next space
-                    while (*rest && !isspace(*rest))
-                        rest++;
-                    continue;
-                }
+                if (!eq) { while (*rest && !isspace(*rest)) rest++; continue; }
 
-                // Extract key (before '=')
+                // Extract key
                 char* key_start = rest;
                 char* key_end = eq;
-                while (key_end > key_start && isspace(*(key_end - 1)))
-                    key_end--;
-                size_t key_len = key_end - key_start;
+                while (key_end > key_start && isspace(*(key_end-1))) key_end--;
+                size_t klen = key_end - key_start;
                 char key[64];
-                strncpy(key, key_start, key_len);
-                key[key_len] = '\0';
+                strncpy(key, key_start, klen);
+                key[klen] = '\0';
 
-                // Move rest past '='
+                // Move to value
                 rest = eq + 1;
-                // Skip whitespace before value
-                while (*rest && isspace(*rest))
-                    rest++;
-
-                // Extract value: stops at space or end of line
+                while (*rest && isspace(*rest)) rest++;
                 char* val_start = rest;
-                while (*rest && !isspace(*rest))
-                    rest++;
-                char* val_end = rest;
-                // Save the current position to continue scanning after value
-                char saved = *val_end;
-                *val_end = '\0';
+                while (*rest && !isspace(*rest)) rest++;
+                char saved = *rest;
+                *rest = '\0';
 
-                // Process key
                 if (strcmp(key, "npc_pid") == 0) {
-                    // Parse PID (hex or decimal)
-                    int pid = strtol(val_start, nullptr, 0);
-                    current_pid = pid;
-                    // Add mapping from PID to head (you already have addHeadPidMapping function)
-                    addHeadPidMapping(pid, filename);
-                    debugPrint("    Mapping NPC PID 0x%X -> head '%s'\n", pid, filename);
+                    current_pid = (int)strtol(val_start, nullptr, 0);
+                    have_script = false;
+                    addHeadPidMapping(current_pid, filename);
+                } else if (strcmp(key, "npc_script") == 0) {
+                    strncpy(current_script, val_start, sizeof(current_script)-1);
+                    current_script[sizeof(current_script)-1] = '\0';
+                    have_script = true;
+                    current_pid = -1;
+                    // Add script mapping (bgGvar will be updated later if present)
+                    addScriptMap(current_script, filename, -1);
                 } else if (strcmp(key, "bg_gvar") == 0) {
-                    if (current_pid != -1) {
-                        int gvarIndex = atoi(val_start);
-                        addHeadBgGvarMapping(current_pid, gvarIndex);
-                        debugPrint("    Mapping background GVAR %d to PID 0x%X\n", gvarIndex, current_pid);
-                    } else {
-                        debugPrint("    bg_gvar without preceding npc_pid, ignoring\n");
+                    int gvar = atoi(val_start);
+                    if (have_script) {
+                        // Update the most recent script mapping with bgGvar
+                        for (int i = 0; i < scriptMapCount; i++) {
+                            if (strcmp(scriptMaps[i].script, current_script) == 0) {
+                                scriptMaps[i].bgGvar = gvar;
+                                break;
+                            }
+                        }
+                    } else if (current_pid != -1) {
+                        addHeadBgGvarMapping(current_pid, gvar);
                     }
                 } else {
-                    debugPrint("    Unknown token: %s (ignored)\n", key);
+                    debugPrint("Unknown token: %s\n", key);
                 }
 
-                // Restore the character and continue
-                *val_end = saved;
+                *rest = saved;
             }
         }
         fileClose(stream);
