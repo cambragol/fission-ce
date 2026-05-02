@@ -2620,7 +2620,6 @@ void _gdSetupFidget(int headFid, int reaction)
 {
 
     gGameDialogFidgetFrmCurrentFrame = 0;
-
     if (headFid == -1) {
         gGameDialogFidgetFid = -1;
         gGameDialogFidgetFrm = nullptr;
@@ -2634,6 +2633,15 @@ void _gdSetupFidget(int headFid, int reaction)
         _lipsFp = nullptr;
         return;
     }
+
+    // Map Sonora reaction constants (49,50,51) to fidget groups (1,4,7) ---
+    int fidgetGroup = reaction;
+    if (reaction == 49)      // HEAD_REACTION_GOOD
+        fidgetGroup = FIDGET_GOOD;           // 1
+    else if (reaction == 50) // HEAD_REACTION_NEUTRAL
+        fidgetGroup = FIDGET_NEUTRAL;        // 4
+    else if (reaction == 51)  // HEAD_REACTION_BAD
+        fidgetGroup = FIDGET_BAD;            // 7
 
     // Extract the actual head index from the FID (supports modded heads)
     int headFrmId = artGetIndex(headFid);
@@ -2672,7 +2680,7 @@ void _gdSetupFidget(int headFid, int reaction)
         }
     }
 
-    int fid = buildFid(OBJ_TYPE_HEAD, headFrmId, reaction, 0, 0);
+    int fid = buildFid(OBJ_TYPE_HEAD, headFrmId, fidgetGroup, 0, 0);
     int fidgetCount = artGetFidgetCount(fid);
     if (fidgetCount == -1) {
         debugPrint("\tError - No available fidgets for given frame id\n");
@@ -2713,9 +2721,10 @@ void _gdSetupFidget(int headFid, int reaction)
         }
     }
 
-    gGameDialogFidgetFid = buildFid(OBJ_TYPE_HEAD, headFrmId, reaction, fidget, 0);
+    gGameDialogFidgetFid = buildFid(OBJ_TYPE_HEAD, headFrmId, fidgetGroup, fidget, 0);
     gGameDialogFidgetFrmCurrentFrame = 0;
     gGameDialogFidgetFrm = artLock(gGameDialogFidgetFid, &gGameDialogFidgetFrmHandle);
+
     if (gGameDialogFidgetFrm == nullptr) {
         debugPrint("failure!\n");
 
@@ -2725,7 +2734,7 @@ void _gdSetupFidget(int headFid, int reaction)
     }
 
     gGameDialogFidgetLastUpdateTimestamp = 0;
-    gGameDialogFidgetReaction = reaction;
+    gGameDialogFidgetReaction = fidgetGroup;
     gGameDialogFidgetUpdateDelay = 1000 / artGetFramesPerSecond(gGameDialogFidgetFrm);
 }
 
