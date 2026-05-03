@@ -6030,7 +6030,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
     _target_stack[0] = target;
 
     Object* hiddenBox = nullptr;
-    if (objectCreateWithFidPid(&hiddenBox, 0, PROTO_ID_JESSE_CONTAINER) == -1) {
+    if (objectCreateWithFidPid(&hiddenBox, -1, PROTO_ID_JESSE_CONTAINER) == -1) {
         return 0;
     }
 
@@ -7164,7 +7164,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
     }
 
     Object* hiddenBox = nullptr;
-    if (objectCreateWithFidPid(&hiddenBox, 0, PROTO_ID_JESSE_CONTAINER) == -1) {
+    if (objectCreateWithFidPid(&hiddenBox, -1, PROTO_ID_JESSE_CONTAINER) == -1) {
         return;
     }
 
