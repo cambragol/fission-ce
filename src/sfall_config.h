@@ -178,6 +178,7 @@ typedef struct ModInfo {
     char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];
     int dependencyCount;
     int icon_index;
+    bool enabled;          // whether mod is active (default true)
     char filePath[COMPAT_MAX_PATH];
     char datName[MOD_INFO_MAX_NAME];
 } ModInfo;
@@ -193,6 +194,8 @@ bool modConfigInit(int argc, char** argv);
 void modConfigExit();
 
 void modConfigWriteOrderFromLoadedMods();
+void modConfigWriteEnabledFlags();
+void modConfigReadEnabledFlags();
 
 } // namespace fallout
 

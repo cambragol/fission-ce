@@ -186,6 +186,7 @@ static void writeModFidsFile()
 static void extractModInfo(Config* config, ModInfo* info)
 {
     memset(info, 0, sizeof(ModInfo));
+    info->enabled = true;
 
     char* name = nullptr;
     if (configGetString(config, "mod_info", "name", &name) && name) {
@@ -253,6 +254,7 @@ static void syncModsOrderFile(void)
         if (!found && gLoadedModsCount < MAX_LOADED_MODS) {
             ModInfo defaultInfo;
             memset(&defaultInfo, 0, sizeof(defaultInfo));
+            defaultInfo.enabled = true;
             strncpy(defaultInfo.name, base, MOD_INFO_MAX_NAME - 1);
             defaultInfo.name[MOD_INFO_MAX_NAME - 1] = '\0';
             strncpy(defaultInfo.display_name, base, MOD_INFO_MAX_NAME - 1);
@@ -503,6 +505,7 @@ bool modConfigInit(int argc, char** argv)
 
     // Synchronize the mods folder with the order file and gLoadedMods
     syncModsOrderFile();
+    modConfigReadEnabledFlags();
 
     // Pass 2: Read all .cfg files in the sorted order (main first, then mods)
     configRead(&gModConfig, path, true); // main mod.cfg
@@ -532,6 +535,49 @@ bool modConfigInit(int argc, char** argv)
     gModConfigInitialized = true;
 
     return true;
+}
+
+void modConfigWriteEnabledFlags()
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "mods%cmod_enabled.txt", DIR_SEPARATOR);
+    compat_mkdir("mods");
+    FILE* f = compat_fopen(path, "w");
+    if (!f) return;
+
+    fprintf(f, "# FISSION mod_enabled.txt\n");
+    fprintf(f, "# Format: <mod_dat_name>.dat enabled_flag (1 = enabled, 0 = disabled)\n");
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        fprintf(f, "%s.dat %d\n", gLoadedMods[i].datName, gLoadedMods[i].enabled ? 1 : 0);
+    }
+    fclose(f);
+}
+
+void modConfigReadEnabledFlags()
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "mods%cmod_enabled.txt", DIR_SEPARATOR);
+    FILE* f = compat_fopen(path, "r");
+    if (!f) return;
+
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        char modName[MOD_INFO_MAX_NAME];
+        int enabled;
+        if (sscanf(line, "%127s %d", modName, &enabled) == 2) {
+            // Remove .dat suffix if present
+            char* dot = strstr(modName, ".dat");
+            if (dot) *dot = '\0';
+            // Find the mod in the global list
+            for (int i = 0; i < gLoadedModsCount; i++) {
+                if (strcmp(gLoadedMods[i].datName, modName) == 0) {
+                    gLoadedMods[i].enabled = (enabled != 0);
+                    break;
+                }
+            }
+        }
+    }
+    fclose(f);
 }
 
 void modConfigExit()
