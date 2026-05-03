@@ -300,10 +300,22 @@ static int gDetailsButton = -1;
 static int gZoomButton = -1;
 static int gProjectionButton = -1;
 
+/**
+ * Returns the absolute path to the automap database file.
+ * Uses the master patches path from settings.
+ */
+static void automapGetDbPath(char* buffer, size_t bufferSize)
+{
+    snprintf(buffer, bufferSize, "%s\\%s\\%s",
+        settings.system.master_patches_path.c_str(),
+        "MAPS",
+        AUTOMAP_DB);
+}
+
 static int automapUpdateEntry(int map, int elevation, const char* tempPath)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* oldStream = fileOpen(path, "rb");
     if (oldStream == nullptr) {
@@ -1379,7 +1391,7 @@ int automapSaveCurrent()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "r+b");
     if (stream == nullptr) {
@@ -1558,7 +1570,7 @@ static int automapLoadEntry(int map, int elevation)
     gAutomapEntry.compressedData = nullptr;
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     bool success = true;
 
@@ -1792,7 +1804,7 @@ static int automapCreate()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "wb");
     if (stream == nullptr) {
@@ -1853,7 +1865,7 @@ static int _copy_file_data(File* stream1, File* stream2, int length)
 int automapGetHeader(AutomapHeader** automapHeaderPtr)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {
