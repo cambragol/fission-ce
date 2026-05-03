@@ -51,8 +51,8 @@ namespace fallout {
 #define MOD_AUTHOR_Y 150
 #define MOD_DEP_Y 180
 
-#define MOD_DISABLED_COLOR 0x2B
-#define MOD_DISABLED_SELECTED_COLOR 0x0F // tweak these colors later
+#define MOD_DISABLED_COLOR 1313 // Dark Green
+#define MOD_DISABLED_SELECTED_COLOR 15845 // Dark Orange
 
 typedef enum MainMenuButton {
     MAIN_MENU_BUTTON_INTRO,
@@ -90,7 +90,6 @@ static bool gMainMenuWindowInitialized = false;
 static unsigned int gMainMenuScreensaverDelay = 120000;
 
 static MessageList gFissionMessageList;
-
 static MessageListItem gFissionMessageListItem;
 
 // Graphics for mod list screen
@@ -969,8 +968,7 @@ static void modListDrawDetails(int selectedIndex)
     
     // Show "DISABLED" if the mod is disabled
     if (!info->enabled) {
-        const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // Adjust later
-        if (disabledText == nullptr) disabledText = "DISABLED";   // fallback - remove later?
+        const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // DISABLED
 
         fontSetCurrent(101);
         // Position below description/dependencies - fixed Y coordinate - calculate later or base from bottom

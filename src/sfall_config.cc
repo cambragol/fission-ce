@@ -3,6 +3,7 @@
 #include "art.h"
 #include "db.h"
 #include "file_find.h"
+#include "memory.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "scan_unimplemented.h"
@@ -578,6 +579,114 @@ void modConfigReadEnabledFlags()
         }
     }
     fclose(f);
+}
+
+void modConfigWriteEnabledForSlot(const char* fullPath)
+{
+    File* f = fileOpen(fullPath, "wb");
+    if (!f) return;
+
+    char buffer[16384];
+    int pos = 0;
+    pos += snprintf(buffer + pos, sizeof(buffer) - pos,
+                    "# FISSION per-save mod enabled flags\n");
+    pos += snprintf(buffer + pos, sizeof(buffer) - pos,
+                    "# Format: <mod_dat_name> enabled (1/0)\n");
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos,
+                        "%s %d\n",
+                        gLoadedMods[i].datName,
+                        gLoadedMods[i].enabled ? 1 : 0);
+    }
+    fileWrite(buffer, 1, pos, f);
+    fileClose(f);
+}
+
+int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize)
+{
+    File* f = fileOpen(fullPath, "rb");
+    if (!f) return 3; // No file -> old save
+
+    int fileSize = fileGetSize(f);
+    if (fileSize <= 0) {
+        fileClose(f);
+        return 3;
+    }
+
+    char* buffer = (char*)internal_malloc(fileSize + 1);
+    if (!buffer) {
+        fileClose(f);
+        return 3;
+    }
+
+    if (fileRead(buffer, 1, fileSize, f) != fileSize) {
+        internal_free(buffer);
+        fileClose(f);
+        return 3;
+    }
+    buffer[fileSize] = '\0';
+    fileClose(f);
+
+    // Parse the file into a map of mod name -> enabled flag
+    struct SavedMod {
+        char name[MOD_INFO_MAX_NAME];
+        bool enabled;
+    } savedMods[MAX_LOADED_MODS];
+    int savedModsCount = 0;
+
+    char* line = buffer;
+    while (line && *line) {
+        char* end = strchr(line, '\n');
+        if (end) *end = '\0';
+
+        if (line[0] != '#' && line[0] != '\0') {
+            char modName[MOD_INFO_MAX_NAME];
+            int enabledInt;
+            if (sscanf(line, "%127s %d", modName, &enabledInt) == 2) {
+                if (savedModsCount < MAX_LOADED_MODS) {
+                    strncpy(savedMods[savedModsCount].name, modName, MOD_INFO_MAX_NAME - 1);
+                    savedMods[savedModsCount].name[MOD_INFO_MAX_NAME - 1] = '\0';
+                    savedMods[savedModsCount].enabled = (enabledInt != 0);
+                    savedModsCount++;
+                }
+            }
+        }
+        line = end ? (end + 1) : nullptr;
+    }
+    internal_free(buffer);
+
+    // First pass: check for missing mods (saved mod not found in global list)
+    for (int i = 0; i < savedModsCount; i++) {
+        bool found = false;
+        for (int j = 0; j < gLoadedModsCount; j++) {
+            if (strcmp(gLoadedMods[j].datName, savedMods[i].name) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            if (missingModName && maxSize > 0) {
+                strncpy(missingModName, savedMods[i].name, maxSize - 1);
+                missingModName[maxSize - 1] = '\0';
+            }
+            return 2; // Missing mod
+        }
+    }
+
+    // Second pass: check for enabled flag mismatches
+    for (int i = 0; i < savedModsCount; i++) {
+        for (int j = 0; j < gLoadedModsCount; j++) {
+            if (strcmp(gLoadedMods[j].datName, savedMods[i].name) == 0) {
+                bool currentEnabled = gLoadedMods[j].enabled;
+                if (currentEnabled != savedMods[i].enabled) {
+                    return 1; // Mismatch
+                }
+                break;
+            }
+        }
+    }
+
+    return 0; // Perfect match
 }
 
 void modConfigExit()

@@ -196,6 +196,8 @@ void modConfigExit();
 void modConfigWriteOrderFromLoadedMods();
 void modConfigWriteEnabledFlags();
 void modConfigReadEnabledFlags();
+void modConfigWriteEnabledForSlot(const char* slotPath);
+int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize);
 
 } // namespace fallout
 

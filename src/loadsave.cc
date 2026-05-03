@@ -308,6 +308,9 @@ static unsigned char* _snapshotBuf;
 // 0x6142B0
 static MessageListItem gLoadSaveMessageListItem;
 
+static MessageList gFissionMessageList;
+static MessageListItem gFissionMessageListItem;
+
 // 0x6142C0
 static int _dbleclkcntr;
 
@@ -1596,14 +1599,58 @@ int lsgLoadGame(int mode)
                 rc = -1;
                 break;
             default:
-                if (lsgLoadGameInSlot(_slot_cursor) == -1) {
-                    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-                    soundPlayFile("iisxxxx1");
-                    strcpy(_str0, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 134));
-                    strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 135));
-                    showDialogBox(_str0, body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
-                    mapNewMap();
-                    _game_user_wants_to_quit = 2;
+            
+                // Build the path to the per-save mod config file
+                char slotPath[COMPAT_MAX_PATH];
+                snprintf(slotPath, sizeof(slotPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
+
+                char missingMod[MOD_INFO_MAX_NAME] = {0};
+                int checkResult = modConfigCheckSlotEnabledMatchEx(slotPath, missingMod, sizeof(missingMod));
+
+                bool proceed = true;
+                const char* title = nullptr;
+                const char* msg = nullptr;
+                const char* lines[1] = {nullptr};
+
+                if (checkResult == 3) { // old save – no config file
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 522); // Old Save Format
+                    msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 523); // This save was created before per-save mod tracking. Resave to set its configuration. Loading with current mods.
+                    lines[0] = msg;
+                    showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                    // proceed remains true, load normally
+                }
+                else if (checkResult == 2) { // missing mod
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 524); // Missing Mod
+                    const char* bodyFmt = getmsg(&gFissionMessageList, &gFissionMessageListItem, 525); // Save game requires mod '%s' which is not currently loaded. Load anyway? (Missing content may cause crashes.)
+                    char body[512];
+                    snprintf(body, sizeof(body), bodyFmt, missingMod);
+                    lines[0] = body;
+                    int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                    if (result == 0) proceed = false; // No -> cancel
+                }
+                else if (checkResult == 1) { // mismatch
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 520); // Mod Configuration Mismatch
+                    msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 521); // This save expects a different set of enabled mods. Load anyway? (May cause odd behaviour or crashes.)
+                    lines[0] = msg;
+                    int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                    if (result == 0) proceed = false; // No -> cancel
+                }
+                // checkResult == 0 -> perfect match, proceed automatically
+
+                if (proceed) {
+                    if (lsgLoadGameInSlot(_slot_cursor) == -1) {
+                        gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+                        soundPlayFile("iisxxxx1");
+                        strcpy(_str0, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 134));
+                        strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 135));
+                        const char* errBody[] = { _str1 };
+                        showDialogBox(_str0, errBody, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                        mapNewMap();
+                        _game_user_wants_to_quit = 2;
+                        rc = -1;
+                    }
+                } else {
+                    // User cancelled loading; stay in load screen
                     rc = -1;
                 }
                 break;
@@ -1663,6 +1710,16 @@ static int lsgWindowInit(int windowType)
 
     snprintf(_str, sizeof(_str), "%s%s", asc_5186C8, LSGAME_MSG_NAME);
     if (!messageListLoad(&gLoadSaveMessageList, _str)) {
+        return -1;
+    }
+
+    if (!messageListInit(&gFissionMessageList)) {
+        return -1;
+    }
+
+    char fissionPath[COMPAT_MAX_PATH];
+    snprintf(fissionPath, sizeof(fissionPath), "%s%s", asc_5186C8, "fission.msg");
+    if (!messageListLoad(&gFissionMessageList, fissionPath)) {
         return -1;
     }
 
@@ -2096,10 +2153,14 @@ static int lsgPerformSaveGame()
         fileClose(_flptr);
     }
 
-    // Save mod global varaibles
+    // Save mod global variables
+    char enabledPath[COMPAT_MAX_PATH];
+    snprintf(enabledPath, sizeof(enabledPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    modConfigWriteEnabledForSlot(enabledPath);
+
+    // Write modgvars.dat
     snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "modgvars.dat");
-
     _flptr = fileOpen(_gmpath, "wb");
     if (_flptr != nullptr) {
         if (saveModGlobalVars(_flptr) != 0) {

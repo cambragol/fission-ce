@@ -109,7 +109,15 @@
 {501}{}{LISTO}
 {502}{}{CANCELAR}
 {503}{}{por}
+{504}{}{DESACTIVADO}
 
-# Ventana emergente de reinicio
-{510}{}{Los cambios en el orden de los mods}
-{511}{}{tendrán efecto al reiniciar.}
+# Restart popup
+{510}{}{Los cambios al orden de mods se aplicarán}
+{511}{}{al reiniciar.}
+
+{520}{}{Configuración de mods no coincide}
+{521}{}{Esta partida espera un conjunto distinto de mods activados. ¿Cargar de todos modos? (Puede causar comportamientos extraños o fallos.)}
+{522}{}{Formato de guardado antiguo}
+{523}{}{Esta partida fue creada antes del seguimiento de mods por guardado. Vuelve a guardar para fijar su configuración. Cargando con los mods actuales.}
+{524}{}{Mod faltante}
+{525}{}{La partida requiere el mod '%s', que no está cargado actualmente. ¿Cargar de todos modos? (El contenido faltante puede causar fallos.)}
