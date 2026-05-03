@@ -582,6 +582,8 @@ static int wmMapLoadModFile(const char* filename);
 static void wmMapLoadModFiles();
 static void wmGenerateMapListDebug();
 
+static void wmTownListButtonClickCallback(int btn, int eventCode);
+
 static char _aErrorF2[] = "ERROR! F2";
 
 // Per-mod map name offset (3 IDs per map, stored as offset = map_index_in_mod * 3)
@@ -718,6 +720,10 @@ static int wmWorldOffsetX = 0;
 // 0x51DE30
 static int wmWorldOffsetY = 0;
 
+static WorldmapOffsets gBaseOffsets800;
+
+static int gMaxVisibleTabs = 7;
+
 // 0x51DE34
 unsigned char* circleBlendTable = nullptr;
 
@@ -771,6 +777,8 @@ typedef struct {
     int x;
     int y;
 } TrailDot;
+
+static FrmImage gWorldMapBorder[8]; // Top Left through to Left clockwise
 
 // 0x51DE94
 static int* wmLabelList = nullptr;
@@ -839,8 +847,8 @@ static int wmRndOriginalCenterTile;
 // 0x672FD4
 static Config* pConfigCfg;
 
-// 0x672FD8
-static int wmTownMapSubButtonIds[7];
+static int* wmTownMapSubButtonIds = nullptr;
+static int wmTownMapSubButtonCount = 0;
 
 // 0x672FF4
 static Encounter* wmEncBaseTypeList;
@@ -956,6 +964,118 @@ void worldmapWriteDefaultOffsetsToConfig(bool isWidescreen, const WorldmapOffset
 
     configSetInt(&gGameConfig, section, "mapcenterX", defaults->mapcenterX);
     configSetInt(&gGameConfig, section, "mapcenterY", defaults->mapcenterY);
+}
+
+static void scaleWorldmapOffsets800(int screenWidth, int screenHeight)
+{
+    const int baseW = 800;
+    const int baseH = 500;
+
+    // Start with base offsets
+    gOffsets = gBaseOffsets800;
+
+    // If resolution is within base, scale (no longer actually use the base 800)
+    if (screenWidth < baseW && screenHeight < baseH) {
+        gOffsets.windowWidth = screenWidth;
+        gOffsets.windowHeight = screenHeight;
+        return;
+    }
+
+    // Set offsets to window dimensions
+    gOffsets.windowWidth = screenWidth;
+    gOffsets.windowHeight = screenHeight;
+
+    // Viewport has fixed margins (left=22, right=168 -> total 190; top=21, bottom=16 -> total 37)
+    gOffsets.viewX = 22;
+    gOffsets.viewY = 21;
+    gOffsets.viewWidth = screenWidth - 190;
+    gOffsets.viewHeight = screenHeight - 37;
+    if (gOffsets.viewWidth < 0) gOffsets.viewWidth = 0;
+    if (gOffsets.viewHeight < 0) gOffsets.viewHeight = 0;
+
+    // Helper: right align (maintain distance from right edge)
+    auto rightAlign = [baseW, screenWidth](int baseX) -> int {
+        int rightOffset = baseW - baseX;
+        return screenWidth - rightOffset;
+    };
+    // Helper: bottom anchor (maintain distance from screen bottom)
+    auto bottomAnchor = [baseH, screenHeight](int baseY) -> int {
+        int bottomOffset = baseH - baseY;
+        return screenHeight - bottomOffset;
+    };
+
+    // Right‑aligned, top‑anchored elements (dial, scroll buttons, date, etc.)
+    gOffsets.dialX = rightAlign(gBaseOffsets800.dialX);
+    gOffsets.dialY = gBaseOffsets800.dialY;
+    gOffsets.scrollAreaX = rightAlign(gBaseOffsets800.scrollAreaX);
+    gOffsets.scrollAreaY = gBaseOffsets800.scrollAreaY;
+    gOffsets.destListX = rightAlign(gBaseOffsets800.destListX);
+    gOffsets.destListFirstY = gBaseOffsets800.destListFirstY;
+    gOffsets.destListSpacing = gBaseOffsets800.destListSpacing;
+    gOffsets.scrollUpX = rightAlign(gBaseOffsets800.scrollUpX);
+    gOffsets.scrollUpY = gBaseOffsets800.scrollUpY;
+    gOffsets.scrollDownX = rightAlign(gBaseOffsets800.scrollDownX);
+    gOffsets.scrollDownY = gBaseOffsets800.scrollDownY;
+    gOffsets.dateDisplayX = rightAlign(gBaseOffsets800.dateDisplayX);
+    gOffsets.dateDisplayY = gBaseOffsets800.dateDisplayY;
+    gOffsets.dateDisplayWidth = gBaseOffsets800.dateDisplayWidth;
+
+    // Bottom‑anchored to screen bottom (globe, car, fuel, town/world switch)
+    gOffsets.globeOverlayX = rightAlign(gBaseOffsets800.globeOverlayX);
+    gOffsets.globeOverlayY = bottomAnchor(gBaseOffsets800.globeOverlayY) + 20;
+    gOffsets.carX = rightAlign(gBaseOffsets800.carX);
+    gOffsets.carY = bottomAnchor(gBaseOffsets800.carY) + 20;
+    gOffsets.carOverlayX = rightAlign(gBaseOffsets800.carOverlayX);
+    gOffsets.carOverlayY = bottomAnchor(gBaseOffsets800.carOverlayY) + 20;
+    gOffsets.carFuelBarX = rightAlign(gBaseOffsets800.carFuelBarX);
+    gOffsets.carFuelBarY = bottomAnchor(gBaseOffsets800.carFuelBarY) + 20;
+    gOffsets.carFuelBarHeight = gBaseOffsets800.carFuelBarHeight;
+    gOffsets.townWorldSwitchX = rightAlign(gBaseOffsets800.townWorldSwitchX);
+    gOffsets.townWorldSwitchY = bottomAnchor(gBaseOffsets800.townWorldSwitchY) + 20;
+
+    // mapcenter – scale proportionally based on viewport
+    gOffsets.mapcenterX = (int)(gBaseOffsets800.mapcenterX * (float)gOffsets.viewWidth / gBaseOffsets800.viewWidth);
+    gOffsets.mapcenterY = (int)(gBaseOffsets800.mapcenterY * (float)gOffsets.viewHeight / gBaseOffsets800.viewHeight);
+
+    // cityNameMaxY – keep anchored to screen bottom (distance = 15)
+    gOffsets.cityNameMaxY = screenHeight - 15;
+
+    // subtile viewport max – set to viewport size
+    gOffsets.subtileViewportMaxX = gOffsets.viewWidth;
+    gOffsets.subtileViewportMaxY = gOffsets.viewHeight;
+
+    // Town map offsets – scale proportionally (top‑left anchored)
+    float scaleX = (float)screenWidth / baseW;
+    float scaleY = (float)screenHeight / baseH;
+    gOffsets.townMapBgX = (int)(gBaseOffsets800.townMapBgX * scaleX);
+    gOffsets.townMapBgY = (int)(gBaseOffsets800.townMapBgY * scaleY);
+    gOffsets.townMapImageX = (int)(gBaseOffsets800.townMapImageX * scaleX);
+    gOffsets.townMapImageY = (int)(gBaseOffsets800.townMapImageY * scaleY);
+    gOffsets.townMapButtonXOffset = (int)(gBaseOffsets800.townMapButtonXOffset * scaleX);
+    gOffsets.townMapButtonYOffset = (int)(gBaseOffsets800.townMapButtonYOffset * scaleY);
+    gOffsets.townMapLabelXOffset = (int)(gBaseOffsets800.townMapLabelXOffset * scaleX);
+    gOffsets.townMapLabelYOffset = (int)(gBaseOffsets800.townMapLabelYOffset * scaleY);
+    gOffsets.townBackgroundWidth = (int)(gBaseOffsets800.townBackgroundWidth * scaleX);
+    gOffsets.townBackgroundHeight = (int)(gBaseOffsets800.townBackgroundHeight * scaleY);
+
+    // Recompute viewport max based on world map size and scaled viewport
+    int worldWidthPixels = WM_TILE_WIDTH * wmNumHorizontalTiles;
+    int worldHeightPixels = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles);
+    int maxScrollX = worldWidthPixels - gOffsets.viewWidth;
+    int maxScrollY = worldHeightPixels - gOffsets.viewHeight;
+    wmGenData.viewportMaxX = (maxScrollX > 0) ? maxScrollX : 0;
+    wmGenData.viewportMaxY = (maxScrollY > 0) ? maxScrollY : 0;
+
+    // Calculate how many list items fit vertically
+    int listTop = gOffsets.destListFirstY;
+    int overlayTop = std::min(gOffsets.globeOverlayY, gOffsets.carOverlayY);
+    if (overlayTop <= 0) overlayTop = screenHeight - 20; // fallback
+
+    int availableHeight = overlayTop - listTop - 4;
+    if (availableHeight < 0) availableHeight = 0;
+
+    int maxVisible = availableHeight / gOffsets.destListSpacing;
+    gMaxVisibleTabs = (maxVisible < 1) ? 1 : maxVisible;
 }
 
 const char* wmGetAreaNameById(int city)
@@ -4304,6 +4424,11 @@ static int wmMapInit()
 
     // Determine screen mode and load offsets
     worldmapLoadOffsetsFromConfig(&gOffsets, gameIsWidescreen());
+    if (gameIsWidescreen()) {
+        gBaseOffsets800 = gOffsets;
+        // Scale offsets from original 800‑based values to current screen size
+        scaleWorldmapOffsets800(screenGetWidth(), screenGetHeight());
+    }
 
     // Generate debug maps_list.txt file
     wmGenerateMapListDebug();
@@ -4534,11 +4659,7 @@ static int wmWorldMapFunc(int a1)
     wmFadeOut();
 
     restoreUserAspectPreference();
-    if (gameIsWidescreen()) {
-        resizeContent(800, 500);
-    } else {
-        resizeContent(640, 480);
-    }
+    resizeContent(screenGetWidth(), screenGetHeight(), true);
 
     if (wmInterfaceInit() == -1) {
         wmInterfaceExit();
@@ -4802,11 +4923,11 @@ static int wmWorldMapFunc(int a1)
             // NOTE: Uninline.
             wmInterfaceScroll(1, 0, nullptr);
         } else if (keyCode == KEY_CTRL_ARROW_UP) {
-            wmInterfaceScrollTabsStart(-27);
+            wmInterfaceScrollTabsStart(-gOffsets.destListSpacing);
         } else if (keyCode == KEY_CTRL_ARROW_DOWN) {
-            wmInterfaceScrollTabsStart(27);
+            wmInterfaceScrollTabsStart(gOffsets.destListSpacing);
         } else if (keyCode >= KEY_CTRL_F1 && keyCode <= KEY_CTRL_F7) {
-            int quickDestinationIndex = wmGenData.tabsOffsetY / 27 + (keyCode - KEY_CTRL_F1);
+            int quickDestinationIndex = wmGenData.tabsOffsetY / gOffsets.destListSpacing + (keyCode - KEY_CTRL_F1);
             if (quickDestinationIndex < wmLabelCount) {
                 int areaIdx = wmLabelList[quickDestinationIndex];
                 CityInfo* city = &(wmAreaInfoList[areaIdx]);
@@ -4838,10 +4959,10 @@ static int wmWorldMapFunc(int a1)
                            gOffsets.scrollAreaX,
                            gOffsets.scrollAreaY,
                            gOffsets.scrollAreaX + 119, // Width remains constant
-                           gOffsets.scrollAreaY + 178)) // Height remains constant)
+                           gOffsets.scrollAreaY + (gMaxVisibleTabs * gOffsets.destListSpacing))) // Height now varies with list length
             {
                 if (wheelY != 0) {
-                    wmInterfaceScrollTabsStart(wheelY > 0 ? 27 : -27);
+                    wmInterfaceScrollTabsStart(wheelY > 0 ? gOffsets.destListSpacing : -gOffsets.destListSpacing);
                 }
             }
         }
@@ -5990,7 +6111,7 @@ static void wmInterfaceScrollTabsStart(int delta)
         return;
     }
 
-    for (int index = 0; index < 7; index++) {
+    for (int index = 0; index < wmTownMapSubButtonCount; index++) {
         buttonDisable(wmTownMapSubButtonIds[index]);
     }
 
@@ -6002,7 +6123,7 @@ static void wmInterfaceScrollTabsStop()
 {
     wmGenData.tabsScrollingDelta = 0;
 
-    for (int index = 0; index < 7; index++) {
+    for (int index = 0; index < wmTownMapSubButtonCount; index++) {
         buttonEnable(wmTownMapSubButtonIds[index]);
     }
 }
@@ -6030,6 +6151,26 @@ static void wmInterfaceScrollTabsUpdate()
     }
 }
 
+static void drawRepeating(unsigned char* dest, int destPitch,
+    const unsigned char* src, int srcWidth, int srcHeight,
+    int destX, int destY, int destWidth, int destHeight,
+    bool horizontal)
+{
+    if (horizontal) {
+        for (int x = 0; x < destWidth; x += srcWidth) {
+            int w = (x + srcWidth <= destWidth) ? srcWidth : destWidth - x;
+            blitBufferToBuffer(const_cast<unsigned char*>(src), w, srcHeight, srcWidth,
+                dest + destPitch * destY + destX + x, destPitch);
+        }
+    } else {
+        for (int y = 0; y < destHeight; y += srcHeight) {
+            int h = (y + srcHeight <= destHeight) ? srcHeight : destHeight - y;
+            blitBufferToBuffer(const_cast<unsigned char*>(src), srcWidth, h, srcWidth,
+                dest + destPitch * (destY + y) + destX, destPitch);
+        }
+    }
+}
+
 // 0x4C2324
 static int wmInterfaceInit()
 {
@@ -6045,7 +6186,6 @@ static int wmInterfaceInit()
 
     _map_save_in_game(true);
 
-    // Use loaded offsets instead of hardcoded values
     const int worldmapWindowWidth = gOffsets.windowWidth;
     const int worldmapWindowHeight = gOffsets.windowHeight;
 
@@ -6059,6 +6199,25 @@ static int wmInterfaceInit()
     isoDisable();
     colorCycleDisable();
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+    // Worlmap border pieces
+    int partFids[8] = {
+        buildFid(OBJ_TYPE_INTERFACE, 7913, 0, 0, 0), // TL
+        buildFid(OBJ_TYPE_INTERFACE, 4429, 0, 0, 0), // T
+        buildFid(OBJ_TYPE_INTERFACE, 7919, 0, 0, 0), // TR
+        buildFid(OBJ_TYPE_INTERFACE, 4427, 0, 0, 0), // R
+        buildFid(OBJ_TYPE_INTERFACE, 7271, 0, 0, 0), // BR
+        buildFid(OBJ_TYPE_INTERFACE, 4411, 0, 0, 0), // B
+        buildFid(OBJ_TYPE_INTERFACE, 7265, 0, 0, 0), // BL
+        buildFid(OBJ_TYPE_INTERFACE, 4421, 0, 0, 0) // L
+    };
+
+    for (int i = 0; i < 8; i++) {
+        if (!gWorldMapBorder[i].lock(partFids[i])) {
+            debugPrint("Failed to load Worldmap Border part %d\n", i);
+            return -1;
+        }
+    }
 
     // CE: Clear map window.
     windowFill(gIsoWindow,
@@ -6097,13 +6256,6 @@ static int wmInterfaceInit()
     if (wmOverlayOffscreenBuf == nullptr) {
         return -1;
     }
-
-    blitBufferToBuffer(_backgroundFrmImage.getData(),
-        _backgroundFrmImage.getWidth(),
-        _backgroundFrmImage.getHeight(),
-        _backgroundFrmImage.getWidth(),
-        wmBkWinBuf,
-        gOffsets.windowWidth);
 
     for (int citySize = 0; citySize < CITY_SIZE_COUNT; citySize++) {
         CitySizeDescription* citySizeDescription = &(wmSphereData[citySize]);
@@ -6221,7 +6373,11 @@ static int wmInterfaceInit()
         buttonSetCallbacks(switchBtn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
-    for (int index = 0; index < 7; index++) {
+    // Create dynamic buttons for town list
+    wmTownMapSubButtonCount = gMaxVisibleTabs;
+    wmTownMapSubButtonIds = (int*)internal_malloc(sizeof(int) * wmTownMapSubButtonCount);
+    for (int index = 0; index < wmTownMapSubButtonCount; index++) {
+        int hotkey = (index < 7) ? KEY_CTRL_F1 + index : -1;
         wmTownMapSubButtonIds[index] = buttonCreate(wmBkWin,
             gOffsets.destListX,
             gOffsets.destListFirstY + gOffsets.destListSpacing * index,
@@ -6230,15 +6386,14 @@ static int wmInterfaceInit()
             -1,
             -1,
             -1,
-            KEY_CTRL_F1 + index,
+            hotkey,
             wmGenData.redButtonNormalFrmImage.getData(),
             wmGenData.redButtonPressedFrmImage.getData(),
             nullptr,
             BUTTON_FLAG_TRANSPARENT);
-
-        // SFALL: Add missing button sounds.
         if (wmTownMapSubButtonIds[index] != -1) {
             buttonSetCallbacks(wmTownMapSubButtonIds[index], _gsound_red_butt_press, _gsound_red_butt_release);
+            buttonSetMouseCallbacks(wmTownMapSubButtonIds[index], nullptr, nullptr, nullptr, wmTownListButtonClickCallback);
         }
     }
 
@@ -6431,6 +6586,11 @@ static int wmInterfaceExit()
         wmOverlayOffscreenBuf = nullptr;
     }
 
+    // Unload worldmap border parts
+    for (int i = 0; i < 8; i++) {
+        gWorldMapBorder[i].unlock();
+    }
+
     wmInterfaceWasInitialized = 0;
 
     scriptsEnable();
@@ -6514,6 +6674,36 @@ static int wmInterfaceScrollPixel(int stepX, int stepY, int dx, int dy, bool* su
     }
 
     return 0;
+}
+
+// Town list button click handler
+static void wmTownListButtonClickCallback(int btn, int eventCode)
+{
+    // Find which button index this ID corresponds to
+    int buttonIndex = -1;
+    for (int i = 0; i < wmTownMapSubButtonCount; i++) {
+        if (wmTownMapSubButtonIds[i] == btn) {
+            buttonIndex = i;
+            break;
+        }
+    }
+    if (buttonIndex == -1) return;
+
+    // Determine which town in the master list this button currently shows
+    int firstVisible = wmGenData.tabsOffsetY / gOffsets.destListSpacing;
+    int listIndex = firstVisible + buttonIndex;
+    if (listIndex < 0 || listIndex >= wmLabelCount) return;
+
+    int areaIdx = wmLabelList[listIndex];
+    if (!wmAreaIsKnown(wmAreaInfoList[areaIdx].areaId)) return;
+
+    // Start walking to the destination (same as Ctrl+Fn hotkeys)
+    CityInfo* city = &wmAreaInfoList[areaIdx];
+    CitySizeDescription* citySizeDescription = &wmSphereData[city->size];
+    int destX = city->x + citySizeDescription->frmImage.getWidth() / 2 - gOffsets.viewX;
+    int destY = city->y + citySizeDescription->frmImage.getHeight() / 2 - gOffsets.viewY;
+    wmPartyInitWalking(destX, destY);
+    wmGenData.mousePressed = false;
 }
 
 // 0x4C32EC
@@ -7647,7 +7837,7 @@ static int wmTownMapFunc(int* mapIdxPtr)
             }
 
             if (keyCode >= KEY_CTRL_F1 && keyCode <= KEY_CTRL_F7) {
-                int quickDestinationIndex = wmGenData.tabsOffsetY / 27 + keyCode - KEY_CTRL_F1;
+                int quickDestinationIndex = wmGenData.tabsOffsetY / gOffsets.destListSpacing + keyCode - KEY_CTRL_F1;
                 if (quickDestinationIndex < wmLabelCount) {
                     int areaIdx = wmLabelList[quickDestinationIndex];
                     CityInfo* city = &(wmAreaInfoList[areaIdx]);
@@ -7687,6 +7877,10 @@ static int wmTownMapFunc(int* mapIdxPtr)
                     break;
                 }
             }
+        }
+        if (wmGenData.isWalking) {
+            *mapIdxPtr = -1; // no map to load – just go back to world map
+            break;
         }
 
         renderPresent();
@@ -8045,12 +8239,59 @@ int wmSfxIdxName(int sfxIdx, char** namePtr)
 // 0x4C50F4
 static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
 {
-    blitBufferToBufferTrans(_backgroundFrmImage.getData(),
-        gOffsets.windowWidth,
-        gOffsets.windowHeight,
-        gOffsets.windowWidth,
-        wmBkWinBuf,
-        gOffsets.windowWidth);
+    int winWidth = gOffsets.windowWidth;
+    int winHeight = gOffsets.windowHeight;
+
+    int tlW = gWorldMapBorder[0].getWidth();
+    int tlH = gWorldMapBorder[0].getHeight();
+    int trW = gWorldMapBorder[2].getWidth();
+    int trH = gWorldMapBorder[2].getHeight();
+    int blW = gWorldMapBorder[6].getWidth();
+    int blH = gWorldMapBorder[6].getHeight();
+    int brW = gWorldMapBorder[4].getWidth();
+    int brH = gWorldMapBorder[4].getHeight();
+
+    // Draw edges (full width/height, corners will overlay)
+    // Top edge (horizontal)
+    if (winWidth > 0) {
+        drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
+            gWorldMapBorder[1].getData(), gWorldMapBorder[1].getWidth(), gWorldMapBorder[1].getHeight(),
+            0, 0, winWidth, gWorldMapBorder[1].getHeight(), true);
+    }
+    // Bottom edge
+    if (winWidth > 0) {
+        drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
+            gWorldMapBorder[5].getData(), gWorldMapBorder[5].getWidth(), gWorldMapBorder[5].getHeight(),
+            0, winHeight - gWorldMapBorder[5].getHeight(),
+            winWidth, gWorldMapBorder[5].getHeight(), true);
+    }
+    // Left edge
+    if (winHeight > 0) {
+        drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
+            gWorldMapBorder[7].getData(), gWorldMapBorder[7].getWidth(), gWorldMapBorder[7].getHeight(),
+            0, 0, gWorldMapBorder[7].getWidth(), winHeight, false);
+    }
+    // Right edge
+    if (winHeight > 0) {
+        drawRepeating(wmBkWinBuf, gOffsets.windowWidth,
+            gWorldMapBorder[3].getData(), gWorldMapBorder[3].getWidth(), gWorldMapBorder[3].getHeight(),
+            winWidth - gWorldMapBorder[3].getWidth(), 0,
+            gWorldMapBorder[3].getWidth(), winHeight, false);
+    }
+
+    // Draw corners on top (with transparency)
+    // Top-Left
+    blitBufferToBufferTrans(gWorldMapBorder[0].getData(), tlW, tlH, tlW,
+        wmBkWinBuf, gOffsets.windowWidth);
+    // Top-Right
+    blitBufferToBufferTrans(gWorldMapBorder[2].getData(), trW, trH, trW,
+        wmBkWinBuf + (winWidth - trW), gOffsets.windowWidth);
+    // Bottom-Left
+    blitBufferToBufferTrans(gWorldMapBorder[6].getData(), blW, blH, blW,
+        wmBkWinBuf + gOffsets.windowWidth * (winHeight - blH), gOffsets.windowWidth);
+    // Bottom-Right
+    blitBufferToBufferTrans(gWorldMapBorder[4].getData(), brW, brH, brW,
+        wmBkWinBuf + gOffsets.windowWidth * (winHeight - brH) + (winWidth - brW), gOffsets.windowWidth);
 
     wmRefreshTabs();
 
@@ -8127,108 +8368,99 @@ static void wmInterfaceRefreshCarFuel()
 // 0x4C52B0
 static int wmRefreshTabs()
 {
-    unsigned char* v30;
     unsigned char* v0;
     int v31;
     CityInfo* city;
-    int v10;
-    unsigned char* v11;
-    unsigned char* v12;
-    int v32;
-    unsigned char* v13;
     FrmImage labelFrm;
 
-    // Calculate label position based on configurable offsets
-    int labelX = gOffsets.destListX + 22; // 508 + 22 = 530
-    int labelY = gOffsets.destListFirstY; // 138
+    int labelX = gOffsets.destListX + 22; // x position for labels
+    int labelY = gOffsets.destListFirstY; // y position for first label
 
-    // Skip first empty tab (original code does this in the `wmInterfaceInit`)
-    unsigned char* src = wmGenData.tabsBackgroundFrmImage.getData() + wmGenData.tabsBackgroundFrmImage.getWidth() * 27;
-    blitBufferToBufferTrans(src + wmGenData.tabsBackgroundFrmImage.getWidth() * wmGenData.tabsOffsetY + 9,
-        119,
-        178,
-        wmGenData.tabsBackgroundFrmImage.getWidth(),
-        wmBkWinBuf + gOffsets.windowWidth * gOffsets.scrollAreaY + gOffsets.scrollAreaX,
-        gOffsets.windowWidth);
+    // Background tile dimensions (from tabsBackgroundFrmImage)
+    int bgWidth = wmGenData.tabsBackgroundFrmImage.getWidth();
+    int bgHeight = wmGenData.tabsBackgroundFrmImage.getHeight();
+    unsigned char* bgData = wmGenData.tabsBackgroundFrmImage.getData();
 
-    v30 = wmBkWinBuf + gOffsets.windowWidth * labelY + labelX;
-    v0 = v30 - gOffsets.windowWidth * (wmGenData.tabsOffsetY % gOffsets.destListSpacing);
-    v31 = wmGenData.tabsOffsetY / gOffsets.destListSpacing;
+    // Destination area for the whole list
+    int destStartX = gOffsets.scrollAreaX - 7;
+    int destStartY = gOffsets.scrollAreaY;
+    int destPitch = gOffsets.windowWidth;
 
-    if (v31 < wmLabelCount) {
-        city = &(wmAreaInfoList[wmLabelList[v31]]);
-        if (city->labelFid != -1) {
-            if (!labelFrm.lock(city->labelFid)) {
-                return -1;
-            }
+    // Total height needed for the visible list (gMaxVisibleTabs items)
+    int totalListHeight = gMaxVisibleTabs * gOffsets.destListSpacing;
 
-            v10 = labelFrm.getHeight() - wmGenData.tabsOffsetY % gOffsets.destListSpacing;
-            v11 = labelFrm.getData() + labelFrm.getWidth() * (wmGenData.tabsOffsetY % gOffsets.destListSpacing);
-
-            v12 = v0;
-            if (v0 < v30 - gOffsets.windowWidth) {
-                v12 = v30 - gOffsets.windowWidth;
-            }
-
-            blitBufferToBuffer(v11,
-                labelFrm.getWidth(),
-                v10,
-                labelFrm.getWidth(),
-                v12,
-                gOffsets.windowWidth);
-
-            labelFrm.unlock();
-        }
+    // Repeatedly blit the background tile vertically
+    for (int y = 0; y < totalListHeight; y += bgHeight) {
+        int blockHeight = (y + bgHeight <= totalListHeight) ? bgHeight : totalListHeight - y;
+        blitBufferToBuffer(bgData,
+            bgWidth, blockHeight, bgWidth,
+            wmBkWinBuf + (destStartY + y) * destPitch + destStartX,
+            destPitch);
     }
 
-    v13 = v0 + gOffsets.windowWidth * gOffsets.destListSpacing;
-    v32 = v31 + 6;
+    // Draw the right border pieces using original positions (anchored to screen right edge)
+    int screenWidth = gOffsets.windowWidth;
+    int screenHeight = gOffsets.windowHeight;
 
-    for (int v14 = v31 + 1; v14 < v32; v14++) {
-        if (v14 < wmLabelCount) {
-            city = &(wmAreaInfoList[wmLabelList[v14]]);
+    FrmImage* topRightImg = &gWorldMapBorder[2];
+    FrmImage* rightEdgeImg = &gWorldMapBorder[3];
+    FrmImage* bottomRightImg = &gWorldMapBorder[4];
+
+    int topW = topRightImg->getWidth();
+    int topH = topRightImg->getHeight();
+    int edgeW = rightEdgeImg->getWidth();
+    int edgeH = rightEdgeImg->getHeight();
+    int bottomW = bottomRightImg->getWidth();
+    int bottomH = bottomRightImg->getHeight();
+
+    // Top‑right corner (transparent)
+    blitBufferToBufferTrans(const_cast<unsigned char*>(topRightImg->getData()),
+        topW, topH, topW,
+        wmBkWinBuf + 0 * gOffsets.windowWidth + (screenWidth - topW),
+        gOffsets.windowWidth);
+
+    // Right edge – tile from top of list area to bottom of list area
+    int startY = gOffsets.scrollAreaY;
+    int endY = startY + totalListHeight;
+    for (int y = startY; y < endY; y += edgeH) {
+        int blockH = (y + edgeH <= endY) ? edgeH : endY - y;
+        blitBufferToBufferTrans(const_cast<unsigned char*>(rightEdgeImg->getData()),
+            edgeW, blockH, edgeW,
+            wmBkWinBuf + y * gOffsets.windowWidth + (screenWidth - edgeW),
+            gOffsets.windowWidth);
+    }
+
+    // Bottom‑right corner (transparent)
+    int bottomY = screenHeight - bottomH;
+    blitBufferToBufferTrans(const_cast<unsigned char*>(bottomRightImg->getData()),
+        bottomW, bottomH, bottomW,
+        wmBkWinBuf + bottomY * gOffsets.windowWidth + (screenWidth - bottomW),
+        gOffsets.windowWidth);
+
+    // Labels: draw the visible subset
+    v0 = wmBkWinBuf + gOffsets.windowWidth * labelY + labelX;
+    unsigned char* labelBase = v0 - gOffsets.windowWidth * (wmGenData.tabsOffsetY % gOffsets.destListSpacing);
+    int startIndex = wmGenData.tabsOffsetY / gOffsets.destListSpacing;
+
+    for (int i = 0; i < gMaxVisibleTabs; i++) {
+        int areaIdx = startIndex + i;
+        if (areaIdx < wmLabelCount) {
+            city = &(wmAreaInfoList[wmLabelList[areaIdx]]);
             if (city->labelFid != -1) {
                 if (!labelFrm.lock(city->labelFid)) {
                     return -1;
                 }
-
+                unsigned char* dest = labelBase + i * gOffsets.destListSpacing * gOffsets.windowWidth;
                 blitBufferToBuffer(labelFrm.getData(),
                     labelFrm.getWidth(),
                     labelFrm.getHeight(),
                     labelFrm.getWidth(),
-                    v13,
+                    dest,
                     gOffsets.windowWidth);
-
                 labelFrm.unlock();
             }
         }
-        v13 += gOffsets.windowWidth * gOffsets.destListSpacing;
     }
-
-    if (v31 + 6 < wmLabelCount) {
-        city = &(wmAreaInfoList[wmLabelList[v31 + 6]]);
-        if (city->labelFid != -1) {
-            if (!labelFrm.lock(city->labelFid)) {
-                return -1;
-            }
-
-            blitBufferToBuffer(labelFrm.getData(),
-                labelFrm.getWidth(),
-                labelFrm.getHeight() - 5,
-                labelFrm.getWidth(),
-                v13,
-                gOffsets.windowWidth);
-
-            labelFrm.unlock();
-        }
-    }
-
-    blitBufferToBufferTrans(wmGenData.tabsBorderFrmImage.getData(),
-        119,
-        178,
-        119,
-        wmBkWinBuf + gOffsets.windowWidth * gOffsets.scrollAreaY + gOffsets.scrollAreaX,
-        gOffsets.windowWidth);
 
     return 0;
 }
