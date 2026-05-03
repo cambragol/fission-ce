@@ -1599,18 +1599,18 @@ int lsgLoadGame(int mode)
                 rc = -1;
                 break;
             default:
-            
+
                 // Build the path to the per-save mod config file
                 char slotPath[COMPAT_MAX_PATH];
                 snprintf(slotPath, sizeof(slotPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
 
-                char missingMod[MOD_INFO_MAX_NAME] = {0};
+                char missingMod[MOD_INFO_MAX_NAME] = { 0 };
                 int checkResult = modConfigCheckSlotEnabledMatchEx(slotPath, missingMod, sizeof(missingMod));
 
                 bool proceed = true;
                 const char* title = nullptr;
                 const char* msg = nullptr;
-                const char* lines[1] = {nullptr};
+                const char* lines[1] = { nullptr };
 
                 if (checkResult == 3) { // old save – no config file
                     title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 522); // Old Save Format
@@ -1618,8 +1618,7 @@ int lsgLoadGame(int mode)
                     lines[0] = msg;
                     showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
                     // proceed remains true, load normally
-                }
-                else if (checkResult == 2) { // missing mod
+                } else if (checkResult == 2) { // missing mod
                     title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 524); // Missing Mod
                     const char* bodyFmt = getmsg(&gFissionMessageList, &gFissionMessageListItem, 525); // Save game requires mod '%s' which is not currently loaded. Load anyway? (Missing content may cause crashes.)
                     char body[512];
@@ -1627,8 +1626,7 @@ int lsgLoadGame(int mode)
                     lines[0] = body;
                     int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
                     if (result == 0) proceed = false; // No -> cancel
-                }
-                else if (checkResult == 1) { // mismatch
+                } else if (checkResult == 1) { // mismatch
                     title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 520); // Mod Configuration Mismatch
                     msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 521); // This save expects a different set of enabled mods. Load anyway? (May cause odd behaviour or crashes.)
                     lines[0] = msg;

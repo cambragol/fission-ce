@@ -834,7 +834,7 @@ static int modListDrawList()
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color;
         bool selected = (i == gModListTopLine + gModListCurrentLine);
-        
+
         if (!gModListTempMods[i].enabled) {
             // Disabled mods: different color if selected
             color = selected ? _colorTable[MOD_DISABLED_SELECTED_COLOR] : _colorTable[MOD_DISABLED_COLOR];
@@ -842,7 +842,7 @@ static int modListDrawList()
             // Enabled mods: normal highlight or normal text
             color = selected ? _colorTable[32747] : _colorTable[992];
         }
-        
+
         int x = MOD_LIST_X;
         // In reorder mode, indent the currently selected line (overrides color)
         if (gModListReorderMode && selected) {
@@ -965,7 +965,7 @@ static void modListDrawDetails(int selectedIndex)
             }
         }
     }
-    
+
     // Show "DISABLED" if the mod is disabled
     if (!info->enabled) {
         const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // DISABLED
@@ -974,9 +974,9 @@ static void modListDrawDetails(int selectedIndex)
         // Position below description/dependencies - fixed Y coordinate - calculate later or base from bottom
         int yDisabled = 150;
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDisabled + MOD_TEXT_X,
-                     disabledText,
-                     MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-                     _colorTable[32328]);   // red? colour for warning
+            disabledText,
+            MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+            _colorTable[32328]); // red? colour for warning
     }
 
     // Restore original font
@@ -1133,14 +1133,14 @@ static int modListHandleInput(int count)
                     strncpy(datNameBackup, mod->datName, MOD_INFO_MAX_NAME - 1);
                     datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
                     bool wasEnabled = mod->enabled;
-                    
+
                     // Toggle enabled flag
                     mod->enabled = !wasEnabled;
                     soundPlayFile("nmselec0");
-                    
+
                     // Resort: disabled to bottom
                     modListSortDisabledToBottom();
-                    
+
                     if (!wasEnabled) {
                         // We just ENABLED a disabled mod -> find its new position
                         for (int i = 0; i < gModListTempCount; i++) {
@@ -1155,7 +1155,7 @@ static int modListHandleInput(int count)
                         gModListTopLine = 0;
                         gModListCurrentLine = 0;
                     }
-                    
+
                     gModListOrderChanged = 1;
                     modListRefresh();
                 }

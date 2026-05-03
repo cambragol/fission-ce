@@ -589,14 +589,14 @@ void modConfigWriteEnabledForSlot(const char* fullPath)
     char buffer[16384];
     int pos = 0;
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
-                    "# FISSION per-save mod enabled flags\n");
+        "# FISSION per-save mod enabled flags\n");
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
-                    "# Format: <mod_dat_name> enabled (1/0)\n");
+        "# Format: <mod_dat_name> enabled (1/0)\n");
     for (int i = 0; i < gLoadedModsCount; i++) {
         pos += snprintf(buffer + pos, sizeof(buffer) - pos,
-                        "%s %d\n",
-                        gLoadedMods[i].datName,
-                        gLoadedMods[i].enabled ? 1 : 0);
+            "%s %d\n",
+            gLoadedMods[i].datName,
+            gLoadedMods[i].enabled ? 1 : 0);
     }
     fileWrite(buffer, 1, pos, f);
     fileClose(f);
