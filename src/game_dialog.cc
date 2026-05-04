@@ -926,7 +926,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
         return 0;
     }
 
-    // ====== HEAD OVERRIDE (script first, then PID) ======
+    // ====== HEAD OVERRIDE  ======
     bool scriptOverrideUsed = false;
     char scriptBase[64];
 
@@ -944,40 +944,20 @@ int _gdialogInitFromScript(int headFid, int reaction)
         }
     }
 
-    if (!scriptOverrideUsed && headFid == -1) {
-        const char* headName = artGetHeadNameForPid(gGameDialogSpeaker->pid);
-        if (headName != nullptr) {
-            int headIndex = artFindVariant(OBJ_TYPE_HEAD, -1, headName);
-            if (headIndex != -1) {
-                headFid = buildFid(OBJ_TYPE_HEAD, headIndex, 0, 0, 0);
-                gGameDialogOldMusicVolume = -1;
-                backgroundSoundDelete();
-                gGameDialogHeadFid = headFid;
-            } else {
-                gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
-            }
-        } else {
-            gGameDialogOldMusicVolume = _gsound_background_volume_get_set(gMusicVolume / 2);
-        }
-    } else if (!scriptOverrideUsed && headFid != -1) {
-        gGameDialogOldMusicVolume = -1;
-        backgroundSoundDelete();
-    }
-
-    // Apply background GVAR override (script first, then PID)
     if (headFid != -1) {
-        int bgGvar = -1;
+        int bg = -1;
+        char scriptBase[64];
         if (gGameDialogSpeaker->sid != -1 && scriptGetBaseName(gGameDialogSpeaker->sid, scriptBase, sizeof(scriptBase))) {
-            bgGvar = getBgGvarForScript(scriptBase);
-        }
-        if (bgGvar == -1) {
-            bgGvar = getHeadBgGvarOverride(gGameDialogSpeaker->pid);
-        }
-        if (bgGvar != -1) {
-            int bgVal = gameGetGlobalVar(bgGvar);
-            if (bgVal != -1) {
-                gameDialogSetBackground(bgVal);
+            int gvarIdx = getBgGvarForScript(scriptBase);
+            if (gvarIdx != -1) {
+                bg = gameGetGlobalVar(gvarIdx);          // dynamic from GVAR
             }
+            if (bg == -1) {
+                bg = getStaticBgForScript(scriptBase);   // static fallback
+            }
+        }
+        if (bg != -1) {
+            gameDialogSetBackground(bg);
         }
     }
     // ====== END OVERRIDE ======
