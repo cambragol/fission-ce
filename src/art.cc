@@ -61,8 +61,8 @@ typedef struct HeadDescription {
 static struct {
     char script[64];
     char head[64];
-    int bgGvar;      // -1 = none (dynamic from global var)
-    int staticBg;    // -1 = none (static background index)
+    int bgGvar; // -1 = none (dynamic from global var)
+    int staticBg; // -1 = none (static background index)
 } scriptMaps[MAX_SCRIPT_MAPS];
 static int scriptMapCount = 0;
 
@@ -179,17 +179,18 @@ static int findScriptMap(const char* script)
     return -1;
 }
 
-static void addScriptMap(const char* script, const char* head, int bgGvar, int staticBg) {
+static void addScriptMap(const char* script, const char* head, int bgGvar, int staticBg)
+{
     int idx = findScriptMap(script);
     if (idx != -1) {
-        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head)-1);
+        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head) - 1);
         scriptMaps[idx].bgGvar = bgGvar;
         scriptMaps[idx].staticBg = staticBg;
         return;
     }
     if (scriptMapCount >= MAX_SCRIPT_MAPS) return;
-    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script)-1);
-    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head)-1);
+    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script) - 1);
+    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head) - 1);
     scriptMaps[scriptMapCount].bgGvar = bgGvar;
     scriptMaps[scriptMapCount].staticBg = staticBg;
     scriptMapCount++;
@@ -207,7 +208,8 @@ int getBgGvarForScript(const char* script)
     return (idx != -1) ? scriptMaps[idx].bgGvar : -1;
 }
 
-int getStaticBgForScript(const char* script) {
+int getStaticBgForScript(const char* script)
+{
     int idx = findScriptMap(script);
     return (idx != -1) ? scriptMaps[idx].staticBg : -1;
 }
@@ -1338,28 +1340,33 @@ static void artLoadModHeadData(ArtListDescription* desc)
             // Parse optional npc_script, bg_gvar, background tokens
             char* rest = badStr;
             // Move past the third number
-            while (*rest && !isspace(*rest)) rest++;
-            while (*rest && isspace(*rest)) rest++;
+            while (*rest && !isspace(*rest))
+                rest++;
+            while (*rest && isspace(*rest))
+                rest++;
 
-            char current_script[64] = {0};
+            char current_script[64] = { 0 };
             bool have_script = false;
 
             while (*rest) {
                 // Skip whitespace
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 if (!*rest) break;
 
                 char* eq = strchr(rest, '=');
                 if (!eq) {
                     // No '=', skip to next space
-                    while (*rest && !isspace(*rest)) rest++;
+                    while (*rest && !isspace(*rest))
+                        rest++;
                     continue;
                 }
 
                 // Extract key
                 char* key_start = rest;
                 char* key_end = eq;
-                while (key_end > key_start && isspace(*(key_end-1))) key_end--;
+                while (key_end > key_start && isspace(*(key_end - 1)))
+                    key_end--;
                 size_t klen = key_end - key_start;
                 char key[64];
                 strncpy(key, key_start, klen);
@@ -1367,15 +1374,17 @@ static void artLoadModHeadData(ArtListDescription* desc)
 
                 // Move to value
                 rest = eq + 1;
-                while (*rest && isspace(*rest)) rest++;
+                while (*rest && isspace(*rest))
+                    rest++;
                 char* val_start = rest;
-                while (*rest && !isspace(*rest)) rest++;
+                while (*rest && !isspace(*rest))
+                    rest++;
                 char saved = *rest;
                 *rest = '\0';
 
                 if (strcmp(key, "npc_script") == 0) {
-                    strncpy(current_script, val_start, sizeof(current_script)-1);
-                    current_script[sizeof(current_script)-1] = '\0';
+                    strncpy(current_script, val_start, sizeof(current_script) - 1);
+                    current_script[sizeof(current_script) - 1] = '\0';
                     have_script = true;
                     // Add mapping with default -1 for bgGvar and staticBg
                     addScriptMap(current_script, filename, -1, -1);

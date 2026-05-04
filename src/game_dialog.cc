@@ -950,10 +950,10 @@ int _gdialogInitFromScript(int headFid, int reaction)
         if (gGameDialogSpeaker->sid != -1 && scriptGetBaseName(gGameDialogSpeaker->sid, scriptBase, sizeof(scriptBase))) {
             int gvarIdx = getBgGvarForScript(scriptBase);
             if (gvarIdx != -1) {
-                bg = gameGetGlobalVar(gvarIdx);          // dynamic from GVAR
+                bg = gameGetGlobalVar(gvarIdx); // dynamic from GVAR
             }
             if (bg == -1) {
-                bg = getStaticBgForScript(scriptBase);   // static fallback
+                bg = getStaticBgForScript(scriptBase); // static fallback
             }
         }
         if (bg != -1) {
