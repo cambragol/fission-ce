@@ -524,12 +524,12 @@ bool modConfigInit(int argc, char** argv)
     configParseCommandLineArguments(&gModConfig, argc, argv);
     configChecker.check(gModConfig);
 
+    gModConfigInitialized = true;
+
     // read mod settings into main settings
     settingsFromModConfig();
 
     writeModFidsFile();
-
-    gModConfigInitialized = true;
 
     return true;
 }
