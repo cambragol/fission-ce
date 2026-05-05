@@ -371,7 +371,7 @@ static void artProcessVariants(ArtListDescription* desc)
     // 2. Process Variant Assets
     // -------------------------
     // Variants are higher-resolution versions of existing assets (e.g., "_800.frm" for 800x500)
-    // Variant suffix can be set in fallout2.cfg
+    // Variant suffix can be set in fission.cfg
     char suffix[32];
     snprintf(suffix, sizeof(suffix), "%s.frm",
         settings.graphics.widescreen_variant_suffix.c_str());
