@@ -722,13 +722,11 @@ int lsgSaveGame(int mode)
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
                 // --- Next Page (right arrow or click on next button) ---
-                if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth &&
-                    mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) ||
-                    keyCode == KEY_ARROW_RIGHT) {
+                if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
 
                     if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
-                        int rowOffset = _slot_cursor % 10;          // preserve row within page (0-9)
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
                         int newSlot = _currentSlotPage * 10 + rowOffset;
                         // clamp to maximum slot index
@@ -743,13 +741,11 @@ int lsgSaveGame(int mode)
                 }
 
                 // --- Previous Page (left arrow or click on prev button) ---
-                if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth &&
-                    mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) ||
-                    keyCode == KEY_ARROW_LEFT) {
+                if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
 
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
-                        int rowOffset = _slot_cursor % 10;          // preserve row within page
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
                         int newSlot = _currentSlotPage * 10 + rowOffset;
                         // clamp to maximum slot index (should never exceed, but for safety)
@@ -765,8 +761,7 @@ int lsgSaveGame(int mode)
 
                 // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
-                if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth &&
-                    mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
+                if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
 
                     // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
@@ -1357,13 +1352,11 @@ int lsgLoadGame(int mode)
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
                 // --- Next Page (right arrow or click on next button) ---
-                if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth &&
-                    mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) ||
-                    keyCode == KEY_ARROW_RIGHT) {
+                if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
 
                     if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
-                        int rowOffset = _slot_cursor % 10;          // preserve row within page (0-9)
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
                         int newSlot = _currentSlotPage * 10 + rowOffset;
                         // clamp to maximum slot index
@@ -1378,13 +1371,11 @@ int lsgLoadGame(int mode)
                 }
 
                 // --- Previous Page (left arrow or click on prev button) ---
-                if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth &&
-                    mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) ||
-                    keyCode == KEY_ARROW_LEFT) {
+                if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
 
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
-                        int rowOffset = _slot_cursor % 10;          // preserve row within page
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
                         int newSlot = _currentSlotPage * 10 + rowOffset;
                         // clamp to maximum slot index (should never exceed, but for safety)
@@ -1400,8 +1391,7 @@ int lsgLoadGame(int mode)
 
                 // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
-                if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth &&
-                    mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
+                if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
 
                     // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
