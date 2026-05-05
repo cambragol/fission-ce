@@ -146,9 +146,9 @@ Fallout 2/
 
 Use the in-game 'preferences' screen for 'graphics' configuration.
 
-Other configuration can be done fia the fallout2.cfg file.
+Other configuration can be done fia the fission.cfg file.
 
-For advanced tweaks, use the [enhancements] sections in 'fallout2.cfg':
+For advanced tweaks, use the [enhancements] sections in 'fission.cfg':
 
 ```
 [enhancements]
