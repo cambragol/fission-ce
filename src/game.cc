@@ -1811,28 +1811,28 @@ static void gameLoadEnabledModsFromOrderFile()
     snprintf(orderPath, sizeof(orderPath), "mods%cmods_order.txt", DIR_SEPARATOR);
     FILE* f = compat_fopen(orderPath, "r");
     if (!f) return;
-    
+
     char line[2048];
     while (fgets(line, sizeof(line), f)) {
         char* nl = strchr(line, '\n');
         if (nl) *nl = '\0';
         if (line[0] == '#' || line[0] == ';' || line[0] == '\0') continue;
-        
+
         // Expect pipe-separated format
         if (!strchr(line, '|')) continue;
-        
+
         // Parse only the first two fields: enabled and datName
         char* token = strtok(line, "|");
         if (!token) continue;
         int enabled = atoi(token);
         if (enabled == 0) continue;
-        
+
         token = strtok(nullptr, "|");
         if (!token) continue;
         char datName[MOD_INFO_MAX_NAME];
         strncpy(datName, token, MOD_INFO_MAX_NAME - 1);
         datName[MOD_INFO_MAX_NAME - 1] = '\0';
-        
+
         // Build full path to .dat file
         char modPath[COMPAT_MAX_PATH];
         snprintf(modPath, sizeof(modPath), "mods%cmod_%s.dat", DIR_SEPARATOR, datName);

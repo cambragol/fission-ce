@@ -1082,7 +1082,7 @@ static int modListHandleInput(int count)
                 );
                 memcpy(gLoadedMods, gModListTempMods, gModListTempCount * sizeof(ModInfo));
                 gLoadedModsCount = gModListTempCount;
-                modConfigWriteOrderFromLoadedMods();   // writes all metadata & enabled flags to mods_order.txt
+                modConfigWriteOrderFromLoadedMods(); // writes all metadata & enabled flags to mods_order.txt
                 gModListOrderChanged = 0;
             }
             if (keyCode == KEY_RETURN) {
