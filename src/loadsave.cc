@@ -720,16 +720,21 @@ int lsgSaveGame(int mode)
 
             case KEY_ARROW_RIGHT:
             case KEY_ARROW_LEFT:
-            case 502: { // Mouse click detected
+            case 502: { // Mouse click
                 int mouseX, mouseY;
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
-                // Check if the click was in the "Next Page" button area
+                // --- Next Page (right arrow or click on next button) ---
                 if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
-                    if (_currentSlotPage < (gEffectiveSaveLoadSlots / 10) - 1) {
+
+                    if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
-                        _slot_cursor = _currentSlotPage * 10;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
                         _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
@@ -738,11 +743,17 @@ int lsgSaveGame(int mode)
                     break;
                 }
 
+                // --- Previous Page (left arrow or click on prev button) ---
                 if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
+
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
-                        _slot_cursor = (_currentSlotPage * 10) + 9;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index (should never exceed, but for safety)
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
                         _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
@@ -751,22 +762,18 @@ int lsgSaveGame(int mode)
                     break;
                 }
 
+                // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
                 if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
 
-                    // Calculate clicked slot based on slot list position
+                    // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
-                    if (relativeSlot < 0) {
-                        relativeSlot = 0;
-                    } else if (relativeSlot > 9) {
-                        relativeSlot = 9;
-                    }
+                    if (relativeSlot < 0) relativeSlot = 0;
+                    if (relativeSlot > 9) relativeSlot = 9;
 
-                    // Adjust for the current page
                     int clickedSlot = (_currentSlotPage * 10) + relativeSlot;
-
                     if (clickedSlot > (gEffectiveSaveLoadSlots - 1)) {
-                        clickedSlot = (gEffectiveSaveLoadSlots - 1);
+                        clickedSlot = gEffectiveSaveLoadSlots - 1;
                     }
 
                     _slot_cursor = clickedSlot;
@@ -1347,41 +1354,52 @@ int lsgLoadGame(int mode)
                 int mouseX, mouseY;
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
+                // --- Next Page (right arrow or click on next button) ---
                 if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
-                    if (_currentSlotPage < (gEffectiveSaveLoadSlots / 10) - 1) {
+
+                    if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
-                        _slot_cursor = _currentSlotPage * 10;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
-                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
+                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
                         windowRefresh(gLoadSaveWindow);
                     }
                     break;
                 }
 
-                // Directly use offset variables for button positions
+                // --- Previous Page (left arrow or click on prev button) ---
                 if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
+
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
-                        _slot_cursor = (_currentSlotPage * 10) + 9;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index (should never exceed, but for safety)
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
-                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
+                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
                         windowRefresh(gLoadSaveWindow);
                     }
                     break;
                 }
 
+                // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
                 if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
+
                     // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
-                    if (relativeSlot < 0)
-                        relativeSlot = 0;
-                    if (relativeSlot > 9)
-                        relativeSlot = 9;
+                    if (relativeSlot < 0) relativeSlot = 0;
+                    if (relativeSlot > 9) relativeSlot = 9;
 
                     int clickedSlot = (_currentSlotPage * 10) + relativeSlot;
                     if (clickedSlot > (gEffectiveSaveLoadSlots - 1)) {
