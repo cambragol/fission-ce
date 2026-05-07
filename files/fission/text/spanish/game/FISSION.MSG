@@ -121,3 +121,7 @@
 {523}{}{Esta partida fue creada antes del seguimiento de mods por guardado. Vuelve a guardar para fijar su configuración. Cargando con los mods actuales.}
 {524}{}{Mod faltante}
 {525}{}{La partida requiere el mod '%s', que no está cargado actualmente. ¿Cargar de todos modos? (El contenido faltante puede causar fallos.)}
+
+{526}{}{¿Ajustar mods para coincidir con esta partida y reiniciar?}
+{527}{}{La configuración de mods fue actualizada para coincidir con la partida. Reinicia el juego antes de cargarla.}
+{528}{}{No se pudo aplicar la configuración de mods.}

@@ -452,6 +452,70 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
     return 0;
 }
 
+int modConfigApplySaveModConfig(const char* slotPath)
+{
+    File* f = fileOpen(slotPath, "rb");
+    if (!f) return -1;
+    int fileSize = fileGetSize(f);
+    if (fileSize <= 0) {
+        fileClose(f);
+        return -1;
+    }
+    char* buffer = (char*)internal_malloc(fileSize + 1);
+    if (!buffer) {
+        fileClose(f);
+        return -1;
+    }
+    if (fileRead(buffer, 1, fileSize, f) != fileSize) {
+        internal_free(buffer);
+        fileClose(f);
+        return -1;
+    }
+    buffer[fileSize] = '\0';
+    fileClose(f);
+
+    struct ExpectedMod {
+        char datName[MOD_INFO_MAX_NAME];
+        bool enabled;
+    } expected[MAX_LOADED_MODS];
+    int expectedCount = 0;
+
+    char* line = buffer;
+    while (line && *line) {
+        char* end = strchr(line, '\n');
+        if (end) *end = '\0';
+        if (line[0] != '#' && line[0] != '\0') {
+            char modName[MOD_INFO_MAX_NAME];
+            int enabledInt;
+            // Try new pipe format: datName|displayName|enabled
+            if (sscanf(line, "%127[^|]|%*[^|]|%d", modName, &enabledInt) == 2) {
+                if (expectedCount < MAX_LOADED_MODS) {
+                    strncpy(expected[expectedCount].datName, modName, MOD_INFO_MAX_NAME - 1);
+                    expected[expectedCount].enabled = (enabledInt != 0);
+                    expectedCount++;
+                }
+            }
+        }
+        line = end ? (end + 1) : nullptr;
+    }
+    internal_free(buffer);
+
+    // First set all current mods to disabled
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        gLoadedMods[i].enabled = false;
+    }
+    // Then enable only those expected
+    for (int i = 0; i < expectedCount; i++) {
+        for (int j = 0; j < gLoadedModsCount; j++) {
+            if (strcmp(gLoadedMods[j].datName, expected[i].datName) == 0) {
+                gLoadedMods[j].enabled = expected[i].enabled;
+                break;
+            }
+        }
+    }
+    return 0;
+}
+
 bool modConfigInit(int argc, char** argv)
 {
     if (gModConfigInitialized) return false;

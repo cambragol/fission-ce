@@ -121,3 +121,7 @@
 {523}{}{This save was created before per-save mod tracking. Resave to set its configuration. Loading with current mods.}
 {524}{}{Missing Mod}
 {525}{}{Save game requires mod '%s' which is not currently loaded. Load anyway? (Missing content may cause crashes.)}
+
+{526}{}{Adjust mods to match this save and restart?}
+{527}{}{Mod configuration updated to match the save. Please restart the game before loading this save.}
+{528}{}{Failed to apply mod configuration.}

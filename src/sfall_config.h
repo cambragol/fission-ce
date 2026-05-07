@@ -199,6 +199,9 @@ void modConfigWriteOrderFromLoadedMods();
 void modConfigWriteEnabledForSlot(const char* slotPath);
 int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize);
 
+// Apply enabled flags from a save slot's mod_enabled.cfg to gLoadedMods
+int modConfigApplySaveModConfig(const char* slotPath);
+
 } // namespace fallout
 
 #endif /* MOD_CONFIG_H */

@@ -1630,7 +1630,7 @@ int lsgLoadGame(int mode)
                 const char* msg = nullptr;
                 const char* lines[1] = { nullptr };
 
-                if (checkResult == 3) { // old save – no config file
+                if (checkResult == 3) { // old save - no config file
                     title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 522); // Old Save Format
                     msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 523); // This save was created before per-save mod tracking. Resave to set its configuration. Loading with current mods.
                     lines[0] = msg;
@@ -1645,11 +1645,40 @@ int lsgLoadGame(int mode)
                     int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
                     if (result == 0) proceed = false; // No -> cancel
                 } else if (checkResult == 1) { // mismatch
-                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 520); // Mod Configuration Mismatch
-                    msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 521); // This save expects a different set of enabled mods. Load anyway? (May cause odd behaviour or crashes.)
-                    lines[0] = msg;
-                    int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
-                    if (result == 0) proceed = false; // No -> cancel
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 520); // "Mod Configuration Mismatch"
+                    // First dialog: ask to adjust
+                    const char* adjustMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 526); // "Adjust mods to match this save and restart?"
+                    const char* lines1[] = { adjustMsg };
+                    int result1 = showDialogBox(title, lines1, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                    if (result1 == 1) { // Yes - adjust and restart
+                        if (modConfigApplySaveModConfig(slotPath) == 0) {
+                            modConfigWriteOrderFromLoadedMods();
+                            const char* restartMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 527); // "Mod configuration updated to match the save. Please restart the game before loading this save."
+                            const char* lines2[] = { restartMsg };
+                            showDialogBox(nullptr, lines2, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                            // Exit to main menu - do not load the save now
+                            _game_user_wants_to_quit = 1;
+                            rc = -1;
+                            proceed = false; // ensure we don't load
+                        } else {
+                            const char* errorMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 528); // "Failed to apply mod configuration."
+                            const char* linesErr[] = { errorMsg };
+                            showDialogBox("Error", linesErr, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                            rc = -1;
+                            proceed = false;
+                        }
+                    } else {
+                        // No - second dialog: load anyway?
+                        const char* loadAnywayMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 521); // "This save expects a different set of enabled mods. Load anyway? (May cause crashes)"
+                        const char* lines2[] = { loadAnywayMsg };
+                        int result2 = showDialogBox(nullptr, lines2, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                        if (result2 == 1) {
+                            proceed = true; // load anyway
+                        } else {
+                            rc = -1;
+                            proceed = false;
+                        }
+                    }
                 }
                 // checkResult == 0 -> perfect match, proceed automatically
 
