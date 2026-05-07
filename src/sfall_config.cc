@@ -336,16 +336,19 @@ void modConfigWriteEnabledForSlot(const char* fullPath)
 {
     File* f = fileOpen(fullPath, "wb");
     if (!f) return;
+    
     char buffer[16384];
     int pos = 0;
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
         "# FISSION per-save mod enabled flags\n");
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
-        "# Format: <mod_dat_name> enabled (1/0)\n");
+        "# Format: datName|displayName|enabled (1/0)\n");
+    
     for (int i = 0; i < gLoadedModsCount; i++) {
         pos += snprintf(buffer + pos, sizeof(buffer) - pos,
-            "%s %d\n",
+            "%s|%s|%d\n",
             gLoadedMods[i].datName,
+            gLoadedMods[i].display_name,
             gLoadedMods[i].enabled ? 1 : 0);
     }
     fileWrite(buffer, 1, pos, f);
@@ -355,7 +358,7 @@ void modConfigWriteEnabledForSlot(const char* fullPath)
 int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize)
 {
     File* f = fileOpen(fullPath, "rb");
-    if (!f) return 3; // No file -> old save
+    if (!f) return 3;
     int fileSize = fileGetSize(f);
     if (fileSize <= 0) {
         fileClose(f);
@@ -373,23 +376,41 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
     }
     buffer[fileSize] = '\0';
     fileClose(f);
-
+    
     struct SavedMod {
         char name[MOD_INFO_MAX_NAME];
+        char displayName[MOD_INFO_MAX_NAME];
         bool enabled;
     } savedMods[MAX_LOADED_MODS];
     int savedModsCount = 0;
-
+    
     char* line = buffer;
     while (line && *line) {
         char* end = strchr(line, '\n');
         if (end) *end = '\0';
         if (line[0] != '#' && line[0] != '\0') {
             char modName[MOD_INFO_MAX_NAME];
+            char displayName[MOD_INFO_MAX_NAME] = "";
             int enabledInt;
-            if (sscanf(line, "%127s %d", modName, &enabledInt) == 2) {
+            
+            // Try new pipe format
+            int parsed = sscanf(line, "%127[^|]|%127[^|]|%d", modName, displayName, &enabledInt);
+            if (parsed == 3) {
                 if (savedModsCount < MAX_LOADED_MODS) {
                     strncpy(savedMods[savedModsCount].name, modName, MOD_INFO_MAX_NAME - 1);
+                    savedMods[savedModsCount].name[MOD_INFO_MAX_NAME - 1] = '\0';
+                    strncpy(savedMods[savedModsCount].displayName, displayName, MOD_INFO_MAX_NAME - 1);
+                    savedMods[savedModsCount].displayName[MOD_INFO_MAX_NAME - 1] = '\0';
+                    savedMods[savedModsCount].enabled = (enabledInt != 0);
+                    savedModsCount++;
+                }
+            }
+            else if (sscanf(line, "%127s %d", modName, &enabledInt) == 2) {
+                // Old format
+                if (savedModsCount < MAX_LOADED_MODS) {
+                    strncpy(savedMods[savedModsCount].name, modName, MOD_INFO_MAX_NAME - 1);
+                    savedMods[savedModsCount].name[MOD_INFO_MAX_NAME - 1] = '\0';
+                    savedMods[savedModsCount].displayName[0] = '\0';
                     savedMods[savedModsCount].enabled = (enabledInt != 0);
                     savedModsCount++;
                 }
@@ -398,8 +419,8 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
         line = end ? (end + 1) : nullptr;
     }
     internal_free(buffer);
-
-    // First pass: check for missing mods (saved mod not found in global list)
+    
+    // Check for missing mods
     for (int i = 0; i < savedModsCount; i++) {
         bool found = false;
         for (int j = 0; j < gLoadedModsCount; j++) {
@@ -410,14 +431,15 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
         }
         if (!found) {
             if (missingModName && maxSize > 0) {
-                strncpy(missingModName, savedMods[i].name, maxSize - 1);
+                const char* friendly = savedMods[i].displayName[0] ? savedMods[i].displayName : savedMods[i].name;
+                strncpy(missingModName, friendly, maxSize - 1);
                 missingModName[maxSize - 1] = '\0';
             }
-            return 2; // Missing mod
+            return 2;
         }
     }
-
-    // Second pass: check for enabled flag mismatches
+    
+    // Check for enabled flag mismatches
     for (int i = 0; i < savedModsCount; i++) {
         for (int j = 0; j < gLoadedModsCount; j++) {
             if (strcmp(gLoadedMods[j].datName, savedMods[i].name) == 0) {
@@ -428,7 +450,7 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
             }
         }
     }
-    return 0; // Perfect match
+    return 0;
 }
 
 bool modConfigInit(int argc, char** argv)
@@ -436,8 +458,7 @@ bool modConfigInit(int argc, char** argv)
     if (gModConfigInitialized) return false;
     if (!configInit(&gModConfig)) return false;
 
-    // ========== 1. Default settings (keep all your existing configSet calls) ==========
-    // (I list them here for completeness; you already have them – just ensure they remain)
+    // Default settings
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, MOD_CONFIG_DEFAULT_START_YEAR);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, MOD_CONFIG_DEFAULT_START_MONTH);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, MOD_CONFIG_DEFAULT_START_DAY);
@@ -503,11 +524,11 @@ bool modConfigInit(int argc, char** argv)
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART);
     configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI);
 
-    // ========== 2. Scan mods folder ==========
+    // Scan mods folder
     char folderMods[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
     int folderCount = scanModsFolder(folderMods, MAX_LOADED_MODS);
 
-    // ========== 3. Read existing mods_order.txt (pipe format) ==========
+    // Read existing mods_order.txt (pipe format)
     ModInfo orderMods[MAX_LOADED_MODS];
     int orderCount = readModsOrderFile(orderMods, MAX_LOADED_MODS);
 
@@ -524,7 +545,7 @@ bool modConfigInit(int argc, char** argv)
         allMods.push_back(tm);
     }
 
-    // ========== 4. Discover new mods (not in order file) ==========
+    // Discover new mods (not in order file)
     for (int i = 0; i < folderCount; i++) {
         const char* datName = folderMods[i];
         bool found = false;
@@ -567,7 +588,7 @@ bool modConfigInit(int argc, char** argv)
         }
     }
 
-    // ========== 5. Build global list but DO NOT load any mods here ==========
+    // Build global list but DO NOT load any mods here
     gLoadedModsCount = allMods.size();
     for (size_t i = 0; i < allMods.size(); i++) {
         gLoadedMods[i] = allMods[i].info;
@@ -577,10 +598,10 @@ bool modConfigInit(int argc, char** argv)
         }
     }
 
-    // ========== 6. Write back mods_order.txt (new pipe format) ==========
+    // 6. Write back mods_order.txt (new pipe format)
     writeModsOrderFile(gLoadedMods, gLoadedModsCount);
 
-    // ========== 7. Read global mod.cfg and enabled mods' configs (for settings) ==========
+    // Read global mod.cfg and enabled mods' configs (for settings)
     char cfgMainPath[COMPAT_MAX_PATH];
     snprintf(cfgMainPath, sizeof(cfgMainPath), "data%c%s", DIR_SEPARATOR, MOD_CONFIG_FILE_NAME);
     configRead(&gModConfig, cfgMainPath, true);
@@ -596,6 +617,20 @@ bool modConfigInit(int argc, char** argv)
 
     configParseCommandLineArguments(&gModConfig, argc, argv);
     settingsFromModConfig();
+
+    // Final orphan cleanup: remove any mod in gLoadedMods whose .dat file is missing
+    for (int i = gLoadedModsCount - 1; i >= 0; i--) {
+        char checkPath[COMPAT_MAX_PATH];
+        snprintf(checkPath, sizeof(checkPath), "mods%cmod_%s.dat", DIR_SEPARATOR, gLoadedMods[i].datName);
+        if (compat_access(checkPath, 0) != 0) {
+            // File missing, remove this mod from list
+            for (int j = i; j < gLoadedModsCount - 1; j++) {
+                gLoadedMods[j] = gLoadedMods[j + 1];
+            }
+            gLoadedModsCount--;
+        }
+    }
+
     writeModFidsFile();
 
     gModConfigInitialized = true;
