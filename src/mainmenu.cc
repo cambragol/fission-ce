@@ -1082,8 +1082,7 @@ static int modListHandleInput(int count)
                 );
                 memcpy(gLoadedMods, gModListTempMods, gModListTempCount * sizeof(ModInfo));
                 gLoadedModsCount = gModListTempCount;
-                modConfigWriteOrderFromLoadedMods();
-                modConfigWriteEnabledFlags();
+                modConfigWriteOrderFromLoadedMods();   // writes all metadata & enabled flags to mods_order.txt
                 gModListOrderChanged = 0;
             }
             if (keyCode == KEY_RETURN) {
@@ -1128,34 +1127,8 @@ static int modListHandleInput(int count)
             } else if (!gModListReorderMode && (keyCode == KEY_LOWERCASE_E || keyCode == KEY_UPPERCASE_E)) {
                 int selected = gModListTopLine + gModListCurrentLine;
                 if (selected >= 0 && selected < gModListTempCount) {
-                    ModInfo* mod = &gModListTempMods[selected];
-                    char datNameBackup[MOD_INFO_MAX_NAME];
-                    strncpy(datNameBackup, mod->datName, MOD_INFO_MAX_NAME - 1);
-                    datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
-                    bool wasEnabled = mod->enabled;
-
-                    // Toggle enabled flag
-                    mod->enabled = !wasEnabled;
+                    gModListTempMods[selected].enabled = !gModListTempMods[selected].enabled;
                     soundPlayFile("nmselec0");
-
-                    // Resort: disabled to bottom
-                    modListSortDisabledToBottom();
-
-                    if (!wasEnabled) {
-                        // We just ENABLED a disabled mod -> find its new position
-                        for (int i = 0; i < gModListTempCount; i++) {
-                            if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
-                                gModListCurrentLine = i % MOD_MAX_MOD_LINES;
-                                gModListTopLine = (i / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
-                                break;
-                            }
-                        }
-                    } else {
-                        // We just DISABLED an enabled mod -> reset selection to top
-                        gModListTopLine = 0;
-                        gModListCurrentLine = 0;
-                    }
-
                     gModListOrderChanged = 1;
                     modListRefresh();
                 }

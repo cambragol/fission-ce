@@ -1805,6 +1805,44 @@ void createListsFolder()
     compat_mkdir(listsFolderPath);
 }
 
+static void gameLoadEnabledModsFromOrderFile()
+{
+    char orderPath[COMPAT_MAX_PATH];
+    snprintf(orderPath, sizeof(orderPath), "mods%cmods_order.txt", DIR_SEPARATOR);
+    FILE* f = compat_fopen(orderPath, "r");
+    if (!f) return;
+    
+    char line[2048];
+    while (fgets(line, sizeof(line), f)) {
+        char* nl = strchr(line, '\n');
+        if (nl) *nl = '\0';
+        if (line[0] == '#' || line[0] == ';' || line[0] == '\0') continue;
+        
+        // Expect pipe-separated format
+        if (!strchr(line, '|')) continue;
+        
+        // Parse only the first two fields: enabled and datName
+        char* token = strtok(line, "|");
+        if (!token) continue;
+        int enabled = atoi(token);
+        if (enabled == 0) continue;
+        
+        token = strtok(nullptr, "|");
+        if (!token) continue;
+        char datName[MOD_INFO_MAX_NAME];
+        strncpy(datName, token, MOD_INFO_MAX_NAME - 1);
+        datName[MOD_INFO_MAX_NAME - 1] = '\0';
+        
+        // Build full path to .dat file
+        char modPath[COMPAT_MAX_PATH];
+        snprintf(modPath, sizeof(modPath), "mods%cmod_%s.dat", DIR_SEPARATOR, datName);
+        if (compat_access(modPath, 0) == 0) {
+            dbOpen(modPath, nullptr);
+        }
+    }
+    fclose(f);
+}
+
 // 0x44418C
 static int gameDbInit()
 {
@@ -1911,44 +1949,10 @@ static int gameDbInit()
         }
     }
 
-    // Load mods from the "mods" folder (order defined by mods_order.txt)
-    const char* modsPath = "mods";
-    const char* orderFilename = "mods_order.txt";
-    char orderFilePath[COMPAT_MAX_PATH];
-    compat_makepath(orderFilePath, nullptr, modsPath, orderFilename, nullptr);
+    // Load enabled mods directly from mods_order.txt
+    gameLoadEnabledModsFromOrderFile();
 
-    compat_mkdir(modsPath);
-
-    File* stream = fileOpen(orderFilePath, "r");
-    if (stream) {
-        char line[COMPAT_MAX_PATH];
-        while (fileReadString(line, COMPAT_MAX_PATH, stream)) {
-            std::string entry(line);
-            if (entry.find_first_of(";#") != std::string::npos)
-                continue;
-
-            // Trim whitespace
-            entry.erase(entry.begin(),
-                std::find_if(entry.begin(), entry.end(),
-                    [](unsigned char ch) { return !isspace(ch); }));
-            entry.erase(std::find_if(entry.rbegin(), entry.rend(),
-                            [](unsigned char ch) { return !isspace(ch); })
-                            .base(),
-                entry.end());
-            if (entry.empty())
-                continue;
-
-            char fullPath[COMPAT_MAX_PATH];
-            compat_makepath(fullPath, nullptr, modsPath, entry.c_str(), nullptr);
-
-            if (compat_access(fullPath, 0) != 0) {
-                continue;
-            }
-
-            dbOpen(fullPath, nullptr);
-        }
-        fileClose(stream);
-    }
+    createListsFolder();
 
     // Restore CWD to data by calling dbOpen again
     int master_db_handle = dbOpen(nullptr, settings.system.master_patches_path.c_str());

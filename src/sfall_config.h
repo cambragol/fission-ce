@@ -170,6 +170,8 @@ namespace fallout {
 #define MOD_INFO_MAX_DEP 16
 #define MAX_LOADED_MODS 64
 
+#define MOD_ORDER_SEPARATOR '|'
+
 typedef struct ModInfo {
     char name[MOD_INFO_MAX_NAME]; // internal name used for .dat etc.
     char display_name[MOD_INFO_MAX_NAME]; // user-friendly name for loaded mods UI
@@ -194,8 +196,6 @@ bool modConfigInit(int argc, char** argv);
 void modConfigExit();
 
 void modConfigWriteOrderFromLoadedMods();
-void modConfigWriteEnabledFlags();
-void modConfigReadEnabledFlags();
 void modConfigWriteEnabledForSlot(const char* slotPath);
 int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize);
 
