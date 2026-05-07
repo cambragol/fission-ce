@@ -336,14 +336,14 @@ void modConfigWriteEnabledForSlot(const char* fullPath)
 {
     File* f = fileOpen(fullPath, "wb");
     if (!f) return;
-    
+
     char buffer[16384];
     int pos = 0;
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
         "# FISSION per-save mod enabled flags\n");
     pos += snprintf(buffer + pos, sizeof(buffer) - pos,
         "# Format: datName|displayName|enabled (1/0)\n");
-    
+
     for (int i = 0; i < gLoadedModsCount; i++) {
         pos += snprintf(buffer + pos, sizeof(buffer) - pos,
             "%s|%s|%d\n",
@@ -376,14 +376,14 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
     }
     buffer[fileSize] = '\0';
     fileClose(f);
-    
+
     struct SavedMod {
         char name[MOD_INFO_MAX_NAME];
         char displayName[MOD_INFO_MAX_NAME];
         bool enabled;
     } savedMods[MAX_LOADED_MODS];
     int savedModsCount = 0;
-    
+
     char* line = buffer;
     while (line && *line) {
         char* end = strchr(line, '\n');
@@ -392,7 +392,7 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
             char modName[MOD_INFO_MAX_NAME];
             char displayName[MOD_INFO_MAX_NAME] = "";
             int enabledInt;
-            
+
             // Try new pipe format
             int parsed = sscanf(line, "%127[^|]|%127[^|]|%d", modName, displayName, &enabledInt);
             if (parsed == 3) {
@@ -404,8 +404,7 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
                     savedMods[savedModsCount].enabled = (enabledInt != 0);
                     savedModsCount++;
                 }
-            }
-            else if (sscanf(line, "%127s %d", modName, &enabledInt) == 2) {
+            } else if (sscanf(line, "%127s %d", modName, &enabledInt) == 2) {
                 // Old format
                 if (savedModsCount < MAX_LOADED_MODS) {
                     strncpy(savedMods[savedModsCount].name, modName, MOD_INFO_MAX_NAME - 1);
@@ -419,7 +418,7 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
         line = end ? (end + 1) : nullptr;
     }
     internal_free(buffer);
-    
+
     // Check for missing mods
     for (int i = 0; i < savedModsCount; i++) {
         bool found = false;
@@ -438,7 +437,7 @@ int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName,
             return 2;
         }
     }
-    
+
     // Check for enabled flag mismatches
     for (int i = 0; i < savedModsCount; i++) {
         for (int j = 0; j < gLoadedModsCount; j++) {
