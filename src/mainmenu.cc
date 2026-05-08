@@ -112,10 +112,10 @@ static int gModListFrmIds[MOD_GRAPHIC_COUNT] = {
     200, // MOD_GRAPHIC_UP_ARROW_ON
     181, // MOD_GRAPHIC_DOWN_ARROW_OFF
     182, // MOD_GRAPHIC_DOWN_ARROW_ON
-    8,   // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
-    9,   // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
-    7527,// MOD_GRAPHIC_REORDER_BUTTON_OFF
-    4459,// MOD_GRAPHIC_REORDER_BUTTON_ON
+    8, // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
+    9, // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
+    7527, // MOD_GRAPHIC_REORDER_BUTTON_OFF
+    4459, // MOD_GRAPHIC_REORDER_BUTTON_ON
     215, // MOD_GRAPHIC_TOGGLE_OFF
     216, // MOD_GRAPHIC_TOGGLE_ON
 };
@@ -1166,44 +1166,44 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
-} else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
-    int row = keyCode - 600;
-    int modIdx = gModListTopLine + row;
-    if (modIdx >= 0 && modIdx < gModListTempCount) {
-        // Backup datName
-        char datNameBackup[MOD_INFO_MAX_NAME];
-        strncpy(datNameBackup, gModListTempMods[modIdx].datName, MOD_INFO_MAX_NAME - 1);
-        datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
+        } else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
+            int row = keyCode - 600;
+            int modIdx = gModListTopLine + row;
+            if (modIdx >= 0 && modIdx < gModListTempCount) {
+                // Backup datName
+                char datNameBackup[MOD_INFO_MAX_NAME];
+                strncpy(datNameBackup, gModListTempMods[modIdx].datName, MOD_INFO_MAX_NAME - 1);
+                datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
 
-        // Toggle enabled flag
-        gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
-        soundPlayFile("nmselec0");
+                // Toggle enabled flag
+                gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
+                soundPlayFile("nmselec0");
 
-        // Sort disabled to bottom
-        modListSortDisabledToBottom();
+                // Sort disabled to bottom
+                modListSortDisabledToBottom();
 
-        // Find the toggled mod
-        int newIdx = -1;
-        for (int i = 0; i < gModListTempCount; i++) {
-            if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
-                newIdx = i;
-                break;
+                // Find the toggled mod
+                int newIdx = -1;
+                for (int i = 0; i < gModListTempCount; i++) {
+                    if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
+                        newIdx = i;
+                        break;
+                    }
+                }
+
+                if (newIdx != -1) {
+                    gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
+                    gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
+                } else {
+                    gModListTopLine = 0;
+                    gModListCurrentLine = 0;
+                }
+
+                gModListOrderChanged = 1;
+                modListRefresh();
             }
-        }
-
-        if (newIdx != -1) {
-            gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
-            gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
-        } else {
-            gModListTopLine = 0;
-            gModListCurrentLine = 0;
-        }
-
-        gModListOrderChanged = 1;
-        modListRefresh();
-    }
-    continue;
-} else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
+            continue;
+        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
             rc = 2; // cancel
         } else {
             // Handle arrow button clicks (572 = up, 573 = down)
