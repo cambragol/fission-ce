@@ -37,10 +37,10 @@ namespace fallout {
 
 // List area
 #define MOD_LIST_X 45
-#define MOD_LIST_Y 43
+#define MOD_LIST_Y 49
 #define MOD_LIST_WIDTH 192
-#define MOD_LIST_HEIGHT 110
-#define MOD_MAX_MOD_LINES 8
+#define MOD_LIST_HEIGHT 115
+#define MOD_MAX_MOD_LINES 9
 
 // Detail area
 #define MOD_ICON_X 413
@@ -102,6 +102,8 @@ enum {
     MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN,
     MOD_GRAPHIC_REORDER_BUTTON_OFF,
     MOD_GRAPHIC_REORDER_BUTTON_ON,
+    MOD_GRAPHIC_TOGGLE_OFF,
+    MOD_GRAPHIC_TOGGLE_ON,
     MOD_GRAPHIC_COUNT,
 };
 
@@ -110,10 +112,12 @@ static int gModListFrmIds[MOD_GRAPHIC_COUNT] = {
     200, // MOD_GRAPHIC_UP_ARROW_ON
     181, // MOD_GRAPHIC_DOWN_ARROW_OFF
     182, // MOD_GRAPHIC_DOWN_ARROW_ON
-    8, // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
-    9, // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
-    7527,
-    4459,
+    8,   // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
+    9,   // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
+    7527,// MOD_GRAPHIC_REORDER_BUTTON_OFF
+    4459,// MOD_GRAPHIC_REORDER_BUTTON_ON
+    215, // MOD_GRAPHIC_TOGGLE_OFF
+    216, // MOD_GRAPHIC_TOGGLE_ON
 };
 
 static int gModListWindow = -1;
@@ -125,6 +129,7 @@ static int gModListPreviousCurrentLine = -2;
 static int gModListReorderMode = 0;
 static int gModListReorderButton = -1;
 static int gModListOrderChanged = 0;
+static int gModListToggleButtons[MOD_MAX_MOD_LINES];
 
 // For temporary mod list before confirmation when sorting
 static ModInfo gModListTempMods[MAX_LOADED_MODS];
@@ -644,6 +649,20 @@ static void main_menu_play_sound(const char* fileName)
     soundPlayFile(fileName);
 }
 
+static void syncToggleButtons()
+{
+    for (int row = 0; row < MOD_MAX_MOD_LINES; row++) {
+        int modIdx = gModListTopLine + row;
+        bool enabled = false;
+        if (modIdx < gModListTempCount) {
+            enabled = gModListTempMods[modIdx].enabled;
+        }
+        if (gModListToggleButtons[row] != -1) {
+            _win_set_button_rest_state(gModListToggleButtons[row], enabled ? 1 : 0, 0);
+        }
+    }
+}
+
 // Opens the modlist window
 static int showModList()
 {
@@ -690,9 +709,39 @@ static int showModList()
     memcpy(gModListWindowBuffer, _modListBackgroundFrm.getData(), MOD_WINDOW_WIDTH * MOD_WINDOW_HEIGHT);
 
     // Create buttons
+
+    // Enable/disable toggle buttons positions variables
+    int toggleButtonX = MOD_LIST_X - 29; // adjust later
+    int toggleButtonY = MOD_LIST_Y;
+    // Save current font and set to the one used for list drawing (101)
+    int oldFont = fontGetCurrent();
+    fontSetCurrent(101);
+    int buttonSpacing = fontGetLineHeight() + 3; // same as line height
+    fontSetCurrent(oldFont);
+
+    // Enable/disable toggle buttons
+    for (int row = 0; row < MOD_MAX_MOD_LINES; row++) {
+        int y = toggleButtonY + row * buttonSpacing;
+        int btn = buttonCreate(gModListWindow,
+            toggleButtonX, y,
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getWidth(),
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getHeight(),
+            -1, -1, 600 + row, 600 + row, // unique IDs 600 - 608
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getData(),
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_ON].getData(),
+            nullptr,
+            BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE | BUTTON_FLAG_CHECK_ON_DOWN);
+        if (btn != -1) {
+            gModListToggleButtons[row] = btn;
+            buttonSetCallbacks(btn, _gsound_red_butt_press, nullptr);
+            // Initial state will be set later in syncToggleButtons
+        } else {
+            gModListToggleButtons[row] = -1;
+        }
+    }
     // Up arrow
     int btnUp = buttonCreate(gModListWindow,
-        25, 46,
+        244, 46,
         _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getWidth(),
         _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
         -1, 574, 572, 574,
@@ -706,7 +755,7 @@ static int showModList()
 
     // Down arrow
     int btnDown = buttonCreate(gModListWindow,
-        25, 47 + _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
+        244, 47 + _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
         _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getWidth(),
         _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getHeight(),
         -1, 575, 573, 575,
@@ -747,8 +796,8 @@ static int showModList()
     }
 
     // Reorder mode toggle button (normal button, toggles mode on click)
-    int reorderX = 219 - 8 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
-    int reorderY = 148;
+    int reorderX = 211 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
+    int reorderY = 16;
     gModListReorderButton = buttonCreate(gModListWindow,
         reorderX, reorderY,
         _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth(),
@@ -768,6 +817,7 @@ static int showModList()
     memcpy(gModListTempMods, gLoadedMods, gLoadedModsCount * sizeof(ModInfo));
 
     modListSortDisabledToBottom();
+    syncToggleButtons();
 
     // Clickable list area (invisible buttons)
     buttonCreate(gModListWindow,
@@ -826,7 +876,7 @@ static int modListDrawList()
     }
 
     fontSetCurrent(101);
-    int lineHeight = fontGetLineHeight() + 2;
+    int lineHeight = fontGetLineHeight() + 3;
     int y = MOD_LIST_Y;
     int endIndex = gModListTopLine + MOD_MAX_MOD_LINES;
     if (endIndex > gModListTempCount) endIndex = gModListTempCount;
@@ -997,6 +1047,7 @@ static void modListRefresh()
 {
     modListDrawList();
     modListDrawDetails(gModListTopLine + gModListCurrentLine);
+    syncToggleButtons();
     windowRefresh(gModListWindow);
 }
 
@@ -1018,6 +1069,7 @@ static void modListMoveUp()
     }
     gModListOrderChanged = 1;
     modListRefresh();
+    syncToggleButtons();
 }
 
 static void modListMoveDown()
@@ -1038,6 +1090,7 @@ static void modListMoveDown()
     }
     gModListOrderChanged = 1;
     modListRefresh();
+    syncToggleButtons();
 }
 
 static void modListSortDisabledToBottom()
@@ -1063,7 +1116,7 @@ static void modListSortDisabledToBottom()
 static int modListHandleInput(int count)
 {
     fontSetCurrent(101);
-    int lineHeight = fontGetLineHeight() + 2;
+    int lineHeight = fontGetLineHeight() + 3;
 
     int rc = 0;
     while (rc == 0) {
@@ -1113,6 +1166,22 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
+        } else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
+            int row = keyCode - 600;
+            int modIdx = gModListTopLine + row;
+            if (modIdx >= 0 && modIdx < gModListTempCount) {
+                // Toggle the mod's enabled flag
+                gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
+                soundPlayFile("nmselec0");
+                gModListOrderChanged = 1;
+                modListRefresh();
+                syncToggleButtons();
+                if (modIdx == gModListTopLine + gModListCurrentLine) {
+                    modListDrawDetails(modIdx);
+                    windowRefresh(gModListWindow);
+                }
+            }
+            continue;
         } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
             rc = 2; // cancel
         } else {
@@ -1158,6 +1227,7 @@ static int modListHandleInput(int count)
                             gModListCurrentLine--;
                         }
                         modListRefresh();
+                        syncToggleButtons();
                     }
                 }
                 break;
@@ -1171,6 +1241,7 @@ static int modListHandleInput(int count)
                     }
                 }
                 modListRefresh();
+                syncToggleButtons();
                 break;
             case KEY_ARROW_DOWN:
                 if (gModListReorderMode) {
@@ -1184,6 +1255,7 @@ static int modListHandleInput(int count)
                             gModListCurrentLine++;
                         }
                         modListRefresh();
+                        syncToggleButtons();
                     }
                 }
                 break;
@@ -1197,6 +1269,7 @@ static int modListHandleInput(int count)
                     }
                 }
                 modListRefresh();
+                syncToggleButtons();
                 break;
             case KEY_HOME:
                 gModListTopLine = 0;
