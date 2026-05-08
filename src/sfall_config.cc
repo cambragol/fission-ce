@@ -214,60 +214,65 @@ static int readModsOrderFile(ModInfo* outMods, int maxEntries)
     snprintf(path, sizeof(path), "mods%cmods_order.txt", DIR_SEPARATOR);
     FILE* f = compat_fopen(path, "r");
     if (!f) return 0;
-
+    
     int count = 0;
     char line[2048];
     while (fgets(line, sizeof(line), f) && count < maxEntries) {
         char* nl = strchr(line, '\n');
         if (nl) *nl = '\0';
         if (line[0] == '#' || line[0] == ';' || line[0] == '\0') continue;
-
+        
         // Expect pipe separators; if not present, treat as legacy (skip)
-        if (!strchr(line, '|')) continue;
-
+        if (!strchr(line, '|')) continue; // not our format
+        
+        // Expect exactly 8 fields
         char* token = strtok(line, "|");
         if (!token) continue;
         int enabled = atoi(token);
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char datName[MOD_INFO_MAX_NAME];
         strncpy(datName, token, MOD_INFO_MAX_NAME - 1);
         datName[MOD_INFO_MAX_NAME - 1] = '\0';
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char internalName[MOD_INFO_MAX_NAME];
         strncpy(internalName, token, MOD_INFO_MAX_NAME - 1);
         internalName[MOD_INFO_MAX_NAME - 1] = '\0';
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char displayName[MOD_INFO_MAX_NAME];
         strncpy(displayName, token, MOD_INFO_MAX_NAME - 1);
         displayName[MOD_INFO_MAX_NAME - 1] = '\0';
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char author[MOD_INFO_MAX_AUTHOR];
         strncpy(author, token, MOD_INFO_MAX_AUTHOR - 1);
         author[MOD_INFO_MAX_AUTHOR - 1] = '\0';
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char description[MOD_INFO_MAX_DESC];
         strncpy(description, token, MOD_INFO_MAX_DESC - 1);
         description[MOD_INFO_MAX_DESC - 1] = '\0';
-
+        
         token = strtok(nullptr, "|");
         if (!token) continue;
         char dependencies[MOD_INFO_MAX_DESC];
-        strncpy(dependencies, token, MOD_INFO_MAX_DESC - 1);
-        dependencies[MOD_INFO_MAX_DESC - 1] = '\0';
-
+        if (strcmp(token, " ") == 0) {
+            dependencies[0] = '\0';   // empty
+        } else {
+            strncpy(dependencies, token, MOD_INFO_MAX_DESC - 1);
+            dependencies[MOD_INFO_MAX_DESC - 1] = '\0';
+        }
+        
         token = strtok(nullptr, "|");
         int iconIndex = token ? atoi(token) : 0;
-
+        
         ModInfo* info = &outMods[count];
         memset(info, 0, sizeof(ModInfo));
         info->enabled = (enabled != 0);
@@ -277,12 +282,12 @@ static int readModsOrderFile(ModInfo* outMods, int maxEntries)
         strncpy(info->author, author, MOD_INFO_MAX_AUTHOR - 1);
         strncpy(info->description, description, MOD_INFO_MAX_DESC - 1);
         info->icon_index = iconIndex;
-
+        
+        // Parse dependencies (comma-separated internal names)
         char* depCopy = strdup(dependencies);
         char* depToken = strtok(depCopy, ",");
         while (depToken && info->dependencyCount < MOD_INFO_MAX_DEP) {
-            while (*depToken == ' ')
-                depToken++;
+            while (*depToken == ' ') depToken++;
             strncpy(info->dependencies[info->dependencyCount], depToken, MOD_INFO_MAX_DEP_NAME - 1);
             info->dependencyCount++;
             depToken = strtok(nullptr, ",");
@@ -301,28 +306,30 @@ static void writeModsOrderFile(const ModInfo* mods, int count)
     compat_mkdir("mods");
     FILE* f = compat_fopen(path, "w");
     if (!f) return;
-
+    
     fprintf(f, "# FISSION mods_order.txt (pipe-separated)\n");
     fprintf(f, "# Format: enabled|datName|internalName|displayName|author|description|dependencies|iconIndex\n");
     fprintf(f, "\n");
-
+    
     for (int i = 0; i < count; i++) {
         const ModInfo* info = &mods[i];
+        // Build dependencies string from internal names
         char deps[MOD_INFO_MAX_DESC] = "";
         for (int j = 0; j < info->dependencyCount; j++) {
             if (j > 0) strcat(deps, ",");
             strcat(deps, info->dependencies[j]);
         }
+        const char* depsOut = (deps[0] == '\0') ? " " : deps;   // space for empty dependencies
         const char* datNameOut = (info->datName[0] != '\0') ? info->datName : info->name;
         fprintf(f, "%d|%s|%s|%s|%s|%s|%s|%d\n",
-            info->enabled ? 1 : 0,
-            datNameOut,
-            info->name,
-            info->display_name,
-            info->author,
-            info->description,
-            deps,
-            info->icon_index);
+                info->enabled ? 1 : 0,
+                datNameOut,
+                info->name,
+                info->display_name,
+                info->author,
+                info->description,
+                depsOut,
+                info->icon_index);
     }
     fclose(f);
 }
@@ -661,7 +668,7 @@ bool modConfigInit(int argc, char** argv)
         }
     }
 
-    // 6. Write back mods_order.txt (new pipe format)
+    // Write back mods_order.txt (new pipe format)
     writeModsOrderFile(gLoadedMods, gLoadedModsCount);
 
     // Read global mod.cfg and enabled mods' configs (for settings)

@@ -857,6 +857,16 @@ static int modListDrawList()
     return gModListTempCount;
 }
 
+static const char* getModDisplayName(const char* internalName)
+{
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        if (strcmp(gLoadedMods[i].name, internalName) == 0) {
+            return gLoadedMods[i].display_name;
+        }
+    }
+    return internalName; // fallback to internal name if not found
+}
+
 static void modListDrawDetails(int selectedIndex)
 {
     if (selectedIndex < 0 || selectedIndex >= gModListTempCount) return;
@@ -939,10 +949,10 @@ static void modListDrawDetails(int selectedIndex)
 
     // Dependencies (wrapped, if any)
     if (info->dependencyCount > 0) {
-        // Build dependencies string
         char depString[256] = "Dependencies: ";
         for (int i = 0; i < info->dependencyCount; i++) {
-            strcat(depString, info->dependencies[i]);
+            const char* displayName = getModDisplayName(info->dependencies[i]);
+            strcat(depString, displayName);
             if (i < info->dependencyCount - 1) strcat(depString, ", ");
         }
 
