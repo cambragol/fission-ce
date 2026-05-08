@@ -1166,23 +1166,44 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
-        } else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
-            int row = keyCode - 600;
-            int modIdx = gModListTopLine + row;
-            if (modIdx >= 0 && modIdx < gModListTempCount) {
-                // Toggle the mod's enabled flag
-                gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
-                soundPlayFile("nmselec0");
-                gModListOrderChanged = 1;
-                modListRefresh();
-                syncToggleButtons();
-                if (modIdx == gModListTopLine + gModListCurrentLine) {
-                    modListDrawDetails(modIdx);
-                    windowRefresh(gModListWindow);
-                }
+} else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
+    int row = keyCode - 600;
+    int modIdx = gModListTopLine + row;
+    if (modIdx >= 0 && modIdx < gModListTempCount) {
+        // Backup datName
+        char datNameBackup[MOD_INFO_MAX_NAME];
+        strncpy(datNameBackup, gModListTempMods[modIdx].datName, MOD_INFO_MAX_NAME - 1);
+        datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
+
+        // Toggle enabled flag
+        gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
+        soundPlayFile("nmselec0");
+
+        // Sort disabled to bottom
+        modListSortDisabledToBottom();
+
+        // Find the toggled mod
+        int newIdx = -1;
+        for (int i = 0; i < gModListTempCount; i++) {
+            if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
+                newIdx = i;
+                break;
             }
-            continue;
-        } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
+        }
+
+        if (newIdx != -1) {
+            gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
+            gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
+        } else {
+            gModListTopLine = 0;
+            gModListCurrentLine = 0;
+        }
+
+        gModListOrderChanged = 1;
+        modListRefresh();
+    }
+    continue;
+} else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
             rc = 2; // cancel
         } else {
             // Handle arrow button clicks (572 = up, 573 = down)
@@ -1206,8 +1227,36 @@ static int modListHandleInput(int count)
             } else if (!gModListReorderMode && (keyCode == KEY_LOWERCASE_E || keyCode == KEY_UPPERCASE_E)) {
                 int selected = gModListTopLine + gModListCurrentLine;
                 if (selected >= 0 && selected < gModListTempCount) {
+                    // Backup datName before sorting
+                    char datNameBackup[MOD_INFO_MAX_NAME];
+                    strncpy(datNameBackup, gModListTempMods[selected].datName, MOD_INFO_MAX_NAME - 1);
+                    datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
+
+                    // Toggle enabled flag
                     gModListTempMods[selected].enabled = !gModListTempMods[selected].enabled;
                     soundPlayFile("nmselec0");
+
+                    // Sort disabled to bottom
+                    modListSortDisabledToBottom();
+
+                    // Find the toggled mod in the new sorted list
+                    int newIdx = -1;
+                    for (int i = 0; i < gModListTempCount; i++) {
+                        if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
+                            newIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (newIdx != -1) {
+                        gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
+                        gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
+                    } else {
+                        // fallback (should not happen)
+                        gModListTopLine = 0;
+                        gModListCurrentLine = 0;
+                    }
+
                     gModListOrderChanged = 1;
                     modListRefresh();
                 }
