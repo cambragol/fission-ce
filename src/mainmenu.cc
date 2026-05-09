@@ -655,7 +655,7 @@ static void syncToggleButtons()
         int modIdx = gModListTopLine + row;
         if (gModListToggleButtons[row] != -1) {
             if (modIdx >= gModListTempCount) {
-                // No mod in this row – disable button and set to off (optional)
+                // No mod in this row - disable button and set to off
                 buttonDisable(gModListToggleButtons[row]);
                 _win_set_button_rest_state(gModListToggleButtons[row], 0, 0);
             } else {
@@ -923,7 +923,15 @@ static const char* getModDisplayName(const char* internalName)
 
 static void modListDrawDetails(int selectedIndex)
 {
+    static int lastDrawnIndex = -1;
+
     if (selectedIndex < 0 || selectedIndex >= gModListTempCount) return;
+
+    // Only play sound when mod details change
+    if (selectedIndex != lastDrawnIndex && !gModListReorderMode) {
+        soundPlayFile("isdxxxx1");
+        lastDrawnIndex = selectedIndex;
+    }
 
     const ModInfo* info = &gModListTempMods[selectedIndex];
 
