@@ -653,12 +653,16 @@ static void syncToggleButtons()
 {
     for (int row = 0; row < MOD_MAX_MOD_LINES; row++) {
         int modIdx = gModListTopLine + row;
-        bool enabled = false;
-        if (modIdx < gModListTempCount) {
-            enabled = gModListTempMods[modIdx].enabled;
-        }
         if (gModListToggleButtons[row] != -1) {
-            _win_set_button_rest_state(gModListToggleButtons[row], enabled ? 1 : 0, 0);
+            if (modIdx >= gModListTempCount) {
+                // No mod in this row – disable button and set to off (optional)
+                buttonDisable(gModListToggleButtons[row]);
+                _win_set_button_rest_state(gModListToggleButtons[row], 0, 0);
+            } else {
+                buttonEnable(gModListToggleButtons[row]);
+                bool enabled = gModListTempMods[modIdx].enabled;
+                _win_set_button_rest_state(gModListToggleButtons[row], enabled ? 1 : 0, 0);
+            }
         }
     }
 }
