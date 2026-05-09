@@ -170,6 +170,8 @@ namespace fallout {
 #define MOD_INFO_MAX_DEP 16
 #define MAX_LOADED_MODS 64
 
+#define MOD_ORDER_SEPARATOR '|'
+
 typedef struct ModInfo {
     char name[MOD_INFO_MAX_NAME]; // internal name used for .dat etc.
     char display_name[MOD_INFO_MAX_NAME]; // user-friendly name for loaded mods UI
@@ -178,6 +180,7 @@ typedef struct ModInfo {
     char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];
     int dependencyCount;
     int icon_index;
+    bool enabled; // whether mod is active (default true)
     char filePath[COMPAT_MAX_PATH];
     char datName[MOD_INFO_MAX_NAME];
 } ModInfo;
@@ -193,6 +196,11 @@ bool modConfigInit(int argc, char** argv);
 void modConfigExit();
 
 void modConfigWriteOrderFromLoadedMods();
+void modConfigWriteEnabledForSlot(const char* slotPath);
+int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize);
+
+// Apply enabled flags from a save slot's mod_enabled.cfg to gLoadedMods
+int modConfigApplySaveModConfig(const char* slotPath);
 
 } // namespace fallout
 
