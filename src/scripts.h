@@ -230,6 +230,8 @@ int scriptSetLocalVar(int sid, int var, ProgramValue& value);
 bool _scr_end_combat();
 int _scr_explode_scenery(Object* a1, int tile, int radius, int elevation);
 
+bool scriptGetBaseName(int sid, char* dest, int destSize);
+
 } // namespace fallout
 
 #endif /* SCRIPTS_H */

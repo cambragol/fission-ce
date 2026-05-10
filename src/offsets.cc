@@ -1180,8 +1180,8 @@ const WorldmapOffsets gWorldmapOffsets800 = {
     632, // subtileViewportMaxX (hardcoded in 800x500)
     485, // subtileViewportMaxY (hardcoded in 800x500)
 
-    78, // townMapBgX
-    10, // townMapBgY
+    0, // townMapBgX
+    0, // townMapBgY
     100, // townMapImageX
     31, // townMapImageY
     78, // townMapButtonXOffset

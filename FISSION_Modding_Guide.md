@@ -569,13 +569,13 @@ The system automatically detects and loads variant art for widescreen/HD support
 
 **How Variants Work:**
 1. **Automatic detection**: System scans `art/{type}/` for files matching pattern `*{suffix}.frm`
-2. **Suffix configuration**: Set in `fallout2.cfg` (default: `_800` for 800x600)
+2. **Suffix configuration**: Set in `fission.cfg` (default: `_800` for 800x600)
 3. **Matching logic**: Variant must match a base vanilla asset name
    - Base: `button_ok.frm`
    - Variant: `button_ok_800.frm` (suffix `_800`)
 4. **Automatic assignment**: Variants get special slots after vanilla assets
 
-**Example Configuration (`fallout2.cfg`):**
+**Example Configuration (`fission.cfg`):**
 
 ```
 [graphics]\
@@ -808,7 +808,7 @@ art/items/plasma_800.frm\
 art/items/laser_800.frm
 ```
 
-2\. **Configure suffix** in `fallout2.cfg`:
+2\. **Configure suffix** in `fission.cfg`:
 
 ```
 [graphics]\

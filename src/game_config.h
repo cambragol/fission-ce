@@ -5,7 +5,7 @@
 
 namespace fallout {
 
-#define DEFAULT_GAME_CONFIG_FILE_NAME "fallout2.cfg"
+#define DEFAULT_GAME_CONFIG_FILE_NAME "fission.cfg"
 #define MAPPER_CONFIG_FILE_NAME "mapper2.cfg"
 
 #define GAME_CONFIG_SYSTEM_KEY "system"

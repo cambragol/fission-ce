@@ -16,7 +16,7 @@ namespace fallout {
 
 #define BASE_MAP_MAX 200
 #define MOD_MAP_START 200
-#define MOD_MAP_MAX 10000
+#define MOD_MAP_MAX 2000 // can't change or automap corrupted
 #define TOTAL_MAP_MAX MOD_MAP_MAX
 
 // TODO: Probably not needed -> replace with array?
@@ -115,6 +115,8 @@ int mapGetLoadedAreaId();
 int mapSetTransition(MapTransition* transition);
 int mapHandleTransition();
 int _map_save_in_game(bool isLeavingMap);
+
+void mapProcessPendingCameraAdjust(void);
 
 } // namespace fallout
 

@@ -4,6 +4,7 @@
 #include "geometry.h"
 #include "settings.h"
 #include "stdio.h"
+#include "svga.h"
 #include "tile.h"
 #include <string.h>
 #include <vector>
@@ -64,6 +65,7 @@ static_assert(screen_view_width % (2 * square_width) == 0);
 static_assert(screen_view_height % (2 * square_height) == 20);
 
 static bool gIsTileHiresStencilEnabled = true;
+static bool gMapIsSmall = false;
 
 static void clean_cache()
 {
@@ -74,6 +76,11 @@ static void clean_cache_for_elevation(int elevation)
 {
     memset(visited_tiles[elevation], 0, sizeof(visited_tiles[elevation]));
     memset(visible_squares[elevation], 0, sizeof(visible_squares[elevation]));
+}
+
+bool tile_hires_stencil_is_map_small(void)
+{
+    return gMapIsSmall;
 }
 
 static Point get_screen_diff()
@@ -320,6 +327,31 @@ void tile_hires_stencil_on_center_tile_or_elevation_change()
             MarkOnlyPart::DOWN });
     }
 
+    // Determine if the visible area is smaller than the screen
+    int minX = square_grid_width, maxX = -1;
+    int minY = square_grid_height, maxY = -1;
+    bool any = false;
+    for (int x = 0; x < square_grid_width; ++x) {
+        for (int y = 0; y < square_grid_height; ++y) {
+            if (visible_squares[gElevation][x][y]) {
+                any = true;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    if (any) {
+        int visWidthPx = (maxX - minX + 1) * square_width;
+        int visHeightPx = (maxY - minY + 1) * square_height;
+        int screenW = screenGetWidth();
+        int screenH = screenGetVisibleHeight();
+        gMapIsSmall = (visWidthPx < screenW || visHeightPx < screenH);
+    } else {
+        gMapIsSmall = true; // no visible squares (should not happen)
+    }
+
     debugPrint("tile_hires_stencil_on_center_tile_or_elevation_change visited_tiles_count=%i\n", visited_tiles_count);
 }
 
@@ -414,6 +446,49 @@ void tile_hires_stencil_init()
     clean_cache();
     tile_hires_stencil_on_center_tile_or_elevation_change();
     tileWindowRefresh();
+}
+
+bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int screenWidth, int screenHeight)
+{
+    if (!gIsTileHiresStencilEnabled) return true;
+
+    int centerX, centerY;
+    tileToScreenXY(tile, &centerX, &centerY);
+
+    int left = centerX + 16 - screenWidth / 2;
+    int top = centerY + 8 - screenHeight / 2;
+    int right = left + screenWidth;
+    int bottom = top + screenHeight;
+
+    const int safety_margin = 8;
+    left -= safety_margin;
+    top -= safety_margin;
+    right += safety_margin;
+    bottom += safety_margin;
+
+    auto screen_diff = get_screen_diff();
+    int globalLeft = left - screen_diff.x;
+    int globalTop = top - screen_diff.y;
+    int globalRight = right - screen_diff.x;
+    int globalBottom = bottom - screen_diff.y;
+
+    if (globalLeft < 0) globalLeft = 0;
+    if (globalTop < 0) globalTop = 0;
+    if (globalRight >= square_width * square_grid_width) globalRight = square_width * square_grid_width - 1;
+    if (globalBottom >= square_height * square_grid_height) globalBottom = square_height * square_grid_height - 1;
+
+    int minX = globalLeft / square_width;
+    int minY = globalTop / square_height;
+    int maxX = globalRight / square_width;
+    int maxY = globalBottom / square_height;
+
+    for (int x = minX; x <= maxX; ++x) {
+        for (int y = minY; y <= maxY; ++y) {
+            if (!visible_squares[elevation][x][y])
+                return false;
+        }
+    }
+    return true;
 }
 
 } // namespace fallout

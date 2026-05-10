@@ -169,7 +169,7 @@ int falloutMain(int argc, char** argv)
 
                         // fade in from white on entering loaded game
                         colorPaletteLoad("color.pal");
-                        paletteFadeTo(_cmap);
+
                         win = -1;
 
                         mainLoop();
@@ -348,6 +348,9 @@ static void mainLoop()
 
     while (_game_user_wants_to_quit == 0) {
         sharedFpsLimiter.mark();
+
+        // Camera adjustment for saved games
+        mapProcessPendingCameraAdjust();
 
         int keyCode = inputGetInput();
 

@@ -37,10 +37,10 @@ namespace fallout {
 
 // List area
 #define MOD_LIST_X 45
-#define MOD_LIST_Y 43
+#define MOD_LIST_Y 49
 #define MOD_LIST_WIDTH 192
-#define MOD_LIST_HEIGHT 110
-#define MOD_MAX_MOD_LINES 8
+#define MOD_LIST_HEIGHT 115
+#define MOD_MAX_MOD_LINES 9
 
 // Detail area
 #define MOD_ICON_X 413
@@ -50,6 +50,9 @@ namespace fallout {
 #define MOD_DESC_Y 70
 #define MOD_AUTHOR_Y 150
 #define MOD_DEP_Y 180
+
+#define MOD_DISABLED_COLOR 1313 // Dark Green
+#define MOD_DISABLED_SELECTED_COLOR 15845 // Dark Orange
 
 typedef enum MainMenuButton {
     MAIN_MENU_BUTTON_INTRO,
@@ -69,6 +72,7 @@ static int modListDrawList();
 static void modListDrawDetails(int selectedIndex);
 static void modListRefresh();
 static int modListHandleInput(int count);
+static void modListSortDisabledToBottom();
 
 // 0x5194F0
 static int gMainMenuWindow = -1;
@@ -86,7 +90,6 @@ static bool gMainMenuWindowInitialized = false;
 static unsigned int gMainMenuScreensaverDelay = 120000;
 
 static MessageList gFissionMessageList;
-
 static MessageListItem gFissionMessageListItem;
 
 // Graphics for mod list screen
@@ -99,6 +102,8 @@ enum {
     MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN,
     MOD_GRAPHIC_REORDER_BUTTON_OFF,
     MOD_GRAPHIC_REORDER_BUTTON_ON,
+    MOD_GRAPHIC_TOGGLE_OFF,
+    MOD_GRAPHIC_TOGGLE_ON,
     MOD_GRAPHIC_COUNT,
 };
 
@@ -109,8 +114,10 @@ static int gModListFrmIds[MOD_GRAPHIC_COUNT] = {
     182, // MOD_GRAPHIC_DOWN_ARROW_ON
     8, // MOD_GRAPHIC_LITTLE_RED_BUTTON_UP
     9, // MOD_GRAPHIC_LILTTLE_RED_BUTTON_DOWN
-    7527,
-    4459,
+    7527, // MOD_GRAPHIC_REORDER_BUTTON_OFF
+    4459, // MOD_GRAPHIC_REORDER_BUTTON_ON
+    215, // MOD_GRAPHIC_TOGGLE_OFF
+    216, // MOD_GRAPHIC_TOGGLE_ON
 };
 
 static int gModListWindow = -1;
@@ -122,6 +129,7 @@ static int gModListPreviousCurrentLine = -2;
 static int gModListReorderMode = 0;
 static int gModListReorderButton = -1;
 static int gModListOrderChanged = 0;
+static int gModListToggleButtons[MOD_MAX_MOD_LINES];
 
 // For temporary mod list before confirmation when sorting
 static ModInfo gModListTempMods[MAX_LOADED_MODS];
@@ -641,6 +649,24 @@ static void main_menu_play_sound(const char* fileName)
     soundPlayFile(fileName);
 }
 
+static void syncToggleButtons()
+{
+    for (int row = 0; row < MOD_MAX_MOD_LINES; row++) {
+        int modIdx = gModListTopLine + row;
+        if (gModListToggleButtons[row] != -1) {
+            if (modIdx >= gModListTempCount) {
+                // No mod in this row - disable button and set to off
+                buttonDisable(gModListToggleButtons[row]);
+                _win_set_button_rest_state(gModListToggleButtons[row], 0, 0);
+            } else {
+                buttonEnable(gModListToggleButtons[row]);
+                bool enabled = gModListTempMods[modIdx].enabled;
+                _win_set_button_rest_state(gModListToggleButtons[row], enabled ? 1 : 0, 0);
+            }
+        }
+    }
+}
+
 // Opens the modlist window
 static int showModList()
 {
@@ -687,9 +713,39 @@ static int showModList()
     memcpy(gModListWindowBuffer, _modListBackgroundFrm.getData(), MOD_WINDOW_WIDTH * MOD_WINDOW_HEIGHT);
 
     // Create buttons
+
+    // Enable/disable toggle buttons positions variables
+    int toggleButtonX = MOD_LIST_X - 29; // adjust later
+    int toggleButtonY = MOD_LIST_Y;
+    // Save current font and set to the one used for list drawing (101)
+    int oldFont = fontGetCurrent();
+    fontSetCurrent(101);
+    int buttonSpacing = fontGetLineHeight() + 3; // same as line height
+    fontSetCurrent(oldFont);
+
+    // Enable/disable toggle buttons
+    for (int row = 0; row < MOD_MAX_MOD_LINES; row++) {
+        int y = toggleButtonY + row * buttonSpacing;
+        int btn = buttonCreate(gModListWindow,
+            toggleButtonX, y,
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getWidth(),
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getHeight(),
+            -1, -1, 600 + row, 600 + row, // unique IDs 600 - 608
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_OFF].getData(),
+            _modListFrmImages[MOD_GRAPHIC_TOGGLE_ON].getData(),
+            nullptr,
+            BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE | BUTTON_FLAG_CHECK_ON_DOWN);
+        if (btn != -1) {
+            gModListToggleButtons[row] = btn;
+            buttonSetCallbacks(btn, _gsound_red_butt_press, nullptr);
+            // Initial state will be set later in syncToggleButtons
+        } else {
+            gModListToggleButtons[row] = -1;
+        }
+    }
     // Up arrow
     int btnUp = buttonCreate(gModListWindow,
-        25, 46,
+        244, 46,
         _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getWidth(),
         _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
         -1, 574, 572, 574,
@@ -703,7 +759,7 @@ static int showModList()
 
     // Down arrow
     int btnDown = buttonCreate(gModListWindow,
-        25, 47 + _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
+        244, 47 + _modListFrmImages[MOD_GRAPHIC_UP_ARROW_ON].getHeight(),
         _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getWidth(),
         _modListFrmImages[MOD_GRAPHIC_DOWN_ARROW_ON].getHeight(),
         -1, 575, 573, 575,
@@ -744,8 +800,8 @@ static int showModList()
     }
 
     // Reorder mode toggle button (normal button, toggles mode on click)
-    int reorderX = 219 - 8 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
-    int reorderY = 148;
+    int reorderX = 211 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
+    int reorderY = 16;
     gModListReorderButton = buttonCreate(gModListWindow,
         reorderX, reorderY,
         _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth(),
@@ -763,6 +819,9 @@ static int showModList()
     // Copy current mod list into temporary storage
     gModListTempCount = gLoadedModsCount;
     memcpy(gModListTempMods, gLoadedMods, gLoadedModsCount * sizeof(ModInfo));
+
+    modListSortDisabledToBottom();
+    syncToggleButtons();
 
     // Clickable list area (invisible buttons)
     buttonCreate(gModListWindow,
@@ -821,17 +880,28 @@ static int modListDrawList()
     }
 
     fontSetCurrent(101);
-    int lineHeight = fontGetLineHeight() + 2;
+    int lineHeight = fontGetLineHeight() + 3;
     int y = MOD_LIST_Y;
     int endIndex = gModListTopLine + MOD_MAX_MOD_LINES;
     if (endIndex > gModListTempCount) endIndex = gModListTempCount;
 
     for (int i = gModListTopLine; i < endIndex; i++) {
-        int color = (i == gModListTopLine + gModListCurrentLine) ? _colorTable[32747] : _colorTable[992];
+        int color;
+        bool selected = (i == gModListTopLine + gModListCurrentLine);
+
+        if (!gModListTempMods[i].enabled) {
+            // Disabled mods: different color if selected
+            color = selected ? _colorTable[MOD_DISABLED_SELECTED_COLOR] : _colorTable[MOD_DISABLED_COLOR];
+        } else {
+            // Enabled mods: normal highlight or normal text
+            color = selected ? _colorTable[32747] : _colorTable[992];
+        }
+
         int x = MOD_LIST_X;
-        if (gModListReorderMode && i == gModListTopLine + gModListCurrentLine) {
+        // In reorder mode, indent the currently selected line (overrides color)
+        if (gModListReorderMode && selected) {
             x += 10; // indent
-            color = _colorTable[32767];
+            color = _colorTable[32767]; // bright white
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
             gModListTempMods[i].display_name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
@@ -841,9 +911,27 @@ static int modListDrawList()
     return gModListTempCount;
 }
 
+static const char* getModDisplayName(const char* internalName)
+{
+    for (int i = 0; i < gLoadedModsCount; i++) {
+        if (strcmp(gLoadedMods[i].name, internalName) == 0) {
+            return gLoadedMods[i].display_name;
+        }
+    }
+    return internalName; // fallback to internal name if not found
+}
+
 static void modListDrawDetails(int selectedIndex)
 {
+    static int lastDrawnIndex = -1;
+
     if (selectedIndex < 0 || selectedIndex >= gModListTempCount) return;
+
+    // Only play sound when mod details change
+    if (selectedIndex != lastDrawnIndex && !gModListReorderMode) {
+        soundPlayFile("isdxxxx1");
+        lastDrawnIndex = selectedIndex;
+    }
 
     const ModInfo* info = &gModListTempMods[selectedIndex];
 
@@ -923,10 +1011,10 @@ static void modListDrawDetails(int selectedIndex)
 
     // Dependencies (wrapped, if any)
     if (info->dependencyCount > 0) {
-        // Build dependencies string
         char depString[256] = "Dependencies: ";
         for (int i = 0; i < info->dependencyCount; i++) {
-            strcat(depString, info->dependencies[i]);
+            const char* displayName = getModDisplayName(info->dependencies[i]);
+            strcat(depString, displayName);
             if (i < info->dependencyCount - 1) strcat(depString, ", ");
         }
 
@@ -950,6 +1038,19 @@ static void modListDrawDetails(int selectedIndex)
         }
     }
 
+    // Show "DISABLED" if the mod is disabled
+    if (!info->enabled) {
+        const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // DISABLED
+
+        fontSetCurrent(101);
+        // Position below description/dependencies - fixed Y coordinate - calculate later or base from bottom
+        int yDisabled = 150;
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDisabled + MOD_TEXT_X,
+            disabledText,
+            MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
+            _colorTable[32328]); // red? colour for warning
+    }
+
     // Restore original font
     fontSetCurrent(oldFont);
 }
@@ -958,6 +1059,7 @@ static void modListRefresh()
 {
     modListDrawList();
     modListDrawDetails(gModListTopLine + gModListCurrentLine);
+    syncToggleButtons();
     windowRefresh(gModListWindow);
 }
 
@@ -965,6 +1067,8 @@ static void modListMoveUp()
 {
     int idx = gModListTopLine + gModListCurrentLine;
     if (idx <= 0) return;
+    // Do not move if either mod is disabled
+    if (!gModListTempMods[idx].enabled || !gModListTempMods[idx - 1].enabled) return;
     // Swap
     ModInfo temp = gModListTempMods[idx];
     gModListTempMods[idx] = gModListTempMods[idx - 1];
@@ -977,12 +1081,15 @@ static void modListMoveUp()
     }
     gModListOrderChanged = 1;
     modListRefresh();
+    syncToggleButtons();
 }
 
 static void modListMoveDown()
 {
     int idx = gModListTopLine + gModListCurrentLine;
     if (idx >= gModListTempCount - 1) return;
+    // Do not move if either mod is disabled
+    if (!gModListTempMods[idx].enabled || !gModListTempMods[idx + 1].enabled) return;
     // Swap
     ModInfo temp = gModListTempMods[idx];
     gModListTempMods[idx] = gModListTempMods[idx + 1];
@@ -995,12 +1102,33 @@ static void modListMoveDown()
     }
     gModListOrderChanged = 1;
     modListRefresh();
+    syncToggleButtons();
+}
+
+static void modListSortDisabledToBottom()
+{
+    ModInfo sorted[MAX_LOADED_MODS];
+    int sortedCount = 0;
+    // Copy enabled mods in current order
+    for (int i = 0; i < gModListTempCount; i++) {
+        if (gModListTempMods[i].enabled) {
+            sorted[sortedCount++] = gModListTempMods[i];
+        }
+    }
+    // Copy disabled mods in current order
+    for (int i = 0; i < gModListTempCount; i++) {
+        if (!gModListTempMods[i].enabled) {
+            sorted[sortedCount++] = gModListTempMods[i];
+        }
+    }
+    memcpy(gModListTempMods, sorted, sortedCount * sizeof(ModInfo));
+    gModListTempCount = sortedCount;
 }
 
 static int modListHandleInput(int count)
 {
     fontSetCurrent(101);
-    int lineHeight = fontGetLineHeight() + 2;
+    int lineHeight = fontGetLineHeight() + 3;
 
     int rc = 0;
     while (rc == 0) {
@@ -1029,7 +1157,7 @@ static int modListHandleInput(int count)
                 );
                 memcpy(gLoadedMods, gModListTempMods, gModListTempCount * sizeof(ModInfo));
                 gLoadedModsCount = gModListTempCount;
-                modConfigWriteOrderFromLoadedMods();
+                modConfigWriteOrderFromLoadedMods(); // writes all metadata & enabled flags to mods_order.txt
                 gModListOrderChanged = 0;
             }
             if (keyCode == KEY_RETURN) {
@@ -1050,6 +1178,43 @@ static int modListHandleInput(int count)
                 gModListPreviousCurrentLine = gModListCurrentLine;
                 modListRefresh();
             }
+        } else if (keyCode >= 600 && keyCode <= 600 + MOD_MAX_MOD_LINES - 1) {
+            int row = keyCode - 600;
+            int modIdx = gModListTopLine + row;
+            if (modIdx >= 0 && modIdx < gModListTempCount) {
+                // Backup datName
+                char datNameBackup[MOD_INFO_MAX_NAME];
+                strncpy(datNameBackup, gModListTempMods[modIdx].datName, MOD_INFO_MAX_NAME - 1);
+                datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
+
+                // Toggle enabled flag
+                gModListTempMods[modIdx].enabled = !gModListTempMods[modIdx].enabled;
+                soundPlayFile("nmselec0");
+
+                // Sort disabled to bottom
+                modListSortDisabledToBottom();
+
+                // Find the toggled mod
+                int newIdx = -1;
+                for (int i = 0; i < gModListTempCount; i++) {
+                    if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
+                        newIdx = i;
+                        break;
+                    }
+                }
+
+                if (newIdx != -1) {
+                    gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
+                    gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
+                } else {
+                    gModListTopLine = 0;
+                    gModListCurrentLine = 0;
+                }
+
+                gModListOrderChanged = 1;
+                modListRefresh();
+            }
+            continue;
         } else if (keyCode == 502 || keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0 || keyCode == KEY_UPPERCASE_M || keyCode == KEY_LOWERCASE_M) {
             rc = 2; // cancel
         } else {
@@ -1071,6 +1236,43 @@ static int modListHandleInput(int count)
                 gModListReorderMode = !gModListReorderMode;
                 modListRefresh();
                 continue; // skip further processing
+            } else if (!gModListReorderMode && (keyCode == KEY_LOWERCASE_E || keyCode == KEY_UPPERCASE_E)) {
+                int selected = gModListTopLine + gModListCurrentLine;
+                if (selected >= 0 && selected < gModListTempCount) {
+                    // Backup datName before sorting
+                    char datNameBackup[MOD_INFO_MAX_NAME];
+                    strncpy(datNameBackup, gModListTempMods[selected].datName, MOD_INFO_MAX_NAME - 1);
+                    datNameBackup[MOD_INFO_MAX_NAME - 1] = '\0';
+
+                    // Toggle enabled flag
+                    gModListTempMods[selected].enabled = !gModListTempMods[selected].enabled;
+                    soundPlayFile("nmselec0");
+
+                    // Sort disabled to bottom
+                    modListSortDisabledToBottom();
+
+                    // Find the toggled mod in the new sorted list
+                    int newIdx = -1;
+                    for (int i = 0; i < gModListTempCount; i++) {
+                        if (strcmp(gModListTempMods[i].datName, datNameBackup) == 0) {
+                            newIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (newIdx != -1) {
+                        gModListTopLine = (newIdx / MOD_MAX_MOD_LINES) * MOD_MAX_MOD_LINES;
+                        gModListCurrentLine = newIdx % MOD_MAX_MOD_LINES;
+                    } else {
+                        // fallback (should not happen)
+                        gModListTopLine = 0;
+                        gModListCurrentLine = 0;
+                    }
+
+                    gModListOrderChanged = 1;
+                    modListRefresh();
+                }
+                continue;
             }
 
             switch (keyCode) {
@@ -1086,6 +1288,7 @@ static int modListHandleInput(int count)
                             gModListCurrentLine--;
                         }
                         modListRefresh();
+                        syncToggleButtons();
                     }
                 }
                 break;
@@ -1099,6 +1302,7 @@ static int modListHandleInput(int count)
                     }
                 }
                 modListRefresh();
+                syncToggleButtons();
                 break;
             case KEY_ARROW_DOWN:
                 if (gModListReorderMode) {
@@ -1112,6 +1316,7 @@ static int modListHandleInput(int count)
                             gModListCurrentLine++;
                         }
                         modListRefresh();
+                        syncToggleButtons();
                     }
                 }
                 break;
@@ -1125,6 +1330,7 @@ static int modListHandleInput(int count)
                     }
                 }
                 modListRefresh();
+                syncToggleButtons();
                 break;
             case KEY_HOME:
                 gModListTopLine = 0;

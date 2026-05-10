@@ -402,8 +402,11 @@ int screenGetHeight()
 int screenGetVisibleHeight()
 {
     int windowBottomMargin = 0;
+    int gameWidth = screenGetWidth();
 
-    if (!settings.mod_settings.iface_bar_mode) {
+    // force screen above iface bar when screen width 800 or less
+    // allow user setting above 800 to work
+    if (!settings.mod_settings.iface_bar_mode || gameWidth <= 800) {
         windowBottomMargin = INTERFACE_BAR_HEIGHT;
     }
     return screenGetHeight() - windowBottomMargin;

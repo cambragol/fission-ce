@@ -7,6 +7,7 @@
 #include "actions.h"
 #include "animation.h"
 #include "art.h"
+#include "automap.h"
 #include "color.h"
 #include "combat_ai.h"
 #include "critter.h"
@@ -2637,6 +2638,11 @@ static void _combat_begin(Object* attacker)
 
         gCombatState |= COMBAT_STATE_0x01;
 
+        // Close minimap if it's open
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
+            automapClose();
+        }
+
         tileWindowRefresh();
         gameUiDisable(0);
         gameMouseSetCursor(MOUSE_CURSOR_WAIT_WATCH);
@@ -2872,6 +2878,9 @@ static void _combat_over()
         queueRemoveEventsByType(gDude, EVENT_TYPE_KNOCKOUT);
         knockoutEventProcess(gDude, nullptr);
     }
+
+    // notify automap(minimap) to reopen if needed
+    automapNotifyCombatEnded();
 }
 
 // 0x422194

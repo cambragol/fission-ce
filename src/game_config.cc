@@ -22,7 +22,7 @@ static void gameConfigResolvePath(const char* section, const char* key);
 // 0x5186D0
 bool gGameConfigInitialized = false;
 
-// fallout2.cfg
+// fission.cfg
 //
 // 0x58E950
 Config gGameConfig;
@@ -43,9 +43,9 @@ char gGameConfigFilePath[COMPAT_MAX_PATH];
 // additional check for [argc], so it will crash if you pass NULL, or an empty
 // array into [argv].
 //
-// The executable path from [argv] is used resolve path to `fallout2.cfg`,
+// The executable path from [argv] is used resolve path to `fission.cfg`,
 // which should be in the same folder. This function provide defaults if
-// `fallout2.cfg` is not present, or cannot be read for any reason.
+// `fission.cfg` is not present, or cannot be read for any reason.
 //
 // Finally, this function merges key-value pairs from [argv] if any, see
 // [configParseCommandLineArguments] for expected format.
@@ -195,7 +195,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
 
     const char* configFileName = DEFAULT_GAME_CONFIG_FILE_NAME;
 
-    // Make `fallout2.cfg` file path.
+    // Make `fission.cfg` file path.
     char* executable = argv[0];
     char* ch = strrchr(executable, '\\');
     if (ch != nullptr) {
@@ -223,13 +223,13 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     }
 
     auto configChecker = ConfigChecker(gGameConfig, gGameConfigFilePath);
-    // Read contents of `fallout2.cfg` into config. The values from the file
+    // Read contents of `fission.cfg` into config. The values from the file
     // will override the defaults above.
     configRead(&gGameConfig, gGameConfigFilePath, false);
     configChecker.check(gGameConfig);
 
     // Add key-values from command line, which overrides both defaults and
-    // whatever was loaded from `fallout2.cfg`.
+    // whatever was loaded from `fission.cfg`.
     configParseCommandLineArguments(&gGameConfig, argc, argv);
 
     // CE: Normalize and resolve asset bundle paths.
@@ -254,7 +254,7 @@ EM_ASYNC_JS(void, do_save_idbfs_gameconfig, (), {
 // clang-format on
 #endif
 
-// Saves game config into `fallout2.cfg`.
+// Saves game config into `fission.cfg`.
 //
 // 0x444C14
 bool gameConfigSave()

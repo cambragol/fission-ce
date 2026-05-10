@@ -308,6 +308,9 @@ static unsigned char* _snapshotBuf;
 // 0x6142B0
 static MessageListItem gLoadSaveMessageListItem;
 
+static MessageList gFissionMessageList;
+static MessageListItem gFissionMessageListItem;
+
 // 0x6142C0
 static int _dbleclkcntr;
 
@@ -717,16 +720,21 @@ int lsgSaveGame(int mode)
 
             case KEY_ARROW_RIGHT:
             case KEY_ARROW_LEFT:
-            case 502: { // Mouse click detected
+            case 502: { // Mouse click
                 int mouseX, mouseY;
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
-                // Check if the click was in the "Next Page" button area
+                // --- Next Page (right arrow or click on next button) ---
                 if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
-                    if (_currentSlotPage < (gEffectiveSaveLoadSlots / 10) - 1) {
+
+                    if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
-                        _slot_cursor = _currentSlotPage * 10;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
                         _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
@@ -735,11 +743,17 @@ int lsgSaveGame(int mode)
                     break;
                 }
 
+                // --- Previous Page (left arrow or click on prev button) ---
                 if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
+
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
-                        _slot_cursor = (_currentSlotPage * 10) + 9;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index (should never exceed, but for safety)
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
                         _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
@@ -748,22 +762,18 @@ int lsgSaveGame(int mode)
                     break;
                 }
 
+                // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
                 if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
 
-                    // Calculate clicked slot based on slot list position
+                    // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
-                    if (relativeSlot < 0) {
-                        relativeSlot = 0;
-                    } else if (relativeSlot > 9) {
-                        relativeSlot = 9;
-                    }
+                    if (relativeSlot < 0) relativeSlot = 0;
+                    if (relativeSlot > 9) relativeSlot = 9;
 
-                    // Adjust for the current page
                     int clickedSlot = (_currentSlotPage * 10) + relativeSlot;
-
                     if (clickedSlot > (gEffectiveSaveLoadSlots - 1)) {
-                        clickedSlot = (gEffectiveSaveLoadSlots - 1);
+                        clickedSlot = gEffectiveSaveLoadSlots - 1;
                     }
 
                     _slot_cursor = clickedSlot;
@@ -1344,41 +1354,52 @@ int lsgLoadGame(int mode)
                 int mouseX, mouseY;
                 mouseGetPositionInWindow(gLoadSaveWindow, &mouseX, &mouseY);
 
+                // --- Next Page (right arrow or click on next button) ---
                 if ((mouseX >= gOffsets.nextPageButtonX && mouseX <= gOffsets.nextPageButtonX + gOffsets.nextPageButtonWidth && mouseY >= gOffsets.nextPageButtonY && mouseY <= gOffsets.nextPageButtonY + gOffsets.nextPageButtonHeight) || keyCode == KEY_ARROW_RIGHT) {
-                    if (_currentSlotPage < (gEffectiveSaveLoadSlots / 10) - 1) {
+
+                    if (_currentSlotPage < gEffectiveSaveLoadPages - 1) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page (0-9)
                         _currentSlotPage++;
-                        _slot_cursor = _currentSlotPage * 10;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
-                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
+                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
                         windowRefresh(gLoadSaveWindow);
                     }
                     break;
                 }
 
-                // Directly use offset variables for button positions
+                // --- Previous Page (left arrow or click on prev button) ---
                 if ((mouseX >= gOffsets.prevPageButtonX && mouseX <= gOffsets.prevPageButtonX + gOffsets.prevPageButtonWidth && mouseY >= gOffsets.prevPageButtonY && mouseY <= gOffsets.prevPageButtonY + gOffsets.prevPageButtonHeight) || keyCode == KEY_ARROW_LEFT) {
+
                     if (_currentSlotPage > 0) {
                         soundPlayFile("ib1p1xx1");
+                        int rowOffset = _slot_cursor % 10; // preserve row within page
                         _currentSlotPage--;
-                        _slot_cursor = (_currentSlotPage * 10) + 9;
+                        int newSlot = _currentSlotPage * 10 + rowOffset;
+                        // clamp to maximum slot index (should never exceed, but for safety)
+                        if (newSlot >= gEffectiveSaveLoadSlots) newSlot = gEffectiveSaveLoadSlots - 1;
+                        _slot_cursor = newSlot;
                         selectionChanged = true;
                         doubleClickSlot = -1;
-                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
+                        _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
                         windowRefresh(gLoadSaveWindow);
                     }
                     break;
                 }
 
+                // --- Slot selection by clicking on a save slot ---
                 // Check if click is within the slot list area
                 if (mouseX >= gOffsets.slotListAreaX && mouseX <= gOffsets.slotListAreaX + gOffsets.slotListAreaWidth && mouseY >= gOffsets.slotListAreaY && mouseY <= gOffsets.slotListAreaY + gOffsets.slotListAreaHeight - gOffsets.slotListBottomOffset) {
+
                     // Calculate clicked slot based on original logic
                     int relativeSlot = (mouseY - gOffsets.slotListY) / (3 * fontGetLineHeight() + 4);
-                    if (relativeSlot < 0)
-                        relativeSlot = 0;
-                    if (relativeSlot > 9)
-                        relativeSlot = 9;
+                    if (relativeSlot < 0) relativeSlot = 0;
+                    if (relativeSlot > 9) relativeSlot = 9;
 
                     int clickedSlot = (_currentSlotPage * 10) + relativeSlot;
                     if (clickedSlot > (gEffectiveSaveLoadSlots - 1)) {
@@ -1596,14 +1617,85 @@ int lsgLoadGame(int mode)
                 rc = -1;
                 break;
             default:
-                if (lsgLoadGameInSlot(_slot_cursor) == -1) {
-                    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-                    soundPlayFile("iisxxxx1");
-                    strcpy(_str0, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 134));
-                    strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 135));
-                    showDialogBox(_str0, body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
-                    mapNewMap();
-                    _game_user_wants_to_quit = 2;
+
+                // Build the path to the per-save mod config file
+                char slotPath[COMPAT_MAX_PATH];
+                snprintf(slotPath, sizeof(slotPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
+
+                char missingMod[MOD_INFO_MAX_NAME] = { 0 };
+                int checkResult = modConfigCheckSlotEnabledMatchEx(slotPath, missingMod, sizeof(missingMod));
+
+                bool proceed = true;
+                const char* title = nullptr;
+                const char* msg = nullptr;
+                const char* lines[1] = { nullptr };
+
+                if (checkResult == 3) { // old save - no config file
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 522); // Old Save Format
+                    msg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 523); // This save was created before per-save mod tracking. Resave to set its configuration. Loading with current mods.
+                    lines[0] = msg;
+                    showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                    // proceed remains true, load normally
+                } else if (checkResult == 2) { // missing mod
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 524); // Missing Mod
+                    const char* bodyFmt = getmsg(&gFissionMessageList, &gFissionMessageListItem, 525); // Save game requires mod '%s' which is not currently loaded. Load anyway? (Missing content may cause crashes.)
+                    char body[512];
+                    snprintf(body, sizeof(body), bodyFmt, missingMod);
+                    lines[0] = body;
+                    int result = showDialogBox(title, lines, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                    if (result == 0) proceed = false; // No -> cancel
+                } else if (checkResult == 1) { // mismatch
+                    title = getmsg(&gFissionMessageList, &gFissionMessageListItem, 520); // "Mod Configuration Mismatch"
+                    // First dialog: ask to adjust
+                    const char* adjustMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 526); // "Adjust mods to match this save and restart?"
+                    const char* lines1[] = { adjustMsg };
+                    int result1 = showDialogBox(title, lines1, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                    if (result1 == 1) { // Yes - adjust and restart
+                        if (modConfigApplySaveModConfig(slotPath) == 0) {
+                            modConfigWriteOrderFromLoadedMods();
+                            const char* restartMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 527); // "Mod configuration updated to match the save. Please restart the game before loading this save."
+                            const char* lines2[] = { restartMsg };
+                            showDialogBox(nullptr, lines2, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                            // Exit to main menu - do not load the save now
+                            _game_user_wants_to_quit = 1;
+                            rc = -1;
+                            proceed = false; // ensure we don't load
+                        } else {
+                            const char* errorMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 528); // "Failed to apply mod configuration."
+                            const char* linesErr[] = { errorMsg };
+                            showDialogBox("Error", linesErr, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                            rc = -1;
+                            proceed = false;
+                        }
+                    } else {
+                        // No - second dialog: load anyway?
+                        const char* loadAnywayMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 521); // "This save expects a different set of enabled mods. Load anyway? (May cause crashes)"
+                        const char* lines2[] = { loadAnywayMsg };
+                        int result2 = showDialogBox(nullptr, lines2, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+                        if (result2 == 1) {
+                            proceed = true; // load anyway
+                        } else {
+                            rc = -1;
+                            proceed = false;
+                        }
+                    }
+                }
+                // checkResult == 0 -> perfect match, proceed automatically
+
+                if (proceed) {
+                    if (lsgLoadGameInSlot(_slot_cursor) == -1) {
+                        gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+                        soundPlayFile("iisxxxx1");
+                        strcpy(_str0, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 134));
+                        strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 135));
+                        const char* errBody[] = { _str1 };
+                        showDialogBox(_str0, errBody, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                        mapNewMap();
+                        _game_user_wants_to_quit = 2;
+                        rc = -1;
+                    }
+                } else {
+                    // User cancelled loading; stay in load screen
                     rc = -1;
                 }
                 break;
@@ -1663,6 +1755,16 @@ static int lsgWindowInit(int windowType)
 
     snprintf(_str, sizeof(_str), "%s%s", asc_5186C8, LSGAME_MSG_NAME);
     if (!messageListLoad(&gLoadSaveMessageList, _str)) {
+        return -1;
+    }
+
+    if (!messageListInit(&gFissionMessageList)) {
+        return -1;
+    }
+
+    char fissionPath[COMPAT_MAX_PATH];
+    snprintf(fissionPath, sizeof(fissionPath), "%s%s", asc_5186C8, "fission.msg");
+    if (!messageListLoad(&gFissionMessageList, fissionPath)) {
         return -1;
     }
 
@@ -2096,10 +2198,14 @@ static int lsgPerformSaveGame()
         fileClose(_flptr);
     }
 
-    // Save mod global varaibles
+    // Save mod global variables
+    char enabledPath[COMPAT_MAX_PATH];
+    snprintf(enabledPath, sizeof(enabledPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    modConfigWriteEnabledForSlot(enabledPath);
+
+    // Write modgvars.dat
     snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "modgvars.dat");
-
     _flptr = fileOpen(_gmpath, "wb");
     if (_flptr != nullptr) {
         if (saveModGlobalVars(_flptr) != 0) {

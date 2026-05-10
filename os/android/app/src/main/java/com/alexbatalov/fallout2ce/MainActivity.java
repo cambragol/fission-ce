@@ -16,7 +16,7 @@ public class MainActivity extends SDLActivity {
 
         final File externalFilesDir = getExternalFilesDir(null);
 
-        final File configFile = new File(externalFilesDir, "fallout2.cfg");
+        final File configFile = new File(externalFilesDir, "fission.cfg");
         if (!configFile.exists()) {
             final File masterDatFile = new File(externalFilesDir, "master.dat");
             final File critterDatFile = new File(externalFilesDir, "critter.dat");

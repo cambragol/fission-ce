@@ -156,6 +156,10 @@ Art* artLoad(const char* path);
 int artRead(const char* path, unsigned char* data);
 int artWrite(const char* path, unsigned char* data);
 
+const char* getHeadForScript(const char* script);
+int getBgGvarForScript(const char* script);
+int getStaticBgForScript(const char* script);
+
 class FrmImage {
 public:
     FrmImage();

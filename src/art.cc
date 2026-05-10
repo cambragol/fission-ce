@@ -25,6 +25,11 @@ namespace fallout {
 
 const int MAX_ART_INDICES = 8192;
 
+// Maximum number of PID->head mappings
+#define MAX_HEAD_MAPPINGS 256
+#define MAX_BG_GVAR_MAPPINGS 256
+#define MAX_SCRIPT_MAPS 256
+
 typedef struct ArtListDescription {
     int flags;
     char name[16];
@@ -52,6 +57,14 @@ typedef struct HeadDescription {
     int neutralFidgetCount;
     int badFidgetCount;
 } HeadDescription;
+
+static struct {
+    char script[64];
+    char head[64];
+    int bgGvar; // -1 = none (dynamic from global var)
+    int staticBg; // -1 = none (static background index)
+} scriptMaps[MAX_SCRIPT_MAPS];
+static int scriptMapCount = 0;
 
 static int artReadList(const char* path, char** out_arr, int* out_count);
 static int artCacheGetFileSizeImpl(int fid, int* out_size);
@@ -156,6 +169,49 @@ void showFatalError(const char* message)
     debugPrint("FATAL ART ERROR: %s", message);
     showMesageBox(message); // Corrected spelling
     exit(1);
+}
+
+static int findScriptMap(const char* script)
+{
+    for (int i = 0; i < scriptMapCount; i++)
+        if (compat_stricmp(scriptMaps[i].script, script) == 0)
+            return i;
+    return -1;
+}
+
+static void addScriptMap(const char* script, const char* head, int bgGvar, int staticBg)
+{
+    int idx = findScriptMap(script);
+    if (idx != -1) {
+        strncpy(scriptMaps[idx].head, head, sizeof(scriptMaps[0].head) - 1);
+        scriptMaps[idx].bgGvar = bgGvar;
+        scriptMaps[idx].staticBg = staticBg;
+        return;
+    }
+    if (scriptMapCount >= MAX_SCRIPT_MAPS) return;
+    strncpy(scriptMaps[scriptMapCount].script, script, sizeof(scriptMaps[0].script) - 1);
+    strncpy(scriptMaps[scriptMapCount].head, head, sizeof(scriptMaps[0].head) - 1);
+    scriptMaps[scriptMapCount].bgGvar = bgGvar;
+    scriptMaps[scriptMapCount].staticBg = staticBg;
+    scriptMapCount++;
+}
+
+const char* getHeadForScript(const char* script)
+{
+    int idx = findScriptMap(script);
+    return (idx != -1) ? scriptMaps[idx].head : nullptr;
+}
+
+int getBgGvarForScript(const char* script)
+{
+    int idx = findScriptMap(script);
+    return (idx != -1) ? scriptMaps[idx].bgGvar : -1;
+}
+
+int getStaticBgForScript(const char* script)
+{
+    int idx = findScriptMap(script);
+    return (idx != -1) ? scriptMaps[idx].staticBg : -1;
 }
 
 // Helper to extract base filename without extension
@@ -315,7 +371,7 @@ static void artProcessVariants(ArtListDescription* desc)
     // 2. Process Variant Assets
     // -------------------------
     // Variants are higher-resolution versions of existing assets (e.g., "_800.frm" for 800x500)
-    // Variant suffix can be set in fallout2.cfg
+    // Variant suffix can be set in fission.cfg
     char suffix[32];
     snprintf(suffix, sizeof(suffix), "%s.frm",
         settings.graphics.widescreen_variant_suffix.c_str());
@@ -1214,7 +1270,7 @@ static void artLoadModHeadData(ArtListDescription* desc)
             if (*p == '\0' || *p == '#')
                 continue; // skip empty lines and comments
 
-            // Format: filename,good,neutral,bad
+            // Format: filename,good,neutral,bad override [casdy,3,3,3 npc_pid=0x1000059 ...]
             char* filename = p;
             char* comma1 = strchr(p, ',');
             if (!comma1) {
@@ -1242,10 +1298,10 @@ static void artLoadModHeadData(ArtListDescription* desc)
 
             // Trim each part
             auto trim = [](char* s) -> char* {
-                while (*s && isspace((unsigned char)*s))
+                while (*s && isspace(*s))
                     s++;
                 char* end = s + strlen(s) - 1;
-                while (end > s && isspace((unsigned char)*end))
+                while (end > s && isspace(*end))
                     end--;
                 *(end + 1) = '\0';
                 return s;
@@ -1269,17 +1325,98 @@ static void artLoadModHeadData(ArtListDescription* desc)
                 }
             }
 
-            if (index != -1) {
-                gHeadDescriptions[index].goodFidgetCount = good;
-                gHeadDescriptions[index].neutralFidgetCount = neutral;
-                gHeadDescriptions[index].badFidgetCount = bad;
-                debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
-                    index, filename, good, neutral, bad);
-            } else {
+            if (index == -1) {
                 debugPrint("  Warning: Could not find head filename '%s' from mod list\n", filename);
+                continue;
+            }
+
+            // Store fidget counts
+            gHeadDescriptions[index].goodFidgetCount = good;
+            gHeadDescriptions[index].neutralFidgetCount = neutral;
+            gHeadDescriptions[index].badFidgetCount = bad;
+            debugPrint("  Head %d (%s): good=%d, neutral=%d, bad=%d\n",
+                index, filename, good, neutral, bad);
+
+            // Parse optional npc_script, bg_gvar, background tokens
+            char* rest = badStr;
+            // Move past the third number
+            while (*rest && !isspace(*rest))
+                rest++;
+            while (*rest && isspace(*rest))
+                rest++;
+
+            char current_script[64] = { 0 };
+            bool have_script = false;
+
+            while (*rest) {
+                // Skip whitespace
+                while (*rest && isspace(*rest))
+                    rest++;
+                if (!*rest) break;
+
+                char* eq = strchr(rest, '=');
+                if (!eq) {
+                    // No '=', skip to next space
+                    while (*rest && !isspace(*rest))
+                        rest++;
+                    continue;
+                }
+
+                // Extract key
+                char* key_start = rest;
+                char* key_end = eq;
+                while (key_end > key_start && isspace(*(key_end - 1)))
+                    key_end--;
+                size_t klen = key_end - key_start;
+                char key[64];
+                strncpy(key, key_start, klen);
+                key[klen] = '\0';
+
+                // Move to value
+                rest = eq + 1;
+                while (*rest && isspace(*rest))
+                    rest++;
+                char* val_start = rest;
+                while (*rest && !isspace(*rest))
+                    rest++;
+                char saved = *rest;
+                *rest = '\0';
+
+                if (strcmp(key, "npc_script") == 0) {
+                    strncpy(current_script, val_start, sizeof(current_script) - 1);
+                    current_script[sizeof(current_script) - 1] = '\0';
+                    have_script = true;
+                    // Add mapping with default -1 for bgGvar and staticBg
+                    addScriptMap(current_script, filename, -1, -1);
+                } else if (strcmp(key, "bg_gvar") == 0) {
+                    if (have_script) {
+                        int gvar = atoi(val_start);
+                        // Update the current script's bgGvar
+                        for (int i = 0; i < scriptMapCount; i++) {
+                            if (strcmp(scriptMaps[i].script, current_script) == 0) {
+                                scriptMaps[i].bgGvar = gvar;
+                                break;
+                            }
+                        }
+                    }
+                } else if (strcmp(key, "background") == 0) {
+                    if (have_script) {
+                        int bg = atoi(val_start);
+                        // Update the current script's staticBg
+                        for (int i = 0; i < scriptMapCount; i++) {
+                            if (strcmp(scriptMaps[i].script, current_script) == 0) {
+                                scriptMaps[i].staticBg = bg;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    debugPrint("Unknown token: %s\n", key);
+                }
+
+                *rest = saved;
             }
         }
-
         fileClose(stream);
     }
 
