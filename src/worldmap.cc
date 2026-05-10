@@ -6969,9 +6969,7 @@ static int wmMatchWorldPosToArea(int x, int y, int* areaIdxPtr)
     CityInfo* carCity = &(wmAreaInfoList[CITY_CAR_OUT_OF_GAS]);
     if (carCity->state) {
         CitySizeDescription* citySizeDescription = &(wmSphereData[carCity->size]);
-        if (v4 >= carCity->x && v3 >= carCity->y &&
-            v4 <= carCity->x + citySizeDescription->frmImage.getWidth() &&
-            v3 <= carCity->y + citySizeDescription->frmImage.getHeight()) {
+        if (v4 >= carCity->x && v3 >= carCity->y && v4 <= carCity->x + citySizeDescription->frmImage.getWidth() && v3 <= carCity->y + citySizeDescription->frmImage.getHeight()) {
             *areaIdxPtr = CITY_CAR_OUT_OF_GAS;
             return 0;
         }
@@ -7783,7 +7781,7 @@ static int wmTownMapRefresh()
     // Handle centering of townmap for widescreen or original image sizes
     int xOffset = gOffsets.townMapBgX;
     int yOffset = gOffsets.townMapBgY;
-    if(_townFrmImage.getWidth() < 460 && gameIsWidescreen()){
+    if (_townFrmImage.getWidth() < 460 && gameIsWidescreen()) {
         xOffset = 78;
         yOffset = 10;
     }
