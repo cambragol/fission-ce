@@ -293,15 +293,29 @@ static bool gIsoWasEnabled = false;
 // 0x56D2A0
 static AutomapEntry gAutomapEntry;
 
+static bool gAutomapShouldReopenAfterCombat = false;
+
 // Button IDs for minimap toggles
 static int gDetailsButton = -1;
 static int gZoomButton = -1;
 static int gProjectionButton = -1;
 
+/**
+ * Returns the absolute path to the automap database file.
+ * Uses the master patches path from settings.
+ */
+static void automapGetDbPath(char* buffer, size_t bufferSize)
+{
+    snprintf(buffer, bufferSize, "%s\\%s\\%s",
+        settings.system.master_patches_path.c_str(),
+        "MAPS",
+        AUTOMAP_DB);
+}
+
 static int automapUpdateEntry(int map, int elevation, const char* tempPath)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* oldStream = fileOpen(path, "rb");
     if (oldStream == nullptr) {
@@ -671,6 +685,11 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
  */
 void automapShow(bool isInGame, bool isUsingScanner)
 {
+    // Block minimap from opening during combat
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && isInCombat()) {
+        return;
+    }
+
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && gAutomapWindowOpen) {
         // Minimap already open - optionally bring to front
         return;
@@ -1372,7 +1391,7 @@ int automapSaveCurrent()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "r+b");
     if (stream == nullptr) {
@@ -1551,7 +1570,7 @@ static int automapLoadEntry(int map, int elevation)
     gAutomapEntry.compressedData = nullptr;
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     bool success = true;
 
@@ -1785,7 +1804,7 @@ static int automapCreate()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "wb");
     if (stream == nullptr) {
@@ -1846,7 +1865,7 @@ static int _copy_file_data(File* stream1, File* stream2, int length)
 int automapGetHeader(AutomapHeader** automapHeaderPtr)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s\\%s", "MAPS", AUTOMAP_DB);
+    automapGetDbPath(path, sizeof(path));
 
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {
@@ -2061,6 +2080,11 @@ void automapClose()
 {
     if (!gAutomapWindowOpen) return;
 
+    // If we are closing because combat started, set to reopen later
+    if (isInCombat()) {
+        gAutomapShouldReopenAfterCombat = true;
+    }
+
     windowDestroy(gAutomapWindow);
     for (int i = 0; i < AUTOMAP_FRM_COUNT; i++) {
         gAutomapFrmImages[i].unlock();
@@ -2077,6 +2101,15 @@ void automapClose()
     gDetailsButton = -1;
     gZoomButton = -1;
     gProjectionButton = -1;
+}
+
+void automapNotifyCombatEnded()
+{
+    if (gAutomapShouldReopenAfterCombat) {
+        gAutomapShouldReopenAfterCombat = false;
+        // "In game" is always true for minimap, scanner flag is stored in gAutomapFlags
+        automapShow(true, (gAutomapFlags & AUTOMAP_WITH_SCANNER) != 0);
+    }
 }
 
 static void automapUpdateButtonStates(bool playsound)
