@@ -687,7 +687,6 @@ bool modConfigInit(int argc, char** argv)
     }
 
     configParseCommandLineArguments(&gModConfig, argc, argv);
-    settingsFromModConfig();
 
     // Final orphan cleanup: remove any mod in gLoadedMods whose .dat file is missing
     for (int i = gLoadedModsCount - 1; i >= 0; i--) {
@@ -705,6 +704,9 @@ bool modConfigInit(int argc, char** argv)
     writeModFidsFile();
 
     gModConfigInitialized = true;
+
+    settingsFromModConfig();
+    
     return true;
 }
 
