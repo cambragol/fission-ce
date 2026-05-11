@@ -706,7 +706,7 @@ bool modConfigInit(int argc, char** argv)
     gModConfigInitialized = true;
 
     settingsFromModConfig();
-    
+
     return true;
 }
 
