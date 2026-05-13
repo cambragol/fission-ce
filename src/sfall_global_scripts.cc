@@ -36,29 +36,26 @@ static GlobalScriptsState* state = nullptr;
 bool sfall_gl_scr_init()
 {
     state = new (std::nothrow) GlobalScriptsState();
-    if (state == nullptr) {
-        return false;
+    if (state == nullptr) return false;
+
+    char pattern[COMPAT_MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "scripts%cgl*.int", DIR_SEPARATOR);
+
+    char dirPrefix[COMPAT_MAX_PATH] = {0};
+    const char* lastSep = strrchr(pattern, DIR_SEPARATOR);
+    if (lastSep) {
+        size_t len = lastSep - pattern + 1;
+        strncpy(dirPrefix, pattern, len);
+        dirPrefix[len] = '\0';
     }
 
-    // Hardcoded pattern (cross?platform) formerly used: settings.mod_scripts.global_script_paths;
-    char pattern[COMPAT_MAX_PATH];
-    snprintf(pattern, sizeof(pattern),
-        "scripts%cgl*.int",
-        DIR_SEPARATOR);
-
-    // Extract drive and directory from the pattern (before the wildcard)
-    char drive[COMPAT_MAX_DRIVE];
-    char dir[COMPAT_MAX_DIR];
-    compat_splitpath(pattern, drive, dir, nullptr, nullptr);
-
-    // Get list of files matching the pattern
-    char** files;
+    char** files = nullptr;
     int filesLength = fileNameListInit(pattern, &files);
-    if (filesLength != 0) {
-        for (int index = 0; index < filesLength; ++index) {
-            char path[COMPAT_MAX_PATH];
-            compat_makepath(path, drive, dir, files[index], nullptr);
-            state->paths.push_back(std::string(path));
+    if (filesLength > 0) {
+        for (int i = 0; i < filesLength; ++i) {
+            char fullPath[COMPAT_MAX_PATH];
+            snprintf(fullPath, sizeof(fullPath), "%s%s", dirPrefix, files[i]);
+            state->paths.push_back(std::string(fullPath));
         }
         fileNameListFree(&files, 0);
     }
@@ -91,17 +88,13 @@ void sfall_gl_scr_exec_start_proc()
         if (program != nullptr) {
             GlobalScript scr;
             scr.program = program;
-
             for (int action = 0; action < SCRIPT_PROC_COUNT; action++) {
                 scr.procs[action] = programFindProcedure(program, gScriptProcNames[action]);
             }
-
             state->globalScripts.push_back(std::move(scr));
-
             programInterpret(program, -1);
         }
     }
-
     tickersAdd(sfall_gl_scr_process_input);
 }
 
