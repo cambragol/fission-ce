@@ -2865,7 +2865,7 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
     int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
-        // Extract mod name from filename: "items_MyMod.lst" ? "MyMod"
+        // Extract mod name from filename: "items_MyMod.lst" -> "MyMod"
         const char* filename = mod_files[i];
         char mod_name[64] = { 0 };
 
