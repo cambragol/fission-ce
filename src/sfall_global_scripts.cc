@@ -41,7 +41,7 @@ bool sfall_gl_scr_init()
     char pattern[COMPAT_MAX_PATH];
     snprintf(pattern, sizeof(pattern), "scripts%cgl*.int", DIR_SEPARATOR);
 
-    char dirPrefix[COMPAT_MAX_PATH] = {0};
+    char dirPrefix[COMPAT_MAX_PATH] = { 0 };
     const char* lastSep = strrchr(pattern, DIR_SEPARATOR);
     if (lastSep) {
         size_t len = lastSep - pattern + 1;

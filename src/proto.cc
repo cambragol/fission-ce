@@ -2867,7 +2867,7 @@ static void load_mod_proto_list(int proto_type, const char* proto_type_name)
     for (int i = 0; i < file_count; i++) {
         // Extract mod name from filename: "items_MyMod.lst" ? "MyMod"
         const char* filename = mod_files[i];
-        char mod_name[64] = {0};
+        char mod_name[64] = { 0 };
 
         // Skip type name and underscore
         // Filename is like "items_testmod.lst", proto_type_name is "items"
