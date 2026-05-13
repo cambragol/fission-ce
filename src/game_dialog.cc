@@ -300,6 +300,8 @@ static int gGameDialogOldCenterTile = -1;
 // 0x5187E0
 static int gGameDialogOldDudeTile = -1;
 
+static int gGameDialogBackdropWindow = -1;
+
 // 0x5187E4
 static unsigned char* _light_BlendTable = nullptr;
 
@@ -2557,6 +2559,29 @@ int _gdCreateHeadWindow()
 
     int windowWidth = GAME_DIALOG_WINDOW_WIDTH;
 
+    if (gameIsWidescreen()) {
+        int backdropWidth = GAME_DIALOG_WINDOW_WIDTH + 66; // 706
+        int backdropHeight = GAME_DIALOG_WINDOW_HEIGHT + 20; // 500
+        int backdropX = (screenGetWidth() - backdropWidth) / 2 - 2;
+        int backdropY = (screenGetHeight() - backdropHeight) / 2;
+        gGameDialogBackdropWindow = windowCreate(backdropX, backdropY,
+            backdropWidth, backdropHeight, 256,
+            WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT);
+
+        if (gGameDialogBackdropWindow != -1) {
+            unsigned char* buf = windowGetBuffer(gGameDialogBackdropWindow);
+
+            FrmImage backdropFrm;
+            int fid = buildFid(OBJ_TYPE_INTERFACE, 6944, 0, 0, 0);
+            if (backdropFrm.lock(fid)) {
+                blitBufferToBuffer(backdropFrm.getData(), backdropWidth, backdropHeight,
+                    backdropWidth, buf, backdropWidth);
+                backdropFrm.unlock();
+            }
+            windowRefresh(gGameDialogBackdropWindow);
+        }
+    }
+
     // NOTE: Uninline.
     talk_to_create_background_window();
     gameDialogWindowRenderBackground();
@@ -2609,6 +2634,11 @@ void _gdDestroyHeadWindow()
     if (gGameDialogBackgroundWindow != -1) {
         windowDestroy(gGameDialogBackgroundWindow);
         gGameDialogBackgroundWindow = -1;
+    }
+
+    if (gGameDialogBackdropWindow != -1) {
+        windowDestroy(gGameDialogBackdropWindow);
+        gGameDialogBackdropWindow = -1;
     }
 
     for (int index = 0; index < 8; index++) {
