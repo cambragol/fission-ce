@@ -301,8 +301,6 @@ static int _main_load_new(char* mapFileName)
     wmMapMusicStart();
     paletteFadeTo(gPaletteWhite);
     windowDestroy(win);
-    colorPaletteLoad("color.pal");
-    paletteFadeTo(_cmap);
     return 0;
 }
 

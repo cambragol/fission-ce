@@ -1954,11 +1954,6 @@ static int gameDbInit()
 
     createListsFolder();
 
-    // Restore CWD to data by calling dbOpen again
-    int master_db_handle = dbOpen(nullptr, settings.system.master_patches_path.c_str());
-
-    createListsFolder();
-
     return 0;
 }
 
@@ -2172,29 +2167,6 @@ ScopedGameMode::ScopedGameMode(int gameMode)
 ScopedGameMode::~ScopedGameMode()
 {
     GameMode::exitGameMode(gameMode);
-}
-
-static std::vector<std::string> listModsInFolder(const char* modsPath)
-{
-    std::vector<std::string> results;
-
-    char pattern[COMPAT_MAX_PATH];
-    snprintf(pattern, sizeof(pattern), "%s%c*", modsPath, DIR_SEPARATOR);
-
-    DirectoryFileFindData findData;
-    if (fileFindFirst(pattern, &findData)) {
-        do {
-            const char* name = fileFindGetName(&findData);
-            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-            size_t len = strlen(name);
-            if (len >= 4 && compat_stricmp(name + len - 4, ".dat") == 0) {
-                results.push_back(name);
-            }
-        } while (fileFindNext(&findData));
-        findFindClose(&findData);
-    }
-
-    return results;
 }
 
 } // namespace fallout

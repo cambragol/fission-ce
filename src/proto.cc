@@ -2854,49 +2854,45 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
  */
 static void load_mod_proto_list(int proto_type, const char* proto_type_name)
 {
+    // Build relative virtual pattern: "proto/items/items_*.lst"
     char search_pattern[COMPAT_MAX_PATH];
-    char path[COMPAT_MAX_PATH];
-
-    // Build path to proto directory for this type
-    proto_make_path(path, proto_type << 24); // Gets us: {base}/proto/{type}/
-
-    // {type}_{modname}.lst (e.g., items_testmod.lst)
-    snprintf(search_pattern, sizeof(search_pattern), "%s%c%s_*.lst",
-        path, DIR_SEPARATOR, proto_type_name);
+    snprintf(search_pattern, sizeof(search_pattern),
+        "proto%c%s%c%s_*.lst",
+        DIR_SEPARATOR, proto_type_name,
+        DIR_SEPARATOR, proto_type_name);
 
     char** mod_files = nullptr;
     int file_count = fileNameListInit(search_pattern, &mod_files);
 
     for (int i = 0; i < file_count; i++) {
-        // Extract mod name from filename: {type}_{modname}.lst -> {modname}
+        // Extract mod name from filename: "items_MyMod.lst" -> "MyMod"
         const char* filename = mod_files[i];
         char mod_name[64] = { 0 };
 
         // Skip type name and underscore
         // Filename is like "items_testmod.lst", proto_type_name is "items"
-        const char* mod_name_start = filename + strlen(proto_type_name) + 1; // Skip "items_"
-
-        // Copy mod name without .lst extension
-        const char* dot = strrchr(mod_name_start, '.');
-        if (dot) {
-            size_t mod_name_len = dot - mod_name_start;
-            if (mod_name_len > 0 && mod_name_len < sizeof(mod_name)) {
-                strncpy(mod_name, mod_name_start, mod_name_len);
-                mod_name[mod_name_len] = '\0';
+        const char* prefix = proto_type_name;
+        size_t prefix_len = strlen(prefix);
+        if (strncmp(filename, prefix, prefix_len) == 0 && filename[prefix_len] == '_') {
+            const char* mod_start = filename + prefix_len + 1;
+            const char* dot = strrchr(mod_start, '.');
+            size_t mod_len = dot ? (dot - mod_start) : strlen(mod_start);
+            if (mod_len > 0 && mod_len < sizeof(mod_name)) {
+                strncpy(mod_name, mod_start, mod_len);
+                mod_name[mod_len] = '\0';
             }
-        } else {
-            // No extension? Use the whole thing
-            strncpy(mod_name, mod_name_start, sizeof(mod_name) - 1);
         }
 
         if (strlen(mod_name) == 0) {
-            continue; // Skip invalid names
+            debugPrint("Warning: Could not extract mod name from %s\n", filename);
+            continue;
         }
 
-        // Build full path to the list file
+        // Build full virtual path to the .lst file
         char list_path[COMPAT_MAX_PATH];
-        snprintf(list_path, sizeof(list_path), "%s%c%s",
-            path, DIR_SEPARATOR, mod_files[i]);
+        snprintf(list_path, sizeof(list_path),
+            "proto%c%s%c%s",
+            DIR_SEPARATOR, proto_type_name, DIR_SEPARATOR, filename);
 
         load_single_mod_proto_list(list_path, mod_name, proto_type, proto_type_name);
     }
