@@ -132,7 +132,7 @@ namespace fallout {
 #define MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER 1
 #define MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR 2
 
-#define MOD_CONFIG_DEFAULT_IFACE_BAR_MODE 1
+#define MOD_CONFIG_DEFAULT_IFACE_BAR_MODE 1 // map extends below/under Iface bar
 #define MOD_CONFIG_DEFAULT_IFACE_BAR_WIDTH 800
 #define MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART 0
 #define MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI 0
@@ -170,13 +170,17 @@ namespace fallout {
 #define MOD_INFO_MAX_DEP 16
 #define MAX_LOADED_MODS 64
 
+#define MOD_ORDER_SEPARATOR '|'
+
 typedef struct ModInfo {
-    char name[MOD_INFO_MAX_NAME];
+    char name[MOD_INFO_MAX_NAME]; // internal name used for .dat etc.
+    char display_name[MOD_INFO_MAX_NAME]; // user-friendly name for loaded mods UI
     char description[MOD_INFO_MAX_DESC];
     char author[MOD_INFO_MAX_AUTHOR];
     char dependencies[MOD_INFO_MAX_DEP][MOD_INFO_MAX_DEP_NAME];
     int dependencyCount;
     int icon_index;
+    bool enabled; // whether mod is active (default true)
     char filePath[COMPAT_MAX_PATH];
     char datName[MOD_INFO_MAX_NAME];
 } ModInfo;
@@ -192,6 +196,11 @@ bool modConfigInit(int argc, char** argv);
 void modConfigExit();
 
 void modConfigWriteOrderFromLoadedMods();
+void modConfigWriteEnabledForSlot(const char* slotPath);
+int modConfigCheckSlotEnabledMatchEx(const char* fullPath, char* missingModName, size_t maxSize);
+
+// Apply enabled flags from a save slot's mod_enabled.cfg to gLoadedMods
+int modConfigApplySaveModConfig(const char* slotPath);
 
 } // namespace fallout
 

@@ -1117,6 +1117,12 @@ static void keyboardBuildQwertyConfiguration()
     gLogicalKeyEntries[SDL_SCANCODE_HOME].rmenu = KEY_ALT_HOME;
     gLogicalKeyEntries[SDL_SCANCODE_HOME].ctrl = KEY_CTRL_HOME;
 
+    gLogicalKeyEntries[SDL_SCANCODE_PAGEUP].unmodified = KEY_PAGE_UP;
+    gLogicalKeyEntries[SDL_SCANCODE_PAGEUP].shift = KEY_PAGE_UP;
+    gLogicalKeyEntries[SDL_SCANCODE_PAGEUP].lmenu = KEY_ALT_PAGE_UP;
+    gLogicalKeyEntries[SDL_SCANCODE_PAGEUP].rmenu = KEY_ALT_PAGE_UP;
+    gLogicalKeyEntries[SDL_SCANCODE_PAGEUP].ctrl = KEY_CTRL_PAGE_UP;
+
     gLogicalKeyEntries[SDL_SCANCODE_PRIOR].unmodified = KEY_PAGE_UP;
     gLogicalKeyEntries[SDL_SCANCODE_PRIOR].shift = KEY_PAGE_UP;
     gLogicalKeyEntries[SDL_SCANCODE_PRIOR].lmenu = KEY_ALT_PAGE_UP;

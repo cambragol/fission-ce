@@ -111,11 +111,6 @@ namespace fallout {
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
 
-#define BASE_AREA_MAX 200
-#define MOD_AREA_START 200
-#define MOD_AREA_MAX 5000
-#define TOTAL_AREA_MAX MOD_AREA_MAX
-
 typedef enum EncounterFormationType {
     ENCOUNTER_FORMATION_TYPE_SURROUNDING,
     ENCOUNTER_FORMATION_TYPE_STRAIGHT_LINE,
@@ -870,7 +865,7 @@ static char gBaseAreaOverrides[BASE_AREA_MAX][COMPAT_MAX_PATH] = { 0 };
 static double gGameTimeIncRemainder = 0.0;
 static FrmImage _townFrmImage;
 static FrmImage _townBackgroundFrmImage;
-static bool wmFaded = false;
+bool wmFaded = false;
 static int wmForceEncounterMapId = -1;
 static unsigned int wmForceEncounterFlags = 0;
 
@@ -2881,7 +2876,7 @@ static void wmAreaInitFromConfig(CityInfo* city, Config* config, const char* sec
     // Optional field: townmap_art_idx
     if (configGetInt(config, section, "townmap_art_idx", &num)) {
         if (num != -1) {
-            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+            num = artGetFidWithVariant(OBJ_TYPE_INTERFACE, num, gameIsWidescreen());
         }
         city->mapFid = num;
     }
@@ -2962,7 +2957,7 @@ static void wmAreaUpdateFromConfig(CityInfo* city, Config* config, const char* s
     // Optional field: townmap_art_idx
     if (configGetInt(config, section, "townmap_art_idx", &num)) {
         if (num != -1) {
-            num = buildFid(OBJ_TYPE_INTERFACE, num, 0, 0, 0);
+            num = artGetFidWithVariant(OBJ_TYPE_INTERFACE, num, gameIsWidescreen());
         }
         city->mapFid = num;
         debugPrint("\nwmAreaUpdateFromConfig: Updated townmap_art_idx");
@@ -6970,8 +6965,22 @@ static int wmMatchWorldPosToArea(int x, int y, int* areaIdxPtr)
     int v3 = y + gOffsets.viewY;
     int v4 = x + gOffsets.viewX;
 
+    // First, check the car-out-of-gas area (if it exists and is known)
+    CityInfo* carCity = &(wmAreaInfoList[CITY_CAR_OUT_OF_GAS]);
+    if (carCity->state) {
+        CitySizeDescription* citySizeDescription = &(wmSphereData[carCity->size]);
+        if (v4 >= carCity->x && v3 >= carCity->y && v4 <= carCity->x + citySizeDescription->frmImage.getWidth() && v3 <= carCity->y + citySizeDescription->frmImage.getHeight()) {
+            *areaIdxPtr = CITY_CAR_OUT_OF_GAS;
+            return 0;
+        }
+    }
+
+    // Then normal areas (towns, etc.)
     int index;
     for (index = 0; index < wmMaxAreaNum; index++) {
+        // Skip the car area to avoid duplication (already handled)
+        if (index == CITY_CAR_OUT_OF_GAS) continue;
+
         CityInfo* city = &(wmAreaInfoList[index]);
         if (city->state) {
             if (v4 >= city->x && v3 >= city->y) {
@@ -7768,7 +7777,17 @@ static int wmTownMapInit()
 static int wmTownMapRefresh()
 {
     // Render town grid background (handles widescreen adjustments)
+
+    // Handle centering of townmap for widescreen or original image sizes
+    int xOffset = gOffsets.townMapBgX;
+    int yOffset = gOffsets.townMapBgY;
+    if (_townFrmImage.getWidth() < 460 && gameIsWidescreen()) {
+        xOffset = 78;
+        yOffset = 10;
+    }
+
     if (gameIsWidescreen()) {
+        // _townBackgroundFrmImage provides Fallout 1 style background for small townmap sizes
         blitBufferToBuffer(_townBackgroundFrmImage.getData(),
             gOffsets.townBackgroundWidth,
             gOffsets.townBackgroundHeight,
@@ -7782,8 +7801,8 @@ static int wmTownMapRefresh()
         _townFrmImage.getWidth(),
         _townFrmImage.getHeight(),
         _townFrmImage.getWidth(),
-        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + gOffsets.townMapBgY)
-            + gOffsets.viewX + gOffsets.townMapBgX,
+        wmBkWinBuf + gOffsets.windowWidth * (gOffsets.viewY + yOffset)
+            + gOffsets.viewX + xOffset,
         gOffsets.windowWidth);
 
     wmRefreshInterfaceOverlay(false);
@@ -8115,7 +8134,7 @@ static void wmInterfaceRefreshCarFuel()
 
     for (int index = gOffsets.carFuelBarHeight; index > ratio; index--) {
         *dest = 14;
-        dest += 640;
+        dest += gOffsets.windowWidth;
     }
 
     while (ratio > 0) {

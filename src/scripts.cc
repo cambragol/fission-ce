@@ -2550,6 +2550,33 @@ int scriptGetScript(int sid, Script** scriptPtr)
     return -1;
 }
 
+bool scriptGetBaseName(int sid, char* dest, int destSize)
+{
+    if (sid == -1) return false;
+    Script* scr;
+    if (scriptGetScript(sid, &scr) != 0) return false;
+    if (scr->program == nullptr) return false;
+    const char* full = scr->program->name;
+    if (full == nullptr) return false;
+
+    // Find basename after last slash or backslash
+    const char* base = strrchr(full, '/');
+    const char* base2 = strrchr(full, '\\');
+    if (base2 > base) base = base2;
+    if (base)
+        base++;
+    else
+        base = full;
+
+    // Remove .int extension
+    const char* dot = strrchr(base, '.');
+    size_t len = dot ? (dot - base) : strlen(base);
+    if (len + 1 > (size_t)destSize) return false;
+    strncpy(dest, base, len);
+    dest[len] = '\0';
+    return true;
+}
+
 // 0x4A5ED8
 static int scriptGetNewId(int scriptType)
 {
