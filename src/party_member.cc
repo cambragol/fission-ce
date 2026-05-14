@@ -2211,7 +2211,7 @@ static int _partyMemberCopyLevelInfo(Object* critter, int stagePid)
     }
 
     // Update base appearance to the new stage
-    if(!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
         proto->fid = stageProto->fid; // change the critter's base FID
 
         // If no armor is worn, apply the new FID immediately.
