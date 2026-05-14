@@ -125,6 +125,10 @@ typedef struct ModProtoEntry {
     bool has_override_ai_packet;
     int override_script;
     bool has_override_script;
+    int override_male_fid;
+    bool has_override_male_fid;
+    int override_female_fid;
+    bool has_override_female_fid;
 } ModProtoEntry;
 
 typedef struct NameToPidEntry {
