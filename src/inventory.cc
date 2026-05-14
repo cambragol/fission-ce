@@ -2966,7 +2966,7 @@ void adjustCritterStatsOnArmorChange(Object* critter, Object* oldArmor, Object* 
     }
 
     // Change companion's appearance based on armor
-    if (objectIsPartyMember(critter)) {
+    if (objectIsPartyMember(critter) && !settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
         int newFid = -1;
 
         if (newArmor != nullptr) {
