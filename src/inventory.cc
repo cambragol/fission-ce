@@ -1659,8 +1659,8 @@ static bool _setup_inventory(int inventoryWindowType)
                     if (_inventoryFrmImages[12].isLocked() && _inventoryFrmImages[13].isLocked()) {
                         // Drop All button
                         btn = buttonCreate(gInventoryWindow,
-                            70,  // x position
-                            204,  // y position (same as Take All)
+                            70, // x position
+                            204, // y position (same as Take All)
                             39,
                             41,
                             -1,
@@ -6223,7 +6223,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     itemMoveAll(target, looter); // items moved
                     if (!settings.enhancements.strict_vanilla) {
                         soundPlayFile("ib1p1xx1");
-                        //break; // Exit loop early and close window for convenience
+                        // break; // Exit loop early and close window for convenience
                     }
                     // display changes but do not exit
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
@@ -6245,7 +6245,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 itemMoveAll(_stack[0], _target_stack[_target_curr_stack]);
                 if (!settings.enhancements.strict_vanilla) {
                     soundPlayFile("ib1p1xx1");
-                    //break; // Close window for convenience (same as Take All)
+                    // break; // Close window for convenience (same as Take All)
                 }
                 // Refresh displays
                 _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
