@@ -2852,6 +2852,10 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         entry.has_override_ai_packet = has_ai;
         entry.override_script = desired_script;
         entry.has_override_script = has_script;
+        entry.override_male_fid = desired_male_fid;
+        entry.has_override_male_fid = has_male_fid;
+        entry.override_female_fid = desired_female_fid;
+        entry.has_override_female_fid = has_female_fid;
 
         mod_proto_registry_add(&entry);
 
