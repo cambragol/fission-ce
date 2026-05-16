@@ -1310,7 +1310,7 @@ static int modListHandleInput(int count)
                 } else {
                     keyCode = KEY_ARROW_DOWN;
                 }
-            } else if (keyCode == 505) { // Reorder toggle button
+            } else if (keyCode == 505 || (keyCode == KEY_LOWERCASE_R || keyCode == KEY_UPPERCASE_R)) { // Reorder toggle button
                 gModListReorderMode = !gModListReorderMode;
                 modListRefresh();
                 continue; // skip further processing
