@@ -428,14 +428,14 @@ static int gSecondaryInventoryScrollUpButton = -1;
 // 0x5190F0
 static int gSecondaryInventoryScrollDownButton = -1;
 
-static int gTradeLeftUpButton = -1;      // player main inventory up
-static int gTradeLeftDownButton = -1;    // player main inventory down
-static int gTradeRightUpButton = -1;     // merchant main inventory up
-static int gTradeRightDownButton = -1;   // merchant main inventory down
-static int gTradeOfferLeftUpButton = -1;   // player offer table up
+static int gTradeLeftUpButton = -1; // player main inventory up
+static int gTradeLeftDownButton = -1; // player main inventory down
+static int gTradeRightUpButton = -1; // merchant main inventory up
+static int gTradeRightDownButton = -1; // merchant main inventory down
+static int gTradeOfferLeftUpButton = -1; // player offer table up
 static int gTradeOfferLeftDownButton = -1; // player offer table down
-static int gTradeOfferRightUpButton = -1;  // merchant offer table up
-static int gTradeOfferRightDownButton = -1;// merchant offer table down
+static int gTradeOfferRightUpButton = -1; // merchant offer table up
+static int gTradeOfferRightDownButton = -1; // merchant offer table down
 
 // 0x5190F4
 static unsigned int gInventoryWindowDudeRotationTimestamp = 0;
@@ -1306,7 +1306,7 @@ static bool _setup_inventory(int inventoryWindowType)
         _inventoryFrmImages[3].lock(fid);
 
         // Load disabled up arrow (same as normal inventory)
-        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);  // Need new graphic
+        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0); // Need new graphic
         _inventoryFrmImages[4].lock(fid);
 
         if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[4].isLocked()) {
@@ -1457,7 +1457,6 @@ static bool _setup_inventory(int inventoryWindowType)
                 gTradeRightDownButton = btn;
                 buttonDisable(btn);
             }
-        
 
             // Invisible button representing left character.
             int tradeLeftPortraitBtn = buttonCreate(_barter_back_win,
