@@ -178,7 +178,7 @@ namespace fallout {
 #define INVENTORY_SLOT_HEIGHT_PAD (INVENTORY_SLOT_HEIGHT - INVENTORY_SLOT_PADDING * 2)
 
 #define INVENTORY_NORMAL_WINDOW_PC_ROTATION_DELAY (1000U / ROTATION_COUNT)
-#define INVENTORY_FRM_COUNT 14
+#define INVENTORY_FRM_COUNT 16
 
 #define MAX_SORT_PRIORITY 999
 
@@ -936,6 +936,14 @@ static bool _setup_inventory(int inventoryWindowType)
     gInventorySlotsCount = 6;
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
+    int fid;
+
+    // Load standard disabled arrows (same for all window types)
+    fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);
+    _inventoryFrmImages[4].lock(fid);
+
+    fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0);
+    _inventoryFrmImages[7].lock(fid);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
 
@@ -1230,7 +1238,6 @@ static bool _setup_inventory(int inventoryWindowType)
         }
     }
 
-    int fid;
     int btn;
     int btnX;
     int btnY;
@@ -1309,10 +1316,10 @@ static bool _setup_inventory(int inventoryWindowType)
         _inventoryFrmImages[3].lock(fid);
 
         // Load disabled up arrow (same as normal inventory)
-        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0); // Need new graphic
-        _inventoryFrmImages[4].lock(fid);
+        fid = buildFid(OBJ_TYPE_INTERFACE, 7168, 0, 0, 0);
+        _inventoryFrmImages[14].lock(fid);
 
-        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[4].isLocked()) {
+        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[14].isLocked()) {
             // Left inventory up button (player)
             btn = buttonCreate(gInventoryWindow,
                 111, 57, 22, 23,
@@ -1323,11 +1330,11 @@ static bool _setup_inventory(int inventoryWindowType)
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[4].getData(),
-                    _inventoryFrmImages[4].getData(),
-                    _inventoryFrmImages[4].getData());
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData());
                 gTradeLeftUpButton = btn;
-                buttonDisable(btn); // initially disabled (at top)
+                buttonDisable(btn);
             }
 
             // Right inventory up button (merchant/NPC/companion)
@@ -1340,9 +1347,9 @@ static bool _setup_inventory(int inventoryWindowType)
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[4].getData(),
-                    _inventoryFrmImages[4].getData(),
-                    _inventoryFrmImages[4].getData());
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData());
                 gTradeRightUpButton = btn;
                 buttonDisable(btn);
             }
@@ -1355,10 +1362,6 @@ static bool _setup_inventory(int inventoryWindowType)
         // Large up arrow (pressed).
         fid = buildFid(OBJ_TYPE_INTERFACE, 50, 0, 0, 0);
         _inventoryFrmImages[3].lock(fid);
-
-        // Large up arrow (disabled).
-        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);
-        _inventoryFrmImages[4].lock(fid);
 
         if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[4].isLocked()) {
             if (inventoryWindowType != INVENTORY_WINDOW_TYPE_TRADE) {
@@ -1422,11 +1425,11 @@ static bool _setup_inventory(int inventoryWindowType)
         fid = buildFid(OBJ_TYPE_INTERFACE, 94, 0, 0, 0);
         _inventoryFrmImages[6].lock(fid);
 
-        // Load disabled down arrow
-        fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0); // Need new graphic
-        _inventoryFrmImages[7].lock(fid);
+        // Load large disabled down arrow
+        fid = buildFid(OBJ_TYPE_INTERFACE, 5872, 0, 0, 0);
+        _inventoryFrmImages[15].lock(fid);
 
-        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[7].isLocked()) {
+        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[15].isLocked()) {
             // Left inventory down button (player)
             btn = buttonCreate(gInventoryWindow,
                 111, 82, 22, 23,
@@ -1437,9 +1440,9 @@ static bool _setup_inventory(int inventoryWindowType)
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[7].getData(),
-                    _inventoryFrmImages[7].getData(),
-                    _inventoryFrmImages[7].getData());
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData());
                 gTradeLeftDownButton = btn;
                 buttonDisable(btn); // initially disabled if list short
             }
@@ -1454,9 +1457,9 @@ static bool _setup_inventory(int inventoryWindowType)
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[7].getData(),
-                    _inventoryFrmImages[7].getData(),
-                    _inventoryFrmImages[7].getData());
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData());
                 gTradeRightDownButton = btn;
                 buttonDisable(btn);
             }
@@ -1507,10 +1510,6 @@ static bool _setup_inventory(int inventoryWindowType)
         // Large arrow down (pressed).
         fid = buildFid(OBJ_TYPE_INTERFACE, 52, 0, 0, 0);
         _inventoryFrmImages[6].lock(fid);
-
-        // Large arrow down (disabled).
-        fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0);
-        _inventoryFrmImages[7].lock(fid);
 
         if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[7].isLocked()) {
             // Left inventory down button.
