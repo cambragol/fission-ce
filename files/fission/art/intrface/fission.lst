@@ -28,3 +28,6 @@ MODWIN.FRM          ; Mod List window background
 BOXBON.FRM          ; Mod List sort button on
 BOXBOFF.FRM         ; Mod List sort button off
 ALLTLKBK.FRM        ; Dialog background for widescreen
+LOOT2.FRM           ; Alternate Loot with Drop All button
+INVDAUP.FRM         ; Drop All button up
+INVDADN.FRM         ; Drop All button down
