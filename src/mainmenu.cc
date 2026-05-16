@@ -43,8 +43,8 @@ namespace fallout {
 #define MOD_MAX_MOD_LINES 9
 
 // Detail area
-#define MOD_ICON_X 413
-#define MOD_ICON_Y 64
+#define MOD_ICON_X 414
+#define MOD_ICON_Y 63
 #define MOD_TEXT_X 280
 #define MOD_NAME_Y 27
 #define MOD_DESC_Y 70
@@ -800,8 +800,8 @@ static int showModList()
     }
 
     // Reorder mode toggle button (normal button, toggles mode on click)
-    int reorderX = 211 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
-    int reorderY = 16;
+    int reorderX = 304 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
+    int reorderY = 208;
     gModListReorderButton = buttonCreate(gModListWindow,
         reorderX, reorderY,
         _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth(),
