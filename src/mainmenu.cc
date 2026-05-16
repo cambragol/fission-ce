@@ -1124,18 +1124,18 @@ static void modListDrawDetails(int selectedIndex)
     if (!info->enabled) {
         const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // "DISABLED"
         fontSetCurrent(102);
-        
+
         int textWidth = fontGetStringWidth(disabledText);
         int textHeight = fontGetLineHeight();
-        
+
         const int iconWidth = 140;
         const int iconHeight = 117;
-        
+
         int x = MOD_ICON_X + (iconWidth - textWidth) / 2;
         int y = MOD_ICON_Y + (iconHeight - textHeight) / 2;
-        
+
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-                    disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]);
+            disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]);
     }
 
     // Restore original font
