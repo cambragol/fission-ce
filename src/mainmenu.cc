@@ -923,7 +923,7 @@ static int modListDrawList()
     if (endIndex > gModListTempCount) endIndex = gModListTempCount;
 
     char truncatedName[MOD_INFO_MAX_NAME];
-    int maxListWidth = MOD_LIST_WIDTH - 10;   // small margin
+    int maxListWidth = MOD_LIST_WIDTH - 10; // small margin
 
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color;
@@ -939,7 +939,7 @@ static int modListDrawList()
 
         // Truncate name to list width
         truncateStringToWidth(gModListTempMods[i].display_name, truncatedName,
-                              sizeof(truncatedName), maxListWidth, 101);
+            sizeof(truncatedName), maxListWidth, 101);
 
         int x = MOD_LIST_X;
         // In reorder mode, indent the currently selected line (overrides color)
@@ -948,7 +948,7 @@ static int modListDrawList()
             color = _colorTable[32767]; // bright white
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-                     truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+            truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
     return gModListTempCount;
@@ -1007,27 +1007,27 @@ static void modListDrawDetails(int selectedIndex)
     int nameWidth = fontGetStringWidth(truncatedName);
     int nameLineHeight = fontGetLineHeight();
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
-                 truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Mod Author
     fontSetCurrent(101);
     int authorLineHeight = fontGetLineHeight();
     int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4;
     int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
-    
+
     const char* by = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 503);
     int byWidth = fontGetStringWidth(by);
     // Draw the "by " prefix
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
-                 by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
-    
+        by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+
     int gap = 5;
     int maxAuthorWidth = fullTextWidth - (nameWidth + 8 + byWidth + gap);
     if (maxAuthorWidth > 0) {
         char truncatedAuthor[MOD_INFO_MAX_AUTHOR + 32];
         truncateStringToWidth(info->author, truncatedAuthor, sizeof(truncatedAuthor), maxAuthorWidth, 101);
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + byWidth + gap,
-                     truncatedAuthor, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+            truncatedAuthor, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
     }
 
     // Draw divider line below name/author
@@ -1042,7 +1042,7 @@ static void modListDrawDetails(int selectedIndex)
 
     // Dynamically calculate total lines available above "DISABLED" text
     int startY = lineY + 8; // first line Y for description
-    int availableHeight = MOD_DEP_Y - startY - 10;  // leave a small gap before DISABLED
+    int availableHeight = MOD_DEP_Y - startY - 10; // leave a small gap before DISABLED
     if (availableHeight < 0) availableHeight = 0;
     int maxTotalLines = availableHeight / lineHeight;
     if (maxTotalLines < 1) maxTotalLines = 1;
@@ -1092,7 +1092,7 @@ static void modListDrawDetails(int selectedIndex)
             char savedChar = descBuffer[end];
             descBuffer[end] = '\0';
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
-                         descBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                descBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
             descBuffer[end] = savedChar;
             yDesc += lineHeight;
             linesDrawn++;
@@ -1100,21 +1100,21 @@ static void modListDrawDetails(int selectedIndex)
         if (actualDescLines > maxDescLines - 1) {
             // Draw ellipsis on the next line
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
-                         "...", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                "...", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
             linesDrawn++;
         }
     }
 
     // Draw Dependencies (fully, using reserved lines)
     if (hasDeps && depLineCount > 0) {
-        int yDep = startY + linesDrawn * lineHeight + 5;  // small gap after description
+        int yDep = startY + linesDrawn * lineHeight + 5; // small gap after description
         for (int i = 0; i < depLineCount; i++) {
             short start = depBeginnings[i];
             short end = depBeginnings[i + 1];
             char savedChar = depBuffer[end];
             depBuffer[end] = '\0';
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
-                         depBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                depBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
             depBuffer[end] = savedChar;
             yDep += lineHeight;
         }
@@ -1126,7 +1126,7 @@ static void modListDrawDetails(int selectedIndex)
         fontSetCurrent(101);
         int yDisabled = MOD_DEP_Y;
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDisabled + MOD_TEXT_X,
-                     disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]); // Orange
+            disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]); // Orange
     }
 
     // Restore original font
