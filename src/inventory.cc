@@ -304,6 +304,8 @@ static void _move_money_to_top(Inventory* inventory, int itemCount);
 static int _compare_items_by_weight(const void* a, const void* b);
 static int _compare_items_by_value(const void* a, const void* b);
 
+static void tradeWindowUpdateScrollButtons();
+
 // 0x46E6D0
 static const int gSummaryStats[7] = {
     STAT_CURRENT_HIT_POINTS,
@@ -425,6 +427,15 @@ static int gSecondaryInventoryScrollUpButton = -1;
 
 // 0x5190F0
 static int gSecondaryInventoryScrollDownButton = -1;
+
+static int gTradeLeftUpButton = -1;      // player main inventory up
+static int gTradeLeftDownButton = -1;    // player main inventory down
+static int gTradeRightUpButton = -1;     // merchant main inventory up
+static int gTradeRightDownButton = -1;   // merchant main inventory down
+static int gTradeOfferLeftUpButton = -1;   // player offer table up
+static int gTradeOfferLeftDownButton = -1; // player offer table down
+static int gTradeOfferRightUpButton = -1;  // merchant offer table up
+static int gTradeOfferRightDownButton = -1;// merchant offer table down
 
 // 0x5190F4
 static unsigned int gInventoryWindowDudeRotationTimestamp = 0;
@@ -1294,41 +1305,43 @@ static bool _setup_inventory(int inventoryWindowType)
         fid = buildFid(OBJ_TYPE_INTERFACE, 101, 0, 0, 0);
         _inventoryFrmImages[3].lock(fid);
 
-        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked()) {
-            // Left inventory up button.
+        // Load disabled up arrow (same as normal inventory)
+        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);  // Need new graphic
+        _inventoryFrmImages[4].lock(fid);
+
+        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[4].isLocked()) {
+            // Left inventory up button (player)
             btn = buttonCreate(gInventoryWindow,
-                111,
-                57,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_ARROW_UP,
-                -1,
+                111, 57, 22, 23,
+                -1, -1, KEY_ARROW_UP, -1,
                 _inventoryFrmImages[2].getData(),
                 _inventoryFrmImages[3].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeLeftUpButton = btn;
+                buttonDisable(btn); // initially disabled (at top)
             }
 
-            // Right inventory up button.
+            // Right inventory up button (merchant/NPC/companion)
             btn = buttonCreate(gInventoryWindow,
-                342,
-                57,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_ARROW_UP,
-                -1,
+                342, 57, 22, 23,
+                -1, -1, KEY_CTRL_ARROW_UP, -1,
                 _inventoryFrmImages[2].getData(),
                 _inventoryFrmImages[3].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeRightUpButton = btn;
+                buttonDisable(btn);
             }
         }
     } else {
@@ -1406,42 +1419,45 @@ static bool _setup_inventory(int inventoryWindowType)
         fid = buildFid(OBJ_TYPE_INTERFACE, 94, 0, 0, 0);
         _inventoryFrmImages[6].lock(fid);
 
-        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked()) {
-            // Left inventory down button.
+        // Load disabled down arrow
+        fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0); // Need new graphic
+        _inventoryFrmImages[7].lock(fid);
+
+        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[7].isLocked()) {
+            // Left inventory down button (player)
             btn = buttonCreate(gInventoryWindow,
-                111,
-                82,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_ARROW_DOWN,
-                -1,
+                111, 82, 22, 23,
+                -1, -1, KEY_ARROW_DOWN, -1,
                 _inventoryFrmImages[5].getData(),
                 _inventoryFrmImages[6].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeLeftDownButton = btn;
+                buttonDisable(btn); // initially disabled if list short
             }
 
-            // Right inventory down button
+            // Right inventory down button (merchant/NPC/companion)
             btn = buttonCreate(gInventoryWindow,
-                342,
-                82,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_ARROW_DOWN,
-                -1,
+                342, 82, 22, 23,
+                -1, -1, KEY_CTRL_ARROW_DOWN, -1,
                 _inventoryFrmImages[5].getData(),
                 _inventoryFrmImages[6].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeRightDownButton = btn;
+                buttonDisable(btn);
             }
+        
 
             // Invisible button representing left character.
             int tradeLeftPortraitBtn = buttonCreate(_barter_back_win,
@@ -1657,38 +1673,37 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[8].isLocked() && _inventoryFrmImages[9].isLocked()) {
             // Left offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                118,
-                113,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_PAGE_UP,
-                -1,
+                118, 113, 22, 23,
+                -1, -1, KEY_PAGE_UP, -1,
                 _inventoryFrmImages[8].getData(),
                 _inventoryFrmImages[9].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                // Add disabled state
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeOfferLeftUpButton = btn;
+                buttonDisable(btn);
             }
 
             // Right offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                336,
-                113,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_PAGE_UP,
-                -1,
+                336, 113, 22, 23,
+                -1, -1, KEY_CTRL_PAGE_UP, -1,
                 _inventoryFrmImages[8].getData(),
                 _inventoryFrmImages[9].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeOfferRightUpButton = btn;
+                buttonDisable(btn);
             }
         }
 
@@ -1703,38 +1718,36 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[10].isLocked() && _inventoryFrmImages[11].isLocked()) {
             // Left offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                118,
-                136,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_PAGE_DOWN,
-                -1,
+                118, 136, 22, 23,
+                -1, -1, KEY_PAGE_DOWN, -1,
                 _inventoryFrmImages[10].getData(),
                 _inventoryFrmImages[11].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeOfferLeftDownButton = btn;
+                buttonDisable(btn);
             }
 
             // Right offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                336,
-                136,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_PAGE_DOWN,
-                -1,
+                336, 136, 22, 23,
+                -1, -1, KEY_CTRL_PAGE_DOWN, -1,
                 _inventoryFrmImages[10].getData(),
                 _inventoryFrmImages[11].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeOfferRightDownButton = btn;
+                buttonDisable(btn);
             }
         }
     }
@@ -2028,6 +2041,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 buttonEnable(gInventoryScrollDownButton);
             }
         }
+    } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
 
     // Draw equipped items (only for normal inventory)
@@ -2164,6 +2179,8 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
                 buttonEnable(gSecondaryInventoryScrollDownButton);
             }
         }
+    } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
 
     // CE: Show items weight.
@@ -7125,6 +7142,8 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
         windowRefreshRect(gInventoryWindow, &rect);
     }
 
+    tradeWindowUpdateScrollButtons();
+
     fontSetCurrent(oldFont);
 }
 
@@ -8122,6 +8141,69 @@ int inventorySetTimer(Object* item)
 Object* inventoryGetTargetObject()
 {
     return _target_stack[_target_curr_stack];
+}
+
+static void tradeWindowUpdateScrollButtons()
+{
+    // Player main inventory (left)
+    if (gTradeLeftUpButton != -1) {
+        if (_stack_offset[_curr_stack] > 0)
+            buttonEnable(gTradeLeftUpButton);
+        else
+            buttonDisable(gTradeLeftUpButton);
+    }
+    if (gTradeLeftDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_pud->length - _stack_offset[_curr_stack] > visible)
+            buttonEnable(gTradeLeftDownButton);
+        else
+            buttonDisable(gTradeLeftDownButton);
+    }
+
+    // Merchant main inventory (right)
+    if (gTradeRightUpButton != -1) {
+        if (_target_stack_offset[_target_curr_stack] > 0)
+            buttonEnable(gTradeRightUpButton);
+        else
+            buttonDisable(gTradeRightUpButton);
+    }
+    if (gTradeRightDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_target_pud->length - _target_stack_offset[_target_curr_stack] > visible)
+            buttonEnable(gTradeRightDownButton);
+        else
+            buttonDisable(gTradeRightDownButton);
+    }
+
+    // Player offer table (left inner)
+    if (gTradeOfferLeftUpButton != -1) {
+        if (_ptable_offset > 0)
+            buttonEnable(gTradeOfferLeftUpButton);
+        else
+            buttonDisable(gTradeOfferLeftUpButton);
+    }
+    if (gTradeOfferLeftDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_ptable_pud->length - _ptable_offset > visible)
+            buttonEnable(gTradeOfferLeftDownButton);
+        else
+            buttonDisable(gTradeOfferLeftDownButton);
+    }
+
+    // Merchant offer table (right inner)
+    if (gTradeOfferRightUpButton != -1) {
+        if (_btable_offset > 0)
+            buttonEnable(gTradeOfferRightUpButton);
+        else
+            buttonDisable(gTradeOfferRightUpButton);
+    }
+    if (gTradeOfferRightDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_btable_pud->length - _btable_offset > visible)
+            buttonEnable(gTradeOfferRightDownButton);
+        else
+            buttonDisable(gTradeOfferRightDownButton);
+    }
 }
 
 } // namespace fallout
