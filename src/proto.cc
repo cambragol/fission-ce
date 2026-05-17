@@ -2362,6 +2362,20 @@ int protoGetProto(int pid, Proto** protoPtr)
             }
         }
 
+        if (entry->has_override_female_fid && PID_TYPE(pid) == OBJ_TYPE_ITEM) {
+            // Need to check item type after proto is loaded
+            if ((*protoPtr)->item.type == ITEM_TYPE_ARMOR) {
+                (*protoPtr)->item.data.armor.femaleFid = entry->override_female_fid;
+            }
+        }
+
+        if (entry->has_override_male_fid && PID_TYPE(pid) == OBJ_TYPE_ITEM) {
+            // Need to check item type after proto is loaded
+            if ((*protoPtr)->item.type == ITEM_TYPE_ARMOR) {
+                (*protoPtr)->item.data.armor.maleFid = entry->override_male_fid;
+            }
+        }
+
         // Set messageId: reserve two IDs per proto (name + description)
         const char* type_key;
         switch (PID_TYPE(pid)) {
@@ -2731,6 +2745,10 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         bool has_ai = false;
         int desired_script = 0;
         bool has_script = false;
+        int desired_male_fid = 0;
+        bool has_male_fid = false;
+        int desired_female_fid = 0;
+        bool has_female_fid = false;
 
         char* rest = p;
         while (*rest) {
@@ -2775,6 +2793,12 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
             } else if (strcmp(key, "script") == 0) {
                 desired_script = atoi(value);
                 has_script = true;
+            } else if (strcmp(key, "male_fid") == 0) {
+                desired_male_fid = atoi(value);
+                has_male_fid = true;
+            } else if (strcmp(key, "female_fid") == 0) {
+                desired_female_fid = atoi(value);
+                has_female_fid = true;
             }
 
             *value_end = saved;
@@ -2828,6 +2852,10 @@ static void load_single_mod_proto_list(const char* list_path, const char* mod_na
         entry.has_override_ai_packet = has_ai;
         entry.override_script = desired_script;
         entry.has_override_script = has_script;
+        entry.override_male_fid = desired_male_fid;
+        entry.has_override_male_fid = has_male_fid;
+        entry.override_female_fid = desired_female_fid;
+        entry.has_override_female_fid = has_female_fid;
 
         mod_proto_registry_add(&entry);
 
