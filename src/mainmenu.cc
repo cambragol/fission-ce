@@ -43,8 +43,8 @@ namespace fallout {
 #define MOD_MAX_MOD_LINES 9
 
 // Detail area
-#define MOD_ICON_X 413
-#define MOD_ICON_Y 64
+#define MOD_ICON_X 414
+#define MOD_ICON_Y 63
 #define MOD_TEXT_X 280
 #define MOD_NAME_Y 27
 #define MOD_DESC_Y 70
@@ -201,6 +201,43 @@ void mainMenuWriteDefaultOffsetsToConfig(bool isWidescreen, const MainMenuOffset
     configSetInt(&gGameConfig, section, "buttonTextOffsetY", defaults->buttonTextOffsetY);
     configSetInt(&gGameConfig, section, "width", defaults->width);
     configSetInt(&gGameConfig, section, "height", defaults->height);
+}
+
+static void truncateStringToWidth(const char* src, char* dst, size_t dstSize, int maxWidth, int font)
+{
+    int fullWidth = fontGetStringWidth(src);
+    if (fullWidth <= maxWidth) {
+        strncpy(dst, src, dstSize);
+        dst[dstSize - 1] = '\0';
+        return;
+    }
+
+    size_t len = strlen(src);
+    size_t truncPos = 0;
+    for (size_t i = 1; i <= len; ++i) {
+        char temp = src[i];
+        ((char*)src)[i] = '\0';
+        int w = fontGetStringWidth(src);
+        ((char*)src)[i] = temp;
+        if (w > maxWidth - fontGetStringWidth("...")) {
+            break;
+        }
+        truncPos = i;
+    }
+    snprintf(dst, dstSize, "%.*s...", (int)truncPos, src);
+}
+
+static int countWrappedLines(const char* text, int maxWidth, int font)
+{
+    char buffer[512];
+    strncpy(buffer, text, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+    short beginnings[256];
+    short count;
+    if (wordWrap(buffer, maxWidth, beginnings, &count) == 0) {
+        return count - 1;
+    }
+    return 0;
 }
 
 // 0x481650
@@ -800,8 +837,8 @@ static int showModList()
     }
 
     // Reorder mode toggle button (normal button, toggles mode on click)
-    int reorderX = 211 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
-    int reorderY = 16;
+    int reorderX = 304 - _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth();
+    int reorderY = 208;
     gModListReorderButton = buttonCreate(gModListWindow,
         reorderX, reorderY,
         _modListFrmImages[MOD_GRAPHIC_REORDER_BUTTON_OFF].getWidth(),
@@ -885,6 +922,9 @@ static int modListDrawList()
     int endIndex = gModListTopLine + MOD_MAX_MOD_LINES;
     if (endIndex > gModListTempCount) endIndex = gModListTempCount;
 
+    char truncatedName[MOD_INFO_MAX_NAME];
+    int maxListWidth = MOD_LIST_WIDTH - 10; // small margin
+
     for (int i = gModListTopLine; i < endIndex; i++) {
         int color;
         bool selected = (i == gModListTopLine + gModListCurrentLine);
@@ -897,6 +937,10 @@ static int modListDrawList()
             color = selected ? _colorTable[32747] : _colorTable[992];
         }
 
+        // Truncate name to list width
+        truncateStringToWidth(gModListTempMods[i].display_name, truncatedName,
+            sizeof(truncatedName), maxListWidth, 101);
+
         int x = MOD_LIST_X;
         // In reorder mode, indent the currently selected line (overrides color)
         if (gModListReorderMode && selected) {
@@ -904,10 +948,9 @@ static int modListDrawList()
             color = _colorTable[32767]; // bright white
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-            gModListTempMods[i].display_name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
+            truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
         y += lineHeight;
     }
-
     return gModListTempCount;
 }
 
@@ -951,104 +994,148 @@ static void modListDrawDetails(int selectedIndex)
         iconFrm.unlock();
     }
 
+    const int fullTextWidth = MOD_WINDOW_WIDTH - MOD_TEXT_X - 20; // 15 is right edge gap
+    const int leftOfIconWidth = (MOD_ICON_X - MOD_TEXT_X) - 0; // 0 gap between icon
+
     // Save current font to restore later
     int oldFont = fontGetCurrent();
 
     // Mod Name
     fontSetCurrent(102);
-    int nameWidth = fontGetStringWidth(info->display_name);
+    char truncatedName[MOD_INFO_MAX_NAME];
+    truncateStringToWidth(info->display_name, truncatedName, sizeof(truncatedName), fullTextWidth, 102);
+    int nameWidth = fontGetStringWidth(truncatedName);
     int nameLineHeight = fontGetLineHeight();
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
-        info->display_name, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
 
     // Mod Author
     fontSetCurrent(101);
     int authorLineHeight = fontGetLineHeight();
-    int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4; // vertical center
+    int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4;
     int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
+
     const char* by = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 503);
     int byWidth = fontGetStringWidth(by);
+    // Draw the "by " prefix
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
         by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
-    fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + byWidth,
-        info->author, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+
+    int gap = 5;
+    int maxAuthorWidth = fullTextWidth - (nameWidth + 8 + byWidth + gap);
+    if (maxAuthorWidth > 0) {
+        char truncatedAuthor[MOD_INFO_MAX_AUTHOR + 32];
+        truncateStringToWidth(info->author, truncatedAuthor, sizeof(truncatedAuthor), maxAuthorWidth, 101);
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + byWidth + gap,
+            truncatedAuthor, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+    }
 
     // Draw divider line below name/author
     int lineY = MOD_NAME_Y + nameLineHeight + 4; // gap below name line
     int lineStartX = MOD_TEXT_X;
-    int lineEndX = MOD_TEXT_X + 260; // match text area end
+    int lineEndX = MOD_TEXT_X + fullTextWidth;
     windowDrawLine(gModListWindow, lineStartX, lineY, lineEndX, lineY, _colorTable[0]);
     windowDrawLine(gModListWindow, lineStartX, lineY + 1, lineEndX, lineY + 1, _colorTable[0]);
 
-    // Common settings for wrapped text
-    int lineHeight = authorLineHeight + 2; // line spacing
-    int maxDescWidth = MOD_ICON_X - MOD_TEXT_X - 8; // width available for text before hitting the icon
-    char buffer[512];
+    fontSetCurrent(101);
+    int lineHeight = fontGetLineHeight() + 2;
+
+    // Dynamically calculate total lines available above "DISABLED" text
+    int startY = lineY + 8; // first line Y for description
+    int availableHeight = MOD_DEP_Y - startY - 10; // leave a small gap before DISABLED
+    if (availableHeight < 0) availableHeight = 0;
+    int maxTotalLines = availableHeight / lineHeight;
+    if (maxTotalLines < 1) maxTotalLines = 1;
+
+    // Pre-compute dependency lines
+    int depLineCount = 0;
+    short depBeginnings[256];
+    short depCount = 0;
+    char depBuffer[512] = "";
+    bool hasDeps = (info->dependencyCount > 0);
+
+    if (hasDeps) {
+        char depString[512] = "Dependencies: ";
+        for (int i = 0; i < info->dependencyCount && (int)strlen(depString) < 450; i++) {
+            const char* displayName = getModDisplayName(info->dependencies[i]);
+            if (i > 0) strcat(depString, ", ");
+            strcat(depString, displayName);
+        }
+        strncpy(depBuffer, depString, sizeof(depBuffer) - 1);
+        depBuffer[sizeof(depBuffer) - 1] = '\0';
+        if (wordWrap(depBuffer, leftOfIconWidth, depBeginnings, &depCount) == 0 && depCount > 1) {
+            depLineCount = depCount - 1;
+            // If dependencies alone exceed available space, we can't show all; cap to maxTotalLines
+            if (depLineCount > maxTotalLines) depLineCount = maxTotalLines;
+        }
+    }
+
+    // Reserve lines for dependencies, description gets the rest
+    int maxDescLines = maxTotalLines - depLineCount;
+    if (maxDescLines < 1) maxDescLines = 1;
+
+    // Draw Description (with ellipsis if truncated)
+    char descBuffer[512];
+    strncpy(descBuffer, info->description, sizeof(descBuffer) - 1);
+    descBuffer[sizeof(descBuffer) - 1] = '\0';
+
     short beginnings[256];
     short beginningsCount;
-
-    // Description (wrapped)
-    strncpy(buffer, info->description, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = '\0';
-
-    int descLines = 0;
-    if (wordWrap(buffer, maxDescWidth, beginnings, &beginningsCount) == 0) {
-        int y = lineY + 8; // start description below divider with some margin
-        for (int i = 0; i < beginningsCount - 1; i++) {
+    int linesDrawn = 0;
+    if (wordWrap(descBuffer, leftOfIconWidth, beginnings, &beginningsCount) == 0 && beginningsCount > 1) {
+        int actualDescLines = beginningsCount - 1;
+        int yDesc = startY;
+        int descLinesToDraw = (actualDescLines < maxDescLines) ? actualDescLines : maxDescLines - 1; // reserve one line for "..."
+        for (int i = 0; i < descLinesToDraw; i++) {
             short start = beginnings[i];
             short end = beginnings[i + 1];
-            char savedChar = buffer[end];
-            buffer[end] = '\0';
-            fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + MOD_TEXT_X,
-                buffer + start,
-                MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-                _colorTable[0]);
-            buffer[end] = savedChar;
-            y += lineHeight;
-            descLines++;
+            char savedChar = descBuffer[end];
+            descBuffer[end] = '\0';
+            fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
+                descBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+            descBuffer[end] = savedChar;
+            yDesc += lineHeight;
+            linesDrawn++;
+        }
+        if (actualDescLines > maxDescLines - 1) {
+            // Draw ellipsis on the next line
+            fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
+                "...", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+            linesDrawn++;
         }
     }
 
-    // Dependencies (wrapped, if any)
-    if (info->dependencyCount > 0) {
-        char depString[256] = "Dependencies: ";
-        for (int i = 0; i < info->dependencyCount; i++) {
-            const char* displayName = getModDisplayName(info->dependencies[i]);
-            strcat(depString, displayName);
-            if (i < info->dependencyCount - 1) strcat(depString, ", ");
-        }
-
-        strncpy(buffer, depString, sizeof(buffer) - 1);
-        buffer[sizeof(buffer) - 1] = '\0';
-
-        if (wordWrap(buffer, maxDescWidth, beginnings, &beginningsCount) == 0) {
-            int yDep = lineY + 8 + descLines * lineHeight + 5; // below description
-            for (int i = 0; i < beginningsCount - 1; i++) {
-                short start = beginnings[i];
-                short end = beginnings[i + 1];
-                char savedChar = buffer[end];
-                buffer[end] = '\0';
-                fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
-                    buffer + start,
-                    MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-                    _colorTable[0]);
-                buffer[end] = savedChar;
-                yDep += lineHeight;
-            }
+    // Draw Dependencies (fully, using reserved lines)
+    if (hasDeps && depLineCount > 0) {
+        int yDep = startY + linesDrawn * lineHeight + 5; // small gap after description
+        for (int i = 0; i < depLineCount; i++) {
+            short start = depBeginnings[i];
+            short end = depBeginnings[i + 1];
+            char savedChar = depBuffer[end];
+            depBuffer[end] = '\0';
+            fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
+                depBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+            depBuffer[end] = savedChar;
+            yDep += lineHeight;
         }
     }
 
-    // Show "DISABLED" if the mod is disabled
+    // Show "DISABLED" in place of mod icon if mod is disabled
     if (!info->enabled) {
-        const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // DISABLED
+        const char* disabledText = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 504); // "DISABLED"
+        fontSetCurrent(102);
 
-        fontSetCurrent(101);
-        // Position below description/dependencies - fixed Y coordinate - calculate later or base from bottom
-        int yDisabled = 150;
-        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDisabled + MOD_TEXT_X,
-            disabledText,
-            MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH,
-            _colorTable[32328]); // red? colour for warning
+        int textWidth = fontGetStringWidth(disabledText);
+        int textHeight = fontGetLineHeight();
+
+        const int iconWidth = 140;
+        const int iconHeight = 117;
+
+        int x = MOD_ICON_X + (iconWidth - textWidth) / 2;
+        int y = MOD_ICON_Y + (iconHeight - textHeight) / 2;
+
+        fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
+            disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]);
     }
 
     // Restore original font
@@ -1232,7 +1319,7 @@ static int modListHandleInput(int count)
                 } else {
                     keyCode = KEY_ARROW_DOWN;
                 }
-            } else if (keyCode == 505) { // Reorder toggle button
+            } else if (keyCode == 505 || (keyCode == KEY_LOWERCASE_R || keyCode == KEY_UPPERCASE_R)) { // Reorder toggle button
                 gModListReorderMode = !gModListReorderMode;
                 modListRefresh();
                 continue; // skip further processing

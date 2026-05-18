@@ -947,6 +947,8 @@ int _gdialogInitFromScript(int headFid, int reaction)
     }
 
     if (headFid != -1) {
+        gGameDialogOldMusicVolume = -1;
+        backgroundSoundDelete();
         int bg = -1;
         char scriptBase[64];
         if (gGameDialogSpeaker->sid != -1 && scriptGetBaseName(gGameDialogSpeaker->sid, scriptBase, sizeof(scriptBase))) {

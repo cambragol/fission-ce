@@ -160,6 +160,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_PUSH, true);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, false);
     configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, 1);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, false);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");

@@ -3013,6 +3013,48 @@ void adjustCritterStatsOnArmorChange(Object* critter, Object* oldArmor, Object* 
         damageThresholdStat += 1;
     }
 
+    // Change companion's appearance based on armor
+    if (objectIsPartyMember(critter) && !settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
+        int newFid = -1;
+
+        if (newArmor != nullptr) {
+            // Equipping: build fid from the armor's male/female base frm id
+            int baseFrmId;
+            if (critterGetStat(critter, STAT_GENDER) == GENDER_FEMALE) {
+                baseFrmId = armorGetFemaleFid(newArmor);
+            } else {
+                baseFrmId = armorGetMaleFid(newArmor);
+            }
+            if (baseFrmId != -1) {
+                // Preserve weapon animation code from the current equipped weapon
+                int weaponAnimCode = 0;
+                Object* weapon = critterGetItem2(critter); // right hand
+                if (weapon && itemGetType(weapon) == ITEM_TYPE_WEAPON) {
+                    weaponAnimCode = weaponGetAnimationCode(weapon);
+                }
+                newFid = buildFid(OBJ_TYPE_CRITTER, baseFrmId, 0, weaponAnimCode, critter->rotation + 1);
+            }
+        } else {
+            // Unequipping: revert to the critter's default fid (from its proto)
+            Proto* proto;
+            if (protoGetProto(critter->pid, &proto) != -1) {
+                newFid = proto->fid;
+                // Re-apply weapon animation code if any
+                Object* weapon = critterGetItem2(critter);
+                if (weapon && itemGetType(weapon) == ITEM_TYPE_WEAPON) {
+                    int animCode = weaponGetAnimationCode(weapon);
+                    newFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(newFid), 0, animCode, critter->rotation + 1);
+                }
+            }
+        }
+
+        if (newFid != -1 && newFid != critter->fid) {
+            Rect rect;
+            objectSetFid(critter, newFid, &rect);
+            tileWindowRefreshRect(&rect, critter->elevation);
+        }
+    }
+
     if (objectIsPartyMember(critter)) {
         if (oldArmor != nullptr) {
             int perk = armorGetPerk(oldArmor);
