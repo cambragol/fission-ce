@@ -150,6 +150,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_PUSH, settings.enhancements.auto_push);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, settings.enhancements.minimap);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, settings.enhancements.multi_column_inventory);
+    settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, settings.enhancements.npc_armor);
 }
 
 // read in modConfig setting (no writing back, just reading)
@@ -339,6 +340,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_AUTO_PUSH, settings.enhancements.auto_push);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, settings.enhancements.minimap);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, settings.enhancements.multi_column_inventory);
+    settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, settings.enhancements.npc_armor);
 
     // Mod Settings
     /*settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);

@@ -31,6 +31,7 @@
 #include "queue.h"
 #include "random.h"
 #include "scripts.h"
+#include "settings.h"
 #include "skill.h"
 #include "stat.h"
 #include "string_parsers.h"
@@ -2207,6 +2208,18 @@ static int _partyMemberCopyLevelInfo(Object* critter, int stagePid)
 
     for (int skill = 0; skill < SKILL_COUNT; skill++) {
         proto->critter.data.skills[skill] = stageProto->critter.data.skills[skill];
+    }
+
+    // Update base appearance to the new stage
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
+        proto->fid = stageProto->fid; // change the critter's base FID
+
+        // If no armor is worn, apply the new FID immediately.
+        if (armor == nullptr) {
+            Rect rect;
+            objectSetFid(critter, proto->fid, &rect);
+            tileWindowRefreshRect(&rect, critter->elevation);
+        }
     }
 
     critter->data.critter.hp = critterGetStat(critter, STAT_MAXIMUM_HIT_POINTS);

@@ -125,6 +125,7 @@ struct EnhancementSettings {
     bool auto_push = true;
     bool minimap = false;
     int multi_column_inventory = 1;
+    bool npc_armor = false;
 };
 
 struct ModSettings {

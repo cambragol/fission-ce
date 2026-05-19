@@ -621,7 +621,7 @@ bool modConfigInit(int argc, char** argv)
         const char* datName = folderMods[i];
         bool found = false;
         for (const auto& tm : allMods) {
-            if (strcmp(tm.info.datName, datName) == 0) {
+            if (compat_stricmp(tm.info.datName, datName) == 0) {
                 found = true;
                 break;
             }
@@ -706,6 +706,9 @@ bool modConfigInit(int argc, char** argv)
     gModConfigInitialized = true;
 
     settingsFromModConfig();
+
+    // Restore CWD to data by calling dbOpen again - critical, otherwise CWD will be mods folder
+    dbOpen(nullptr, settings.system.master_patches_path.c_str());
 
     return true;
 }
