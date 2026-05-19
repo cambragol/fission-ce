@@ -325,8 +325,8 @@ endif()
 
 if(WIN32)
     target_sources(${EXECUTABLE_NAME} PUBLIC
-        "os/windows/fission.ico"
-        "os/windows/fission.rc"
+        "os/windows/sonora.ico"
+        "os/windows/sonora.rc"
     )
 endif()
 
@@ -349,10 +349,10 @@ if(APPLE)
         )
 
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
-        set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Fission")
+        set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Sonora")
     else()
         set(RESOURCES
-            "os/macos/fallout-fission.icns"
+            "os/macos/fallout2-sonora.icns"
             "os/macos/fission.dat"
         )
 
@@ -360,15 +360,15 @@ if(APPLE)
         set_source_files_properties(${RESOURCES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
 
         set_target_properties(${EXECUTABLE_NAME} PROPERTIES
-            OUTPUT_NAME "Fallout-Fission"
+            OUTPUT_NAME "Fallout-Sonora"
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/macos/Info.plist"
             XCODE_ATTRIBUTE_EXECUTABLE_NAME "${EXECUTABLE_NAME}"
             XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
         )
 
-        set(MACOSX_BUNDLE_ICON_FILE "fallout-fission.icns")
-        set(MACOSX_BUNDLE_BUNDLE_NAME "Fallout-Fission")
-        set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Fission")
+        set(MACOSX_BUNDLE_ICON_FILE "fallout2-sonora.icns")
+        set(MACOSX_BUNDLE_BUNDLE_NAME "Fallout-Sonora")
+        set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout-Sonora")
     endif()
 
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
@@ -446,14 +446,14 @@ if(APPLE)
 
         set(CPACK_GENERATOR "ZIP")
         set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-        set(CPACK_PACKAGE_FILE_NAME "fallout-fission")
+        set(CPACK_PACKAGE_FILE_NAME "fallout-sonora")
         set(CPACK_ARCHIVE_FILE_EXTENSION "ipa")
     else()
         install(TARGETS ${EXECUTABLE_NAME} DESTINATION .)
 
         set(CPACK_GENERATOR "DragNDrop")
         set(CPACK_DMG_DISABLE_APPLICATIONS_SYMLINK ON)
-        set(CPACK_PACKAGE_FILE_NAME "Fallout-Fission")
+        set(CPACK_PACKAGE_FILE_NAME "Fallout-Sonora")
     endif()
 
     include(CPack)
