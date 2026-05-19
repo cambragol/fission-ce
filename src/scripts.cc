@@ -746,13 +746,8 @@ static void _script_chk_critters()
         if (extent != nullptr) {
             Script* script = &(extent->scripts[remaining]);
 
-            // Optional - verify script is valid
-            if (script->program != nullptr || (script->flags & SCRIPT_FLAG_LOADED) != 0) {
-                int proc = isInCombat() ? SCRIPT_PROC_COMBAT : SCRIPT_PROC_CRITTER;
-                scriptExecProc(script->sid, proc);
-            } else {
-                debugPrint("_script_chk_critters: skipping unloaded script sid=%d\n", script->sid);
-            }
+            int proc = isInCombat() ? SCRIPT_PROC_COMBAT : SCRIPT_PROC_CRITTER;
+            scriptExecProc(script->sid, proc);
         }
     }
 }

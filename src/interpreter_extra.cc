@@ -939,20 +939,6 @@ static void opCreateObject(Program* program)
         script->ownerId = object->id;
         script->owner = object;
         _scr_find_str_run_info(sid - 1, &(script->field_50), object->sid);
-
-        // Immediately load the script and run its start procedure
-        // This ensures the script is fully initialised and will be considered
-        // by the periodic critter script scheduler (_script_chk_critters).
-
-        // In the original Fallout 2, the first time any procedure of a script
-        // is executed, the script’s program is loaded and its `start` procedure is
-        // run implicitly. Without this, a newly created script may never be
-        // initialised in time, leading to a deadlock (e.g., the eyeball script
-        // that must re?enable the UI immediately). This call forces that same
-        // initialisation to happen right after creation.
-        if (!_isLoadingGame()) {
-            scriptExecProc(object->sid, SCRIPT_PROC_START);
-        }
     };
 
 out:
