@@ -178,13 +178,13 @@ namespace fallout {
 #define INVENTORY_SLOT_HEIGHT_PAD (INVENTORY_SLOT_HEIGHT - INVENTORY_SLOT_PADDING * 2)
 
 #define INVENTORY_NORMAL_WINDOW_PC_ROTATION_DELAY (1000U / ROTATION_COUNT)
-#define INVENTORY_FRM_COUNT 12
+#define INVENTORY_FRM_COUNT 16
 
 #define MAX_SORT_PRIORITY 999
 
 #define INVENTORY_BUTTON_LEFT 2500
 #define INVENTORY_BUTTON_RIGHT 2501
-
+#define INVENTORY_BUTTON_DROP_ALL 2503
 #define INVENTORY_HAND_RIGHT_KEY 2006
 #define INVENTORY_HAND_LEFT_KEY 2007
 #define INVENTORY_ARMOR_KEY 2008
@@ -304,6 +304,8 @@ static void _move_money_to_top(Inventory* inventory, int itemCount);
 static int _compare_items_by_weight(const void* a, const void* b);
 static int _compare_items_by_value(const void* a, const void* b);
 
+static void tradeWindowUpdateScrollButtons();
+
 // 0x46E6D0
 static const int gSummaryStats[7] = {
     STAT_CURRENT_HIT_POINTS,
@@ -343,12 +345,11 @@ static const int gInventoryBackgroundFrmIds[5] = {
     7656 // 4 columns
 };
 
-// Multi-column inventory layout (normal inventory only)
-
 // Global configuration: number of columns (default 1, will be read from settings later)
 static int gInventoryColumns = 2;
 static const int gInventoryRows = 6; // fixed number of rows
 static int gCurrentInventoryBackgroundFrm = 48; // default to original
+static int gCurrentLootBackgroundFrm = 114; // default to original
 
 // Layout structure for normal INVENTORY (computed at runtime)
 struct InventoryLayout {
@@ -425,6 +426,15 @@ static int gSecondaryInventoryScrollUpButton = -1;
 
 // 0x5190F0
 static int gSecondaryInventoryScrollDownButton = -1;
+
+static int gTradeLeftUpButton = -1; // player main inventory up
+static int gTradeLeftDownButton = -1; // player main inventory down
+static int gTradeRightUpButton = -1; // merchant main inventory up
+static int gTradeRightDownButton = -1; // merchant main inventory down
+static int gTradeOfferLeftUpButton = -1; // player offer table up
+static int gTradeOfferLeftDownButton = -1; // player offer table down
+static int gTradeOfferRightUpButton = -1; // merchant offer table up
+static int gTradeOfferRightDownButton = -1; // merchant offer table down
 
 // 0x5190F4
 static unsigned int gInventoryWindowDudeRotationTimestamp = 0;
@@ -625,9 +635,10 @@ static FrmImage _moveFrmImages[8];
 // Computes layout based on number of columns and sets common elements
 static void inventoryUpdateLayout()
 {
-    // Determine number of columns from settings
+    // Determine number of columns and loot background from settings
     if (settings.enhancements.strict_vanilla) {
         gInventoryColumns = 1;
+        gCurrentLootBackgroundFrm = 114;
     } else {
         int requested = settings.enhancements.multi_column_inventory;
         // Clamp between 1 and 4 (3 for non widescreen)
@@ -636,6 +647,7 @@ static void inventoryUpdateLayout()
         if (!settings.graphics.widescreen && requested == 4) // restrict 4 columns to widescreen only, otherwise crash
             requested = 3;
         gInventoryColumns = requested;
+        gCurrentLootBackgroundFrm = 6294;
     }
 
     // Compute the shift due to extra columns
@@ -924,6 +936,14 @@ static bool _setup_inventory(int inventoryWindowType)
     gInventorySlotsCount = 6;
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
+    int fid;
+
+    // Load standard disabled arrows (same for all window types)
+    fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);
+    _inventoryFrmImages[4].lock(fid);
+
+    fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0);
+    _inventoryFrmImages[7].lock(fid);
 
     if (inventoryWindowType <= INVENTORY_WINDOW_TYPE_LOOT) {
 
@@ -963,6 +983,8 @@ static bool _setup_inventory(int inventoryWindowType)
         int backgroundFid;
         if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         } else {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
         }
@@ -1216,7 +1238,6 @@ static bool _setup_inventory(int inventoryWindowType)
         }
     }
 
-    int fid;
     int btn;
     int btnX;
     int btnY;
@@ -1294,41 +1315,43 @@ static bool _setup_inventory(int inventoryWindowType)
         fid = buildFid(OBJ_TYPE_INTERFACE, 101, 0, 0, 0);
         _inventoryFrmImages[3].lock(fid);
 
-        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked()) {
-            // Left inventory up button.
+        // Load disabled up arrow (same as normal inventory)
+        fid = buildFid(OBJ_TYPE_INTERFACE, 7168, 0, 0, 0);
+        _inventoryFrmImages[14].lock(fid);
+
+        if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[14].isLocked()) {
+            // Left inventory up button (player)
             btn = buttonCreate(gInventoryWindow,
-                111,
-                57,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_ARROW_UP,
-                -1,
+                111, 57, 22, 23,
+                -1, -1, KEY_ARROW_UP, -1,
                 _inventoryFrmImages[2].getData(),
                 _inventoryFrmImages[3].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData());
+                gTradeLeftUpButton = btn;
+                buttonDisable(btn);
             }
 
-            // Right inventory up button.
+            // Right inventory up button (merchant/NPC/companion)
             btn = buttonCreate(gInventoryWindow,
-                342,
-                57,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_ARROW_UP,
-                -1,
+                342, 57, 22, 23,
+                -1, -1, KEY_CTRL_ARROW_UP, -1,
                 _inventoryFrmImages[2].getData(),
                 _inventoryFrmImages[3].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData(),
+                    _inventoryFrmImages[14].getData());
+                gTradeRightUpButton = btn;
+                buttonDisable(btn);
             }
         }
     } else {
@@ -1339,10 +1362,6 @@ static bool _setup_inventory(int inventoryWindowType)
         // Large up arrow (pressed).
         fid = buildFid(OBJ_TYPE_INTERFACE, 50, 0, 0, 0);
         _inventoryFrmImages[3].lock(fid);
-
-        // Large up arrow (disabled).
-        fid = buildFid(OBJ_TYPE_INTERFACE, 53, 0, 0, 0);
-        _inventoryFrmImages[4].lock(fid);
 
         if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[4].isLocked()) {
             if (inventoryWindowType != INVENTORY_WINDOW_TYPE_TRADE) {
@@ -1406,41 +1425,43 @@ static bool _setup_inventory(int inventoryWindowType)
         fid = buildFid(OBJ_TYPE_INTERFACE, 94, 0, 0, 0);
         _inventoryFrmImages[6].lock(fid);
 
-        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked()) {
-            // Left inventory down button.
+        // Load large disabled down arrow
+        fid = buildFid(OBJ_TYPE_INTERFACE, 5872, 0, 0, 0);
+        _inventoryFrmImages[15].lock(fid);
+
+        if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[15].isLocked()) {
+            // Left inventory down button (player)
             btn = buttonCreate(gInventoryWindow,
-                111,
-                82,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_ARROW_DOWN,
-                -1,
+                111, 82, 22, 23,
+                -1, -1, KEY_ARROW_DOWN, -1,
                 _inventoryFrmImages[5].getData(),
                 _inventoryFrmImages[6].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData());
+                gTradeLeftDownButton = btn;
+                buttonDisable(btn); // initially disabled if list short
             }
 
-            // Right inventory down button
+            // Right inventory down button (merchant/NPC/companion)
             btn = buttonCreate(gInventoryWindow,
-                342,
-                82,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_ARROW_DOWN,
-                -1,
+                342, 82, 22, 23,
+                -1, -1, KEY_CTRL_ARROW_DOWN, -1,
                 _inventoryFrmImages[5].getData(),
                 _inventoryFrmImages[6].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData(),
+                    _inventoryFrmImages[15].getData());
+                gTradeRightDownButton = btn;
+                buttonDisable(btn);
             }
 
             // Invisible button representing left character.
@@ -1489,10 +1510,6 @@ static bool _setup_inventory(int inventoryWindowType)
         // Large arrow down (pressed).
         fid = buildFid(OBJ_TYPE_INTERFACE, 52, 0, 0, 0);
         _inventoryFrmImages[6].lock(fid);
-
-        // Large arrow down (disabled).
-        fid = buildFid(OBJ_TYPE_INTERFACE, 54, 0, 0, 0);
-        _inventoryFrmImages[7].lock(fid);
 
         if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[7].isLocked()) {
             // Left inventory down button.
@@ -1643,6 +1660,36 @@ static bool _setup_inventory(int inventoryWindowType)
                         buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                     }
                 }
+
+                if (!settings.enhancements.strict_vanilla) {
+                    // Drop All button (up)
+                    fid = buildFid(OBJ_TYPE_INTERFACE, 4913, 0, 0, 0);
+                    _inventoryFrmImages[12].lock(fid);
+
+                    // Drop All button (down)
+                    fid = buildFid(OBJ_TYPE_INTERFACE, 4299, 0, 0, 0);
+                    _inventoryFrmImages[13].lock(fid);
+
+                    if (_inventoryFrmImages[12].isLocked() && _inventoryFrmImages[13].isLocked()) {
+                        // Drop All button
+                        btn = buttonCreate(gInventoryWindow,
+                            70, // x position
+                            204, // y position (same as Take All)
+                            39,
+                            41,
+                            -1,
+                            -1,
+                            INVENTORY_BUTTON_DROP_ALL,
+                            -1,
+                            _inventoryFrmImages[12].getData(),
+                            _inventoryFrmImages[13].getData(),
+                            nullptr,
+                            0);
+                        if (btn != -1) {
+                            buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                        }
+                    }
+                }
             }
         }
     } else {
@@ -1657,38 +1704,37 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[8].isLocked() && _inventoryFrmImages[9].isLocked()) {
             // Left offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                118,
-                113,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_PAGE_UP,
-                -1,
+                118, 113, 22, 23,
+                -1, -1, KEY_PAGE_UP, -1,
                 _inventoryFrmImages[8].getData(),
                 _inventoryFrmImages[9].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                // Add disabled state
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeOfferLeftUpButton = btn;
+                buttonDisable(btn);
             }
 
             // Right offered inventory up button.
             btn = buttonCreate(gInventoryWindow,
-                336,
-                113,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_PAGE_UP,
-                -1,
+                336, 113, 22, 23,
+                -1, -1, KEY_CTRL_PAGE_UP, -1,
                 _inventoryFrmImages[8].getData(),
                 _inventoryFrmImages[9].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData(),
+                    _inventoryFrmImages[4].getData());
+                gTradeOfferRightUpButton = btn;
+                buttonDisable(btn);
             }
         }
 
@@ -1703,38 +1749,36 @@ static bool _setup_inventory(int inventoryWindowType)
         if (_inventoryFrmImages[10].isLocked() && _inventoryFrmImages[11].isLocked()) {
             // Left offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                118,
-                136,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_PAGE_DOWN,
-                -1,
+                118, 136, 22, 23,
+                -1, -1, KEY_PAGE_DOWN, -1,
                 _inventoryFrmImages[10].getData(),
                 _inventoryFrmImages[11].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeOfferLeftDownButton = btn;
+                buttonDisable(btn);
             }
 
             // Right offered inventory down button.
             btn = buttonCreate(gInventoryWindow,
-                336,
-                136,
-                22,
-                23,
-                -1,
-                -1,
-                KEY_CTRL_PAGE_DOWN,
-                -1,
+                336, 136, 22, 23,
+                -1, -1, KEY_CTRL_PAGE_DOWN, -1,
                 _inventoryFrmImages[10].getData(),
                 _inventoryFrmImages[11].getData(),
-                nullptr,
-                0);
+                nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+                _win_register_button_disable(btn,
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData(),
+                    _inventoryFrmImages[7].getData());
+                gTradeOfferRightDownButton = btn;
+                buttonDisable(btn);
             }
         }
     }
@@ -1930,7 +1974,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         pitch = INVENTORY_LOOT_WINDOW_WIDTH;
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 114, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(backgroundFid)) {
             // Clear scroll view background.
             blitBufferToBuffer(backgroundFrmImage.getData() + pitch * INVENTORY_LOOT_LEFT_SCROLLER_Y + INVENTORY_LOOT_LEFT_SCROLLER_X,
@@ -2028,6 +2072,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 buttonEnable(gInventoryScrollDownButton);
             }
         }
+    } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
 
     // Draw equipped items (only for normal inventory)
@@ -2057,7 +2103,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         fontSetCurrent(101);
 
         FrmImage backgroundFrm;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 114, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         if (backgroundFrm.lock(backgroundFid)) {
             int x = INVENTORY_LOOT_LEFT_SCROLLER_X;
             int y = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
@@ -2106,7 +2152,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         pitch = INVENTORY_LOOT_WINDOW_WIDTH;
 
         FrmImage backgroundFrmImage;
-        int fid = buildFid(OBJ_TYPE_INTERFACE, 114, 0, 0, 0);
+        int fid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(fid)) {
             blitBufferToBuffer(backgroundFrmImage.getData() + pitch * INVENTORY_LOOT_RIGHT_SCROLLER_Y + INVENTORY_LOOT_RIGHT_SCROLLER_X,
                 INVENTORY_SLOT_WIDTH,
@@ -2164,6 +2210,8 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
                 buttonEnable(gSecondaryInventoryScrollDownButton);
             }
         }
+    } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
 
     // CE: Show items weight.
@@ -2175,7 +2223,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         fontSetCurrent(101);
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 114, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(backgroundFid)) {
             int x = INVENTORY_LOOT_RIGHT_SCROLLER_X;
             int y = INVENTORY_LOOT_RIGHT_SCROLLER_Y + INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + 2;
@@ -2371,14 +2419,14 @@ static void _display_body(int fid, int inventoryWindowType)
             int windowPitch = windowGetWidth(gInventoryWindow);
 
             FrmImage backgroundFrmImage;
-            int Fid = 114;
+            int Fid = gCurrentLootBackgroundFrm;
             int sourceXOffset = 0;
 
             if (index == 1) {
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     rect.left = 426; // loot right cha window (or container)
                     rect.top = 39;
-                    Fid = 114;
+                    Fid = gCurrentLootBackgroundFrm;
                     sourceXOffset = 538;
                 } else {
                     rect.left = 297; // inventory data window? ?not used?
@@ -2390,7 +2438,7 @@ static void _display_body(int fid, int inventoryWindowType)
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     rect.left = 48; // loot left cha window
                     rect.top = 39;
-                    Fid = 114;
+                    Fid = gCurrentLootBackgroundFrm;
                     sourceXOffset = 0;
                 } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
                     rect.left = 176; // Use item cha window
@@ -2963,6 +3011,48 @@ void adjustCritterStatsOnArmorChange(Object* critter, Object* oldArmor, Object* 
 
         damageResistanceStat += 1;
         damageThresholdStat += 1;
+    }
+
+    // Change companion's appearance based on armor
+    if (objectIsPartyMember(critter) && !settings.enhancements.strict_vanilla && settings.enhancements.npc_armor) {
+        int newFid = -1;
+
+        if (newArmor != nullptr) {
+            // Equipping: build fid from the armor's male/female base frm id
+            int baseFrmId;
+            if (critterGetStat(critter, STAT_GENDER) == GENDER_FEMALE) {
+                baseFrmId = armorGetFemaleFid(newArmor);
+            } else {
+                baseFrmId = armorGetMaleFid(newArmor);
+            }
+            if (baseFrmId != -1) {
+                // Preserve weapon animation code from the current equipped weapon
+                int weaponAnimCode = 0;
+                Object* weapon = critterGetItem2(critter); // right hand
+                if (weapon && itemGetType(weapon) == ITEM_TYPE_WEAPON) {
+                    weaponAnimCode = weaponGetAnimationCode(weapon);
+                }
+                newFid = buildFid(OBJ_TYPE_CRITTER, baseFrmId, 0, weaponAnimCode, critter->rotation + 1);
+            }
+        } else {
+            // Unequipping: revert to the critter's default fid (from its proto)
+            Proto* proto;
+            if (protoGetProto(critter->pid, &proto) != -1) {
+                newFid = proto->fid;
+                // Re-apply weapon animation code if any
+                Object* weapon = critterGetItem2(critter);
+                if (weapon && itemGetType(weapon) == ITEM_TYPE_WEAPON) {
+                    int animCode = weaponGetAnimationCode(weapon);
+                    newFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(newFid), 0, animCode, critter->rotation + 1);
+                }
+            }
+        }
+
+        if (newFid != -1 && newFid != critter->fid) {
+            Rect rect;
+            objectSetFid(critter, newFid, &rect);
+            tileWindowRefreshRect(&rect, critter->elevation);
+        }
     }
 
     if (objectIsPartyMember(critter)) {
@@ -6190,7 +6280,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     itemMoveAll(target, looter); // items moved
                     if (!settings.enhancements.strict_vanilla) {
                         soundPlayFile("ib1p1xx1");
-                        break; // Exit loop early and close window for convenience
+                        // break; // Exit loop early and close window for convenience
                     }
                     // display changes but do not exit
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
@@ -6202,6 +6292,21 @@ int inventoryOpenLooting(Object* looter, Object* target)
                         showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[32328], nullptr, _colorTable[32328], 0);
                     }
                 }
+            }
+        } else if ((keyCode == INVENTORY_BUTTON_DROP_ALL || keyCode == KEY_LOWERCASE_D) && !settings.enhancements.strict_vanilla) {
+            if (!_gIsSteal) {
+                if (keyCode == KEY_LOWERCASE_D) {
+                    soundPlayFile("ib1p1xx1");
+                }
+                // Move all items from player to target
+                itemMoveAll(_stack[0], _target_stack[_target_curr_stack]);
+                if (!settings.enhancements.strict_vanilla) {
+                    soundPlayFile("ib1p1xx1");
+                    // break; // Close window for convenience (same as Take All)
+                }
+                // Refresh displays
+                _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
+                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
             }
         } else if (keyCode == KEY_ARROW_UP) {
             if (_stack_offset[_curr_stack] > 0) {
@@ -6480,7 +6585,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
         unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
 
         FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 114, 0, 0, 0);
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         if (backgroundFrmImage.lock(backgroundFid)) {
             blitBufferToBuffer(backgroundFrmImage.getData() + INVENTORY_LOOT_WINDOW_WIDTH * rect.top + rect.left,
                 INVENTORY_SLOT_WIDTH,
@@ -7124,6 +7229,8 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
         rect.bottom = rect.top + rectHeight;
         windowRefreshRect(gInventoryWindow, &rect);
     }
+
+    tradeWindowUpdateScrollButtons();
 
     fontSetCurrent(oldFont);
 }
@@ -8122,6 +8229,69 @@ int inventorySetTimer(Object* item)
 Object* inventoryGetTargetObject()
 {
     return _target_stack[_target_curr_stack];
+}
+
+static void tradeWindowUpdateScrollButtons()
+{
+    // Player main inventory (left)
+    if (gTradeLeftUpButton != -1) {
+        if (_stack_offset[_curr_stack] > 0)
+            buttonEnable(gTradeLeftUpButton);
+        else
+            buttonDisable(gTradeLeftUpButton);
+    }
+    if (gTradeLeftDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_pud->length - _stack_offset[_curr_stack] > visible)
+            buttonEnable(gTradeLeftDownButton);
+        else
+            buttonDisable(gTradeLeftDownButton);
+    }
+
+    // Merchant main inventory (right)
+    if (gTradeRightUpButton != -1) {
+        if (_target_stack_offset[_target_curr_stack] > 0)
+            buttonEnable(gTradeRightUpButton);
+        else
+            buttonDisable(gTradeRightUpButton);
+    }
+    if (gTradeRightDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_target_pud->length - _target_stack_offset[_target_curr_stack] > visible)
+            buttonEnable(gTradeRightDownButton);
+        else
+            buttonDisable(gTradeRightDownButton);
+    }
+
+    // Player offer table (left inner)
+    if (gTradeOfferLeftUpButton != -1) {
+        if (_ptable_offset > 0)
+            buttonEnable(gTradeOfferLeftUpButton);
+        else
+            buttonDisable(gTradeOfferLeftUpButton);
+    }
+    if (gTradeOfferLeftDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_ptable_pud->length - _ptable_offset > visible)
+            buttonEnable(gTradeOfferLeftDownButton);
+        else
+            buttonDisable(gTradeOfferLeftDownButton);
+    }
+
+    // Merchant offer table (right inner)
+    if (gTradeOfferRightUpButton != -1) {
+        if (_btable_offset > 0)
+            buttonEnable(gTradeOfferRightUpButton);
+        else
+            buttonDisable(gTradeOfferRightUpButton);
+    }
+    if (gTradeOfferRightDownButton != -1) {
+        int visible = gInventorySlotsCount;
+        if (_btable_pud->length - _btable_offset > visible)
+            buttonEnable(gTradeOfferRightDownButton);
+        else
+            buttonDisable(gTradeOfferRightDownButton);
+    }
 }
 
 } // namespace fallout

@@ -27,3 +27,9 @@ INVBOX4.FRM         ; 4 column inventory
 MODWIN.FRM          ; Mod List window background
 BOXBON.FRM          ; Mod List sort button on
 BOXBOFF.FRM         ; Mod List sort button off
+ALLTLKBK.FRM        ; Dialog background for widescreen
+LOOT2.FRM           ; Alternate Loot with Drop All button
+INVDAUP.FRM         ; Drop All button up
+INVDADN.FRM         ; Drop All button down
+DI_DOWDS.FRM        ; Inventory Large down disabled button
+DI_UPDS.FRM         ; Inventory Large up disabled button
