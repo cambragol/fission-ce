@@ -939,6 +939,13 @@ static void opCreateObject(Program* program)
         script->ownerId = object->id;
         script->owner = object;
         _scr_find_str_run_info(sid - 1, &(script->field_50), object->sid);
+
+        // Immediately load the script and run its start procedure
+        // This ensures the script is fully initialised and will be considered
+        // by the periodic critter script scheduler (_script_chk_critters).
+        if (!_isLoadingGame()) {
+            scriptExecProc(object->sid, SCRIPT_PROC_START);
+        }
     };
 
 out:
