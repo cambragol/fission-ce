@@ -1013,7 +1013,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     if (gGameDialogFidgetFrm) {
         gameDialogRenderTalkingHead(gGameDialogFidgetFrm, 0);
     } else {
-        gameDialogRenderTalkingHead(nullptr, 0);  // at least draw background
+        gameDialogRenderTalkingHead(nullptr, 0); // at least draw background
     }
 
     if (gGameDialogBackdropWindow != -1) {
