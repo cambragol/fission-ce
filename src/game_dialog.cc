@@ -988,7 +988,13 @@ int _gdialogInitFromScript(int headFid, int reaction)
     textObjectsReset();
 
     if (PID_TYPE(gGameDialogSpeaker->pid) != OBJ_TYPE_ITEM) {
-        _tile_scroll_to(gGameDialogSpeaker->tile, 2);
+        if (headFid == -1) {
+            // No talking head: center speaker and refresh
+            _tile_scroll_to(gGameDialogSpeaker->tile, 2);
+        } else {
+            // Talking head exists: just refresh the screen (clears floating text) without scrolling
+            tileWindowRefresh();
+        }
     }
 
     _talk_need_to_center = true;
@@ -1002,7 +1008,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     _gdCreateHeadWindow();
     tickersAdd(gameDialogTicker);
     _gdSetupFidget(headFid, reaction);
-    
+
     // Force the head area to be drawn (background + first frame)
     if (gGameDialogFidgetFrm) {
         gameDialogRenderTalkingHead(gGameDialogFidgetFrm, 0);
@@ -4630,7 +4636,6 @@ int _gdialog_window_create()
             _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 593, 41, 14, 14, -1, -1, -1, -1, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
 
             if (_dialogue_just_started) {
-                windowRefresh(gGameDialogBackgroundWindow);
                 _gdialog_scroll_subwin(gGameDialogWindow, true, backgroundFrmData, windowBuf, nullptr, _dialogue_subwin_len, true);
                 _dialogue_just_started = 0;
             } else {
