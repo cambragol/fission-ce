@@ -459,7 +459,8 @@ void loadSaveWriteDefaultOffsetsToConfig(bool isWidescreen, const LoadSaveOffset
     configSetInt(&gGameConfig, section, "moreTextOffsetX", defaults->moreTextOffsetX);
 }
 
-static void WriteTimestampForSlot(int slot, bool createIfMissing = true) {
+static void WriteTimestampForSlot(int slot, bool createIfMissing = true)
+{
     char path[COMPAT_MAX_PATH];
     snprintf(path, sizeof(path), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", slot + 1);
 
@@ -479,7 +480,7 @@ static void WriteTimestampForSlot(int slot, bool createIfMissing = true) {
 
     // Read existing file
     char buf[4096];
-    int len = fileRead(buf, 1, sizeof(buf)-1, f);
+    int len = fileRead(buf, 1, sizeof(buf) - 1, f);
     fileClose(f);
     if (len <= 0) return;
     buf[len] = '\0';
@@ -1313,9 +1314,8 @@ int lsgLoadGame(int mode)
     }
 
     // Setup selected slot on first load
-    if (firstLoadScreen && (windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME ||
-    windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU)) {
-    
+    if (firstLoadScreen && (windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME || windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU)) {
+
         int newestSlot = -1;
         time_t newestTime = -1;
 
@@ -2694,25 +2694,24 @@ static int _GetSlotList()
             } else {
                 _LSstatus[index] = SLOT_STATE_OCCUPIED;
 
-            // Get timestamps for slot
-            gSlotTimestamps[index] = 0; // default
-            char cfgPath[COMPAT_MAX_PATH];
-            snprintf(cfgPath, sizeof(cfgPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", index + 1);
-            File* cfg = fileOpen(cfgPath, "rb");
+                // Get timestamps for slot
+                gSlotTimestamps[index] = 0; // default
+                char cfgPath[COMPAT_MAX_PATH];
+                snprintf(cfgPath, sizeof(cfgPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", index + 1);
+                File* cfg = fileOpen(cfgPath, "rb");
                 if (cfg != nullptr) {
                     char buf[256];
-                    int bytes = fileRead(buf, 1, sizeof(buf)-1, cfg);
+                    int bytes = fileRead(buf, 1, sizeof(buf) - 1, cfg);
                     if (bytes > 0) {
                         buf[bytes] = '\0';
                         char* tsLine = strstr(buf, "timestamp=");
                         if (tsLine) {
                             gSlotTimestamps[index] = atol(tsLine + 10);
-                        } 
+                        }
                     }
                     fileClose(cfg);
                 }
             }
-
 
             fileClose(_flptr);
         }
