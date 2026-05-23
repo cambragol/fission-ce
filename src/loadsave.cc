@@ -353,6 +353,9 @@ static bool autoQuickSaveSlots = false;
 
 static LoadSaveOffsets gOffsets;
 
+// Timestamps for each slot, read from mod_enabled.cfg (0 if not present)
+static time_t gSlotTimestamps[saveLoadTotalSlots];
+
 bool loadSaveLoadOffsetsFromConfig(LoadSaveOffsets* offsets, bool isWidescreen)
 {
     return loadOffsetsFromConfig<LoadSaveOffsets>(
@@ -454,6 +457,77 @@ void loadSaveWriteDefaultOffsetsToConfig(bool isWidescreen, const LoadSaveOffset
     // Pagination text positions
     configSetInt(&gGameConfig, section, "backTextOffsetX", defaults->backTextOffsetX);
     configSetInt(&gGameConfig, section, "moreTextOffsetX", defaults->moreTextOffsetX);
+}
+
+static void WriteTimestampForSlot(int slot, bool createIfMissing = true) {
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", slot + 1);
+
+    File* f = fileOpen(path, "rb");
+    if (!f) {
+        if (!createIfMissing) return;
+        // Create new file with timestamp
+        f = fileOpen(path, "wb");
+        if (!f) return;
+        time_t now = time(nullptr);
+        char line[32];
+        snprintf(line, sizeof(line), "timestamp=%ld\n", (long)now);
+        fileWrite(line, strlen(line), 1, f);
+        fileClose(f);
+        return;
+    }
+
+    // Read existing file
+    char buf[4096];
+    int len = fileRead(buf, 1, sizeof(buf)-1, f);
+    fileClose(f);
+    if (len <= 0) return;
+    buf[len] = '\0';
+
+    // Look for timestamp= line
+    char* tsLine = strstr(buf, "timestamp=");
+    time_t now = time(nullptr);
+    char newLine[32];
+    snprintf(newLine, sizeof(newLine), "timestamp=%ld\n", (long)now);
+
+    if (tsLine) {
+        // Find end of line (newline or end)
+        char* end = strchr(tsLine, '\n');
+        if (!end) end = tsLine + strlen(tsLine);
+        int oldLen = end - tsLine;
+        int newLen = strlen(newLine);
+        if (newLen == oldLen) {
+            // Same length - overwrite in place
+            memcpy(tsLine, newLine, newLen);
+        } else {
+            // Different length - rebuild buffer
+            char newBuf[4096];
+            char* wp = newBuf;
+            // Copy before timestamp
+            memcpy(wp, buf, tsLine - buf);
+            wp += (tsLine - buf);
+            // Write new line
+            memcpy(wp, newLine, newLen);
+            wp += newLen;
+            // Copy after old line
+            memcpy(wp, end, len - (end - buf));
+            wp += (len - (end - buf));
+            len = wp - newBuf;
+            memcpy(buf, newBuf, len);
+            buf[len] = '\0';
+        }
+    } else {
+        // No timestamp line - append
+        strcat(buf, newLine);
+        len = strlen(buf);
+    }
+
+    // Write back
+    f = fileOpen(path, "wb");
+    if (f) {
+        fileWrite(buf, len, 1, f);
+        fileClose(f);
+    }
 }
 
 // 0x47B7E4
@@ -1137,8 +1211,8 @@ static int _QuickSnapShot()
 int lsgLoadGame(int mode)
 {
     ScopedGameMode gm(GameMode::kLoadGame);
-
     MessageListItem messageListItem;
+    static bool firstLoadScreen = true;
 
     const char* body[] = {
         _str1,
@@ -1236,6 +1310,29 @@ int lsgLoadGame(int mode)
         showDialogBox(_str0, body, 2, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
         lsgWindowFree(windowType);
         return -1;
+    }
+
+    // Setup selected slot on first load
+    if (firstLoadScreen && (windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME ||
+    windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU)) {
+    
+        int newestSlot = -1;
+        time_t newestTime = -1;
+
+        for (int i = 0; i < gEffectiveSaveLoadSlots; ++i) {
+            if (_LSstatus[i] == SLOT_STATE_OCCUPIED) {
+                time_t ts = gSlotTimestamps[i];
+                if (ts > newestTime) {
+                    newestTime = ts;
+                    newestSlot = i;
+                }
+            }
+        }
+        if (newestSlot != -1) {
+            _slot_cursor = newestSlot;
+            _currentSlotPage = newestSlot / slotsPerPage;
+        }
+        firstLoadScreen = false;
     }
 
     // Use offsets for preview positioning
@@ -1653,6 +1750,7 @@ int lsgLoadGame(int mode)
                     if (result1 == 1) { // Yes - adjust and restart
                         if (modConfigApplySaveModConfig(slotPath) == 0) {
                             modConfigWriteOrderFromLoadedMods();
+                            WriteTimestampForSlot(_slot_cursor, true);
                             const char* restartMsg = getmsg(&gFissionMessageList, &gFissionMessageListItem, 527); // "Mod configuration updated to match the save. Please restart the game before loading this save."
                             const char* lines2[] = { restartMsg };
                             showDialogBox(nullptr, lines2, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
@@ -2203,6 +2301,9 @@ static int lsgPerformSaveGame()
     snprintf(enabledPath, sizeof(enabledPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", _slot_cursor + 1);
     modConfigWriteEnabledForSlot(enabledPath);
 
+    // Append timestamp for reload slot selection
+    WriteTimestampForSlot(_slot_cursor, true);
+
     // Write modgvars.dat
     snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "modgvars.dat");
@@ -2352,6 +2453,9 @@ static int lsgLoadGameInSlot(int slot)
     // SFALL: Call "after start" event
     sfallOnAfterGameStarted();
     gGameLoaded = true;
+
+    // Append timestamp for reload slot selection
+    WriteTimestampForSlot(slot, false);
 
     return 0;
 }
@@ -2589,7 +2693,26 @@ static int _GetSlotList()
                 }
             } else {
                 _LSstatus[index] = SLOT_STATE_OCCUPIED;
+
+            // Get timestamps for slot
+            gSlotTimestamps[index] = 0; // default
+            char cfgPath[COMPAT_MAX_PATH];
+            snprintf(cfgPath, sizeof(cfgPath), "%s\\%s%.2d\\mod_enabled.cfg", "SAVEGAME", "SLOT", index + 1);
+            File* cfg = fileOpen(cfgPath, "rb");
+                if (cfg != nullptr) {
+                    char buf[256];
+                    int bytes = fileRead(buf, 1, sizeof(buf)-1, cfg);
+                    if (bytes > 0) {
+                        buf[bytes] = '\0';
+                        char* tsLine = strstr(buf, "timestamp=");
+                        if (tsLine) {
+                            gSlotTimestamps[index] = atol(tsLine + 10);
+                        } 
+                    }
+                    fileClose(cfg);
+                }
             }
+
 
             fileClose(_flptr);
         }
