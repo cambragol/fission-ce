@@ -2701,7 +2701,7 @@ void _gdSetupFidget(int headFid, int reaction)
     }
 
     if (_lipsFp == nullptr) {
-        _lipsFID = 0;               // force reload of lip?sync frames
+        _lipsFID = 0; // force reload of lip?sync frames
     }
 
     if (_lipsFID == 0) {
