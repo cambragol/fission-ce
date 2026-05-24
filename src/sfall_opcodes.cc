@@ -1695,9 +1695,9 @@ void sfallOpcodesInit()
     // 0x818f - void set_perk_owed(int value)
     // 0x8190 - int get_perk_available(int perk)
     // 0x8191 - int get_critter_current_ap(object critter)
-    //interpreterRegisterOpcode(0x8191, op_get_critter_current_ap);
+    // interpreterRegisterOpcode(0x8191, op_get_critter_current_ap);
     // 0x8192 - void set_critter_current_ap(object critter, int ap)
-    //interpreterRegisterOpcode(0x8192, op_set_critter_current_ap);
+    // interpreterRegisterOpcode(0x8192, op_set_critter_current_ap);
 
     // 0x8193 - int  active_hand()
     interpreterRegisterOpcode(0x8193, op_active_hand);
@@ -1939,7 +1939,7 @@ void sfallOpcodesInit()
     interpreterRegisterOpcode(0x8224, op_create_message_window);
 
     // 0x8226 - int get_light_level()
-    //interpreterRegisterOpcode(0x8226, op_get_light_level);
+    // interpreterRegisterOpcode(0x8226, op_get_light_level);
 
     // 0x8227 - void refresh_pc_art()
 
@@ -2002,22 +2002,22 @@ void sfallOpcodesInit()
     interpreterRegisterOpcode(0x826B, op_get_message);
     // 0x826c - int sneak_success()
     // 0x826d - int tile_light(int elevation, int tileNum)
-    //interpreterRegisterOpcode(0x826D, op_tile_light);
+    // interpreterRegisterOpcode(0x826D, op_tile_light);
     // 0x826e - object obj_blocking_line(object objFrom, int tileTo, int blockingType)
     interpreterRegisterOpcode(0x826E, op_make_straight_path);
     // 0x826f - object obj_blocking_tile(int tileNum, int elevation, int blockingType)
     interpreterRegisterOpcode(0x826F, op_obj_blocking_at);
     // 0x8270 - array tile_get_objs(int tileNum, int elevation)
-    //interpreterRegisterOpcode(0x8270, op_tile_get_objects);
+    // interpreterRegisterOpcode(0x8270, op_tile_get_objects);
     // 0x8271 - array party_member_list(int includeHidden)
     interpreterRegisterOpcode(0x8271, op_party_member_list);
     // 0x8272 - array path_find_to(object objFrom, int tileTo, int blockingType)
-    //interpreterRegisterOpcode(0x8272, op_make_path);
+    // interpreterRegisterOpcode(0x8272, op_make_path);
     // 0x8273 - object create_spatial(int scriptID, int tile, int elevation, int radius)
     // 0x8274 - int art_exists(int artFID)
     interpreterRegisterOpcode(0x8274, op_art_exists);
     // 0x8275 - int obj_is_carrying_obj(object invenObj, object itemObj)
-    //interpreterRegisterOpcode(0x8275, op_obj_is_carrying_obj);
+    // interpreterRegisterOpcode(0x8275, op_obj_is_carrying_obj);
     // 0x8276 - any sfall_func0(string funcName)
     interpreterRegisterOpcode(0x8276, op_sfall_func0);
     // 0x8277 - any sfall_func1(string funcName, arg1)
