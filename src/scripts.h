@@ -211,6 +211,8 @@ int scriptLoadAll(File* stream);
 int scriptGetScript(int sid, Script** script);
 int scriptAdd(int* sidPtr, int scriptType);
 int scriptRemove(int index);
+int scriptsGetListLength();
+bool scriptsIsValidScriptIndex(int scriptIndex);
 int _scr_remove_all();
 int _scr_remove_all_force();
 Script* scriptGetFirstSpatialScript(int elevation);
