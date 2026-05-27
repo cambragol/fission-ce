@@ -301,7 +301,7 @@ int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
 bool gInterfaceBarIsWide = false;
 int gRightSideShift = 0;
-int gAPBarXOffset = 0;   // manual offset for action points bar position
+int gAPBarXOffset = 0; // manual offset for action points bar position
 
 static int gLeftAttackButton = -1;
 static int gRightAttackButton = -1;
@@ -317,25 +317,29 @@ static unsigned char* gRightButtonDown = nullptr;
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
-static void _intface_cycle_item_action_left(int, int) {
+static void _intface_cycle_item_action_left(int, int)
+{
     interfaceCycleItemActionForHand(HAND_LEFT);
 }
 
-static void _intface_cycle_item_action_right(int, int) {
+static void _intface_cycle_item_action_right(int, int)
+{
     interfaceCycleItemActionForHand(HAND_RIGHT);
 }
 
-static void _intface_handle_left_click(int, int) {
+static void _intface_handle_left_click(int, int)
+{
     if (gInterfaceCurrentHand == HAND_LEFT) {
     } else {
-        interfaceBarSwapHands(true);   // swap to left
+        interfaceBarSwapHands(true); // swap to left
     }
 }
 
-static void _intface_handle_right_click(int, int) {
+static void _intface_handle_right_click(int, int)
+{
     if (gInterfaceCurrentHand == HAND_RIGHT) {
     } else {
-        interfaceBarSwapHands(true);   // swap to right
+        interfaceBarSwapHands(true); // swap to right
     }
 }
 
@@ -359,9 +363,9 @@ int interfaceInit()
     gInterfaceBarInitialized = true;
 
     // Offsets for dual mode
-    const int BASE_OFFSET = 160;                // base shift for left group (inventory, options, left action button)
-    const int RIGHT_EXTRA_SHIFT = 198;          // extra shift for right group (skilldex, map, etc.)
-    const int RIGHT_ACTION_BUTTON_GAP = 12;     // gap between left and right action buttons
+    const int BASE_OFFSET = 160; // base shift for left group (inventory, options, left action button)
+    const int RIGHT_EXTRA_SHIFT = 198; // extra shift for right group (skilldex, map, etc.)
+    const int RIGHT_ACTION_BUTTON_GAP = 12; // gap between left and right action buttons
 
     // Combined offset for drawing functions (used by HP, AC, AP, ammo, end buttons)
     gRightSideShift = BASE_OFFSET + RIGHT_EXTRA_SHIFT;
@@ -375,7 +379,7 @@ int interfaceInit()
             return intface_fatal_error(-1);
         }
         gRightSideShift = 0;
-        gAPBarXOffset = 0;   // no extra offset for AP bar in vanilla
+        gAPBarXOffset = 0; // no extra offset for AP bar in vanilla
     } else {
         // ----- DUAL MODE: uses custom wide graphic -----
         backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 6285, 0, 0, 0);
@@ -383,7 +387,7 @@ int interfaceInit()
             return intface_fatal_error(-1);
         }
         gInterfaceBarWidth = backgroundFrmImage.getWidth();
-        gInterfaceBarContentOffset = 0;          // no automatic centering - window is centered by its X position
+        gInterfaceBarContentOffset = 0; // no automatic centering - window is centered by its X position
         gInterfaceBarIsWide = true;
 
         // Manual offset for AP bar lights
@@ -2015,8 +2019,9 @@ static int _intface_redraw_items_callback(Object* _, Object* __)
 }
 
 // 0x460660
-static int _intface_change_fid_callback(Object* _, Object* __) {
-    gInterfaceBarSwapHandsInProgress = false;    
+static int _intface_change_fid_callback(Object* _, Object* __)
+{
+    gInterfaceBarSwapHandsInProgress = false;
     return 0;
 }
 
@@ -2857,8 +2862,10 @@ static void interfaceRefreshSlot(int hand, unsigned char* upBuffer, unsigned cha
     if (settings.enhancements.strict_vanilla) {
         if (hand == gInterfaceCurrentHand) buttonId = gSingleAttackButton;
     } else {
-        if (hand == HAND_LEFT) buttonId = gLeftAttackButton;
-        else buttonId = gRightAttackButton;
+        if (hand == HAND_LEFT)
+            buttonId = gLeftAttackButton;
+        else
+            buttonId = gRightAttackButton;
     }
 
     // Prepare the up/down images (copy from the original button graphics)
@@ -2948,32 +2955,70 @@ static void interfaceRefreshSlot(int hand, unsigned char* upBuffer, unsigned cha
                 switch (anim) {
                 case ANIM_THROW_PUNCH:
                     switch (hitMode) {
-                    case HIT_MODE_STRONG_PUNCH: id = 432; break;
-                    case HIT_MODE_HAMMER_PUNCH: id = 425; break;
-                    case HIT_MODE_HAYMAKER: id = 428; break;
-                    case HIT_MODE_JAB: id = 421; break;
-                    case HIT_MODE_PALM_STRIKE: id = 423; break;
-                    case HIT_MODE_PIERCING_STRIKE: id = 424; break;
-                    default: id = 42; break;
+                    case HIT_MODE_STRONG_PUNCH:
+                        id = 432;
+                        break;
+                    case HIT_MODE_HAMMER_PUNCH:
+                        id = 425;
+                        break;
+                    case HIT_MODE_HAYMAKER:
+                        id = 428;
+                        break;
+                    case HIT_MODE_JAB:
+                        id = 421;
+                        break;
+                    case HIT_MODE_PALM_STRIKE:
+                        id = 423;
+                        break;
+                    case HIT_MODE_PIERCING_STRIKE:
+                        id = 424;
+                        break;
+                    default:
+                        id = 42;
+                        break;
                     }
                     break;
                 case ANIM_KICK_LEG:
                     switch (hitMode) {
-                    case HIT_MODE_STRONG_KICK: id = 430; break;
-                    case HIT_MODE_SNAP_KICK: id = 431; break;
-                    case HIT_MODE_POWER_KICK: id = 429; break;
-                    case HIT_MODE_HIP_KICK: id = 426; break;
-                    case HIT_MODE_HOOK_KICK: id = 427; break;
-                    case HIT_MODE_PIERCING_KICK: id = 422; break;
-                    default: id = 41; break;
+                    case HIT_MODE_STRONG_KICK:
+                        id = 430;
+                        break;
+                    case HIT_MODE_SNAP_KICK:
+                        id = 431;
+                        break;
+                    case HIT_MODE_POWER_KICK:
+                        id = 429;
+                        break;
+                    case HIT_MODE_HIP_KICK:
+                        id = 426;
+                        break;
+                    case HIT_MODE_HOOK_KICK:
+                        id = 427;
+                        break;
+                    case HIT_MODE_PIERCING_KICK:
+                        id = 422;
+                        break;
+                    default:
+                        id = 41;
+                        break;
                     }
                     break;
-                case ANIM_THROW_ANIM: id = 117; break;
-                case ANIM_THRUST_ANIM: id = 45; break;
-                case ANIM_SWING_ANIM: id = 44; break;
-                case ANIM_FIRE_SINGLE: id = 43; break;
+                case ANIM_THROW_ANIM:
+                    id = 117;
+                    break;
+                case ANIM_THRUST_ANIM:
+                    id = 45;
+                    break;
+                case ANIM_SWING_ANIM:
+                    id = 44;
+                    break;
+                case ANIM_FIRE_SINGLE:
+                    id = 43;
+                    break;
                 case ANIM_FIRE_BURST:
-                case ANIM_FIRE_CONTINUOUS: id = 40; break;
+                case ANIM_FIRE_CONTINUOUS:
+                    id = 40;
+                    break;
                 }
 
                 primaryFid = buildFid(OBJ_TYPE_INTERFACE, id, 0, 0, 0);

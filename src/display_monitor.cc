@@ -135,7 +135,7 @@ int displayMonitorInit()
             gDisplayMonitorWidth = 167 + gInterfaceBarContentOffset;
         } else {
             // hardcode this for now - could be dynamic
-            gDisplayMonitorWidth = 167 + 160;   // = 327
+            gDisplayMonitorWidth = 167 + 160; // = 327
         }
 
         // Update the rectangle with the final width
