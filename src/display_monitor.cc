@@ -31,7 +31,6 @@ namespace fallout {
 
 #define DISPLAY_MONITOR_X (23)
 #define DISPLAY_MONITOR_Y (24)
-#define DISPLAY_MONITOR_WIDTH (167 + gInterfaceBarContentOffset)
 #define DISPLAY_MONITOR_HEIGHT (60)
 
 #define DISPLAY_MONITOR_HALF_HEIGHT (DISPLAY_MONITOR_HEIGHT / 2)
@@ -97,6 +96,8 @@ static int gConsoleFilePrintCount = 0;
 
 static FrmImage backgroundFrmImage;
 
+static int gDisplayMonitorWidth = 167;
+
 // 0x431610
 int displayMonitorInit()
 {
@@ -104,7 +105,7 @@ int displayMonitorInit()
         gDisplayMonitorRect = {
             DISPLAY_MONITOR_X,
             DISPLAY_MONITOR_Y,
-            DISPLAY_MONITOR_X + DISPLAY_MONITOR_WIDTH - 1,
+            DISPLAY_MONITOR_X + gDisplayMonitorWidth - 1,
             DISPLAY_MONITOR_Y + DISPLAY_MONITOR_HEIGHT - 1,
         };
 
@@ -117,16 +118,34 @@ int displayMonitorInit()
         _disp_curr = 0;
         fontSetCurrent(oldFont);
 
-        int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, gInterfaceBarIsWide);
+        // Load the same background as the interface (FRM 16 for vanilla, 6285 for dual)
+        int backgroundFid;
+        if (settings.enhancements.strict_vanilla) {
+            backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, gInterfaceBarIsWide);
+        } else {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 6285, 0, 0, 0);
+        }
         if (!backgroundFrmImage.lock(backgroundFid)) {
             return -1;
         }
         _intface_full_width = backgroundFrmImage.getWidth();
 
+        // Compute message area width
+        if (settings.enhancements.strict_vanilla) {
+            gDisplayMonitorWidth = 167 + gInterfaceBarContentOffset;
+        } else {
+            // hardcode this for now - could be dynamic
+            gDisplayMonitorWidth = 167 + 160;   // = 327
+        }
+
+        // Update the rectangle with the final width
+        gDisplayMonitorRect.right = DISPLAY_MONITOR_X + gDisplayMonitorWidth - 1;
+
+        // Create scroll buttons with new width
         gDisplayMonitorScrollUpButton = buttonCreate(gInterfaceBarWindow,
             DISPLAY_MONITOR_X,
             DISPLAY_MONITOR_Y,
-            DISPLAY_MONITOR_WIDTH,
+            gDisplayMonitorWidth,
             DISPLAY_MONITOR_HALF_HEIGHT,
             -1,
             -1,
@@ -147,7 +166,7 @@ int displayMonitorInit()
         gDisplayMonitorScrollDownButton = buttonCreate(gInterfaceBarWindow,
             DISPLAY_MONITOR_X,
             DISPLAY_MONITOR_Y + DISPLAY_MONITOR_HALF_HEIGHT,
-            DISPLAY_MONITOR_WIDTH,
+            gDisplayMonitorWidth,
             DISPLAY_MONITOR_HEIGHT - DISPLAY_MONITOR_HALF_HEIGHT,
             -1,
             -1,
@@ -168,10 +187,7 @@ int displayMonitorInit()
         gDisplayMonitorEnabled = true;
         gDisplayMonitorInitialized = true;
 
-        // NOTE: Uninline.
         display_clear();
-
-        // SFALL
         consoleFileInit();
     }
 
@@ -233,7 +249,7 @@ void displayMonitorAddMessage(char* str)
     // TODO: Refactor these two loops.
     char* splitPos = nullptr;
     while (true) {
-        while (fontGetStringWidth(str) < DISPLAY_MONITOR_WIDTH - _max_disp - knobWidth) {
+        while (fontGetStringWidth(str) < gDisplayMonitorWidth - _max_disp - knobWidth) {
             char* temp = gDisplayMonitorLines[_disp_start];
             int length;
             if (knob != '\0') {
@@ -329,7 +345,7 @@ static void displayMonitorRefresh()
 
     blitBufferToBuffer(
         backgroundFrmImage.getData() + _intface_full_width * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X, // Source with offset
-        DISPLAY_MONITOR_WIDTH,
+        gDisplayMonitorWidth,
         DISPLAY_MONITOR_HEIGHT,
         _intface_full_width, // Source stride
         buf, // Destination without offset
@@ -341,7 +357,7 @@ static void displayMonitorRefresh()
 
     for (int index = 0; index < _max_disp; index++) {
         int stringIndex = (_disp_curr + gDisplayMonitorLinesCapacity + index - _max_disp) % gDisplayMonitorLinesCapacity;
-        fontDrawText(buf + index * _intface_full_width * fontGetLineHeight(), gDisplayMonitorLines[stringIndex], DISPLAY_MONITOR_WIDTH, _intface_full_width, _colorTable[992]);
+        fontDrawText(buf + index * _intface_full_width * fontGetLineHeight(), gDisplayMonitorLines[stringIndex], gDisplayMonitorWidth, _intface_full_width, _colorTable[992]);
 
         // Even though the display monitor is rectangular, it's graphic is not.
         // To give a feel of depth it's covered by some metal canopy and
