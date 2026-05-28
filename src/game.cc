@@ -2137,27 +2137,28 @@ int gameSetGlobalPointer(int var, void* value)
     return 0;
 }
 
-static void extractModMusicFiles() {
+static void extractModMusicFiles()
+{
     char** files = nullptr;
     int fileCount = fileNameListInit("sound/music/*.acm", &files);
     debugPrint("extractModMusicFiles: found %d .acm files in sound/music/\n", fileCount);
 
     for (int i = 0; i < fileCount; i++) {
         const char* baseName = files[i];
-        
+
         char virtualPath[COMPAT_MAX_PATH];
         snprintf(virtualPath, sizeof(virtualPath), "sound/music/%s", baseName);
-        
+
         char destPath[COMPAT_MAX_PATH];
         snprintf(destPath, sizeof(destPath), "%sdata%csound%cmusic%c%s",
-                 _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR, baseName);
-        
+            _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR, baseName);
+
         File* src = fileOpen(virtualPath, "rb");
         if (!src) {
             debugPrint("Failed to open VFS file: %s\n", virtualPath);
             continue;
         }
-        
+
         // Always overwrite, respecting mod load order
         File* dst = fileOpen(destPath, "wb");
         if (!dst) {
@@ -2165,18 +2166,18 @@ static void extractModMusicFiles() {
             fileClose(src);
             continue;
         }
-        
+
         char buf[8192];
         size_t bytes;
         while ((bytes = fileRead(buf, 1, sizeof(buf), src)) > 0) {
             fileWrite(buf, 1, bytes, dst);
         }
-        
+
         fileClose(dst);
         fileClose(src);
         debugPrint("Extracted: %s -> %s\n", virtualPath, destPath);
     }
-    
+
     fileNameListFree(&files, fileCount);
 }
 
