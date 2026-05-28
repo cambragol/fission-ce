@@ -94,6 +94,7 @@ static int gameDbInit();
 static void showSplash();
 static int loadModGlobalVars();
 static void generateGVarReport();
+static void extractModMusicFiles();
 
 // 0x501C9C
 static char _aGame_0[] = "game\\";
@@ -1954,6 +1955,9 @@ static int gameDbInit()
 
     createListsFolder();
 
+    // Extract all music files from mods into data
+    extractModMusicFiles();
+
     return 0;
 }
 
@@ -2131,6 +2135,49 @@ int gameSetGlobalPointer(int var, void* value)
     gGameGlobalPointers[var] = value;
 
     return 0;
+}
+
+static void extractModMusicFiles() {
+    char** files = nullptr;
+    int fileCount = fileNameListInit("sound/music/*.acm", &files);
+    debugPrint("extractModMusicFiles: found %d .acm files in sound/music/\n", fileCount);
+
+    for (int i = 0; i < fileCount; i++) {
+        const char* baseName = files[i];
+        
+        char virtualPath[COMPAT_MAX_PATH];
+        snprintf(virtualPath, sizeof(virtualPath), "sound/music/%s", baseName);
+        
+        char destPath[COMPAT_MAX_PATH];
+        snprintf(destPath, sizeof(destPath), "%sdata%csound%cmusic%c%s",
+                 _cd_path_base, DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR, baseName);
+        
+        File* src = fileOpen(virtualPath, "rb");
+        if (!src) {
+            debugPrint("Failed to open VFS file: %s\n", virtualPath);
+            continue;
+        }
+        
+        // Always overwrite, respecting mod load order
+        File* dst = fileOpen(destPath, "wb");
+        if (!dst) {
+            debugPrint("Failed to create destination: %s\n", destPath);
+            fileClose(src);
+            continue;
+        }
+        
+        char buf[8192];
+        size_t bytes;
+        while ((bytes = fileRead(buf, 1, sizeof(buf), src)) > 0) {
+            fileWrite(buf, 1, bytes, dst);
+        }
+        
+        fileClose(dst);
+        fileClose(src);
+        debugPrint("Extracted: %s -> %s\n", virtualPath, destPath);
+    }
+    
+    fileNameListFree(&files, fileCount);
 }
 
 int GameMode::currentGameMode = 0;
