@@ -2140,14 +2140,14 @@ int gameSetGlobalPointer(int var, void* value)
 static void extractModMusicFiles()
 {
     char** files = nullptr;
-    int fileCount = fileNameListInit("sound/music/*.acm", &files);
+    int fileCount = fileNameListInit("sound\\music\\*.acm", &files);
     debugPrint("extractModMusicFiles: found %d .acm files in sound/music/\n", fileCount);
 
     for (int i = 0; i < fileCount; i++) {
         const char* baseName = files[i];
 
         char virtualPath[COMPAT_MAX_PATH];
-        snprintf(virtualPath, sizeof(virtualPath), "sound/music/%s", baseName);
+        snprintf(virtualPath, sizeof(virtualPath), "sound\\music\\%s", baseName);
 
         char destPath[COMPAT_MAX_PATH];
         snprintf(destPath, sizeof(destPath), "%sdata%csound%cmusic%c%s",
