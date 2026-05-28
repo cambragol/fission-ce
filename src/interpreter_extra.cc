@@ -4316,8 +4316,7 @@ static void opCritterModifySkill(Program* program)
     } else {
         scriptPredefinedError(program, "critter_mod_skill", SCRIPT_ERROR_OBJECT_IS_NULL);
     }
-
-    programStackPushInteger(program, 0);
+    // CE: remove returnval, which ssl compiler doesn't expect
 }
 
 // sfx_build_char_name
