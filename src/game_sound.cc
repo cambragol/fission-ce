@@ -1758,10 +1758,8 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     char upperSrc[COMPAT_MAX_PATH];
     int fileSize;
 
-
     strcpy(upperSrc, src);
     compat_strupr(upperSrc);
-
 
     // Try loose files using config paths (from data)
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".ACM");
