@@ -651,7 +651,8 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
         return -1;
     }
 
-    rc = soundSetFileIO(gBackgroundSound, audioFileOpen, audioFileClose, audioFileRead, nullptr, audioFileSeek, gameSoundFileTellNotImplemented, audioFileGetSize);
+    // FIX for .dat music: Use the same VFS-aware I/O callbacks as speech (audioOpen, not audioFileOpen)
+    rc = soundSetFileIO(gBackgroundSound, audioOpen, audioClose, audioRead, nullptr, audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed because file IO could not be set for compression.\n");
@@ -1757,17 +1758,12 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     char upperSrc[COMPAT_MAX_PATH];
     int fileSize;
 
-    // Try VFS (DAT archives) - hardcoded correct path
+
     strcpy(upperSrc, src);
     compat_strupr(upperSrc);
-    snprintf(path, sizeof(path), "sound/music/%s.ACM", upperSrc);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
 
-    // Fallback to loose files using config paths
+
+    // Try loose files using config paths (from data)
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".ACM");
     if (_gsound_file_exists_f(path)) {
         strncpy(dest, path, COMPAT_MAX_PATH);
@@ -1776,6 +1772,14 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     }
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path2, src, ".ACM");
     if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Fallback to VFS (DAT archives) using hardcoded VFS-relative path
+    snprintf(path, sizeof(path), "sound/music/%s.ACM", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
         strncpy(dest, path, COMPAT_MAX_PATH);
         dest[COMPAT_MAX_PATH] = '\0';
         return 0;
