@@ -571,7 +571,7 @@ static int wmTabsCompareNames(const void* a1, const void* a2);
 static int wmFreeTabsLabelList(int** quickDestinationsListPtr, int* quickDestinationsLengthPtr);
 static void wmRefreshInterfaceDial(bool shouldRefreshWindow);
 static void wmInterfaceDialSyncTime(bool shouldRefreshWindow);
-static int wmAreaFindFirstValidMap(int* mapIdxPtr);
+static int wmAreaFindFirstValidMap(int* mapIdxPtr, int* elevationPtr, int* tilePtr, int* rotationPtr);
 static void wmFadeOut();
 static void wmFadeIn();
 static void wmFadeReset();
@@ -4717,10 +4717,14 @@ static int wmWorldMapFunc(int a1)
                                 break;
                             }
                         } else {
-                            if (wmAreaFindFirstValidMap(&map) == -1) {
+                            int elevation, tile, rotation;
+                            if (wmAreaFindFirstValidMap(&map, &elevation, &tile, &rotation) == -1) {
                                 rc = -1;
                                 break;
                             }
+
+                            // Set the exact entrance location (elevation, tile, rotation) before loading the map
+                            mapSetEnteringLocation(elevation, tile, rotation);
 
                             city->visitedState = 2;
                         }
@@ -8367,7 +8371,7 @@ static void wmInterfaceDialSyncTime(bool shouldRefreshWindow)
 }
 
 // 0x4C5804
-static int wmAreaFindFirstValidMap(int* mapIdxPtr)
+static int wmAreaFindFirstValidMap(int* mapIdxPtr, int* elevationPtr, int* tilePtr, int* rotationPtr)
 {
     *mapIdxPtr = -1;
 
@@ -8384,14 +8388,21 @@ static int wmAreaFindFirstValidMap(int* mapIdxPtr)
         EntranceInfo* entrance = &(city->entrances[index]);
         if (entrance->state != 0) {
             *mapIdxPtr = entrance->map;
+            *elevationPtr = entrance->elevation;
+            *tilePtr = entrance->tile;
+            *rotationPtr = entrance->rotation;
             return 0;
         }
     }
 
+    // If all entrances are locked, unlock the first one
     EntranceInfo* entrance = &(city->entrances[0]);
     entrance->state = 1;
 
     *mapIdxPtr = entrance->map;
+    *elevationPtr = entrance->elevation;
+    *tilePtr = entrance->tile;
+    *rotationPtr = entrance->rotation;
     return 0;
 }
 
