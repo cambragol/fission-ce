@@ -988,7 +988,13 @@ int _gdialogInitFromScript(int headFid, int reaction)
     textObjectsReset();
 
     if (PID_TYPE(gGameDialogSpeaker->pid) != OBJ_TYPE_ITEM) {
-        _tile_scroll_to(gGameDialogSpeaker->tile, 2);
+        if (headFid == -1) {
+            // No talking head: center speaker and refresh
+            _tile_scroll_to(gGameDialogSpeaker->tile, 2);
+        } else {
+            // Talking head exists: just refresh the screen (clears floating text) without scrolling
+            tileWindowRefresh();
+        }
     }
 
     _talk_need_to_center = true;
@@ -1002,6 +1008,20 @@ int _gdialogInitFromScript(int headFid, int reaction)
     _gdCreateHeadWindow();
     tickersAdd(gameDialogTicker);
     _gdSetupFidget(headFid, reaction);
+
+    // Force the head area to be drawn (background + first frame)
+    if (gGameDialogFidgetFrm) {
+        gameDialogRenderTalkingHead(gGameDialogFidgetFrm, 0);
+    } else {
+        gameDialogRenderTalkingHead(nullptr, 0); // at least draw background
+    }
+
+    if (gGameDialogBackdropWindow != -1) {
+        windowShow(gGameDialogBackdropWindow);
+    }
+    windowShow(gGameDialogBackgroundWindow);
+    windowShow(gGameDialogWindow);
+
     _gdialog_state = GAME_DIALOG_ACTIVE;
     _gmouse_disable_scrolling();
 
@@ -2564,11 +2584,11 @@ int _gdCreateHeadWindow()
     if (gameIsWidescreen()) {
         int backdropWidth = GAME_DIALOG_WINDOW_WIDTH + 66; // 706
         int backdropHeight = GAME_DIALOG_WINDOW_HEIGHT + 20; // 500
-        int backdropX = (screenGetWidth() - backdropWidth) / 2 - 2;
+        int backdropX = (screenGetWidth() - backdropWidth) / 2;
         int backdropY = (screenGetHeight() - backdropHeight) / 2;
         gGameDialogBackdropWindow = windowCreate(backdropX, backdropY,
             backdropWidth, backdropHeight, 256,
-            WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT);
+            WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT | WINDOW_HIDDEN);
 
         if (gGameDialogBackdropWindow != -1) {
             unsigned char* buf = windowGetBuffer(gGameDialogBackdropWindow);
@@ -4604,7 +4624,7 @@ int _gdialog_window_create()
 
         int dialogSubwindowX = (screenGetWidth() - GAME_DIALOG_WINDOW_WIDTH) / 2;
         int dialogSubwindowY = (screenGetHeight() - GAME_DIALOG_WINDOW_HEIGHT) / 2 + GAME_DIALOG_WINDOW_HEIGHT - _dialogue_subwin_len;
-        gGameDialogWindow = windowCreate(dialogSubwindowX, dialogSubwindowY, screenWidth, _dialogue_subwin_len, 256, WINDOW_DONT_MOVE_TOP);
+        gGameDialogWindow = windowCreate(dialogSubwindowX, dialogSubwindowY, screenWidth, _dialogue_subwin_len, 256, WINDOW_DONT_MOVE_TOP | WINDOW_HIDDEN);
         if (gGameDialogWindow != -1) {
 
             unsigned char* windowBuf = windowGetBuffer(gGameDialogWindow);
@@ -4616,7 +4636,6 @@ int _gdialog_window_create()
             _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 593, 41, 14, 14, -1, -1, -1, -1, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
 
             if (_dialogue_just_started) {
-                windowRefresh(gGameDialogBackgroundWindow);
                 _gdialog_scroll_subwin(gGameDialogWindow, true, backgroundFrmData, windowBuf, nullptr, _dialogue_subwin_len, true);
                 _dialogue_just_started = 0;
             } else {
@@ -4726,7 +4745,7 @@ static int talk_to_create_background_window()
         GAME_DIALOG_WINDOW_WIDTH,
         GAME_DIALOG_WINDOW_HEIGHT,
         256,
-        WINDOW_DONT_MOVE_TOP | WINDOW_MODAL);
+        WINDOW_DONT_MOVE_TOP | WINDOW_MODAL | WINDOW_HIDDEN);
 
     if (gGameDialogBackgroundWindow != -1) {
         return 0;
