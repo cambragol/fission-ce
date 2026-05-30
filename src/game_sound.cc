@@ -136,9 +136,6 @@ static int _detectDevices = -1;
 // 0x518E98
 static int _lastTime_1 = 0;
 
-// 0x596EB0
-static char _background_fname_copied[COMPAT_MAX_PATH];
-
 // 0x596FB5
 static char _sfx_file_name[13];
 
@@ -177,7 +174,6 @@ static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType st
 static int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src);
 static int gameSoundFindBackgroundSoundPath(char* dest, const char* src);
 static int gameSoundFindSpeechSoundPath(char* dest, const char* src);
-static void gameSoundDeleteOldMusicFile();
 static int backgroundSoundPlay();
 static int speechPlay();
 static int _gsound_get_music_path(char** out_value, const char* key);
@@ -388,7 +384,6 @@ int gameSoundExit()
     speechDelete();
 
     backgroundSoundDelete();
-    gameSoundDeleteOldMusicFile();
     soundExit();
     soundEffectsCacheExit();
     audioFileExit();
@@ -656,7 +651,8 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
         return -1;
     }
 
-    rc = soundSetFileIO(gBackgroundSound, audioFileOpen, audioFileClose, audioFileRead, nullptr, audioFileSeek, gameSoundFileTellNotImplemented, audioFileGetSize);
+    // FIX for .dat music: Use the same VFS-aware I/O callbacks as speech (audioOpen, not audioFileOpen)
+    rc = soundSetFileIO(gBackgroundSound, audioOpen, audioClose, audioRead, nullptr, audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed because file IO could not be set for compression.\n");
@@ -1751,132 +1747,27 @@ int _gsound_background_allocate(Sound** soundPtr, GameSoundStorageType storageTy
 // 0x451B30
 int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
 {
-    size_t len = strlen(src) + strlen(".ACM");
-    if (strlen(_sound_music_path1) + len > COMPAT_MAX_PATH || strlen(_sound_music_path2) + len > COMPAT_MAX_PATH) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Full background path too long.\n");
-        }
-
-        return -1;
-    }
-
-    if (gGameSoundDebugEnabled) {
-        debugPrint(" finding background sound ");
-    }
-
-    char outPath[COMPAT_MAX_PATH];
-    snprintf(outPath, sizeof(outPath), "%s%s%s", _sound_music_path1, src, ".ACM");
-    if (_gsound_file_exists_f(outPath)) {
-        strncpy(dest, outPath, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    if (gGameSoundDebugEnabled) {
-        debugPrint("by copy ");
-    }
-
-    gameSoundDeleteOldMusicFile();
-
-    char inPath[COMPAT_MAX_PATH];
-    snprintf(inPath, sizeof(inPath), "%s%s%s", _sound_music_path2, src, ".ACM");
-
-    FILE* inStream = compat_fopen(inPath, "rb");
-    if (inStream == nullptr) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to find music file %s to copy down.\n", src);
-        }
-
-        return -1;
-    }
-
-    FILE* outStream = compat_fopen(outPath, "wb");
-    if (outStream == nullptr) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to open music file %s for copying to.", src);
-        }
-
-        fclose(inStream);
-
-        return -1;
-    }
-
-    void* buffer = internal_malloc(0x2000);
-    if (buffer == nullptr) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Out of memory in gsound_background_find_with_copy.\n", src);
-        }
-
-        fclose(outStream);
-        fclose(inStream);
-
-        return -1;
-    }
-
-    bool err = false;
-    while (!feof(inStream)) {
-        size_t bytesRead = fread(buffer, 1, 0x2000, inStream);
-        if (bytesRead == 0) {
-            break;
-        }
-
-        if (fwrite(buffer, 1, bytesRead, outStream) != bytesRead) {
-            err = true;
-            break;
-        }
-    }
-
-    internal_free(buffer);
-    fclose(outStream);
-    fclose(inStream);
-
-    if (err) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Background sound file copy failed on write -- ");
-            debugPrint("likely out of disc space.\n");
-        }
-
-        return -1;
-    }
-
-    strcpy(_background_fname_copied, src);
-
-    strncpy(dest, outPath, COMPAT_MAX_PATH);
-    dest[COMPAT_MAX_PATH] = '\0';
-
-    return 0;
+    // Copying is obsolete; music files are read directly from .dat archives.
+    return gameSoundFindBackgroundSoundPath(dest, src);
 }
 
 // 0x451E2C
 int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
 {
     char path[COMPAT_MAX_PATH];
-    size_t len;
+    char upperSrc[COMPAT_MAX_PATH];
+    int fileSize;
 
-    len = strlen(src) + strlen(".ACM");
-    if (strlen(_sound_music_path1) + len > COMPAT_MAX_PATH || strlen(_sound_music_path2) + len > COMPAT_MAX_PATH) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Full background path too long.\n");
-        }
+    strcpy(upperSrc, src);
+    compat_strupr(upperSrc);
 
-        return -1;
-    }
-
-    if (gGameSoundDebugEnabled) {
-        debugPrint(" finding background sound ");
-    }
-
+    // Try loose files using config paths (from data)
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".ACM");
     if (_gsound_file_exists_f(path)) {
         strncpy(dest, path, COMPAT_MAX_PATH);
         dest[COMPAT_MAX_PATH] = '\0';
         return 0;
     }
-
-    if (gGameSoundDebugEnabled) {
-        debugPrint("in 2nd path ");
-    }
-
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path2, src, ".ACM");
     if (_gsound_file_exists_f(path)) {
         strncpy(dest, path, COMPAT_MAX_PATH);
@@ -1884,10 +1775,15 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
         return 0;
     }
 
-    if (gGameSoundDebugEnabled) {
-        debugPrint("-- find failed ");
+    // Fallback to VFS (DAT archives) using hardcoded VFS-relative path
+    snprintf(path, sizeof(path), "sound/music/%s.ACM", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
     }
 
+    if (gGameSoundDebugEnabled) debugPrint("-- find failed ");
     return -1;
 }
 
@@ -1926,23 +1822,6 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     dest[COMPAT_MAX_PATH] = '\0';
 
     return 0;
-}
-
-// delete old music file
-// 0x452088
-void gameSoundDeleteOldMusicFile()
-{
-    if (_background_fname_copied[0] != '\0') {
-        char path[COMPAT_MAX_PATH];
-        snprintf(path, sizeof(path), "%s%s%s", "sound\\music\\", _background_fname_copied, ".ACM");
-        if (compat_remove(path)) {
-            if (gGameSoundDebugEnabled) {
-                debugPrint("Deleting old music file failed.\n");
-            }
-        }
-
-        _background_fname_copied[0] = '\0';
-    }
 }
 
 // 0x4520EC
