@@ -6,13 +6,13 @@
 
 namespace fallout {
 
-#define MOD_CONFIG_FILE_NAME "mod.cfg" // set this to mod 'configuration' file, kept in dat - one level down - new name "fission.cfg"?
+#define MOD_CONFIG_FILE_NAME "game.cfg" // set this to mod 'configuration' file, kept in dat - one level down - new name "fission.cfg"?
 
 // Changed category headers for better crouping in .cfg file
 #define MOD_CONFIG_SETTINGS_KEY "mod_settings"
 #define MOD_CONFIG_SCRIPTS_KEY "mod_scripts"
 
-// ---- mod.cfg settings ----
+// ---- game.cfg settings ----
 #define MOD_CONFIG_VERSION_STRING "VersionString"
 #define MOD_CONFIG_START_YEAR "StartYear"
 #define MOD_CONFIG_START_MONTH "StartMonth"
@@ -86,7 +86,7 @@ namespace fallout {
 #define MOD_CONFIG_IFACE_BAR_SIDE_ART "IFACE_BAR_SIDE_ART"
 #define MOD_CONFIG_IFACE_BAR_SIDES_ORI "IFACE_BAR_SIDES_ORI"
 
-// ---- mod.cfg settings default values ----
+// ---- game.cfg settings default values ----
 #define MOD_CONFIG_DEFAULT_START_YEAR 2241
 #define MOD_CONFIG_DEFAULT_START_MONTH 6
 #define MOD_CONFIG_DEFAULT_START_DAY 24
