@@ -319,9 +319,13 @@ int gameMoviePlay(int movie, int flags)
         if (!subtitlesEnabled) {
             colorPaletteLoad("color.pal");
         }
-
-        paletteFadeTo(_cmap);
+        
+        if(!GameMode::isInGameMode(GameMode::kMap)) // Need to exclude the fade from the worldmap, otherwise we fade into it - the fade is handled at town entry.
+        {
+            paletteFadeTo(_cmap);
+        }
         gGameMovieFaded = false;
+
     }
 
     gGameMovieIsPlaying = false;
