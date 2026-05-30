@@ -1818,6 +1818,16 @@ static int scriptsGetFileName(int scriptIndex, char* name, size_t size)
     return 0;
 }
 
+int scriptsGetListLength()
+{
+    return gScriptsListEntriesLength;
+}
+
+bool scriptsIsValidScriptIndex(int scriptIndex)
+{
+    return scriptIndex >= 0 && scriptIndex < gScriptsListEntriesLength;
+}
+
 // scr_set_dude_script
 // 0x4A4F90
 int scriptsSetDudeScript()

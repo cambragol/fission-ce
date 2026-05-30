@@ -15,6 +15,7 @@
 #include "interface.h"
 #include "interpreter.h"
 #include "item.h"
+#include "light.h"
 #include "memory.h"
 #include "message.h"
 #include "mouse.h"
@@ -52,6 +53,7 @@ typedef enum ExplosionMetarule {
 static constexpr int kVersionMajor = 4;
 static constexpr int kVersionMinor = 3;
 static constexpr int kVersionPatch = 4;
+static constexpr int kSfallPathBufferSize = 3200; // matches rotation path size in animation.cc
 
 // read_byte
 static void op_read_byte(Program* program)
@@ -238,6 +240,38 @@ static void op_active_hand(Program* program)
     programStackPushInteger(program, interfaceGetCurrentHand());
 }
 
+static void op_get_critter_current_ap(Program* program)
+{
+    Object* critter = static_cast<Object*>(programStackPopPointer(program));
+
+    int actionPoints = 0;
+    if (critter != nullptr && FID_TYPE(critter->fid) == OBJ_TYPE_CRITTER) {
+        actionPoints = critter->data.critter.combat.ap;
+    }
+
+    programStackPushInteger(program, actionPoints);
+}
+
+static void op_set_critter_current_ap(Program* program)
+{
+    int actionPoints = programStackPopInteger(program);
+    Object* critter = static_cast<Object*>(programStackPopPointer(program));
+
+    if (critter == nullptr || FID_TYPE(critter->fid) != OBJ_TYPE_CRITTER) {
+        programPrintError("set_critter_current_ap: expected critter object");
+        return;
+    }
+
+    if (actionPoints < 0) {
+        actionPoints = 0;
+    }
+
+    critter->data.critter.combat.ap = actionPoints;
+    if (critter == gDude && isInCombat()) {
+        interfaceRenderActionPoints(actionPoints, _combat_free_move);
+    }
+}
+
 // toggle_active_hand
 static void op_toggle_active_hand(Program* program)
 {
@@ -405,7 +439,94 @@ static void op_exponent(Program* program)
 static void op_get_script(Program* program)
 {
     Object* obj = static_cast<Object*>(programStackPopPointer(program));
-    programStackPushInteger(program, obj->scriptIndex + 1);
+    if (obj == nullptr) {
+        programStackPushInteger(program, -1);
+        return;
+    }
+
+    if (obj->sid == -1) {
+        programStackPushInteger(program, 0);
+        return;
+    }
+
+    Script* script;
+    if (scriptGetScript(obj->sid, &script) == -1 || script->index < 0) {
+        programStackPushInteger(program, 0);
+        return;
+    }
+
+    programStackPushInteger(program, script->index + 1);
+}
+
+// remove_script
+static void op_remove_script(Program* program)
+{
+    Object* obj = static_cast<Object*>(programStackPopPointer(program));
+    if (obj == nullptr || obj->sid == -1) {
+        return;
+    }
+
+    scriptRemove(obj->sid);
+    obj->sid = -1;
+    obj->scriptIndex = -1;
+}
+
+// set_script
+static void op_set_script(Program* program)
+{
+    int scriptId = programStackPopInteger(program);
+    Object* obj = static_cast<Object*>(programStackPopPointer(program));
+
+    if (obj == nullptr) {
+        return;
+    }
+
+    unsigned int rawScriptId = static_cast<unsigned int>(scriptId);
+    // sfall encodes set_script() ids as a 1-based script index in the low
+    // 28 bits, with the upper bits reserved for flags. The top bit
+    // (0x80000000) suppresses map_enter_p_proc after start().
+    int scriptIndex = static_cast<int>(rawScriptId & ~0xF0000000u);
+    if (scriptIndex == 0) {
+        programPrintError("set_script: invalid script index number %d.", scriptIndex);
+        return;
+    }
+
+    scriptIndex--;
+    if (!scriptsIsValidScriptIndex(scriptIndex)) {
+        programPrintError("set_script: invalid script index (engine) number %d.", scriptIndex);
+        return;
+    }
+
+    if (obj->sid != -1) {
+        scriptRemove(obj->sid);
+        obj->sid = -1;
+        obj->scriptIndex = -1;
+    }
+
+    int scriptType = (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) ? SCRIPT_TYPE_CRITTER : SCRIPT_TYPE_ITEM;
+    if (objectSetScript(obj, scriptType, scriptIndex) == -1) {
+        obj->sid = -1;
+        obj->scriptIndex = -1;
+        return;
+    }
+
+    Script* script;
+    if (scriptGetScript(obj->sid, &script) == -1) {
+        scriptRemove(obj->sid);
+        obj->sid = -1;
+        obj->scriptIndex = -1;
+        return;
+    }
+
+    int sid = obj->sid;
+    script->owner = obj;
+    obj->scriptIndex = scriptIndex;
+
+    scriptExecProc(sid, SCRIPT_PROC_START);
+    if ((rawScriptId & 0x80000000u) == 0) {
+        // note: if map_enter_p_proc is missing, START gets executed again
+        scriptExecProc(sid, SCRIPT_PROC_MAP_ENTER);
+    }
 }
 
 // get_proto_data
@@ -640,6 +761,12 @@ static void op_get_screen_width(Program* program)
 static void op_get_screen_height(Program* program)
 {
     programStackPushInteger(program, screenGetHeight());
+}
+
+// get_light_level
+static void op_get_light_level(Program* program)
+{
+    programStackPushInteger(program, lightGetAmbientIntensity());
 }
 
 // create_message_window
@@ -908,7 +1035,6 @@ static void op_set_array(Program* program)
     SetArray(arrayId, key, value, true, program);
 }
 
-// arrayexpr
 static void op_stack_array(Program* program)
 {
     auto value = programStackPopValue(program);
@@ -1058,11 +1184,103 @@ static void op_obj_blocking_at(Program* program)
     programStackPushPointer(program, obstacle);
 }
 
+// tile_light
+static void op_tile_light(Program* program)
+{
+    int tile = programStackPopInteger(program);
+    int elevation = programStackPopInteger(program);
+    programStackPushInteger(program, lightGetTileIntensity(elevation, tile));
+}
+
+// tile_get_objs
+static void op_tile_get_objects(Program* program)
+{
+    int elevation = programStackPopInteger(program);
+    int tile = programStackPopInteger(program);
+    ArrayId arrayId = CreateTempArray(0, SFALL_ARRAYFLAG_RESERVED);
+
+    if (!hexGridTileIsValid(tile) || elevation < 0 || elevation >= ELEVATION_COUNT) {
+        debugPrint("%s: op_tile_get_objects invalid tile data: tile=%d elevation=%d", program->name, tile, elevation);
+        programStackPushInteger(program, arrayId);
+        return;
+    }
+
+    int index = 0;
+    for (Object* object = objectFindFirstAtLocation(elevation, tile); object != nullptr; object = objectFindNextAtLocation()) {
+        ResizeArray(arrayId, index + 1);
+        SetArray(arrayId, ProgramValue(index++), ProgramValue(object), false, program);
+    }
+
+    programStackPushInteger(program, arrayId);
+}
+
+// path_find_to
+static void op_make_path(Program* program)
+{
+    int type = programStackPopInteger(program);
+    int dest = programStackPopInteger(program);
+    Object* object = static_cast<Object*>(programStackPopPointer(program));
+    ArrayId arrayId = CreateTempArray(0, 0);
+
+    if (object == nullptr
+        || !hexGridTileIsValid(dest)
+        || object->elevation < 0
+        || object->elevation >= ELEVATION_COUNT
+        || !hexGridTileIsValid(object->tile)) {
+        debugPrint("%s: op_make_path invalid input: object=%p dest=%d elevation=%d", program->name, object, dest, object != nullptr ? object->elevation : -1);
+        programStackPushInteger(program, arrayId);
+        return;
+    }
+
+    // sfall only requires an empty destination tile when the source object is a critter.
+    int requireEmptyDest = PID_TYPE(object->pid) == OBJ_TYPE_CRITTER;
+
+    // XXX: pathfinderFindPath does not accept a destination buffer length. Use the
+    // same capacity as the engine's AnimationSad::rotations storage so this
+    // wrapper is not the limiting factor.  Sfall uses 800 here
+    unsigned char rotations[kSfallPathBufferSize];
+    int pathLength = pathfinderFindPath(object, object->tile, dest, rotations, requireEmptyDest, get_blocking_func(type));
+    ResizeArray(arrayId, pathLength);
+    for (int index = 0; index < pathLength; index++) {
+        SetArray(arrayId, ProgramValue(index), ProgramValue(static_cast<int>(rotations[index])), false, program);
+    }
+
+    programStackPushInteger(program, arrayId);
+}
+
 // art_exists
 static void op_art_exists(Program* program)
 {
     int fid = programStackPopInteger(program);
     programStackPushInteger(program, artExists(fid));
+}
+
+static void op_obj_is_carrying_obj(Program* program)
+{
+    Object* itemObj = static_cast<Object*>(programStackPopPointer(program));
+    Object* invenObj = static_cast<Object*>(programStackPopPointer(program));
+
+    int count = 0;
+    if (invenObj != nullptr && itemObj != nullptr) {
+        Inventory* inventory = &(invenObj->data.inventory);
+        for (int index = 0; index < inventory->length; index++) {
+            InventoryItem* inventoryItem = &(inventory->items[index]);
+            if (inventoryItem->item == itemObj) {
+                if (inventoryItem->quantity <= 0) {
+                    debugPrint("%s: obj_is_carrying_obj found non-positive inventory quantity for item %p in owner %p",
+                        program->name,
+                        itemObj,
+                        invenObj);
+                    count = 1;
+                } else {
+                    count = inventoryItem->quantity;
+                }
+                break;
+            }
+        }
+    }
+
+    programStackPushInteger(program, count);
 }
 
 // sfall_func0
@@ -1476,9 +1694,10 @@ void sfallOpcodesInit()
     // 0x818e - int get_perk_owed()
     // 0x818f - void set_perk_owed(int value)
     // 0x8190 - int get_perk_available(int perk)
-
     // 0x8191 - int get_critter_current_ap(object critter)
+    // interpreterRegisterOpcode(0x8191, op_get_critter_current_ap);
     // 0x8192 - void set_critter_current_ap(object critter, int ap)
+    // interpreterRegisterOpcode(0x8192, op_set_critter_current_ap);
 
     // 0x8193 - int  active_hand()
     interpreterRegisterOpcode(0x8193, op_active_hand);
@@ -1641,7 +1860,9 @@ void sfallOpcodesInit()
     // 0x81f2 - void set_palette(string path)
 
     // 0x81f3 - void remove_script(object)
+    interpreterRegisterOpcode(0x81F3, op_remove_script);
     // 0x81f4 - void set_script(object, int scriptid)
+    interpreterRegisterOpcode(0x81F4, op_set_script);
     // 0x81f5 - int get_script(object)
     interpreterRegisterOpcode(0x81F5, op_get_script);
 
@@ -1718,6 +1939,7 @@ void sfallOpcodesInit()
     interpreterRegisterOpcode(0x8224, op_create_message_window);
 
     // 0x8226 - int get_light_level()
+    // interpreterRegisterOpcode(0x8226, op_get_light_level);
 
     // 0x8227 - void refresh_pc_art()
 
@@ -1780,19 +2002,22 @@ void sfallOpcodesInit()
     interpreterRegisterOpcode(0x826B, op_get_message);
     // 0x826c - int sneak_success()
     // 0x826d - int tile_light(int elevation, int tileNum)
+    // interpreterRegisterOpcode(0x826D, op_tile_light);
     // 0x826e - object obj_blocking_line(object objFrom, int tileTo, int blockingType)
     interpreterRegisterOpcode(0x826E, op_make_straight_path);
     // 0x826f - object obj_blocking_tile(int tileNum, int elevation, int blockingType)
     interpreterRegisterOpcode(0x826F, op_obj_blocking_at);
     // 0x8270 - array tile_get_objs(int tileNum, int elevation)
+    // interpreterRegisterOpcode(0x8270, op_tile_get_objects);
     // 0x8271 - array party_member_list(int includeHidden)
     interpreterRegisterOpcode(0x8271, op_party_member_list);
     // 0x8272 - array path_find_to(object objFrom, int tileTo, int blockingType)
+    // interpreterRegisterOpcode(0x8272, op_make_path);
     // 0x8273 - object create_spatial(int scriptID, int tile, int elevation, int radius)
     // 0x8274 - int art_exists(int artFID)
     interpreterRegisterOpcode(0x8274, op_art_exists);
     // 0x8275 - int obj_is_carrying_obj(object invenObj, object itemObj)
-
+    // interpreterRegisterOpcode(0x8275, op_obj_is_carrying_obj);
     // 0x8276 - any sfall_func0(string funcName)
     interpreterRegisterOpcode(0x8276, op_sfall_func0);
     // 0x8277 - any sfall_func1(string funcName, arg1)
