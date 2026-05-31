@@ -1076,8 +1076,12 @@ static int mapLoad(File* stream)
     }
 
     if (gEnteringElevation == -1) {
-        // NOTE: Uninline.
+        // Keep the rotation that was requested from the world map (if any)
+        int requestedRotation = gEnteringRotation;
         mapSetEnteringLocation(gMapHeader.enteringElevation, gMapHeader.enteringTile, gMapHeader.enteringRotation);
+        if (requestedRotation != -1) {
+            gEnteringRotation = requestedRotation;
+        }
     }
 
     // Strip extension and get override
