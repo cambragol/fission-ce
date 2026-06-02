@@ -2303,8 +2303,8 @@ int artAliasFid(int fid)
             || anim == ANIM_FIRE_DANCE
             || anim == ANIM_CALLED_SHOT_PIC) {
 
-            int idx = artGetIndex(fid);          // full index of original (0-8191)
-            int alias = _anon_alias[idx];        // full alias index (0-8191)
+            int idx = artGetIndex(fid); // full index of original (0-8191)
+            int alias = _anon_alias[idx]; // full alias index (0-8191)
 
             // Extract rotation bits (bits 28-30) from original fid
             int rotation_bits = fid & 0x70000000;
