@@ -2288,11 +2288,11 @@ int artCritterFidShouldRun(int fid)
 }
 
 // 0x4199D4
+// fixed for death_animation crash
 int artAliasFid(int fid)
 {
     int type = FID_TYPE(fid);
     int anim = FID_ANIM_TYPE(fid);
-
     if (type == OBJ_TYPE_CRITTER) {
         if (anim == ANIM_ELECTRIFY
             || anim == ANIM_BURNED_TO_NOTHING
@@ -2303,13 +2303,26 @@ int artAliasFid(int fid)
             || anim == ANIM_FIRE_DANCE
             || anim == ANIM_CALLED_SHOT_PIC) {
 
-            int aliasIndex = _anon_alias[artGetIndex(fid)];
-            // Build a new FID with the alias index, preserving rotation, weapon code, and animation.
-            int newFid = buildFid(type, aliasIndex, anim, (fid & 0xF000) >> 12, FID_ROTATION(fid));
-            return newFid;
+            int idx = artGetIndex(fid);          // full index of original (0-8191)
+            int alias = _anon_alias[idx];        // full alias index (0-8191)
+
+            // Extract rotation bits (bits 28-30) from original fid
+            int rotation_bits = fid & 0x70000000;
+            // Weapon code bits (bits 12-15)
+            int weapon_bits = fid & 0xF000;
+            // Object type (critter) = 1 << 24 = 0x1000000
+            int type_bits = OBJ_TYPE_CRITTER << 24;
+            // Animation bits (bits 16-23)
+            int anim_bits = (anim << 16) & 0xFF0000;
+
+            // Alias index: split into low 12 bits and high bit if >=4096
+            int alias_low = alias & 0xFFF;
+            int alias_high = (alias >= 4096) ? 0x80000000 : 0;
+
+            // Combine all parts
+            return rotation_bits | type_bits | anim_bits | weapon_bits | alias_low | alias_high;
         }
     }
-
     return -1;
 }
 

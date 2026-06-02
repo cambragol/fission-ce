@@ -6848,7 +6848,7 @@ static void damageModCalculateYaam(DamageCalculationContext* context)
         damage -= damage * damageResistance / 100;
 
         if (damage > 0) {
-            *context->damagePtr += damage;
+            context->damagePtr += damage;
         }
     }
 }
