@@ -4628,7 +4628,12 @@ int _gdialog_window_create()
 
         int dialogSubwindowX = (screenGetWidth() - GAME_DIALOG_WINDOW_WIDTH) / 2;
         int dialogSubwindowY = (screenGetHeight() - GAME_DIALOG_WINDOW_HEIGHT) / 2 + GAME_DIALOG_WINDOW_HEIGHT - _dialogue_subwin_len;
-        gGameDialogWindow = windowCreate(dialogSubwindowX, dialogSubwindowY, screenWidth, _dialogue_subwin_len, 256, WINDOW_DONT_MOVE_TOP | WINDOW_HIDDEN);
+        // Set window to hidden on dialogue start for 'smooth' appearence
+        if (_dialogue_just_started) {
+            gGameDialogWindow = windowCreate(dialogSubwindowX, dialogSubwindowY, screenWidth, _dialogue_subwin_len, 256, WINDOW_DONT_MOVE_TOP | WINDOW_HIDDEN);
+        } else {
+            gGameDialogWindow = windowCreate(dialogSubwindowX, dialogSubwindowY, screenWidth, _dialogue_subwin_len, 256, WINDOW_DONT_MOVE_TOP);
+        }
         if (gGameDialogWindow != -1) {
 
             unsigned char* windowBuf = windowGetBuffer(gGameDialogWindow);
@@ -4640,6 +4645,7 @@ int _gdialog_window_create()
             _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 593, 41, 14, 14, -1, -1, -1, -1, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
 
             if (_dialogue_just_started) {
+                windowRefresh(gGameDialogBackgroundWindow);
                 _gdialog_scroll_subwin(gGameDialogWindow, true, backgroundFrmData, windowBuf, nullptr, _dialogue_subwin_len, true);
                 _dialogue_just_started = 0;
             } else {
