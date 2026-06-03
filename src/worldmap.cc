@@ -73,6 +73,8 @@ namespace fallout {
 
 #define ENCOUNTER_SUBINFO_DEAD (0x01)
 
+#define ENCOUNTER_TABLE_MSG_OFFSET 100
+
 #define WM_WINDOW_DIAL_X (532)
 #define WM_WINDOW_DIAL_Y (48)
 
@@ -329,6 +331,8 @@ typedef struct EncounterTable {
     int field_48;
     int entriesLength;
     EncounterTableEntry entries[41];
+    int msgBaseId;          // base message ID for this table's mod (0 for vanilla)
+    int localModIndex;      // sequential index within mod file (or vanilla table index)
 } EncounterTable;
 
 typedef struct EncounterItem {
@@ -1130,7 +1134,7 @@ static void wmLoadModWorldmapMsgFiles()
         }
 
         // Compute base ID for this mod's entrance block
-        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
         if (baseId == 0) {
             debugPrint("ERROR: Base ID is zero for worldmap mod '%s' (modName='%s'). Check MOD_BLOCK_WORLDMAP in gModBlockRanges.\n", msgFiles[i], modName);
             continue;
@@ -1819,6 +1823,8 @@ static int wmReadEncounterType(Config* config, char* lookupName, char* sectionKe
 
     wmEncounterTableSlotInit(encounterTable);
     encounterTable->index = wmVanillaEncounterTableCount - 1;
+    encounterTable->msgBaseId = 3000;   // vanilla base ID
+    encounterTable->localModIndex = wmVanillaEncounterTableCount - 1;
     strncpy(encounterTable->lookupName, lookupName, 40);
 
     char* str;
@@ -1973,6 +1979,22 @@ static void wmEncounterTableLoadModFiles()
         char fullPath[COMPAT_MAX_PATH];
         snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, modFiles[i]);
 
+        // Extract mod name from the file
+        char modName[64] = { 0 };
+        const char* prefix = "worldmap_";
+        const char* suffix = ".txt";
+        if (strncmp(modFiles[i], prefix, strlen(prefix)) == 0) {
+            size_t nameLen = strlen(modFiles[i]) - strlen(prefix) - strlen(suffix);
+            if (nameLen > 0 && nameLen < sizeof(modName)) {
+                strncpy(modName, modFiles[i] + strlen(prefix), nameLen);
+                modName[nameLen] = '\0';
+            }
+        }
+        uint32_t baseId = 0;
+        if (modName[0] != '\0') {
+            baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
+        }
+
         Config config;
         if (!configInit(&config)) continue;
         if (!configRead(&config, fullPath, true)) {
@@ -1984,15 +2006,14 @@ static void wmEncounterTableLoadModFiles()
         int tableIndexInMod = 0;
         int namedIndexInMod = 0;
 
-        // Load Encounter Tables
+        // --- FIRST PASS: Load Encounter Tables ---
         for (int tableNum = 0; tableNum < 1000; tableNum++) {
             char section[64];
             snprintf(section, sizeof(section), "Encounter Table %d", tableNum);
 
             char* lookupName = nullptr;
-            if (!configGetString(&config, section, "lookup_name", &lookupName)) {
+            if (!configGetString(&config, section, "lookup_name", &lookupName))
                 break;
-            }
 
             uint16_t targetSlot = wmCalculateEncounterTableSlot(lookupName, modNamespace, tableIndexInMod);
 
@@ -2013,6 +2034,8 @@ static void wmEncounterTableLoadModFiles()
             wmEncounterTableSlotInit(table);
             strncpy(table->lookupName, lookupName, 40);
             table->index = targetSlot;
+            table->msgBaseId = baseId;
+            table->localModIndex = tableIndexInMod;
 
             char* mapsStr;
             if (configGetString(&config, section, "maps", &mapsStr)) {
@@ -5678,15 +5701,23 @@ static int wmRndEncounterOccurred()
     wmGenData.oldWorldPosX = wmGenData.worldPosX;
     wmGenData.oldWorldPosY = wmGenData.worldPosY;
 
-    if (randomEncounterIsDetected) {
-        MessageListItem messageListItem;
+if (randomEncounterIsDetected) {
+    MessageListItem messageListItem;
+    const char* title = gWorldmapEncDefaultMsg[0];
+    const char* body = gWorldmapEncDefaultMsg[1];
 
-        const char* title = gWorldmapEncDefaultMsg[0];
-        const char* body = gWorldmapEncDefaultMsg[1];
-
-        title = getmsg(&wmMsgFile, &messageListItem, 2999);
-        body = getmsg(&wmMsgFile, &messageListItem, 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId);
-        if (showDialogBox(title, &body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
+    title = getmsg(&wmMsgFile, &messageListItem, 2999);
+    EncounterTable* table = &wmEncounterTableList[wmGenData.encounterTableId];
+    int msgId;
+    if (table->msgBaseId == 3000) {
+        // Vanilla table
+        msgId = 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId;
+    } else {
+        // Mod table
+        msgId = table->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + table->localModIndex * 50 + wmGenData.encounterEntryId;
+    }
+    body = getmsg(&wmMsgFile, &messageListItem, msgId);
+    if (showDialogBox(title, &body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
             wmGenData.encounterIconIsVisible = false;
             wmGenData.encounterMapId = -1;
             wmGenData.encounterTableId = -1;
@@ -5842,12 +5873,21 @@ int wmSetupRandomEncounter()
     EncounterTable* encounterTable = &(wmEncounterTableList[wmGenData.encounterTableId]);
     EncounterTableEntry* encounterTableEntry = &(encounterTable->entries[wmGenData.encounterEntryId]);
 
-    // SFALL: Display encounter description in one line.
+    // Determine message ID for the encounter description
+    int msgId;
+    if (encounterTable->msgBaseId == 3000) {
+        // Vanilla table: use original formula
+        msgId = 3000 + 50 * encounterTable->localModIndex + wmGenData.encounterEntryId;
+    } else {
+        // Mod table: baseId + offset + localTableIndex*50 + entryIndex
+        msgId = encounterTable->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + encounterTable->localModIndex * 50 + wmGenData.encounterEntryId;
+    }
+
     char formattedText[512];
     snprintf(formattedText, sizeof(formattedText),
         "%s %s",
         getmsg(&wmMsgFile, &messageListItem, 2998),
-        getmsg(&wmMsgFile, &messageListItem, 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId));
+        getmsg(&wmMsgFile, &messageListItem, msgId));
     displayMonitorAddMessage(formattedText);
 
     int gameDifficulty = settings.preferences.game_difficulty;
@@ -8416,7 +8456,7 @@ static int wmTownMapRefresh()
         if (city->firstEntranceOffset >= 0) {
             const char* modName = wmGetAreaModName(wmGenData.currentAreaId);
             if (modName && modName[0] != '\0') {
-                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
                 if (baseId != 0) {
                     messageListItem.num = baseId + city->firstEntranceOffset + index;
                     if (messageListGetItem(&wmMsgFile, &messageListItem)) {
