@@ -1,0 +1,127 @@
+#
+# ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+#
+# Text labels and messages used by FISSION
+#
+# ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+
+#
+# Preferences
+#
+
+#
+# Message Box
+#
+
+{100}{}{Wy³¹czenie trybu Szerokoekranowego wy³¹czy}
+{101}{}{ekran zaawansowanych ustawieñ.}
+{102}{}{Czy na pewno chcesz kontynuowaæ?}
+{103}{}{Zmiany dotycz¹ce grafiki wejd¹ w ¿ycie}
+{104}{}{po restarcie.}
+{105}{}{Zmiana Obszaru gry na Oryginalny wy³¹czy}
+
+#
+# Tweaked Preferences
+#
+
+{110}{}{Zmieñ prêdkoœæ poza walk¹}
+
+#
+# Extended Titles
+#
+
+{124}{}{EKRAN}
+{125}{}{ROZCI¥GANIE}
+{126}{}{JAKOŒÆ}
+{127}{}{OBSZAR GRY}
+{128}{}{} #Leave blank
+{129}{}{} #Leave blank
+
+#
+# Extended Label text
+#
+
+{225}{}{Wy³.}
+{226}{}{Pe³ny ekran}        
+{227}{}{Wy³.}        
+{228}{}{Tryb Szerok.} 
+{229}{}{Wy³.}           
+{230}{}{Rozci¹gnij} 
+{231}{}{Wy³.}
+{232}{}{Wspó³. Proporcji}
+{233}{}{Wy³.}         
+{234}{}{Wysoka Jakoœæ}        
+{235}{}{Wy³.}
+{236}{}{Kwadratowe piksele}
+{237}{}{Orygina³}      
+{238}{}{Domyœlny}        
+{239}{}{Du¿y}
+{240}{}{Ogromny}
+
+#
+# Fission About
+#
+
+{300}{}{F.I.S.S.I.O.N.}
+{301}{}{Fleksyjny Izometryczny System Symulacji}
+{302}{}{Interaktywnego Otwartego Nuklearnego?œwiata}
+
+#
+# Sort Context Menu
+#
+
+# Player actions
+{400}{}{Organizujesz swój plecak wed³ug kategorii.}
+{401}{}{Uk³adasz broñ na górze.}
+{402}{}{Uk³adasz amunicjê na górze.}
+{403}{}{Uk³adasz medykamenty na górze.}
+{404}{}{Uk³adasz ró¿ne przedmioty na górze.}
+{405}{}{Sortujesz ekwipunek wed³ug wagi.}
+{406}{}{Sortujesz ekwipunek wed³ug wartoœci.}
+{407}{}{Sortujesz ekwipunek w odwrotnej kolejnoœci.}
+
+# Other inventory actions - with %s for object name
+{410}{}{%s ekwipunek zorganizowany wed³ug kategorii.}
+{411}{}{%s broñ przeniesiona na górê.}
+{412}{}{%s amunicja przeniesiona na górê.}
+{413}{}{%s medykamenty przeniesione na górê.}
+{414}{}{%s ró¿ne przedmioty przeniesione na górê.}
+{415}{}{%s ekwipunek posortowany wed³ug wagi.}
+{416}{}{%s ekwipunek posortowany wed³ug wartoœci.}
+{417}{}{%s ekwipunek posortowany w odwrotnej kolejnoœci.}
+
+# No items messages
+{450}{}{Nie ma broni do posortowania.}
+{451}{}{Nie ma amunicji do posortowania.}
+{452}{}{Nie ma medykamentów do posortowania.}
+{453}{}{Nie ma ró¿nych przedmiotów do posortowania.}
+
+# Empty inventory messages
+{460}{}{Twój ekwipunek jest ju¿ "zoptymalizowany."}
+{461}{}{Panuje tutaj powa¿ny brak mo¿liwoœci sortowania.}
+
+#
+# Mod Loading Menu
+#
+
+# Titles
+{500}{}{WCZYTAJ MODY}
+{501}{}{OK}
+{502}{}{ANULUJ}
+{503}{}{przez}
+{504}{}{WY£¥CZONE}
+
+# Restart popup
+{510}{}{Zmiany w kolejnoœci Modów wejd¹ w ¿ycie}
+{511}{}{po restarcie.}
+
+{520}{}{Niezgodnoœæ konfiguracji Modów}
+{521}{}{Ten zapis wymaga innego zestawu w³¹czonych modów. Wczytaæ pomimo tego? (Mo¿e skutkowaæ dziwnym zachowaniem i b³êdami.)}
+{522}{}{Stary Format Zapisu}
+{523}{}{Ten zapis zosta³ stworzony przed œledzeniem modów dla zapisanych gier. Zapisz grê ponownie, by zachowaæ konfiguracjê. Wczytujê z bie¿¹cymi modami.}
+{524}{}{Brakuj¹cy Mod}
+{525}{}{Zapis gry wymaga moda '%s', który nie jest obecnie za³adowany. Wczytaæ pomimo tego? (Brakuj¹ca zawartoœæ mo¿e powodowaæ b³êdy.)}
+
+{526}{}{Dopasowaæ mody do tego zapisu i zrestartowaæ?}
+{527}{}{Konfiguracja modów zosta³a dopasowana do tego zapisu. Proszê zrestartowaæ grê przed wczytaniem tego zapisu.}
+{528}{}{Nie uda³o siê zmieniæ konfiguracji modów.}
