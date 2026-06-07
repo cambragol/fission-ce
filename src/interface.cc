@@ -291,13 +291,41 @@ static FrmImage _greenLightFrmImage;
 static FrmImage _yellowLightFrmImage;
 static FrmImage _redLightFrmImage;
 static FrmImage backgroundFrmImage;
+static FrmImage gMultidexMinimapBgFrmImage; // FRM 4705
+static FrmImage gMultidexButtonsFrmImage;   // FRM 5400
 
 int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
 bool gInterfaceBarIsWide = false;
+bool gInterfaceBarSuperWide = false;   // true for Multidex mode (screen > ~1100 - refine later)
+static int gMultidexDetailButton = -1;
+static int gMultidexProjectionButton = -1;
+static int gMultidexZoomButton = -1;
 
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
+
+void multidexUpdateButtonStates()
+{
+    if (gMultidexDetailButton != -1) {
+        // Down state = 1 when high details OFF (flag cleared)
+        _win_set_button_rest_state(gMultidexDetailButton,
+            (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
+    }
+    if (gMultidexProjectionButton != -1) {
+        _win_set_button_rest_state(gMultidexProjectionButton,
+            gUseNewAutomapProjection ? 1 : 0, 0);
+    }
+    if (gMultidexZoomButton != -1) {
+        _win_set_button_rest_state(gMultidexZoomButton,
+            (zoom == 2) ? 1 : 0, 0);
+    }
+}
+
+bool interfaceIsSuperWide(void)
+{
+    return gInterfaceBarSuperWide;
+}
 
 // intface_init
 // 0x45D880
@@ -332,12 +360,39 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, gInterfaceBarIsWide);
+    int backgroundFid;
+    if (gInterfaceBarSuperWide) {
+        backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 8182, 0, 0, 0);
+    } else if (gInterfaceBarIsWide) {
+        backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, true);
+    } else {
+        backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, false);
+    }
+
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return intface_fatal_error(-1);
     }
 
-    blitBufferToBuffer(backgroundFrmImage.getData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+    blitBufferToBuffer(backgroundFrmImage.getData(),
+                    backgroundFrmImage.getWidth(),
+                    backgroundFrmImage.getHeight(),
+                    backgroundFrmImage.getWidth(),
+                    gInterfaceWindowBuffer,
+                    gInterfaceBarWidth);
+
+    if (gInterfaceBarSuperWide) {
+        int minimapBgFid = buildFid(OBJ_TYPE_INTERFACE, 4705, 0, 0, 0);
+        if (!gMultidexMinimapBgFrmImage.lock(minimapBgFid)) {
+            debugPrint("\nMULTIDEX: Failed to load minimap background (4705)\n");
+            // Non?fatal – continue without background
+        }
+    }
+
+    // Load Multidex map buttons
+    int buttonsFid = buildFid(OBJ_TYPE_INTERFACE, 5400, 0, 0, 0);   // Special red toggle buttons
+    if (!gMultidexButtonsFrmImage.lock(buttonsFid)) {
+        debugPrint("\nMULTIDEX: Failed to load buttons (5400)\n");
+    }
 
     fid = buildFid(OBJ_TYPE_INTERFACE, 47, 0, 0, 0);
     if (!_inventoryButtonNormalFrmImage.lock(fid)) {
@@ -557,6 +612,58 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
+    if (gInterfaceBarSuperWide && gMultidexButtonsFrmImage.getData() != nullptr) {
+        int btnWidth = gMultidexButtonsFrmImage.getWidth();
+        int btnHeight = 25;
+        unsigned char* btnData = gMultidexButtonsFrmImage.getData();
+        int btnPitch = gMultidexButtonsFrmImage.getWidth();
+
+        // For art adjustment - keep in case of change
+        int btnX = 800 + 17;
+        int btnY = 25;
+        int btnSpacing = 16;
+
+        // Detail button (high detail toggle)
+        gMultidexDetailButton = buttonCreate(gInterfaceBarWindow, btnX, btnY,
+                                            btnWidth, btnHeight,
+                                            -1, -1, KEY_ALT_L, KEY_ALT_H,
+                                            btnData, btnData + btnPitch * btnHeight,
+                                            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+        if (gMultidexDetailButton != -1) {
+            buttonSetCallbacks(gMultidexDetailButton, 0, 0);
+            // Initial state: down when high details OFF
+            _win_set_button_rest_state(gMultidexDetailButton,
+                                    (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
+        }
+
+        // Projection button (toggle old/new projection)
+        gMultidexProjectionButton = buttonCreate(gInterfaceBarWindow,
+                                                btnX, btnY + btnHeight + btnSpacing,
+                                                btnWidth, btnHeight,
+                                                -1, -1, KEY_ALT_D, KEY_ALT_T,
+                                                btnData, btnData + btnPitch * btnHeight,
+                                                nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+        if (gMultidexProjectionButton != -1) {
+            buttonSetCallbacks(gMultidexProjectionButton, 0, 0);
+            _win_set_button_rest_state(gMultidexProjectionButton,
+                                    gUseNewAutomapProjection ? 1 : 0, 0);
+        }
+
+        zoom = 1; // set here - may change used button later
+        // Zoom button (toggle between 1 and 2)
+        /*gMultidexZoomButton = buttonCreate(gInterfaceBarWindow,
+                                        btnX, btnY + (btnHeight + btnSpacing) * 2,
+                                        btnWidth, btnHeight,
+                                        -1, -1, KEY_ALT_I, KEY_ALT_O,
+                                        btnData, btnData + btnPitch * btnHeight,
+                                        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+        if (gMultidexZoomButton != -1) {
+            buttonSetCallbacks(gMultidexZoomButton, 0, 0);
+            _win_set_button_rest_state(gMultidexZoomButton,
+                                    (zoom == 2) ? 1 : 0, 0);
+        }*/
+    }
+
     blitBufferToBuffer(gInterfaceWindowBuffer + gInterfaceBarWidth * 14 + 316 + gInterfaceBarContentOffset, 90, 5, gInterfaceBarWidth, gInterfaceActionPointsBarBackground, 90);
 
     if (indicatorBarInit() == -1) {
@@ -678,9 +785,25 @@ void interfaceFree()
             gInventoryButton = -1;
         }
 
+        if (gMultidexDetailButton != -1) {
+            buttonDestroy(gMultidexDetailButton);
+            gMultidexDetailButton = -1;
+        }
+        if (gMultidexProjectionButton != -1) {
+            buttonDestroy(gMultidexProjectionButton);
+            gMultidexProjectionButton = -1;
+        }
+        // not created currently
+        if (gMultidexZoomButton != -1) {
+            buttonDestroy(gMultidexZoomButton);
+            gMultidexZoomButton = -1;
+        }
+        gMultidexButtonsFrmImage.unlock();
+
         _inventoryButtonPressedFrmImage.unlock();
         _inventoryButtonNormalFrmImage.unlock();
         backgroundFrmImage.unlock();
+        gMultidexMinimapBgFrmImage.unlock();
 
         if (gInterfaceBarWindow != -1) {
             windowDestroy(gInterfaceBarWindow);
@@ -801,7 +924,11 @@ void interfaceBarShow()
             interfaceRenderArmorClass(false);
             windowShow(gInterfaceBarWindow);
             sidePanelsShow();
-            minimapShow();
+            if (gInterfaceBarSuperWide) {
+                multidexRefreshMinimap();
+            } else {
+                minimapShow();
+            }
             gInterfaceBarHidden = false;
         }
     }
@@ -869,6 +996,9 @@ void interfaceBarRefresh()
         interfaceRenderHitPoints(false);
         interfaceRenderArmorClass(false);
         indicatorBarRefresh();
+        if (gInterfaceBarSuperWide) {
+            multidexRefreshMinimap();
+        }
         windowRefresh(gInterfaceBarWindow);
     }
     indicatorBarRefresh();
@@ -2148,6 +2278,75 @@ static void interfaceRenderCounter(int x, int y, int previousValue, int value, i
     }
 }
 
+void multidexRefreshMinimap()
+{
+    if (!gInterfaceBarSuperWide) return;
+    if (gInterfaceBarWindow == -1) return;
+
+    int extX = 800;
+    int extY = 0;
+    int extWidth = 262;
+    int extHeight = 99;
+
+    // Blit the static background (262x99)
+    if (gMultidexMinimapBgFrmImage.getData() != nullptr) {
+        blitBufferToBuffer(gMultidexMinimapBgFrmImage.getData(),
+                           extWidth, extHeight, extWidth,
+                           gInterfaceWindowBuffer + extY * gInterfaceBarWidth + extX,
+                           gInterfaceBarWidth);
+    } else {
+        // fallback clear
+        unsigned char* dest = gInterfaceWindowBuffer + extY * gInterfaceBarWidth + extX;
+        for (int y = 0; y < extHeight; y++) {
+            memset(dest, 0, extWidth);
+            dest += gInterfaceBarWidth;
+        }
+    }
+
+    // Define source clip rectangle: crop the minimap vertically to approx 79 pixels, centered.
+    // Original minimap viewport is 34,29 to 182,192 (width=148, height=163).
+    Rect srcClip;
+    srcClip.left = 32;
+    srcClip.right = 184;
+    srcClip.top = 74;    // adjusted to center on player based on art
+    srcClip.bottom = 144; // 70 pixels high
+
+    // Destination rectangle inside the extension area (shifted right to leave room for buttons)
+    int destMapX = extX + 85;   // leave space for buttons on the left
+    int destMapY = extY + 17;   // vertical margin
+    // Destination size is exactly the size of srcClip (width=148, height=79)
+    int destMapWidth = srcClip.right - srcClip.left + 1;   // 148
+    int destMapHeight = srcClip.bottom - srcClip.top + 1; // 79
+
+    // Render the cropped minimap
+    automapRenderMinimapCroppedToBuffer(gInterfaceWindowBuffer, gInterfaceBarWidth,
+                                        destMapX, destMapY,
+                                        &srcClip,
+                                        gAutomapFlags | AUTOMAP_IN_GAME);
+
+    // Refresh the whole extension area (or just the map area)
+    Rect fullRect;
+    fullRect.left = extX;
+    fullRect.top = extY;
+    fullRect.right = extX + extWidth;
+    fullRect.bottom = extY + extHeight;
+    windowRefreshRect(gInterfaceBarWindow, &fullRect);
+}
+
+void multidexUpdate(void)
+{
+    static unsigned int lastUpdate = 0;
+    unsigned int now = getTicks();
+    if (now - lastUpdate < 50) // 20 fps
+        return;
+    lastUpdate = now;
+
+    if (gInterfaceBarSuperWide && gInterfaceBarWindow != -1) {
+        _obj_process_seen();        // updates map for new areas
+        multidexRefreshMinimap();
+    }
+}
+
 // NOTE: Inlined.
 //
 // 0x461128
@@ -2459,13 +2658,23 @@ bool indicatorBarHide()
 
 static void interfaceBarSize()
 {
-    if (screenGetWidth() > 640 && gInterfaceBarWidth <= screenGetWidth()) {
-        gInterfaceBarContentOffset = gInterfaceBarWidth - 640;
+    int screenWidth = screenGetWidth();
+    
+    if (screenWidth > 1100) { // 1100 can be adjusted later, for now it is safe
+        gInterfaceBarWidth = 1062;
+        gInterfaceBarContentOffset = 160;   // keeps 640px content centered within the 800px portion
         gInterfaceBarIsWide = true;
+        gInterfaceBarSuperWide = true;
+    } else if (screenWidth > 640) {
+        gInterfaceBarWidth = 800;
+        gInterfaceBarContentOffset = 160;
+        gInterfaceBarIsWide = true;
+        gInterfaceBarSuperWide = false;
     } else {
-        gInterfaceBarContentOffset = 0;
         gInterfaceBarWidth = 640;
+        gInterfaceBarContentOffset = 0;
         gInterfaceBarIsWide = false;
+        gInterfaceBarSuperWide = false;
     }
 }
 

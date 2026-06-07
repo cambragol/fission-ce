@@ -19,6 +19,7 @@
 #include "game_sound.h"
 #include "graph_lib.h"
 #include "input.h"
+#include "interface.h"
 #include "item.h"
 #include "kb.h"
 #include "map.h"
@@ -265,13 +266,13 @@ static const int gAutomapFrmIds[AUTOMAP_FRM_COUNT] = {
 };
 
 // 0x5108C4
-static int gAutomapFlags = 0;
+int gAutomapFlags = 0;
 
 // 0x56CB18
 static AutomapHeader gAutomapHeader;
 
-static int zoom = 2;
-static bool gUseNewAutomapProjection = false;
+int zoom = 2;
+bool gUseNewAutomapProjection = false;
 static double original_scale = 0.5;
 
 // minimap persistent state globals
@@ -690,8 +691,13 @@ void automapShow(bool isInGame, bool isUsingScanner)
         return;
     }
 
+    // Minimap already open
     if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap && gAutomapWindowOpen) {
-        // Minimap already open - optionally bring to front
+        return;
+    }
+
+    // Embedded minimap already present, do not create floating window
+    if (gInterfaceBarSuperWide && settings.enhancements.minimap) {
         return;
     }
 
@@ -724,7 +730,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
     gZoomButton = -1;
     gProjectionButton = -1;
 
-    // Preserve high-details flag, update in?game and scanner flags
+    // Preserve high-details flag, update in-game and scanner flags
     gAutomapFlags = (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS)
         | (isInGame ? AUTOMAP_IN_GAME : 0)
         | (isUsingScanner ? AUTOMAP_WITH_SCANNER : 0);
@@ -1249,6 +1255,143 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     }
 
     windowRefresh(window);
+}
+
+// Renders a cropped portion of the minimap into a user-supplied buffer.
+// buffer     - destination buffer (interface window buffer)
+// pitch      - bytes per row in destination
+// destX, destY - top-left corner of destination rectangle (where cropped map will be drawn)
+// srcClip    - source clip rectangle in the original minimap coordinate space
+//              (e.g., {34, 71, 182, 149} for a 79-pixel height centered on player)
+// flags      - automap flags (AUTOMAP_IN_GAME, etc.)
+void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
+                                         int destX, int destY,
+                                         const Rect* srcClip,
+                                         int flags)
+{
+    if (buffer == nullptr || srcClip == nullptr) return;
+
+    int srcLeft = srcClip->left;
+    int srcTop = srcClip->top;
+    int srcRight = srcClip->right;
+    int srcBottom = srcClip->bottom;
+    int srcWidth = srcRight - srcLeft + 1;
+    int srcHeight = srcBottom - srcTop + 1;
+
+    // Viewport center in original full minimap space (full viewport is 34..182, 29..192)
+    // For player centering we need the original player coordinate system.
+    // We'll compute screen coordinates in the full minimap space (original),
+    // then if they fall inside srcClip, we translate to dest.
+
+    int fullClipLeft = 34, fullClipTop = 29;
+    int fullClipRight = 182, fullClipBottom = 192;
+    int fullWidth = fullClipRight - fullClipLeft + 1;   // 148
+    int fullHeight = fullClipBottom - fullClipTop + 1; // 163
+
+    // Center of the full viewport (where the player is drawn)
+    int vpCenterX = fullWidth / 2;
+    int vpCenterY = fullHeight / 2;
+
+    int playerTile = gDude->tile;
+    int uPlayer = playerTile % 200;
+    int vPlayer = playerTile / 200;
+
+    double original_scale = 0.5;
+    double playerBaseX, playerBaseY;
+    if (gUseNewAutomapProjection) {
+        double angleEW = 14.2, angleNS = 37.0;
+        double slopeEW = tan(angleEW * M_PI / 180.0);
+        double slopeNS = tan(angleNS * M_PI / 180.0);
+        playerBaseX = (vPlayer - uPlayer);
+        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+    } else {
+        playerBaseX = original_scale * (-2 * uPlayer);
+        playerBaseY = original_scale * (2 * vPlayer);
+    }
+
+    // Loop over objects at current elevation
+    for (Object* obj = objectFindFirstAtElevation(gElevation); obj != nullptr; obj = objectFindNextAtElevation()) {
+        if (obj->tile == -1) continue;
+
+        int u = obj->tile % 200;
+        int v = obj->tile / 200;
+
+        // Color determination (same as original minimap/automap logic)
+        int objectType = FID_TYPE(obj->fid);
+        unsigned char objColor = _colorTable[0];
+        if ((flags & AUTOMAP_IN_GAME) != 0) {
+            if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
+                && (flags & AUTOMAP_WITH_SCANNER) != 0
+                && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
+                objColor = _colorTable[31744];
+            } else {
+                if ((obj->flags & OBJECT_SEEN) == 0) continue;
+                if (obj->pid == PROTO_ID_0x2000031)
+                    objColor = _colorTable[32328];
+                else if (objectType == OBJ_TYPE_WALL)
+                    objColor = _colorTable[992];
+                else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
+                         && obj->pid != PROTO_ID_0x2000158)
+                    objColor = _colorTable[480];
+                else if (obj == gDude)
+                    objColor = _colorTable[31744];
+                else
+                    objColor = _colorTable[0];
+            }
+        } else {
+            continue;
+        }
+        if (objColor == _colorTable[0]) continue;
+
+        // Object base coordinates (same as minimap)
+        double objBaseX, objBaseY;
+        if (gUseNewAutomapProjection) {
+            double angleEW = 14.2, angleNS = 37.0;
+            double slopeEW = tan(angleEW * M_PI / 180.0);
+            double slopeNS = tan(angleNS * M_PI / 180.0);
+            objBaseX = (v - u);
+            objBaseY = u * slopeEW + v * slopeNS;
+        } else {
+            objBaseX = original_scale * (-2 * u);
+            objBaseY = original_scale * (2 * v);
+        }
+
+        // Screen coordinates in the full minimap space (original)
+        int fullX = (int)(zoom * (objBaseX - playerBaseX) + vpCenterX + 0.5);
+        int fullY = (int)(zoom * (objBaseY - playerBaseY) + vpCenterY + 0.5);
+
+        // Translate to absolute coordinates (add full viewport top-left)
+        int absX = fullClipLeft + fullX;
+        int absY = fullClipTop + fullY;
+
+        // Check if inside source clip rectangle
+        if (absX < srcLeft || absX + 1 > srcRight || absY < srcTop || absY + 1 > srcBottom)
+            continue;
+
+        // Translate to destination buffer coordinates
+        int destPixelX = destX + (absX - srcLeft);
+        int destPixelY = destY + (absY - srcTop);
+        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth ||
+            destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
+            continue;
+
+        unsigned char* pixel = buffer + destPixelY * pitch + destPixelX;
+
+        // Drawing (same as original minimap style)
+        if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+            pixel[0] = objColor;
+            pixel[1] = objColor;
+        }
+        if (obj == gDude) {
+            // Draw a red cross for the player
+            if (destPixelX - 1 >= destX)
+                pixel[-1] = objColor;
+            if (destPixelY - 1 >= destY)
+                pixel[-pitch] = objColor;
+            if (destPixelY + 1 < destY + srcHeight)
+                pixel[pitch] = objColor;
+        }
+    }
 }
 
 /**
@@ -1920,21 +2063,27 @@ bool automapIsOpen()
  */
 bool automapHandleKey(int keyCode)
 {
-    if (!gAutomapWindowOpen) return false;
-
-    // Handle TAB (close)
-    if (keyCode == KEY_TAB) {
-        automapClose();
-        return true;
-    }
+    if (!gAutomapWindowOpen && !interfaceIsSuperWide()) return false;
 
     bool handled = true;
+    // Open/Close with Tab
+    if (keyCode == KEY_TAB) {
+        if (gAutomapWindowOpen) {
+            automapClose();
+            handled = true;
+        } else {
+            handled = false;  // let game handle it
+        }
+    }
     switch (keyCode) {
     case KEY_ALT_H:
         if ((gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) == 0) {
             gAutomapFlags |= AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
             automapUpdateButtonStates(true);
+            if (interfaceIsSuperWide()) {
+                multidexRefreshMinimap();
+            }
         }
         break;
     case KEY_ALT_L:
@@ -1942,27 +2091,42 @@ bool automapHandleKey(int keyCode)
             gAutomapFlags &= ~AUTOMAP_WTH_HIGH_DETAILS;
             gAutomapNeedsRefresh = true;
             automapUpdateButtonStates(true);
+            if (interfaceIsSuperWide()) {
+                multidexRefreshMinimap();
+            }
         }
         break;
     case KEY_ALT_I:
         zoom = 2;
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
+        if (interfaceIsSuperWide()) {
+            multidexRefreshMinimap();
+        }
         break;
     case KEY_ALT_O:
         zoom = 1;
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
+        if (interfaceIsSuperWide()) {
+            multidexRefreshMinimap();
+        }
         break;
     case KEY_ALT_D:
         gUseNewAutomapProjection = true;
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
+        if (interfaceIsSuperWide()) {
+            multidexRefreshMinimap();
+        }
         break;
     case KEY_ALT_T:
         gUseNewAutomapProjection = false;
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
+        if (interfaceIsSuperWide()) {
+            multidexRefreshMinimap();
+        }
         break;
     case KEY_ALT_S:
         // Scanner
@@ -2114,21 +2278,25 @@ void automapNotifyCombatEnded()
 
 static void automapUpdateButtonStates(bool playsound)
 {
+    // Update floating minimap buttons (if they exist)
     if (gDetailsButton != -1) {
-        // Down state = 1 when high details OFF (flag cleared)
         _win_set_button_rest_state(gDetailsButton,
             (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
-        if (playsound) soundPlayFile("toggle");
     }
     if (gZoomButton != -1) {
-        // Down state = 1 when zoom == 2
         _win_set_button_rest_state(gZoomButton, (zoom == 2) ? 1 : 0, 0);
-        if (playsound) soundPlayFile("toggle");
     }
     if (gProjectionButton != -1) {
-        // Down state = 1 when new projection ON
         _win_set_button_rest_state(gProjectionButton, gUseNewAutomapProjection ? 1 : 0, 0);
-        if (playsound) soundPlayFile("toggle");
+    }
+
+    // Update Multidex minimap buttons (if superwide mode is active)
+    if (interfaceIsSuperWide()) {
+        multidexUpdateButtonStates();
+    }
+
+    if (playsound) {
+        soundPlayFile("toggle");
     }
 }
 

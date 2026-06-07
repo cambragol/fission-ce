@@ -33,6 +33,7 @@ extern int gInterfaceBarWindow;
 extern int gInterfaceBarWidth;
 extern bool gInterfaceBarIsWide;
 extern int gInterfaceBarContentOffset;
+extern bool gInterfaceBarSuperWide;
 
 int interfaceInit();
 void interfaceReset();
@@ -67,6 +68,11 @@ bool indicatorBarHide();
 bool interface_get_current_attack_mode(int* hit_mode);
 
 unsigned char* customInterfaceBarGetBackgroundImageData();
+
+void multidexUpdate(void);
+void multidexRefreshMinimap(void);
+void multidexUpdateButtonStates(void);
+bool interfaceIsSuperWide(void);
 
 } // namespace fallout
 

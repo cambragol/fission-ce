@@ -19,6 +19,7 @@
 #include "game_movie.h"
 #include "game_sound.h"
 #include "input.h"
+#include "interface.h"
 #include "kb.h"
 #include "loadsave.h"
 #include "mainmenu.h"
@@ -355,10 +356,7 @@ static void mainLoop()
         // SFALL: MainLoopHook.
         sfall_gl_scr_process_main();
 
-        bool handled = false;
-        if (automapIsOpen()) {
-            handled = automapHandleKey(keyCode);
-        }
+        bool handled = automapHandleKey(keyCode);
         if (!handled) {
             gameHandleKey(keyCode, false);
         }
@@ -380,6 +378,9 @@ static void mainLoop()
         if (automapIsOpen()) {
             automapUpdate();
         }
+
+        // Update embedded minimap if interface is superwide
+        multidexUpdate();
 
         renderPresent();
         sharedFpsLimiter.throttle();

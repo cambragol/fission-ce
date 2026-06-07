@@ -33,3 +33,7 @@ INVDAUP.FRM         ; Drop All button up
 INVDADN.FRM         ; Drop All button down
 DI_DOWDS.FRM        ; Inventory Large down disabled button
 DI_UPDS.FRM         ; Inventory Large up disabled button
+MULTIMAP.FRM        ; Multidex map background
+MULTISKI.FRM        ; Multidex skill background
+MIMAKNBS.FRM        ; Multidex map red knobs
+IFACE_SW.FRM        ; Multidex innards background
