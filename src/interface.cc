@@ -362,7 +362,7 @@ int interfaceInit()
 
     int backgroundFid;
     if (gInterfaceBarSuperWide) {
-        backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 8182, 0, 0, 0);
+        backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 6160, 0, 0, 0);
     } else if (gInterfaceBarIsWide) {
         backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, true);
     } else {
