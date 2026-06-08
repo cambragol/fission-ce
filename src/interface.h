@@ -70,9 +70,10 @@ bool interface_get_current_attack_mode(int* hit_mode);
 unsigned char* customInterfaceBarGetBackgroundImageData();
 
 void multidexUpdate(void);
-void multidexRefreshMinimap(void);
+void multidexRefreshMap(void);
 void multidexUpdateButtonStates(void);
 bool interfaceIsSuperWide(void);
+void multidexTogglePanel(void);
 
 } // namespace fallout
 

@@ -2082,7 +2082,7 @@ bool automapHandleKey(int keyCode)
             gAutomapNeedsRefresh = true;
             automapUpdateButtonStates(true);
             if (interfaceIsSuperWide()) {
-                multidexRefreshMinimap();
+                multidexRefreshMap();
             }
         }
         break;
@@ -2092,7 +2092,7 @@ bool automapHandleKey(int keyCode)
             gAutomapNeedsRefresh = true;
             automapUpdateButtonStates(true);
             if (interfaceIsSuperWide()) {
-                multidexRefreshMinimap();
+                multidexRefreshMap();
             }
         }
         break;
@@ -2101,7 +2101,7 @@ bool automapHandleKey(int keyCode)
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
         if (interfaceIsSuperWide()) {
-            multidexRefreshMinimap();
+            multidexRefreshMap();
         }
         break;
     case KEY_ALT_O:
@@ -2109,7 +2109,7 @@ bool automapHandleKey(int keyCode)
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
         if (interfaceIsSuperWide()) {
-            multidexRefreshMinimap();
+            multidexRefreshMap();
         }
         break;
     case KEY_ALT_D:
@@ -2117,7 +2117,7 @@ bool automapHandleKey(int keyCode)
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
         if (interfaceIsSuperWide()) {
-            multidexRefreshMinimap();
+            multidexRefreshMap();
         }
         break;
     case KEY_ALT_T:
@@ -2125,7 +2125,7 @@ bool automapHandleKey(int keyCode)
         gAutomapNeedsRefresh = true;
         automapUpdateButtonStates(true);
         if (interfaceIsSuperWide()) {
-            multidexRefreshMinimap();
+            multidexRefreshMap();
         }
         break;
     case KEY_ALT_S:
