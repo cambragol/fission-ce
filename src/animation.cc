@@ -2885,7 +2885,7 @@ static void _object_move(int index)
         _anim_set_continue(sad->animationSequenceIndex, 1);
     }
 
-    if (gInterfaceBarSuperWide) {
+    if (interfaceIsSuperWide()) {
         // Update Multidex minimap if interface is superwide
         multidexUpdate();
     }

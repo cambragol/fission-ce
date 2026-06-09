@@ -118,7 +118,7 @@ int displayMonitorInit()
         fontSetCurrent(oldFont);
 
         int backgroundFid;
-        if (gInterfaceBarSuperWide) {
+        if (interfaceIsSuperWide()) {
             // Superwide: use the 1062px background FRM
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 6160, 0, 0, 0);
         } else if (gInterfaceBarIsWide) {

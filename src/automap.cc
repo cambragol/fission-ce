@@ -696,8 +696,8 @@ void automapShow(bool isInGame, bool isUsingScanner)
         return;
     }
 
-    // Embedded minimap already present, do not create floating window
-    if (gInterfaceBarSuperWide && settings.enhancements.minimap) {
+    // Multidex minimap already present, do not create floating window
+    if (interfaceIsSuperWide() && settings.enhancements.minimap) {
         return;
     }
 

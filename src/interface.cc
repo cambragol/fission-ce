@@ -320,7 +320,7 @@ static FrmImage gMultidexButtonsFrmImage; // FRM 5400
 int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
 bool gInterfaceBarIsWide = false;
-bool gInterfaceBarSuperWide = false; // true for Multidex mode (screen > ~1100 - refine later)
+static bool gInterfaceBarSuperWide = false; // true for Multidex mode (screen > ~1100 - refine later)
 
 static int gMultidexDetailButton = -1;
 static int gMultidexProjectionButton = -1;

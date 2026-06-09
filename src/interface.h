@@ -33,7 +33,6 @@ extern int gInterfaceBarWindow;
 extern int gInterfaceBarWidth;
 extern bool gInterfaceBarIsWide;
 extern int gInterfaceBarContentOffset;
-extern bool gInterfaceBarSuperWide;
 
 int interfaceInit();
 void interfaceReset();
