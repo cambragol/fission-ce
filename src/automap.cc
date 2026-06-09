@@ -1265,9 +1265,9 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 //              (e.g., {34, 71, 182, 149} for a 79-pixel height centered on player)
 // flags      - automap flags (AUTOMAP_IN_GAME, etc.)
 void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
-                                         int destX, int destY,
-                                         const Rect* srcClip,
-                                         int flags)
+    int destX, int destY,
+    const Rect* srcClip,
+    int flags)
 {
     if (buffer == nullptr || srcClip == nullptr) return;
 
@@ -1285,7 +1285,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
 
     int fullClipLeft = 34, fullClipTop = 29;
     int fullClipRight = 182, fullClipBottom = 192;
-    int fullWidth = fullClipRight - fullClipLeft + 1;   // 148
+    int fullWidth = fullClipRight - fullClipLeft + 1; // 148
     int fullHeight = fullClipBottom - fullClipTop + 1; // 163
 
     // Center of the full viewport (where the player is drawn)
@@ -1331,7 +1331,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
                 else if (objectType == OBJ_TYPE_WALL)
                     objColor = _colorTable[992];
                 else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
-                         && obj->pid != PROTO_ID_0x2000158)
+                    && obj->pid != PROTO_ID_0x2000158)
                     objColor = _colorTable[480];
                 else if (obj == gDude)
                     objColor = _colorTable[31744];
@@ -1371,8 +1371,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
         // Translate to destination buffer coordinates
         int destPixelX = destX + (absX - srcLeft);
         int destPixelY = destY + (absY - srcTop);
-        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth ||
-            destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
+        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth || destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
             continue;
 
         unsigned char* pixel = buffer + destPixelY * pitch + destPixelX;
@@ -2072,7 +2071,7 @@ bool automapHandleKey(int keyCode)
             automapClose();
             handled = true;
         } else {
-            handled = false;  // let game handle it
+            handled = false; // let game handle it
         }
     }
     switch (keyCode) {

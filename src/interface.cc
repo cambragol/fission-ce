@@ -315,24 +315,24 @@ static FrmImage _redLightFrmImage;
 static FrmImage backgroundFrmImage;
 static FrmImage gMultidexMapBgFrmImage; // FRM 4705
 static FrmImage gMultidexSkilldexBgFrmImage; // FRM 4642
-static FrmImage gMultidexButtonsFrmImage;   // FRM 5400
+static FrmImage gMultidexButtonsFrmImage; // FRM 5400
 
 int gInterfaceBarContentOffset = 0;
 int gInterfaceBarWidth = 800; // will fall back to 640 if screen width is too narrow or asset is absent
 bool gInterfaceBarIsWide = false;
-bool gInterfaceBarSuperWide = false;   // true for Multidex mode (screen > ~1100 - refine later)
+bool gInterfaceBarSuperWide = false; // true for Multidex mode (screen > ~1100 - refine later)
 
 static int gMultidexDetailButton = -1;
 static int gMultidexProjectionButton = -1;
 static int gMultidexZoomButton = -1;
-static bool gMultidexSkilldexMode = false;   // false = map mode, true = skilldex mode
+static bool gMultidexSkilldexMode = false; // false = map mode, true = skilldex mode
 
 // Skilldex panel globals
 static int gSkillButtons[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 static bool gSkillButtonsCreated = false;
-static int gSkillButtonSkill[256];   // mapping button index -> skill ID (initialized to -1)
-static FrmImage gBigNumbersFrmImage;    // ID 6398
-static FrmImage gRedButtonUpFrmImage;   // ID 4321
+static int gSkillButtonSkill[256]; // mapping button index -> skill ID (initialized to -1)
+static FrmImage gBigNumbersFrmImage; // ID 6398
+static FrmImage gRedButtonUpFrmImage; // ID 4321
 static FrmImage gRedButtonDownFrmImage; // ID 7803
 
 // Innards background for the Multidex area - extracted from the super-wide background FRM.
@@ -406,7 +406,8 @@ static void skilldexButtonPress(int btn, int event)
     }
 }
 
-static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int offsetX, int offsetY) {
+static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int offsetX, int offsetY)
+{
     if (!gBigNumbersFrmImage.getData()) return;
 
     const int digitW = 11, digitH = 18;
@@ -427,30 +428,31 @@ static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int 
 
         // Force leading zeros to cover background numbers
         if (value < 100) hundreds = 0;
-        if (value < 10)  tens = 0;
+        if (value < 10) tens = 0;
 
         int x = (i < 4) ? leftNumX : rightNumX;
         int y = numStartY + (i % 4) * numSpacingY;
 
         // Hundreds
         blitBufferToBuffer(numbers + hundreds * digitW, digitW, digitH, numbersPitch,
-                           destBuf + y * destPitch + x, destPitch);
+            destBuf + y * destPitch + x, destPitch);
         x += digitW;
 
         // Tens
         blitBufferToBuffer(numbers + tens * digitW, digitW, digitH, numbersPitch,
-                           destBuf + y * destPitch + x, destPitch);
+            destBuf + y * destPitch + x, destPitch);
         x += digitW;
 
         // Ones
         blitBufferToBuffer(numbers + ones * digitW, digitW, digitH, numbersPitch,
-                           destBuf + y * destPitch + x, destPitch);
+            destBuf + y * destPitch + x, destPitch);
     }
 }
 
 static void multidexDrawMapToBuffer(unsigned char* destBuf, int destPitch,
-                                    int offsetX, int offsetY,
-                                    const Rect* srcClip) {
+    int offsetX, int offsetY,
+    const Rect* srcClip)
+{
     const int extW = 262;
     const int extH = 99;
 
@@ -458,8 +460,8 @@ static void multidexDrawMapToBuffer(unsigned char* destBuf, int destPitch,
     if (gMultidexMapBgFrmImage.getData()) {
         for (int y = 0; y < extH; y++) {
             memcpy(destBuf + (offsetY + y) * destPitch + offsetX,
-                   gMultidexMapBgFrmImage.getData() + y * extW,
-                   extW);
+                gMultidexMapBgFrmImage.getData() + y * extW,
+                extW);
         }
     } else {
         // fallback: clear to black
@@ -475,34 +477,36 @@ static void multidexDrawMapToBuffer(unsigned char* destBuf, int destPitch,
     }
 
     // Destination rectangle inside the extension area
-    int destMapX = offsetX + 85;   // fixed offset from extension origin
+    int destMapX = offsetX + 85; // fixed offset from extension origin
     int destMapY = offsetY + 17;
     int destMapWidth = srcClip->right - srcClip->left + 1;
     int destMapHeight = srcClip->bottom - srcClip->top + 1;
 
     // Render the cropped minimap
     automapRenderMinimapCroppedToBuffer(destBuf, destPitch,
-                                        destMapX, destMapY,
-                                        srcClip,
-                                        gAutomapFlags | AUTOMAP_IN_GAME);
+        destMapX, destMapY,
+        srcClip,
+        gAutomapFlags | AUTOMAP_IN_GAME);
 }
 
 // Renders the minimap (background + cropped minimap) into a destination buffer.
 // destPitch is the number of bytes per row in destBuf.
-static void multidexRenderMapToBuffer(unsigned char* destBuf, int destPitch) {
+static void multidexRenderMapToBuffer(unsigned char* destBuf, int destPitch)
+{
     // destBuf is expected to be exactly 262x99 (or larger, but we draw at offset 0,0)
     multidexDrawMapToBuffer(destBuf, destPitch, 0, 0, nullptr);
 }
 
 // Renders the skilldex panel (background + skill numbers) without buttons.
-static void multidexRenderSkilldexToBuffer(unsigned char* destBuf, int destPitch) {
+static void multidexRenderSkilldexToBuffer(unsigned char* destBuf, int destPitch)
+{
     const int extW = 262, extH = 99;
     // Blit background (4642)
     if (gMultidexSkilldexBgFrmImage.getData()) {
         for (int y = 0; y < extH; y++) {
             memcpy(destBuf + y * destPitch,
-                   gMultidexSkilldexBgFrmImage.getData() + y * extW,
-                   extW);
+                gMultidexSkilldexBgFrmImage.getData() + y * extW,
+                extW);
         }
     } else {
         for (int y = 0; y < extH; y++) {
@@ -560,11 +564,11 @@ int interfaceInit()
     }
 
     blitBufferToBuffer(backgroundFrmImage.getData(),
-                    backgroundFrmImage.getWidth(),
-                    backgroundFrmImage.getHeight(),
-                    backgroundFrmImage.getWidth(),
-                    gInterfaceWindowBuffer,
-                    gInterfaceBarWidth);
+        backgroundFrmImage.getWidth(),
+        backgroundFrmImage.getHeight(),
+        backgroundFrmImage.getWidth(),
+        gInterfaceWindowBuffer,
+        gInterfaceBarWidth);
 
     if (gInterfaceBarSuperWide) {
         int mapBgFid = buildFid(OBJ_TYPE_INTERFACE, 4705, 0, 0, 0);
@@ -606,7 +610,7 @@ int interfaceInit()
     }
 
     // Load Multidex map buttons
-    int buttonsFid = buildFid(OBJ_TYPE_INTERFACE, 5400, 0, 0, 0);   // Special red toggle buttons
+    int buttonsFid = buildFid(OBJ_TYPE_INTERFACE, 5400, 0, 0, 0); // Special red toggle buttons
     if (!gMultidexButtonsFrmImage.lock(buttonsFid)) {
         debugPrint("\nMULTIDEX: Failed to load buttons (5400)\n");
     }
@@ -960,7 +964,7 @@ void interfaceFree()
 
         _inventoryButtonPressedFrmImage.unlock();
         _inventoryButtonNormalFrmImage.unlock();
-        
+
         backgroundFrmImage.unlock();
         gMultidexMapBgFrmImage.unlock();
         gMultidexSkilldexBgFrmImage.unlock();
@@ -2454,7 +2458,8 @@ static void interfaceRenderCounter(int x, int y, int previousValue, int value, i
     }
 }
 
-void multidexRefreshMap() {
+void multidexRefreshMap()
+{
     if (!gInterfaceBarSuperWide) return;
     if (gInterfaceBarWindow == -1) return;
 
@@ -2463,14 +2468,15 @@ void multidexRefreshMap() {
 
     // Draw everything using the helper
     multidexDrawMapToBuffer(gInterfaceWindowBuffer, gInterfaceBarWidth,
-                            extX, extY, nullptr);
+        extX, extY, nullptr);
 
     // Refresh the whole extension area
     Rect fullRect = { extX, extY, extX + extW - 1, extY + extH - 1 };
     windowRefreshRect(gInterfaceBarWindow, &fullRect);
 }
 
-void multidexRefreshSkilldex(void) {
+void multidexRefreshSkilldex(void)
+{
     if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
 
     const int extX = 800, extY = 0, extW = 262, extH = 99;
@@ -2481,7 +2487,7 @@ void multidexRefreshSkilldex(void) {
     if (gMultidexSkilldexBgFrmImage.getData()) {
         for (int y = 0; y < extH; y++) {
             memcpy(winBuf + (extY + y) * pitch + extX,
-                   gMultidexSkilldexBgFrmImage.getData() + y * extW, extW);
+                gMultidexSkilldexBgFrmImage.getData() + y * extW, extW);
         }
     } else {
         for (int y = 0; y < extH; y++) {
@@ -2505,7 +2511,8 @@ static void multidexRefreshPanel(void)
         multidexRefreshMap();
 }
 
-static void multidexCaptureExtensionArea(unsigned char* destBuf, int destPitch) {
+static void multidexCaptureExtensionArea(unsigned char* destBuf, int destPitch)
+{
     unsigned char* src = gInterfaceWindowBuffer + 0 * gInterfaceBarWidth + 800; // start of extension area
     for (int y = 0; y < 99; y++) {
         memcpy(destBuf + y * destPitch, src, 262);
@@ -2514,37 +2521,39 @@ static void multidexCaptureExtensionArea(unsigned char* destBuf, int destPitch) 
 }
 
 static void multidexDrawMapButtonsToBuffer(unsigned char* destBuf, int destPitch,
-                                           int offsetX, int offsetY) {
+    int offsetX, int offsetY)
+{
     if (!gMultidexButtonsFrmImage.getData()) return;
 
     const int btnW = 25;
-    const int btnH = 25;               // half of the 50px height
+    const int btnH = 25; // half of the 50px height
     const int btnPitch = gMultidexButtonsFrmImage.getWidth(); // should be 25
     unsigned char* btnData = gMultidexButtonsFrmImage.getData();
 
     // Up state = top half, Down state = bottom half
     unsigned char* upState = btnData;
-    unsigned char* downState = btnData + btnPitch * btnH;   // 25 rows down
+    unsigned char* downState = btnData + btnPitch * btnH; // 25 rows down
 
     // Positions (relative to extension area)
-    const int btnX = offsetX + 17;      // same X for both
+    const int btnX = offsetX + 17; // same X for both
     const int detailY = offsetY + 25;
-    const int projY = detailY + btnH + 16;   // spacing 16
+    const int projY = detailY + btnH + 16; // spacing 16
 
     // Detail button state
     bool detailDown = !(gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS);
     unsigned char* detailSrc = detailDown ? downState : upState;
     blitBufferToBufferTrans(detailSrc, btnW, btnH, btnPitch,
-                            destBuf + detailY * destPitch + btnX, destPitch);
+        destBuf + detailY * destPitch + btnX, destPitch);
 
     // Projection button state
     bool projDown = (gUseNewAutomapProjection != 0);
     unsigned char* projSrc = projDown ? downState : upState;
     blitBufferToBufferTrans(projSrc, btnW, btnH, btnPitch,
-                            destBuf + projY * destPitch + btnX, destPitch);
+        destBuf + projY * destPitch + btnX, destPitch);
 }
 
-static void multidexAnimateToggle(bool newMode) {
+static void multidexAnimateToggle(bool newMode)
+{
     if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
 
     const int extX = 800, extY = 0, extW = 262, extH = 99;
@@ -2573,7 +2582,7 @@ static void multidexAnimateToggle(bool newMode) {
         if (gMultidexInnardsBuffer) {
             for (int y = 0; y < extH; y++) {
                 memcpy(winBuf + (extY + y) * pitch + extX,
-                       gMultidexInnardsBuffer + y * extW, extW);
+                    gMultidexInnardsBuffer + y * extW, extW);
             }
         } else {
             // fallback clear
@@ -2584,7 +2593,7 @@ static void multidexAnimateToggle(bool newMode) {
         // Overlay oldPanel at yOffset
         for (int y = 0; y < extH && (y + yOffset) < extH; y++) {
             memcpy(winBuf + (extY + y + yOffset) * pitch + extX,
-                   oldPanel + y * extW, extW);
+                oldPanel + y * extW, extW);
         }
         windowRefreshRect(gInterfaceBarWindow, &fullRect);
         renderPresent();
@@ -2617,7 +2626,7 @@ static void multidexAnimateToggle(bool newMode) {
         if (gMultidexInnardsBuffer) {
             for (int y = 0; y < extH; y++) {
                 memcpy(winBuf + (extY + y) * pitch + extX,
-                       gMultidexInnardsBuffer + y * extW, extW);
+                    gMultidexInnardsBuffer + y * extW, extW);
             }
         } else {
             for (int y = 0; y < extH; y++) {
@@ -2627,7 +2636,7 @@ static void multidexAnimateToggle(bool newMode) {
         // Overlay newPanel at yOffset
         for (int y = 0; y < extH && (y + yOffset) < extH; y++) {
             memcpy(winBuf + (extY + y + yOffset) * pitch + extX,
-                   newPanel + y * extW, extW);
+                newPanel + y * extW, extW);
         }
         windowRefreshRect(gInterfaceBarWindow, &fullRect);
         renderPresent();
@@ -2638,7 +2647,7 @@ static void multidexAnimateToggle(bool newMode) {
     // Final copy of newPanel to window (no offset)
     for (int y = 0; y < extH; y++) {
         memcpy(winBuf + (extY + y) * pitch + extX,
-               newPanel + y * extW, extW);
+            newPanel + y * extW, extW);
     }
     windowRefreshRect(gInterfaceBarWindow, &fullRect);
 
@@ -2662,7 +2671,8 @@ static void multidexAnimateToggle(bool newMode) {
     internal_free(newPanel);
 }
 
-void multidexTogglePanel(void) {
+void multidexTogglePanel(void)
+{
     if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
     bool newMode = !gMultidexSkilldexMode;
     multidexAnimateToggle(newMode);
@@ -2998,10 +3008,10 @@ bool indicatorBarHide()
 static void interfaceBarSize()
 {
     int screenWidth = screenGetWidth();
-    
+
     if (screenWidth > 1100) { // 1100 can be adjusted later, for now it is safe
         gInterfaceBarWidth = 1062;
-        gInterfaceBarContentOffset = 160;   // keeps 640px content centered within the 800px portion
+        gInterfaceBarContentOffset = 160; // keeps 640px content centered within the 800px portion
         gInterfaceBarIsWide = true;
         gInterfaceBarSuperWide = true;
     } else if (screenWidth > 640) {
@@ -3165,7 +3175,8 @@ bool interface_get_current_attack_mode(int* hit_mode)
     return true;
 }
 
-static void multidexCreateMapButtons(void) {
+static void multidexCreateMapButtons(void)
+{
     if (!gInterfaceBarSuperWide) return;
     if (gMultidexDetailButton != -1) return; // already created
 
@@ -3179,20 +3190,20 @@ static void multidexCreateMapButtons(void) {
     int btnSpacing = 16;
 
     gMultidexDetailButton = buttonCreate(gInterfaceBarWindow, btnX, btnY,
-                                         btnWidth, btnHeight,
-                                         -1, -1, KEY_ALT_L, KEY_ALT_H,
-                                         btnData, btnData + btnPitch * btnHeight,
-                                         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+        btnWidth, btnHeight,
+        -1, -1, KEY_ALT_L, KEY_ALT_H,
+        btnData, btnData + btnPitch * btnHeight,
+        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (gMultidexDetailButton != -1) {
         buttonSetCallbacks(gMultidexDetailButton, 0, 0);
     }
 
     gMultidexProjectionButton = buttonCreate(gInterfaceBarWindow,
-                                             btnX, btnY + btnHeight + btnSpacing,
-                                             btnWidth, btnHeight,
-                                             -1, -1, KEY_ALT_D, KEY_ALT_T,
-                                             btnData, btnData + btnPitch * btnHeight,
-                                             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+        btnX, btnY + btnHeight + btnSpacing,
+        btnWidth, btnHeight,
+        -1, -1, KEY_ALT_D, KEY_ALT_T,
+        btnData, btnData + btnPitch * btnHeight,
+        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (gMultidexProjectionButton != -1) {
         buttonSetCallbacks(gMultidexProjectionButton, 0, 0);
     }
@@ -3204,7 +3215,8 @@ static void multidexCreateMapButtons(void) {
     multidexUpdateButtonStates();
 }
 
-static void multidexDestroyMapButtons(void) {
+static void multidexDestroyMapButtons(void)
+{
     if (gMultidexDetailButton != -1) {
         buttonDestroy(gMultidexDetailButton);
         gMultidexDetailButton = -1;
@@ -3219,7 +3231,8 @@ static void multidexDestroyMapButtons(void) {
     }
 }
 
-static void multidexCreateSkillButtons(void) {
+static void multidexCreateSkillButtons(void)
+{
     if (!gInterfaceBarSuperWide) return;
     if (gSkillButtonsCreated) return; // already created
 
@@ -3236,10 +3249,10 @@ static void multidexCreateSkillButtons(void) {
         int x = (i < 4) ? leftColX : rightColX;
         int y = startY + (i % 4) * spacingY;
         int btn = buttonCreate(gInterfaceBarWindow, x, y, btnW, btnH,
-                               -1, -1, -1, -1,
-                               gRedButtonUpFrmImage.getData(),
-                               gRedButtonDownFrmImage.getData(),
-                               nullptr, BUTTON_FLAG_TRANSPARENT);
+            -1, -1, -1, -1,
+            gRedButtonUpFrmImage.getData(),
+            gRedButtonDownFrmImage.getData(),
+            nullptr, BUTTON_FLAG_TRANSPARENT);
         if (btn != -1) {
             buttonSetCallbacks(btn, nullptr, skilldexButtonPress);
             gSkillButtonSkill[btn] = gMultidexSkillIds[i];
@@ -3249,7 +3262,8 @@ static void multidexCreateSkillButtons(void) {
     gSkillButtonsCreated = true;
 }
 
-static void multidexDestroySkillButtons(void) {
+static void multidexDestroySkillButtons(void)
+{
     if (!gSkillButtonsCreated) return;
     for (int i = 0; i < 8; i++) {
         if (gSkillButtons[i] != -1) {

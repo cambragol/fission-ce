@@ -71,10 +71,9 @@ void automapNotifyCombatEnded();
 
 // Renders a cropped portion of the minimap into a buffer for Multidex minimap.
 void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
-                                         int destX, int destY,
-                                         const Rect* srcClip,
-                                         int flags);
-    
+    int destX, int destY,
+    const Rect* srcClip,
+    int flags);
 
 } // namespace fallout
 
