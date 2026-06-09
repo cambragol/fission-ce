@@ -379,7 +379,7 @@ static void mainLoop()
             automapUpdate();
         }
 
-        // Update embedded minimap if interface is superwide
+        // Update Multidex minimap if interface is superwide
         multidexUpdate();
 
         renderPresent();
