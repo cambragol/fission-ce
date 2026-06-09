@@ -146,6 +146,7 @@ static void multidexDestroySkillButtons(void);
 static void multidexCreateSkillButtons(void);
 
 static void multidexRenderMapToBuffer(unsigned char* destBuf, int destPitch);
+static void multidexRefreshPanel();
 
 // 0x518F08
 static bool gInterfaceBarInitialized = false;
@@ -1044,6 +1045,10 @@ int interfaceLoad(File* stream)
 
     windowRefresh(gInterfaceBarWindow);
 
+    if (gInterfaceBarSuperWide) {
+        multidexRefreshPanel();
+    }
+
     return 0;
 }
 
@@ -1096,7 +1101,7 @@ void interfaceBarShow()
             windowShow(gInterfaceBarWindow);
             sidePanelsShow();
             if (gInterfaceBarSuperWide) {
-                multidexRefreshMap();
+                multidexRefreshPanel();
             } else {
                 minimapShow();
             }
@@ -1168,7 +1173,7 @@ void interfaceBarRefresh()
         interfaceRenderArmorClass(false);
         indicatorBarRefresh();
         if (gInterfaceBarSuperWide) {
-            multidexRefreshMap();
+            multidexRefreshPanel();
         }
         windowRefresh(gInterfaceBarWindow);
     }
