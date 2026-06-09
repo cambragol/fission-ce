@@ -14,6 +14,7 @@
 #include "critter.h"
 #include "cycle.h"
 #include "debug.h"
+#include "delay.h"
 #include "display_monitor.h"
 #include "draw.h"
 #include "endgame.h"
@@ -139,6 +140,13 @@ static void sidePanelsDraw(const char* path, int win, bool isLeading);
 static void minimapHide();
 static void minimapShow();
 
+static void multidexCreateMapButtons(void);
+static void multidexDestroyMapButtons(void);
+static void multidexDestroySkillButtons(void);
+static void multidexCreateSkillButtons(void);
+
+static void multidexRenderMapToBuffer(unsigned char* destBuf, int destPitch);
+
 // 0x518F08
 static bool gInterfaceBarInitialized = false;
 
@@ -208,7 +216,7 @@ static IndicatorDescription gIndicatorDescriptions[INDICATOR_COUNT] = {
 };
 
 // Skill IDs in the same order as the original skilldex (for skill value retrieval)
-static const int gMultidexSkillIds[] = {
+const int gMultidexSkillIds[] = {
     SKILL_SNEAK,
     SKILL_LOCKPICK,
     SKILL_STEAL,
@@ -326,6 +334,10 @@ static FrmImage gBigNumbersFrmImage;    // ID 6398
 static FrmImage gRedButtonUpFrmImage;   // ID 4321
 static FrmImage gRedButtonDownFrmImage; // ID 7803
 
+// Innards background for the Multidex area - extracted from the super-wide background FRM.
+static unsigned char* gMultidexInnardsBuffer = nullptr;
+static bool gMultidexAnimating = false;
+
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
@@ -356,7 +368,6 @@ static void skilldexButtonPress(int btn, int event)
     int skill = gSkillButtonSkill[btn];
     if (skill == -1) return;
 
-    // Play the standard button press sound (same as original skilldex buttons)
     soundPlayFile("ib1p1xx1");
 
     switch (skill) {
@@ -392,6 +403,113 @@ static void skilldexButtonPress(int btn, int event)
         gameMouseSetMode(GAME_MOUSE_MODE_USE_REPAIR);
         break;
     }
+}
+
+static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int offsetX, int offsetY) {
+    if (!gBigNumbersFrmImage.getData()) return;
+
+    const int digitW = 11, digitH = 18;
+    const int numbersPitch = gBigNumbersFrmImage.getWidth();
+    unsigned char* numbers = gBigNumbersFrmImage.getData();
+
+    const int leftNumX = offsetX + 90;
+    const int rightNumX = offsetX + 216;
+    const int numStartY = offsetY + 9;
+    const int numSpacingY = 21;
+
+    for (int i = 0; i < 8; i++) {
+        int value = skillGetValue(gDude, gMultidexSkillIds[i]);
+        if (value < 0) value = 0;
+        int hundreds = value / 100;
+        int tens = (value % 100) / 10;
+        int ones = value % 10;
+
+        // Force leading zeros to cover background numbers
+        if (value < 100) hundreds = 0;
+        if (value < 10)  tens = 0;
+
+        int x = (i < 4) ? leftNumX : rightNumX;
+        int y = numStartY + (i % 4) * numSpacingY;
+
+        // Hundreds
+        blitBufferToBuffer(numbers + hundreds * digitW, digitW, digitH, numbersPitch,
+                           destBuf + y * destPitch + x, destPitch);
+        x += digitW;
+
+        // Tens
+        blitBufferToBuffer(numbers + tens * digitW, digitW, digitH, numbersPitch,
+                           destBuf + y * destPitch + x, destPitch);
+        x += digitW;
+
+        // Ones
+        blitBufferToBuffer(numbers + ones * digitW, digitW, digitH, numbersPitch,
+                           destBuf + y * destPitch + x, destPitch);
+    }
+}
+
+static void multidexDrawMapToBuffer(unsigned char* destBuf, int destPitch,
+                                    int offsetX, int offsetY,
+                                    const Rect* srcClip) {
+    const int extW = 262;
+    const int extH = 99;
+
+    // Blit static background (4705) at the offset position
+    if (gMultidexMapBgFrmImage.getData()) {
+        for (int y = 0; y < extH; y++) {
+            memcpy(destBuf + (offsetY + y) * destPitch + offsetX,
+                   gMultidexMapBgFrmImage.getData() + y * extW,
+                   extW);
+        }
+    } else {
+        // fallback: clear to black
+        for (int y = 0; y < extH; y++) {
+            memset(destBuf + (offsetY + y) * destPitch + offsetX, 0, extW);
+        }
+    }
+
+    // Use default crop rectangle if none provided
+    Rect defaultClip = { 32, 74, 184, 144 };
+    if (srcClip == nullptr) {
+        srcClip = &defaultClip;
+    }
+
+    // Destination rectangle inside the extension area
+    int destMapX = offsetX + 85;   // fixed offset from extension origin
+    int destMapY = offsetY + 17;
+    int destMapWidth = srcClip->right - srcClip->left + 1;
+    int destMapHeight = srcClip->bottom - srcClip->top + 1;
+
+    // Render the cropped minimap
+    automapRenderMinimapCroppedToBuffer(destBuf, destPitch,
+                                        destMapX, destMapY,
+                                        srcClip,
+                                        gAutomapFlags | AUTOMAP_IN_GAME);
+}
+
+// Renders the minimap (background + cropped minimap) into a destination buffer.
+// destPitch is the number of bytes per row in destBuf.
+static void multidexRenderMapToBuffer(unsigned char* destBuf, int destPitch) {
+    // destBuf is expected to be exactly 262x99 (or larger, but we draw at offset 0,0)
+    multidexDrawMapToBuffer(destBuf, destPitch, 0, 0, nullptr);
+}
+
+// Renders the skilldex panel (background + skill numbers) without buttons.
+static void multidexRenderSkilldexToBuffer(unsigned char* destBuf, int destPitch) {
+    const int extW = 262, extH = 99;
+    // Blit background (4642)
+    if (gMultidexSkilldexBgFrmImage.getData()) {
+        for (int y = 0; y < extH; y++) {
+            memcpy(destBuf + y * destPitch,
+                   gMultidexSkilldexBgFrmImage.getData() + y * extW,
+                   extW);
+        }
+    } else {
+        for (int y = 0; y < extH; y++) {
+            memset(destBuf + y * destPitch, 0, extW);
+        }
+    }
+    // Draw skill numbers (offsetX=0, offsetY=0 because destBuf is exactly the 262x99 area)
+    multidexDrawSkillNumbers(destBuf, destPitch, 0, 0);
 }
 
 // intface_init
@@ -460,15 +578,27 @@ int interfaceInit()
         // Load skilldex resources
         int bigNumbersFid = buildFid(OBJ_TYPE_INTERFACE, 6398, 0, 0, 0);
         if (!gBigNumbersFrmImage.lock(bigNumbersFid)) {
-            debugPrint("Failed to load bignum.frm (170)\n");
+            debugPrint("Failed to load SMALLNUM.FRM (6398)\n");
         }
         int redUpFid = buildFid(OBJ_TYPE_INTERFACE, 4321, 0, 0, 0);
         if (!gRedButtonUpFrmImage.lock(redUpFid)) {
-            debugPrint("Failed to load lilredup.frm (8)\n");
+            debugPrint("Failed to load MDBTUP.FRM (4321)\n");
         }
         int redDownFid = buildFid(OBJ_TYPE_INTERFACE, 7803, 0, 0, 0);
         if (!gRedButtonDownFrmImage.lock(redDownFid)) {
-            debugPrint("Failed to load lilreddn.frm (9)\n");
+            debugPrint("Failed to load MDBTDN.FRM (7803)\n");
+        }
+        // Extract the innards area from the main background (FRM 6160)
+        if (backgroundFrmImage.getData() != nullptr) {
+            gMultidexInnardsBuffer = (unsigned char*)internal_malloc(262 * 99);
+            if (gMultidexInnardsBuffer) {
+                // The innards are at offset (800,0) within the 1062-wide background
+                unsigned char* src = backgroundFrmImage.getData() + 800;
+                for (int y = 0; y < 99; y++) {
+                    memcpy(gMultidexInnardsBuffer + y * 262, src, 262);
+                    src += backgroundFrmImage.getWidth(); // pitch = 1062
+                }
+            }
         }
         // Initialize the mapping array to -1
         memset(gSkillButtonSkill, -1, sizeof(gSkillButtonSkill));
@@ -699,55 +829,8 @@ int interfaceInit()
     }
 
     if (gInterfaceBarSuperWide && gMultidexButtonsFrmImage.getData() != nullptr) {
-        int btnWidth = gMultidexButtonsFrmImage.getWidth();
-        int btnHeight = 25;
-        unsigned char* btnData = gMultidexButtonsFrmImage.getData();
-        int btnPitch = gMultidexButtonsFrmImage.getWidth();
-
-        // For art adjustment - keep in case of change
-        int btnX = 800 + 17;
-        int btnY = 25;
-        int btnSpacing = 16;
-
-        // Detail button (high detail toggle)
-        gMultidexDetailButton = buttonCreate(gInterfaceBarWindow, btnX, btnY,
-                                            btnWidth, btnHeight,
-                                            -1, -1, KEY_ALT_L, KEY_ALT_H,
-                                            btnData, btnData + btnPitch * btnHeight,
-                                            nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
-        if (gMultidexDetailButton != -1) {
-            buttonSetCallbacks(gMultidexDetailButton, 0, 0);
-            // Initial state: down when high details OFF
-            _win_set_button_rest_state(gMultidexDetailButton,
-                                    (gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS) ? 0 : 1, 0);
-        }
-
-        // Projection button (toggle old/new projection)
-        gMultidexProjectionButton = buttonCreate(gInterfaceBarWindow,
-                                                btnX, btnY + btnHeight + btnSpacing,
-                                                btnWidth, btnHeight,
-                                                -1, -1, KEY_ALT_D, KEY_ALT_T,
-                                                btnData, btnData + btnPitch * btnHeight,
-                                                nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
-        if (gMultidexProjectionButton != -1) {
-            buttonSetCallbacks(gMultidexProjectionButton, 0, 0);
-            _win_set_button_rest_state(gMultidexProjectionButton,
-                                    gUseNewAutomapProjection ? 1 : 0, 0);
-        }
-
-        zoom = 1; // set here - may change used button later
-        // Zoom button (toggle between 1 and 2)
-        /*gMultidexZoomButton = buttonCreate(gInterfaceBarWindow,
-                                        btnX, btnY + (btnHeight + btnSpacing) * 2,
-                                        btnWidth, btnHeight,
-                                        -1, -1, KEY_ALT_I, KEY_ALT_O,
-                                        btnData, btnData + btnPitch * btnHeight,
-                                        nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
-        if (gMultidexZoomButton != -1) {
-            buttonSetCallbacks(gMultidexZoomButton, 0, 0);
-            _win_set_button_rest_state(gMultidexZoomButton,
-                                    (zoom == 2) ? 1 : 0, 0);
-        }*/
+        zoom = 1;
+        multidexCreateMapButtons();
     }
 
     blitBufferToBuffer(gInterfaceWindowBuffer + gInterfaceBarWidth * 14 + 316 + gInterfaceBarContentOffset, 90, 5, gInterfaceBarWidth, gInterfaceActionPointsBarBackground, 90);
@@ -871,19 +954,7 @@ void interfaceFree()
             gInventoryButton = -1;
         }
 
-        if (gMultidexDetailButton != -1) {
-            buttonDestroy(gMultidexDetailButton);
-            gMultidexDetailButton = -1;
-        }
-        if (gMultidexProjectionButton != -1) {
-            buttonDestroy(gMultidexProjectionButton);
-            gMultidexProjectionButton = -1;
-        }
-        // not created currently
-        if (gMultidexZoomButton != -1) {
-            buttonDestroy(gMultidexZoomButton);
-            gMultidexZoomButton = -1;
-        }
+        multidexDestroyMapButtons();
         gMultidexButtonsFrmImage.unlock();
 
         _inventoryButtonPressedFrmImage.unlock();
@@ -896,17 +967,14 @@ void interfaceFree()
         gBigNumbersFrmImage.unlock();
 
         // Destroy any remaining skilldex buttons
-        if (gSkillButtonsCreated) {
-            for (int i = 0; i < 8; i++) {
-                if (gSkillButtons[i] != -1) {
-                    buttonDestroy(gSkillButtons[i]);
-                    gSkillButtons[i] = -1;
-                }
-            }
-            gSkillButtonsCreated = false;
-        }
+        multidexDestroySkillButtons();
         gRedButtonUpFrmImage.unlock();
         gRedButtonDownFrmImage.unlock();
+
+        if (gMultidexInnardsBuffer) {
+            internal_free(gMultidexInnardsBuffer);
+            gMultidexInnardsBuffer = nullptr;
+        }
 
         if (gInterfaceBarWindow != -1) {
             windowDestroy(gInterfaceBarWindow);
@@ -2381,63 +2449,23 @@ static void interfaceRenderCounter(int x, int y, int previousValue, int value, i
     }
 }
 
-void multidexRefreshMap()
-{
+void multidexRefreshMap() {
     if (!gInterfaceBarSuperWide) return;
     if (gInterfaceBarWindow == -1) return;
 
-    int extX = 800;
-    int extY = 0;
-    int extWidth = 262;
-    int extHeight = 99;
+    const int extX = 800, extY = 0;
+    const int extW = 262, extH = 99;
 
-    // Blit the static background (262x99)
-    if (gMultidexMapBgFrmImage.getData() != nullptr) {
-        blitBufferToBuffer(gMultidexMapBgFrmImage.getData(),
-                           extWidth, extHeight, extWidth,
-                           gInterfaceWindowBuffer + extY * gInterfaceBarWidth + extX,
-                           gInterfaceBarWidth);
-    } else {
-        // fallback clear
-        unsigned char* dest = gInterfaceWindowBuffer + extY * gInterfaceBarWidth + extX;
-        for (int y = 0; y < extHeight; y++) {
-            memset(dest, 0, extWidth);
-            dest += gInterfaceBarWidth;
-        }
-    }
+    // Draw everything using the helper
+    multidexDrawMapToBuffer(gInterfaceWindowBuffer, gInterfaceBarWidth,
+                            extX, extY, nullptr);
 
-    // Define source clip rectangle: crop the minimap vertically to approx 79 pixels, centered.
-    // Original minimap viewport is 34,29 to 182,192 (width=148, height=163).
-    Rect srcClip;
-    srcClip.left = 32;
-    srcClip.right = 184;
-    srcClip.top = 74;    // adjusted to center on player based on art
-    srcClip.bottom = 144; // 70 pixels high
-
-    // Destination rectangle inside the extension area (shifted right to leave room for buttons)
-    int destMapX = extX + 85;   // leave space for buttons on the left
-    int destMapY = extY + 17;   // vertical margin
-    // Destination size is exactly the size of srcClip (width=148, height=79)
-    int destMapWidth = srcClip.right - srcClip.left + 1;   // 148
-    int destMapHeight = srcClip.bottom - srcClip.top + 1; // 79
-
-    // Render the cropped minimap
-    automapRenderMinimapCroppedToBuffer(gInterfaceWindowBuffer, gInterfaceBarWidth,
-                                        destMapX, destMapY,
-                                        &srcClip,
-                                        gAutomapFlags | AUTOMAP_IN_GAME);
-
-    // Refresh the whole extension area (or just the map area)
-    Rect fullRect;
-    fullRect.left = extX;
-    fullRect.top = extY;
-    fullRect.right = extX + extWidth;
-    fullRect.bottom = extY + extHeight;
+    // Refresh the whole extension area
+    Rect fullRect = { extX, extY, extX + extW - 1, extY + extH - 1 };
     windowRefreshRect(gInterfaceBarWindow, &fullRect);
 }
 
-void multidexRefreshSkilldex(void)
-{
+void multidexRefreshSkilldex(void) {
     if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
 
     const int extX = 800, extY = 0, extW = 262, extH = 99;
@@ -2446,94 +2474,18 @@ void multidexRefreshSkilldex(void)
 
     // Blit background
     if (gMultidexSkilldexBgFrmImage.getData()) {
-        blitBufferToBuffer(gMultidexSkilldexBgFrmImage.getData(), extW, extH, extW,
-                           winBuf + extY * pitch + extX, pitch);
-    } else {
-        unsigned char* dest = winBuf + extY * pitch + extX;
         for (int y = 0; y < extH; y++) {
-            memset(dest, 0, extW);
-            dest += pitch;
+            memcpy(winBuf + (extY + y) * pitch + extX,
+                   gMultidexSkilldexBgFrmImage.getData() + y * extW, extW);
+        }
+    } else {
+        for (int y = 0; y < extH; y++) {
+            memset(winBuf + (extY + y) * pitch + extX, 0, extW);
         }
     }
 
-    // Create buttons once
-    if (!gSkillButtonsCreated) {
-        // fix up magic numbers later?
-        const int btnW = gRedButtonUpFrmImage.getWidth();
-        const int btnH = gRedButtonUpFrmImage.getHeight();
-        const int leftColX = extX + 15;
-        const int rightColX = extX + 137;
-        const int startY = extY + 12;
-        const int spacingY = 21;
-
-        // Skill IDs in order: left column top to bottom, then right column top to bottom
-        const int skillIds[8] = {
-            SKILL_SNEAK, SKILL_LOCKPICK, SKILL_STEAL, SKILL_TRAPS,
-            SKILL_FIRST_AID, SKILL_DOCTOR, SKILL_SCIENCE, SKILL_REPAIR
-        };
-
-        for (int i = 0; i < 8; i++) {
-            int x = (i < 4) ? leftColX : rightColX;
-            int y = startY + (i % 4) * spacingY;
-            int btn = buttonCreate(gInterfaceBarWindow, x, y, btnW, btnH,
-                                   -1, -1, -1, -1,
-                                   gRedButtonUpFrmImage.getData(),
-                                   gRedButtonDownFrmImage.getData(),
-                                   nullptr, BUTTON_FLAG_TRANSPARENT);
-            if (btn != -1) {
-                buttonSetCallbacks(btn, nullptr, skilldexButtonPress);
-                gSkillButtonSkill[btn] = skillIds[i];
-                gSkillButtons[i] = btn;
-            }
-        }
-        gSkillButtonsCreated = true;
-    }
-
-    // Draw skill values (numbers)
-    if (gBigNumbersFrmImage.getData()) {
-        // Small numbers - custom for Multidex
-        const int digitW = 11, digitH = 18;
-        const int numbersPitch = gBigNumbersFrmImage.getWidth();
-        unsigned char* numbers = gBigNumbersFrmImage.getData();
-
-        const int leftNumX = extX + 90, rightNumX = extX + 216;
-        const int numStartY = extY + 9, numSpacingY = 21;
-
-        // Same skill order as buttons
-        const int skillIds[8] = {
-            SKILL_SNEAK, SKILL_LOCKPICK, SKILL_STEAL, SKILL_TRAPS,
-            SKILL_FIRST_AID, SKILL_DOCTOR, SKILL_SCIENCE, SKILL_REPAIR
-        };
-
-        for (int i = 0; i < 8; i++) {
-            int value = skillGetValue(gDude, skillIds[i]);
-            if (value < 0) value = 0;
-            int hundreds = value / 100;
-            int tens = (value % 100) / 10;
-            int ones = value % 10;
-
-            // Force leading zeros to cover background numbers
-            if (value < 100) hundreds = 0;
-            if (value < 10)  tens = 0;
-
-            int x = (i < 4) ? leftNumX : rightNumX;
-            int y = numStartY + (i % 4) * numSpacingY;
-
-            // Hundreds
-            blitBufferToBuffer(numbers + hundreds * digitW, digitW, digitH, numbersPitch,
-                               winBuf + y * pitch + x, pitch);
-            x += digitW;
-
-            // Tens
-            blitBufferToBuffer(numbers + tens * digitW, digitW, digitH, numbersPitch,
-                               winBuf + y * pitch + x, pitch);
-            x += digitW;
-
-            // Ones
-            blitBufferToBuffer(numbers + ones * digitW, digitW, digitH, numbersPitch,
-                               winBuf + y * pitch + x, pitch);
-        }
-    }
+    // Draw skill numbers using the helper
+    multidexDrawSkillNumbers(winBuf, pitch, extX, extY);
 
     // Refresh
     Rect fullRect = { extX, extY, extX + extW - 1, extY + extH - 1 };
@@ -2548,42 +2500,167 @@ static void multidexRefreshPanel(void)
         multidexRefreshMap();
 }
 
-void multidexTogglePanel(void)
-{
+static void multidexCaptureExtensionArea(unsigned char* destBuf, int destPitch) {
+    unsigned char* src = gInterfaceWindowBuffer + 0 * gInterfaceBarWidth + 800; // start of extension area
+    for (int y = 0; y < 99; y++) {
+        memcpy(destBuf + y * destPitch, src, 262);
+        src += gInterfaceBarWidth;
+    }
+}
+
+static void multidexDrawMapButtonsToBuffer(unsigned char* destBuf, int destPitch,
+                                           int offsetX, int offsetY) {
+    if (!gMultidexButtonsFrmImage.getData()) return;
+
+    const int btnW = 25;
+    const int btnH = 25;               // half of the 50px height
+    const int btnPitch = gMultidexButtonsFrmImage.getWidth(); // should be 25
+    unsigned char* btnData = gMultidexButtonsFrmImage.getData();
+
+    // Up state = top half, Down state = bottom half
+    unsigned char* upState = btnData;
+    unsigned char* downState = btnData + btnPitch * btnH;   // 25 rows down
+
+    // Positions (relative to extension area)
+    const int btnX = offsetX + 17;      // same X for both
+    const int detailY = offsetY + 25;
+    const int projY = detailY + btnH + 16;   // spacing 16
+
+    // Detail button state
+    bool detailDown = !(gAutomapFlags & AUTOMAP_WTH_HIGH_DETAILS);
+    unsigned char* detailSrc = detailDown ? downState : upState;
+    blitBufferToBufferTrans(detailSrc, btnW, btnH, btnPitch,
+                            destBuf + detailY * destPitch + btnX, destPitch);
+
+    // Projection button state
+    bool projDown = (gUseNewAutomapProjection != 0);
+    unsigned char* projSrc = projDown ? downState : upState;
+    blitBufferToBufferTrans(projSrc, btnW, btnH, btnPitch,
+                            destBuf + projY * destPitch + btnX, destPitch);
+}
+
+static void multidexAnimateToggle(bool newMode) {
     if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
 
-    // If we are currently in skilldex mode and about to switch to map, destroy skill buttons -- or disable like map?
+    const int extX = 800, extY = 0, extW = 262, extH = 99;
+    const int pitch = gInterfaceBarWidth;
+    unsigned char* winBuf = gInterfaceWindowBuffer;
+
+    // Capture current panel (including any visible button pixels)
+    unsigned char* oldPanel = (unsigned char*)internal_malloc(extW * extH);
+    if (!oldPanel) return;
+    multidexCaptureExtensionArea(oldPanel, extW);
+
+    // Destroy buttons of the current mode (so they don't interfere)
     if (gMultidexSkilldexMode) {
-        if (gSkillButtonsCreated) {
-            for (int i = 0; i < 8; i++) {
-                if (gSkillButtons[i] != -1) {
-                    buttonDestroy(gSkillButtons[i]);
-                    gSkillButtons[i] = -1;
-                }
-            }
-            gSkillButtonsCreated = false;
-            // Clear the button-to-skill mapping array to avoid stale entries
-            memset(gSkillButtonSkill, 0, sizeof(gSkillButtonSkill));
-        }
+        multidexDestroySkillButtons();
+    } else {
+        multidexDestroyMapButtons();
     }
 
-    // Toggle mode
-    gMultidexSkilldexMode = !gMultidexSkilldexMode;
+    // Slide down: move oldPanel downwards, revealing innards background
+    const int stripHeight = 7;
+    int strips = extH / stripHeight;
+    Rect fullRect = { extX, extY, extX + extW - 1, extY + extH - 1 };
+    for (int step = 0; step <= strips; step++) {
+        int yOffset = step * stripHeight;
+        // Fill entire extension area with innards
+        if (gMultidexInnardsBuffer) {
+            for (int y = 0; y < extH; y++) {
+                memcpy(winBuf + (extY + y) * pitch + extX,
+                       gMultidexInnardsBuffer + y * extW, extW);
+            }
+        } else {
+            // fallback clear
+            for (int y = 0; y < extH; y++) {
+                memset(winBuf + (extY + y) * pitch + extX, 0, extW);
+            }
+        }
+        // Overlay oldPanel at yOffset
+        for (int y = 0; y < extH && (y + yOffset) < extH; y++) {
+            memcpy(winBuf + (extY + y + yOffset) * pitch + extX,
+                   oldPanel + y * extW, extW);
+        }
+        windowRefreshRect(gInterfaceBarWindow, &fullRect);
+        renderPresent();
+        delay_ms(33);
+        sharedFpsLimiter.throttle();
+    }
 
-    if (gMultidexSkilldexMode) {
-        // Switching to skilldex: disable map toggle buttons
+    // After slide down, extension area is all innards (oldPanel gone)
+
+    // Pre-render the new panel into a buffer (no interactive buttons)
+    unsigned char* newPanel = (unsigned char*)internal_malloc(extW * extH);
+    if (!newPanel) {
+        internal_free(oldPanel);
+        return;
+    }
+    if (newMode) {
+        // Render skilldex panel
+        multidexRenderSkilldexToBuffer(newPanel, extW);
+    } else {
+        // Render map panel
+        multidexRenderMapToBuffer(newPanel, extW);
+        // Draw the map toggle buttons with their current state
+        multidexDrawMapButtonsToBuffer(newPanel, extW, 0, 0);
+    }
+
+    // Slide up: newPanel slides from bottom
+    for (int step = strips; step >= 0; step--) {
+        int yOffset = step * stripHeight;
+        // Fill with innards
+        if (gMultidexInnardsBuffer) {
+            for (int y = 0; y < extH; y++) {
+                memcpy(winBuf + (extY + y) * pitch + extX,
+                       gMultidexInnardsBuffer + y * extW, extW);
+            }
+        } else {
+            for (int y = 0; y < extH; y++) {
+                memset(winBuf + (extY + y) * pitch + extX, 0, extW);
+            }
+        }
+        // Overlay newPanel at yOffset
+        for (int y = 0; y < extH && (y + yOffset) < extH; y++) {
+            memcpy(winBuf + (extY + y + yOffset) * pitch + extX,
+                   newPanel + y * extW, extW);
+        }
+        windowRefreshRect(gInterfaceBarWindow, &fullRect);
+        renderPresent();
+        delay_ms(33);
+        sharedFpsLimiter.throttle();
+    }
+
+    // Final copy of newPanel to window (no offset)
+    for (int y = 0; y < extH; y++) {
+        memcpy(winBuf + (extY + y) * pitch + extX,
+               newPanel + y * extW, extW);
+    }
+    windowRefreshRect(gInterfaceBarWindow, &fullRect);
+
+    // Update global mode
+    gMultidexSkilldexMode = newMode;
+
+    // Create buttons for the new mode
+    if (newMode) {
+        multidexCreateSkillButtons();
+        // Ensure map buttons are disabled (they don't exist, but just in case)
         if (gMultidexDetailButton != -1) buttonDisable(gMultidexDetailButton);
         if (gMultidexProjectionButton != -1) buttonDisable(gMultidexProjectionButton);
-        if (gMultidexZoomButton != -1) buttonDisable(gMultidexZoomButton);
     } else {
-        // Switching to map: re-enable map toggle buttons
-        if (gMultidexDetailButton != -1) buttonEnable(gMultidexDetailButton);
-        if (gMultidexProjectionButton != -1) buttonEnable(gMultidexProjectionButton);
-        if (gMultidexZoomButton != -1) buttonEnable(gMultidexZoomButton);
+        multidexCreateMapButtons();
+        // Refresh the map once to ensure minimap is up-to-date (numbers already drawn)
+        multidexRefreshMap();
     }
 
-    multidexRefreshPanel();
-    soundPlayFile("toggle");
+    // Clean up
+    internal_free(oldPanel);
+    internal_free(newPanel);
+}
+
+void multidexTogglePanel(void) {
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return;
+    bool newMode = !gMultidexSkilldexMode;
+    multidexAnimateToggle(newMode);
 }
 
 void multidexUpdate(void)
@@ -3081,6 +3158,102 @@ bool interface_get_current_attack_mode(int* hit_mode)
     }
 
     return true;
+}
+
+static void multidexCreateMapButtons(void) {
+    if (!gInterfaceBarSuperWide) return;
+    if (gMultidexDetailButton != -1) return; // already created
+
+    int btnWidth = gMultidexButtonsFrmImage.getWidth();
+    int btnHeight = 25;
+    unsigned char* btnData = gMultidexButtonsFrmImage.getData();
+    int btnPitch = gMultidexButtonsFrmImage.getWidth();
+
+    int btnX = 800 + 17;
+    int btnY = 25;
+    int btnSpacing = 16;
+
+    gMultidexDetailButton = buttonCreate(gInterfaceBarWindow, btnX, btnY,
+                                         btnWidth, btnHeight,
+                                         -1, -1, KEY_ALT_L, KEY_ALT_H,
+                                         btnData, btnData + btnPitch * btnHeight,
+                                         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+    if (gMultidexDetailButton != -1) {
+        buttonSetCallbacks(gMultidexDetailButton, 0, 0);
+    }
+
+    gMultidexProjectionButton = buttonCreate(gInterfaceBarWindow,
+                                             btnX, btnY + btnHeight + btnSpacing,
+                                             btnWidth, btnHeight,
+                                             -1, -1, KEY_ALT_D, KEY_ALT_T,
+                                             btnData, btnData + btnPitch * btnHeight,
+                                             nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+    if (gMultidexProjectionButton != -1) {
+        buttonSetCallbacks(gMultidexProjectionButton, 0, 0);
+    }
+
+    // Zoom button currently not used; keep as -1
+    gMultidexZoomButton = -1;
+
+    // Set initial button states (up/down) based on current automap flags
+    multidexUpdateButtonStates();
+}
+
+static void multidexDestroyMapButtons(void) {
+    if (gMultidexDetailButton != -1) {
+        buttonDestroy(gMultidexDetailButton);
+        gMultidexDetailButton = -1;
+    }
+    if (gMultidexProjectionButton != -1) {
+        buttonDestroy(gMultidexProjectionButton);
+        gMultidexProjectionButton = -1;
+    }
+    if (gMultidexZoomButton != -1) {
+        buttonDestroy(gMultidexZoomButton);
+        gMultidexZoomButton = -1;
+    }
+}
+
+static void multidexCreateSkillButtons(void) {
+    if (!gInterfaceBarSuperWide) return;
+    if (gSkillButtonsCreated) return; // already created
+
+    const int btnW = gRedButtonUpFrmImage.getWidth();
+    const int btnH = gRedButtonUpFrmImage.getHeight();
+    const int extX = 800;
+    const int extY = 0;
+    const int leftColX = extX + 15;
+    const int rightColX = extX + 137;
+    const int startY = extY + 12;
+    const int spacingY = 21;
+
+    for (int i = 0; i < 8; i++) {
+        int x = (i < 4) ? leftColX : rightColX;
+        int y = startY + (i % 4) * spacingY;
+        int btn = buttonCreate(gInterfaceBarWindow, x, y, btnW, btnH,
+                               -1, -1, -1, -1,
+                               gRedButtonUpFrmImage.getData(),
+                               gRedButtonDownFrmImage.getData(),
+                               nullptr, BUTTON_FLAG_TRANSPARENT);
+        if (btn != -1) {
+            buttonSetCallbacks(btn, nullptr, skilldexButtonPress);
+            gSkillButtonSkill[btn] = gMultidexSkillIds[i];
+            gSkillButtons[i] = btn;
+        }
+    }
+    gSkillButtonsCreated = true;
+}
+
+static void multidexDestroySkillButtons(void) {
+    if (!gSkillButtonsCreated) return;
+    for (int i = 0; i < 8; i++) {
+        if (gSkillButtons[i] != -1) {
+            buttonDestroy(gSkillButtons[i]);
+            gSkillButtons[i] = -1;
+        }
+    }
+    gSkillButtonsCreated = false;
+    memset(gSkillButtonSkill, 0, sizeof(gSkillButtonSkill));
 }
 
 } // namespace fallout
