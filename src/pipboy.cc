@@ -880,13 +880,13 @@ int pipboyOpen(int intent)
 
         // Handle Return key - if in keyboard mode, use for selection; otherwise exit
         if (keyCode == KEY_RETURN) {
-            if (gPipboyKeyboardMode) {
+            //if (gPipboyKeyboardMode) {
                 // In keyboard mode, use Return for selection
                 _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT); // Send select event
-            } else {
+            /*} else {
                 // Not in keyboard mode, exit Pipboy
                 break;
-            }
+            }*/
             continue;
         }
 
@@ -1975,6 +1975,21 @@ static void pipboyWindowHandleStatus(int userInput)
         return;
     }
 
+    if (userInput == PIPBOY_KEY_SELECT) {
+    if (_stat_flag == 1) {
+        soundPlayFile("ib1p1xx1");
+        _stat_flag = 0;
+        pipboyWindowHandleStatus(1024);
+        return;
+    }
+    if (_holo_flag == 1) {
+        soundPlayFile("ib1p1xx1");
+        _holo_flag = 0;
+        pipboyWindowHandleStatus(1024);
+        return;
+    }
+}
+
     // Handle Enter/select (PIPBOY_KEY_SELECT)
     if (userInput == PIPBOY_KEY_SELECT) {
         if (_stat_flag == 0 && _holo_flag == 0) {
@@ -2759,7 +2774,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 soundPlayFile("ib1p1xx1");
                 pipboyWindowDestroyButtons();
                 _map_count = _PrintAMelevList(-1);
-                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                pipboyWindowCreateButtons(4, _map_count, true);
                 automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
@@ -2794,7 +2809,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 soundPlayFile("ib1p1xx1");
                 pipboyWindowDestroyButtons();
                 _map_count = _PrintAMelevList(-1);
-                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                pipboyWindowCreateButtons(4, _map_count, true);
                 automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
@@ -2847,7 +2862,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 automapRenderInPipboyWindow(gPipboyWindow,
                     _sortlist[gPipboySelectedIndex].field_6,
                     _sortlist[gPipboySelectedIndex].field_4);
-                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                pipboyWindowCreateButtons(4, _map_count, true);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             }
         }
@@ -2897,47 +2912,36 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 automapRenderInPipboyWindow(gPipboyWindow,
                     _sortlist[gPipboySelectedIndex].field_6,
                     _sortlist[gPipboySelectedIndex].field_4);
-                pipboyWindowCreateButtons(0, _map_count + 2, true);
+                pipboyWindowCreateButtons(4, _map_count, true);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             }
         }
         return;
     }
 
-    // Handle Enter (PIPBOY_KEY_SELECT) - select highlighted item
+    // Handle Enter (PIPBOY_KEY_SELECT)
     if (userInput == PIPBOY_KEY_SELECT) {
-        if (gPipboyKeyboardMode && gPipboySelectedIndex >= 0) {
-            // Convert selected index to button index (1-based)
-            int buttonIndex = gPipboySelectedIndex + 1;
-
-            if (main_sub_mode == 0) {
-                // Select location on main page
-                if (buttonIndex <= _location_count) {
-                    soundPlayFile("ib1p1xx1");
-                    pipboyWindowDestroyButtons();
-                    int realIndex = (_view_page_automap_main * PIPBOY_AUTOMAP_LINES) + (buttonIndex - 1);
-                    _amcty_indx = _sortlist[realIndex].field_4;
-                    gPipboySelectedIndex = 0;
-                    gPipboyKeyboardMode = true;
-                    _map_count = _PrintAMelevList(-1); // Changed from 1 to -1
-                    pipboyWindowCreateButtons(0, _map_count + 2, true);
-                    automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
-                    gPipboyMaxSelectableItems = _map_count;
-                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-                    main_sub_mode = 1;
-                }
-            } else if (main_sub_mode == 1) {
-                // Select elevation on sub-page
-                if (buttonIndex <= _map_count) {
-                    soundPlayFile("ib1p1xx1");
-                    gPipboyKeyboardMode = false; // Mouse-like selection, so turn off keyboard mode
-                    _PrintAMelevList(buttonIndex);
-                    automapRenderInPipboyWindow(gPipboyWindow,
-                        _sortlist[buttonIndex - 1].field_6,
-                        _sortlist[buttonIndex - 1].field_4);
-                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-                }
+        if (main_sub_mode == 0) {
+            // Main automap list: select city and enter subpage
+            if (gPipboyKeyboardMode && gPipboySelectedIndex >= 0 && gPipboySelectedIndex < _location_count) {
+                soundPlayFile("ib1p1xx1");
+                pipboyWindowDestroyButtons();
+                int realIndex = (_view_page_automap_main * PIPBOY_AUTOMAP_LINES) + gPipboySelectedIndex;
+                _amcty_indx = _sortlist[realIndex].field_4;
+                gPipboySelectedIndex = 0;
+                gPipboyKeyboardMode = true;
+                _map_count = _PrintAMelevList(-1);
+                pipboyWindowCreateButtons(4, _map_count, true);
+                automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
+                gPipboyMaxSelectableItems = _map_count;
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                main_sub_mode = 1;
             }
+        } else if (main_sub_mode == 1) {
+            // Subpage: Enter always exits back to main automap list
+            soundPlayFile("ib1p1xx1");
+            main_sub_mode = 0;
+            pipboyWindowHandleAutomaps(1024); // redraw main list
         }
         return;
     }
@@ -2983,7 +2987,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
             gPipboyKeyboardMode = true;
 
             _map_count = _PrintAMelevList(-1);
-            pipboyWindowCreateButtons(0, _map_count + 2, true);
+            pipboyWindowCreateButtons(4, _map_count, true);
 
             // Use the clicked city to render the map
             // Find which index in _sortlist corresponds to the clicked city
@@ -3020,13 +3024,13 @@ static void pipboyWindowHandleAutomaps(int userInput)
                     pipboyWindowDestroyButtons();
                     _PrintAMelevList(1);
                     _map_count = _PrintAMelevList(1);
-                    pipboyWindowCreateButtons(0, _map_count + 2, true); // create buttons for sub-locations (elevation), and back/more
+                    pipboyWindowCreateButtons(4, _map_count, true); // create buttons for sub-locations (elevation), and back/more
                     automapRenderInPipboyWindow(gPipboyWindow, _sortlist[0].field_6, _sortlist[0].field_4);
                     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
                 });
         }
 
-        if (userInput >= 1 && userInput <= _map_count + 3) {
+        if (userInput >= 1 && userInput <= _map_count) {
             soundPlayFile("ib1p1xx1");
             gPipboyKeyboardMode = false; // mouse click turns off keyboard mode
             _PrintAMelevList(userInput);
@@ -3575,6 +3579,7 @@ static void pipboyDrawHitPoints()
 }
 
 // 0x4998C0
+// 0x4998C0
 static void pipboyWindowCreateButtons(int start, int count, bool a3)
 {
     fontSetCurrent(101);
@@ -3586,20 +3591,30 @@ static void pipboyWindowCreateButtons(int start, int count, bool a3)
 
     if (count != 0) {
         int y = start * height + PIPBOY_WINDOW_CONTENT_VIEW_Y;
-        int eventCode = start + 506;
-        for (int index = start; index < 22; index++) {
-            if (gPipboyWindowButtonCount + gPipboyWindowButtonStart <= index) {
-                break;
-            }
+        // Event codes always start at 507 -> userInput = 1 for the first button
+        int eventCode = 507;
+        for (int i = 0; i < count; i++) {
+            int idx = start + i;
+            if (idx >= 22) break; // safety limit
 
-            _HotLines[index] = buttonCreate(gPipboyWindow, 254, y, 350, height, -1, -1, -1, eventCode, nullptr, nullptr, nullptr, BUTTON_FLAG_TRANSPARENT);
+            _HotLines[idx] = buttonCreate(gPipboyWindow,
+                254, y, 350, height,
+                -1, -1, -1, eventCode,
+                nullptr, nullptr, nullptr,
+                BUTTON_FLAG_TRANSPARENT);
             y += height * 2;
             eventCode += 1;
         }
     }
 
     if (a3) {
-        _button = buttonCreate(gPipboyWindow, 254, height * gPipboyLinesCount + PIPBOY_WINDOW_CONTENT_VIEW_Y, 350, height, -1, -1, -1, 529, nullptr, nullptr, nullptr, BUTTON_FLAG_TRANSPARENT);
+        _button = buttonCreate(gPipboyWindow,
+            254, height * gPipboyLinesCount + PIPBOY_WINDOW_CONTENT_VIEW_Y,
+            350, height,
+            -1, -1, -1, 529,
+            nullptr, nullptr, nullptr,
+            BUTTON_FLAG_TRANSPARENT);
+        _hot_back_line = 1;
     }
 }
 
@@ -4835,9 +4850,41 @@ static void pipboyHandleWiki(int userInput)
 {
     const int ARTICLES_PER_PAGE = PIPBOY_STATUS_QUEST_LINES; // 19
 
-    // Article viewing mode
+    // ----- ARTICLE VIEW MODE -----
     if (gWikiInArticle) {
-        if (userInput == 1024 || userInput == PIPBOY_KEY_SELECT || userInput == PIPBOY_KEY_UP || userInput == PIPBOY_KEY_DOWN) {
+        // Handle bottom button (Back/More)
+        if (userInput == 1025) {
+            int mouseX = gPipboyMouseX;
+            if (mouseX < 459) {
+                // LEFT side: "Back"
+                if (gWikiArticlePage > 0) {
+                    // Not first page ? go to previous page
+                    gWikiArticlePage--;
+                    wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                } else {
+                    // First page ? exit to list
+                    gWikiInArticle = false;
+                    pipboyHandleWiki(1024);
+                }
+            } else {
+                // RIGHT side: "More" / "Done"
+                if (gWikiArticlePage < gWikiArticleTotalPages - 1) {
+                    // Not last page ? next page
+                    gWikiArticlePage++;
+                    wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                } else {
+                    // Last page ? exit to list
+                    gWikiInArticle = false;
+                    pipboyHandleWiki(1024);
+                }
+            }
+            return;
+        }
+
+        // Other keys in article mode
+        if (userInput == 1024 || userInput == PIPBOY_KEY_SELECT) {
             gWikiInArticle = false;
             pipboyHandleWiki(1024);
             return;
@@ -4847,6 +4894,10 @@ static void pipboyHandleWiki(int userInput)
                 gWikiArticlePage--;
                 wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // At first page, left arrow also exits
+                gWikiInArticle = false;
+                pipboyHandleWiki(1024);
             }
             return;
         }
@@ -4855,15 +4906,21 @@ static void pipboyHandleWiki(int userInput)
                 gWikiArticlePage++;
                 wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            } else {
+                // At last page, right arrow also exits
+                gWikiInArticle = false;
+                pipboyHandleWiki(1024);
             }
             return;
         }
         return;
     }
 
-    // List mode: redraw the article list (1024)
+    // ----- LIST VIEW MODE -----
+
+    // 1024 = redraw the article list (initial entry or after returning)
     if (userInput == 1024) {
-                pipboyWindowDestroyButtons();
+        pipboyWindowDestroyButtons();
 
         gWikiInArticle = false;
         gWikiArticlePage = 0;
@@ -4905,7 +4962,7 @@ static void pipboyHandleWiki(int userInput)
             int relIdx = i - startIdx;
             int color = (relIdx == gWikiSelectedIndex) ? _colorTable[32747] : _colorTable[992];
             pipboyDrawText(gWikiArticles[i].title, 0, color);
-            // Blank line: advance counter without drawing
+            // Blank line for spacing
             if (gPipboyCurrentLine < gPipboyLinesCount) {
                 gPipboyCurrentLine++;
             }
@@ -4919,18 +4976,41 @@ static void pipboyHandleWiki(int userInput)
                          pageText, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
         }
 
-        // Create clickable buttons for each article (mouse support)
+        // Create clickable buttons for articles + bottom navigation button
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         pipboyWindowCreateButtons(2, itemsOnPage, true);
         windowRefresh(gPipboyWindow);
+        return;
+    }
 
+    // List mode: handle bottom button (1025) for page navigation
+    if (userInput == 1025) {
+        int mouseX = gPipboyMouseX;
+        int totalPagesList = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
+        if (totalPagesList <= 1) return; // No page navigation needed
+
+        if (mouseX < 459) {
+            // Back button
+            if (gWikiCurrentPage > 0) {
+                gWikiCurrentPage--;
+                gWikiSelectedIndex = 0;
+                pipboyHandleWiki(1024); // redraw
+            }
+        } else {
+            // More button
+            if (gWikiCurrentPage < totalPagesList - 1) {
+                gWikiCurrentPage++;
+                gWikiSelectedIndex = 0;
+                pipboyHandleWiki(1024);
+            }
+        }
         return;
     }
 
     // List mode: keyboard navigation
     if (gWikiArticleCount == 0) return;
 
-    int totalPages = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
+    int totalPagesList = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
     int startIdx = gWikiCurrentPage * ARTICLES_PER_PAGE;
     int endIdx = startIdx + ARTICLES_PER_PAGE;
     if (endIdx > gWikiArticleCount) endIdx = gWikiArticleCount;
@@ -4955,7 +5035,7 @@ static void pipboyHandleWiki(int userInput)
     if (userInput == PIPBOY_KEY_DOWN) {
         if (gWikiSelectedIndex < itemsOnPage - 1) {
             gWikiSelectedIndex++;
-        } else if (gWikiCurrentPage < totalPages - 1) {
+        } else if (gWikiCurrentPage < totalPagesList - 1) {
             gWikiCurrentPage++;
             gWikiSelectedIndex = 0;
         } else {
@@ -4975,7 +5055,7 @@ static void pipboyHandleWiki(int userInput)
     }
 
     if (userInput == PIPBOY_KEY_RIGHT) {
-        if (gWikiCurrentPage < totalPages - 1) {
+        if (gWikiCurrentPage < totalPagesList - 1) {
             gWikiCurrentPage++;
             gWikiSelectedIndex = 0;
             pipboyHandleWiki(1024);
@@ -4990,6 +5070,11 @@ static void pipboyHandleWiki(int userInput)
                 gWikiCurrentArticleIndex = articleIdx;
                 gWikiInArticle = true;
                 gWikiArticlePage = 0;
+
+                // Destroy list buttons and create the bottom button for article mode
+                pipboyWindowDestroyButtons();
+                pipboyWindowCreateButtons(0, 0, true);
+
                 wikiRenderArticle(articleIdx, 0);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             }
@@ -4997,18 +5082,21 @@ static void pipboyHandleWiki(int userInput)
         return;
     }
 
-    // ----- Mouse click on an article -----
-    // Buttons created with `pipboyWindowCreateButtons(2, itemsOnPage, true)`
+    // ----- Mouse click on an article in list mode -----
+    // Buttons created with pipboyWindowCreateButtons(2, itemsOnPage, true)
     // generate event codes: start = 2+505 = 507, then 508, etc.
-    // In `pipboyOpen`, events 505-527 are mapped to `_PipFnctn[gPipboyTab](keyCode - 506)`.
+    // In pipboyOpen, events 506-527 map to _PipFnctn[tab](keyCode - 506).
     // So a click on first article (event 507) becomes userInput = 1.
-    // Second article (508) becomes 2, etc.
     if (userInput >= 1 && userInput <= itemsOnPage) {
         int articleIdx = gWikiCurrentPage * ARTICLES_PER_PAGE + (userInput - 1);
         if (articleIdx >= 0 && articleIdx < gWikiArticleCount) {
             gWikiCurrentArticleIndex = articleIdx;
             gWikiInArticle = true;
             gWikiArticlePage = 0;
+
+            pipboyWindowDestroyButtons();
+            pipboyWindowCreateButtons(0, 0, true);
+
             wikiRenderArticle(articleIdx, 0);
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         }
