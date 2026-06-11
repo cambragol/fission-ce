@@ -102,12 +102,12 @@ typedef struct WikiArticle {
 
 static WikiArticle* gWikiArticles = nullptr;
 static int gWikiArticleCount = 0;
-static int gWikiCurrentPage = 0;          // current page in list (0-based)
-static int gWikiSelectedIndex = 0;        // selected article index on current page
+static int gWikiCurrentPage = 0; // current page in list (0-based)
+static int gWikiSelectedIndex = 0; // selected article index on current page
 static bool gWikiInArticle = false;
 static int gWikiCurrentArticleIndex = -1; // index of open article
-static int gWikiArticlePage = 0;          // page within article
-static int gWikiArticleTotalPages = 0;    // total pages of current article
+static int gWikiArticlePage = 0; // page within article
+static int gWikiArticleTotalPages = 0; // total pages of current article
 
 typedef enum PipboyColumn {
     PIPBOY_COLUMN_NONE = 0,
@@ -337,12 +337,12 @@ const HolidayDescription gHolidayDescriptions[HOLIDAY_COUNT] = {
 
 // 0x51C170
 PipboyRenderProc* _PipFnctn[6] = {
-    pipboyWindowHandleStatus,    // tab 0 - event 500
-    pipboyHandleWiki,            // tab 1 - event 501
-    pipboyWindowHandleAutomaps,  // tab 2 - event 502
-    pipboyHandleVideoArchive,    // tab 3 - event 503
-    pipboyHandleAlarmClock,      // tab 4 - event 504
-    pipboyHandleAlarmClock,      // tab 4 - event 505
+    pipboyWindowHandleStatus, // tab 0 - event 500
+    pipboyHandleWiki, // tab 1 - event 501
+    pipboyWindowHandleAutomaps, // tab 2 - event 502
+    pipboyHandleVideoArchive, // tab 3 - event 503
+    pipboyHandleAlarmClock, // tab 4 - event 504
+    pipboyHandleAlarmClock, // tab 4 - event 505
 };
 
 // 0x664338
@@ -880,9 +880,9 @@ int pipboyOpen(int intent)
 
         // Handle Return key - if in keyboard mode, use for selection; otherwise exit
         if (keyCode == KEY_RETURN) {
-            //if (gPipboyKeyboardMode) {
-                // In keyboard mode, use Return for selection
-                _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT); // Send select event
+            // if (gPipboyKeyboardMode) {
+            //  In keyboard mode, use Return for selection
+            _PipFnctn[gPipboyTab](PIPBOY_KEY_SELECT); // Send select event
             /*} else {
                 // Not in keyboard mode, exit Pipboy
                 break;
@@ -915,7 +915,7 @@ int pipboyOpen(int intent)
 
         if (keyCode == KEY_F12) {
             takeScreenshot();
-        } else if (keyCode >= 500 && keyCode <= 505) { 
+        } else if (keyCode >= 500 && keyCode <= 505) {
             gPipboyPrevTab = gPipboyTab;
             gPipboyTab = keyCode - 500;
             _view_page_automap_main = 0; // ensures button click to automaps renders first page
@@ -1058,7 +1058,7 @@ static int pipboyWindowInit(int intent)
 
     int y = 340;
     int eventCode = 500;
-    int yOffsets[] = {27, 27, 29, 25, 27}; // offsets for all 5 buttons
+    int yOffsets[] = { 27, 27, 29, 25, 27 }; // offsets for all 5 buttons
     for (int index = 0; index < 5; index++) {
         int btn = buttonCreate(gPipboyWindow,
             53,
@@ -1976,19 +1976,19 @@ static void pipboyWindowHandleStatus(int userInput)
     }
 
     if (userInput == PIPBOY_KEY_SELECT) {
-    if (_stat_flag == 1) {
-        soundPlayFile("ib1p1xx1");
-        _stat_flag = 0;
-        pipboyWindowHandleStatus(1024);
-        return;
+        if (_stat_flag == 1) {
+            soundPlayFile("ib1p1xx1");
+            _stat_flag = 0;
+            pipboyWindowHandleStatus(1024);
+            return;
+        }
+        if (_holo_flag == 1) {
+            soundPlayFile("ib1p1xx1");
+            _holo_flag = 0;
+            pipboyWindowHandleStatus(1024);
+            return;
+        }
     }
-    if (_holo_flag == 1) {
-        soundPlayFile("ib1p1xx1");
-        _holo_flag = 0;
-        pipboyWindowHandleStatus(1024);
-        return;
-    }
-}
 
     // Handle Enter/select (PIPBOY_KEY_SELECT)
     if (userInput == PIPBOY_KEY_SELECT) {
@@ -4740,8 +4740,10 @@ static void wikiScanFolder()
             char firstLine[256];
             if (fileReadString(firstLine, sizeof(firstLine) - 1, f)) {
                 // Remove trailing newline/cr
-                char* nl = strchr(firstLine, '\n'); if (nl) *nl = '\0';
-                char* cr = strchr(firstLine, '\r'); if (cr) *cr = '\0';
+                char* nl = strchr(firstLine, '\n');
+                if (nl) *nl = '\0';
+                char* cr = strchr(firstLine, '\r');
+                if (cr) *cr = '\0';
                 strncpy(gWikiArticles[gWikiArticleCount].title, firstLine, sizeof(gWikiArticles[gWikiArticleCount].title) - 1);
                 gWikiArticles[gWikiArticleCount].title[sizeof(gWikiArticles[gWikiArticleCount].title) - 1] = '\0';
             } else {
@@ -4761,7 +4763,7 @@ static void wikiScanFolder()
 // Renders an article with word wrap and pagination
 static void wikiRenderArticle(int articleIdx, int page)
 {
-    const int LINES_PER_PAGE = 18;   // fits well in content area
+    const int LINES_PER_PAGE = 18; // fits well in content area
 
     File* f = fileOpen(gWikiArticles[articleIdx].filepath, "rt");
     if (!f) return;
@@ -4775,8 +4777,10 @@ static void wikiRenderArticle(int articleIdx, int page)
     int lineCount = 0;
     char buf[256];
     while (fileReadString(buf, sizeof(buf) - 1, f) && lineCount < 500) {
-        char* nl = strchr(buf, '\n'); if (nl) *nl = '\0';
-        char* cr = strchr(buf, '\r'); if (cr) *cr = '\0';
+        char* nl = strchr(buf, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(buf, '\r');
+        if (cr) *cr = '\0';
         lines[lineCount] = internal_strdup(buf);
         lineCount++;
     }
@@ -4801,10 +4805,10 @@ static void wikiRenderArticle(int articleIdx, int page)
 
     // Draw title (underlined, centered)
     pipboyDrawText(gWikiArticles[articleIdx].title,
-                   PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
-                   _colorTable[992]);
+        PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
+        _colorTable[992]);
 
-    gPipboyCurrentLine = 2;   // blank line after title
+    gPipboyCurrentLine = 2; // blank line after title
 
     // Draw current page
     int start = page * LINES_PER_PAGE;
@@ -4835,14 +4839,15 @@ static void wikiRenderArticle(int articleIdx, int page)
         snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gWikiArticleTotalPages);
         int len = fontGetStringWidth(ptext);
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
-                     ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
+            ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
     }
 
     // Bottom navigation (Back/More) - draws the text, not clickable (arrows work)
     renderNavigationButtons(page, gWikiArticleTotalPages, true);
 
     // Cleanup
-    for (int i = 0; i < lineCount; i++) internal_free(lines[i]);
+    for (int i = 0; i < lineCount; i++)
+        internal_free(lines[i]);
 }
 
 // Main wiki handler - list and article navigation
@@ -4973,7 +4978,7 @@ static void pipboyHandleWiki(int userInput)
             snprintf(pageText, sizeof(pageText), "%d/%d", gWikiCurrentPage + 1, totalPages);
             int len = fontGetStringWidth(pageText);
             fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
-                         pageText, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
+                pageText, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
         }
 
         // Create clickable buttons for articles + bottom navigation button
