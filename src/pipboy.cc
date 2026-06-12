@@ -2107,9 +2107,9 @@ static void pipboyWindowHandleStatus(int userInput)
                         // Enter holodisk view
                         pipboyWindowDestroyButtons();
                         pipboyRenderHolodiskText();
-                        pipboyWindowCreateButtons(0, 0, true);   // Create bottom button for first page
+                        pipboyWindowCreateButtons(0, 0, true); // Create bottom button for first page
                         _holo_flag = 1;
-                        gPipboyKeyboardMode = false;  // Disable keyboard mode for holodisk view
+                        gPipboyKeyboardMode = false; // Disable keyboard mode for holodisk view
                     }
                 }
             }
@@ -2155,82 +2155,82 @@ static void pipboyWindowHandleStatus(int userInput)
                 });
         }
 
-if (gPipboyQuestLocationsCount != 0 && gPipboyWindowQuestsCurrentPageCount >= userInput && gPipboyMouseX < 429) {
-    soundPlayFile("ib1p1xx1");
+        if (gPipboyQuestLocationsCount != 0 && gPipboyWindowQuestsCurrentPageCount >= userInput && gPipboyMouseX < 429) {
+            soundPlayFile("ib1p1xx1");
 
-    // Set the selected index to the clicked item (page-relative, 0-based)
-    gPipboySelectedQuestIndex = userInput - 1;
-    gPipboySelectedIndex = gPipboySelectedQuestIndex;
-    gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
-    gPipboyKeyboardMode = true;
+            // Set the selected index to the clicked item (page-relative, 0-based)
+            gPipboySelectedQuestIndex = userInput - 1;
+            gPipboySelectedIndex = gPipboySelectedQuestIndex;
+            gPipboyCurrentColumn = PIPBOY_COLUMN_QUESTS;
+            gPipboyKeyboardMode = true;
 
-    // Redraw to show highlight
-    pipboyRedrawStatusPageWithSelection();
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    renderPresent();           // force immediate screen update
-    inputPauseForTocks(200);
+            // Redraw to show highlight
+            pipboyRedrawStatusPageWithSelection();
+            windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            renderPresent(); // force immediate screen update
+            inputPauseForTocks(200);
 
-    // Convert to global index (1-based) for subpage
-    int globalIndex = (_view_page_quest * PIPBOY_STATUS_QUEST_LINES) + gPipboySelectedQuestIndex + 1;
+            // Convert to global index (1-based) for subpage
+            int globalIndex = (_view_page_quest * PIPBOY_STATUS_QUEST_LINES) + gPipboySelectedQuestIndex + 1;
 
-    // Clear and enter quest list
-    blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
-        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
-        PIPBOY_WINDOW_WIDTH,
-        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-        PIPBOY_WINDOW_WIDTH);
-    pipboyWindowRenderQuestLocationList(globalIndex);
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    inputPauseForTocks(200);
-    _stat_flag = 1;
-    gPipboyKeyboardMode = false;
-    pipboyWindowQuestList(globalIndex);
-} else {
-if (gPipboyWindowHolodisksCount != 0 && gPipboyWindowHolodisksCount >= userInput && gPipboyMouseX > 429) {
-    soundPlayFile("ib1p1xx1");
+            // Clear and enter quest list
+            blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+                PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+                PIPBOY_WINDOW_WIDTH,
+                gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                PIPBOY_WINDOW_WIDTH);
+            pipboyWindowRenderQuestLocationList(globalIndex);
+            windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            inputPauseForTocks(200);
+            _stat_flag = 1;
+            gPipboyKeyboardMode = false;
+            pipboyWindowQuestList(globalIndex);
+        } else {
+            if (gPipboyWindowHolodisksCount != 0 && gPipboyWindowHolodisksCount >= userInput && gPipboyMouseX > 429) {
+                soundPlayFile("ib1p1xx1");
 
-    // Set selected holodisk index
-    gPipboySelectedHolodiskIndex = userInput - 1;
-    gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
-    gPipboyCurrentColumn = PIPBOY_COLUMN_HOLODISKS;
-    gPipboyKeyboardMode = true;
+                // Set selected holodisk index
+                gPipboySelectedHolodiskIndex = userInput - 1;
+                gPipboySelectedIndex = gPipboySelectedHolodiskIndex;
+                gPipboyCurrentColumn = PIPBOY_COLUMN_HOLODISKS;
+                gPipboyKeyboardMode = true;
 
-    // Redraw to show highlight
-    pipboyRedrawStatusPageWithSelection();
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    renderPresent();           // force immediate screen update
-    inputPauseForTocks(200);
+                // Redraw to show highlight
+                pipboyRedrawStatusPageWithSelection();
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                renderPresent(); // force immediate screen update
+                inputPauseForTocks(200);
 
-    // Now compute real holodisk index and open
-    int realIndex = (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) + gPipboySelectedHolodiskIndex;
-    _holodisk = 0;
-    int foundIndex = 0;
-    for (; foundIndex < gHolodisksCount; foundIndex++) {
-        HolodiskDescription* holodiskDescription = &(gHolodiskDescriptions[foundIndex]);
-        if (gGameGlobalVars[holodiskDescription->gvar] > 0) {
-            if (_holodisk == realIndex) break;
-            _holodisk++;
-        }
-    }
-    _holodisk = foundIndex;
+                // Now compute real holodisk index and open
+                int realIndex = (_view_page_holodisk * PIPBOY_STATUS_HOLODISK_LINES) + gPipboySelectedHolodiskIndex;
+                _holodisk = 0;
+                int foundIndex = 0;
+                for (; foundIndex < gHolodisksCount; foundIndex++) {
+                    HolodiskDescription* holodiskDescription = &(gHolodiskDescriptions[foundIndex]);
+                    if (gGameGlobalVars[holodiskDescription->gvar] > 0) {
+                        if (_holodisk == realIndex) break;
+                        _holodisk++;
+                    }
+                }
+                _holodisk = foundIndex;
 
-    // Clear and enter holodisk view
-    blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
-        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
-        PIPBOY_WINDOW_WIDTH,
-        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-        PIPBOY_WINDOW_WIDTH);
-    pipboyWindowRenderHolodiskList(userInput);
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    inputPauseForTocks(200);
-    pipboyWindowDestroyButtons();
-    pipboyRenderHolodiskText();
-    pipboyWindowCreateButtons(0, 0, true);
-    _holo_flag = 1;
-    gPipboyKeyboardMode = false;
-}
+                // Clear and enter holodisk view
+                blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                    PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+                    PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+                    PIPBOY_WINDOW_WIDTH,
+                    gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+                    PIPBOY_WINDOW_WIDTH);
+                pipboyWindowRenderHolodiskList(userInput);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                inputPauseForTocks(200);
+                pipboyWindowDestroyButtons();
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                _holo_flag = 1;
+                gPipboyKeyboardMode = false;
+            }
         }
     }
 
@@ -3103,37 +3103,37 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 });
         }
 
-if (userInput > 0 && userInput <= _location_count && main_sub_mode == 0) {
-    soundPlayFile("ib1p1xx1");
+        if (userInput > 0 && userInput <= _location_count && main_sub_mode == 0) {
+            soundPlayFile("ib1p1xx1");
 
-    gPipboySelectedIndex = userInput - 1;
-    gPipboyKeyboardMode = true;
+            gPipboySelectedIndex = userInput - 1;
+            gPipboyKeyboardMode = true;
 
-    _PrintAMList(-1);  // highlight the clicked entry
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    renderPresent();           // force immediate screen update
-    inputPauseForTocks(200);   // now the highlight is visible during the delay
+            _PrintAMList(-1); // highlight the clicked entry
+            windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            renderPresent(); // force immediate screen update
+            inputPauseForTocks(200); // now the highlight is visible during the delay
 
-    // Save state and enter subpage
-    gAutomapSavedPage = _view_page_automap_main;
-    gAutomapSavedIndex = gPipboySelectedIndex;
+            // Save state and enter subpage
+            gAutomapSavedPage = _view_page_automap_main;
+            gAutomapSavedIndex = gPipboySelectedIndex;
 
-    pipboyWindowDestroyButtons();
-    int realIndex = (gAutomapSavedPage * PIPBOY_AUTOMAP_LINES) + (userInput - 1);
-    int clickedCityIndex = _sortlist[realIndex].field_4;
-    _amcty_indx = clickedCityIndex;
+            pipboyWindowDestroyButtons();
+            int realIndex = (gAutomapSavedPage * PIPBOY_AUTOMAP_LINES) + (userInput - 1);
+            int clickedCityIndex = _sortlist[realIndex].field_4;
+            _amcty_indx = clickedCityIndex;
 
-    gPipboySelectedIndex = 0;
-    gPipboyKeyboardMode = true;
-    _map_count = _PrintAMelevList(-1);
-    pipboyWindowCreateButtons(4, _map_count, true);
-    int displayIndex = findCityIndexInSortlist(clickedCityIndex, 0);
-    automapRenderInPipboyWindow(gPipboyWindow,
-        _sortlist[displayIndex].field_6,
-        _sortlist[displayIndex].field_4);
-    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-    main_sub_mode = 1;
-}
+            gPipboySelectedIndex = 0;
+            gPipboyKeyboardMode = true;
+            _map_count = _PrintAMelevList(-1);
+            pipboyWindowCreateButtons(4, _map_count, true);
+            int displayIndex = findCityIndexInSortlist(clickedCityIndex, 0);
+            automapRenderInPipboyWindow(gPipboyWindow,
+                _sortlist[displayIndex].field_6,
+                _sortlist[displayIndex].field_4);
+            windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            main_sub_mode = 1;
+        }
     } else if (main_sub_mode == 1) { // subpage mode, bottom and subloction buttons
         if (userInput == 1025 || userInput <= -1) {
             if (userInput < 1025 || userInput > 1027) {
@@ -5245,7 +5245,7 @@ static void pipboyHandleWiki(int userInput)
         // Redraw to show highlight
         pipboyHandleWiki(1024);
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
-        renderPresent();           // force immediate screen update
+        renderPresent(); // force immediate screen update
         inputPauseForTocks(200);
 
         // Open article
