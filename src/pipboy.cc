@@ -4844,7 +4844,7 @@ static void wikiScanFolder()
     gWikiArticleCount = 0;
 
     char searchPattern[COMPAT_MAX_PATH];
-    snprintf(searchPattern, sizeof(searchPattern), "data%cwiki%c*.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+    snprintf(searchPattern, sizeof(searchPattern), "wiki%c*.txt", DIR_SEPARATOR);
 
     char** foundFiles = nullptr;
     int fileCount = fileNameListInit(searchPattern, &foundFiles);
@@ -4858,7 +4858,7 @@ static void wikiScanFolder()
 
     for (int i = 0; i < fileCount; i++) {
         char fullPath[COMPAT_MAX_PATH];
-        snprintf(fullPath, sizeof(fullPath), "data%cwiki%c%s", DIR_SEPARATOR, DIR_SEPARATOR, foundFiles[i]);
+        snprintf(fullPath, sizeof(fullPath), "wiki%c%s", DIR_SEPARATOR, foundFiles[i]);
 
         File* f = fileOpen(fullPath, "rt");
         if (f) {
