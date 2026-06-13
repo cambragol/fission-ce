@@ -2884,6 +2884,11 @@ static void _object_move(int index)
     if (sad->step == ANIM_COMPLETE) {
         _anim_set_continue(sad->animationSequenceIndex, 1);
     }
+
+    if (interfaceIsSuperWide()) {
+        // Update Multidex minimap if interface is superwide
+        multidexUpdate();
+    }
 }
 
 // 0x4177C0

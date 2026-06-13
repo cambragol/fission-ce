@@ -117,7 +117,16 @@ int displayMonitorInit()
         _disp_curr = 0;
         fontSetCurrent(oldFont);
 
-        int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, gInterfaceBarIsWide);
+        int backgroundFid;
+        if (interfaceIsSuperWide()) {
+            // Superwide: use the 1062px background FRM
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 6160, 0, 0, 0);
+        } else if (gInterfaceBarIsWide) {
+            backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, true);
+        } else {
+            backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 16, false);
+        }
+
         if (!backgroundFrmImage.lock(backgroundFid)) {
             return -1;
         }

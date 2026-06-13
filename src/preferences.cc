@@ -454,11 +454,16 @@ void applyPlayAreaResolution()
         case 2: // Large - 70% of screen size
         case 3: // Massive - Full screen size
             if (SDL_GetCurrentDisplayMode(displayIndex, &dm) == 0) {
-                float scale = (gPreferencesPlayArea1 == 2) ? 0.7f : 1.0f;
+                if (gPreferencesPlayArea1 == 2) {
+                    // 70% or 1100, whichever is greater, so Multidex Interface can be used for Large playarea and above
+                    float scale = std::max(0.7f, 1100.0f / dm.w);
 
-                // Calculate target dimensions while maintaining screen aspect ratio
-                settings.graphics.game_width = (int)roundf(dm.w * scale);
-                settings.graphics.game_height = (int)roundf(dm.h * scale);
+                    settings.graphics.game_width = (int)roundf(dm.w * scale);
+                    settings.graphics.game_height = (int)roundf(dm.h * scale);
+                } else {
+                    settings.graphics.game_width = dm.w;
+                    settings.graphics.game_height = dm.h;
+                }
             } else {
                 // Fallback if SDL query fails
                 settings.graphics.game_width = (gPreferencesPlayArea1 == 2) ? 1280 : 1920;
