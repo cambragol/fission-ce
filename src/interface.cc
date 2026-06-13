@@ -3006,7 +3006,8 @@ bool indicatorBarHide()
     return oldIsVisible;
 }
 
-static int interfaceBarYOffset() {
+static int interfaceBarYOffset()
+{
     if (!gInterfaceBarSuperWide) {
         return 0;
     }
