@@ -2292,11 +2292,17 @@ static void interfaceUpdateAmmoBar(int x, int ratio)
 
     unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
 
+    // Get pointer to the same column in the original background image
+    unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+
+    // Restore original background for the "empty" part (from bottom up)
     for (int index = 70; index > ratio; index--) {
-        *dest = 14;
+        *dest = *bgSrc;
         dest += gInterfaceBarWidth;
+        bgSrc += backgroundFrmImage.getWidth();
     }
 
+    // Draw the green "dots" for the ammo
     while (ratio > 0) {
         *dest = 196;
         dest += gInterfaceBarWidth;
