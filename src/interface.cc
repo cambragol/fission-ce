@@ -129,6 +129,7 @@ static void indicatorBarRender(int count);
 static bool indicatorBarAdd(int indicator);
 
 static void interfaceBarSize();
+static int interfaceBarYOffset();
 static void customInterfaceBarExit();
 
 static void sidePanelsInit();
@@ -536,9 +537,9 @@ int interfaceInit()
     gInterfaceBarInitialized = true;
 
     int interfaceBarWindowX = (screenGetWidth() - gInterfaceBarWidth) / 2;
-    int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT;
+    int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT - interfaceBarYOffset();
 
-    gInterfaceBarWindow = windowCreate(interfaceBarWindowX, interfaceBarWindowY, gInterfaceBarWidth, INTERFACE_BAR_HEIGHT, _colorTable[0], WINDOW_HIDDEN | WINDOW_DRAGGABLE_BY_BACKGROUND);
+    gInterfaceBarWindow = windowCreate(interfaceBarWindowX, interfaceBarWindowY, gInterfaceBarWidth, INTERFACE_BAR_HEIGHT, _colorTable[0], WINDOW_HIDDEN | WINDOW_DRAGGABLE_BY_BACKGROUND | WINDOW_TRANSPARENT);
     if (gInterfaceBarWindow == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -2876,9 +2877,9 @@ int indicatorBarRefresh()
         if (count != 0) {
             Rect interfaceBarWindowRect;
             windowGetRect(gInterfaceBarWindow, &interfaceBarWindowRect);
-
+            int indicatorBarY = interfaceBarWindowRect.top - INDICATOR_BOX_HEIGHT;
             gIndicatorBarWindow = windowCreate(interfaceBarWindowRect.left,
-                screenGetHeight() - INTERFACE_BAR_HEIGHT - INDICATOR_BOX_HEIGHT,
+                indicatorBarY,
                 (INDICATOR_BOX_WIDTH - INDICATOR_BOX_CONNECTOR_WIDTH) * count,
                 INDICATOR_BOX_HEIGHT,
                 _colorTable[0],
@@ -3005,11 +3006,19 @@ bool indicatorBarHide()
     return oldIsVisible;
 }
 
+static int interfaceBarYOffset() {
+    if (!gInterfaceBarSuperWide) {
+        return 0;
+    }
+    int offsetPercent = 3;
+    return (screenGetHeight() * offsetPercent) / 100;
+}
+
 static void interfaceBarSize()
 {
     int screenWidth = screenGetWidth();
 
-    if (screenWidth > 1100) { // 1100 can be adjusted later, for now it is safe
+    if (screenWidth >= 1100) { // 1100 can be adjusted later, for now it is safe
         gInterfaceBarWidth = 1062;
         gInterfaceBarContentOffset = 160; // keeps 640px content centered within the 800px portion
         gInterfaceBarIsWide = true;

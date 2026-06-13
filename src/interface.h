@@ -10,7 +10,7 @@ namespace fallout {
 #define INDICATOR_BOX_HEIGHT 21
 
 #define INTERFACE_BAR_WIDTH 640
-#define INTERFACE_BAR_HEIGHT 100
+#define INTERFACE_BAR_HEIGHT 99
 
 // Minimum radiation amount to display RADIATED indicator.
 #define RADATION_INDICATOR_THRESHOLD 65
