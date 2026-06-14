@@ -343,6 +343,103 @@ static bool gMultidexAnimating = false;
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
+// Helper: draw a single skill's value (three digits) at its position
+static void multidexDrawSkillValue(int skillIndex, int value)
+{
+    if (!gInterfaceBarSuperWide || !gMultidexSkilldexMode) return;
+    if (gInterfaceBarWindow == -1) return;
+
+    int extX = 800, extY = 0;
+    int leftColX = extX + 90;
+    int rightColX = extX + 216;
+    int startY = extY + 9;
+    int spacingY = 21;
+
+    int x = (skillIndex < 4) ? leftColX : rightColX;
+    int y = startY + (skillIndex % 4) * spacingY;
+
+    int hundreds = (value / 100) % 10;
+    int tens = (value / 10) % 10;
+    int ones = value % 10;
+    if (value < 100) hundreds = 0;
+    if (value < 10) tens = 0;
+
+    int digitW = 11, digitH = 18;
+    int numbersPitch = gBigNumbersFrmImage.getWidth();
+    unsigned char* numbers = gBigNumbersFrmImage.getData();
+
+    unsigned char* dest = gInterfaceWindowBuffer + y * gInterfaceBarWidth + x;
+
+    blitBufferToBuffer(numbers + hundreds * digitW, digitW, digitH, numbersPitch,
+                       dest, gInterfaceBarWidth);
+    blitBufferToBuffer(numbers + tens * digitW, digitW, digitH, numbersPitch,
+                       dest + digitW, gInterfaceBarWidth);
+    blitBufferToBuffer(numbers + ones * digitW, digitW, digitH, numbersPitch,
+                       dest + 2 * digitW, gInterfaceBarWidth);
+
+    Rect rect = { x, y, x + 3 * digitW - 1, y + digitH - 1 };
+    windowRefreshRect(gInterfaceBarWindow, &rect);
+}
+
+void multidexRefreshSkilldexAnimated(const int oldValues[8])
+{
+    if (!gInterfaceBarSuperWide || !gMultidexSkilldexMode) return;
+    if (gInterfaceBarWindow == -1) return;
+
+    int current[8];
+    int target[8];
+    int maxSteps = 0;
+
+    for (int i = 0; i < 8; i++) {
+        target[i] = skillGetValue(gDude, gMultidexSkillIds[i]);
+        current[i] = oldValues[i];
+        int diff = abs(target[i] - current[i]);
+        if (diff > maxSteps) maxSteps = diff;
+    }
+
+    if (maxSteps == 0) return;
+
+    int delay = 250 / (maxSteps + 1);
+    if (delay < 10) delay = 10;
+
+    int stepDir[8];
+    for (int i = 0; i < 8; i++) {
+        if (target[i] > current[i])
+            stepDir[i] = 1;
+        else if (target[i] < current[i])
+            stepDir[i] = -1;
+        else
+            stepDir[i] = 0;
+    }
+
+    // Animate all skills in parallel
+    for (int step = 0; step < maxSteps; step++) {
+        bool anyChanged = false;
+        for (int i = 0; i < 8; i++) {
+            if (stepDir[i] == 0) continue;
+            if (current[i] != target[i]) {
+                current[i] += stepDir[i];
+                anyChanged = true;
+            }
+            multidexDrawSkillValue(i, current[i]);
+        }
+        if (!anyChanged) break;
+
+        _mouse_info();
+        gameMouseRefresh();
+        renderPresent();
+        inputBlockForTocks(delay);
+    }
+
+    // Final sync to ensure exact values
+    for (int i = 0; i < 8; i++) {
+        int finalValue = skillGetValue(gDude, gMultidexSkillIds[i]);
+        if (finalValue != current[i]) {
+            multidexDrawSkillValue(i, finalValue);
+        }
+    }
+}
+
 void multidexUpdateButtonStates()
 {
     if (gMultidexDetailButton != -1) {

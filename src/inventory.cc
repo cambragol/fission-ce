@@ -752,6 +752,14 @@ void inventoryOpen()
 
     ScopedGameMode gm(GameMode::kInventory);
 
+    // Capture old skill values for Multidex animation
+    int oldSkillValues[8];
+    if (interfaceIsSuperWide()) {
+        for (int i = 0; i < 8; i++) {
+            oldSkillValues[i] = skillGetValue(gDude, gMultidexSkillIds[i]);
+        }
+    }
+
     if (inventoryCommonInit() == -1) {
         return;
     }
@@ -915,6 +923,11 @@ void inventoryOpen()
         if (oldArmor != newArmor) {
             interfaceRenderArmorClass(true);
         }
+    }
+
+    // Animate skill changes in the Multidex skilldex
+    if (interfaceIsSuperWide()) {
+        multidexRefreshSkilldexAnimated(oldSkillValues);
     }
 
     _exit_inventory(isoWasEnabled);
