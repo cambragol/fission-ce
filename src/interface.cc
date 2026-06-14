@@ -371,11 +371,11 @@ static void multidexDrawSkillValue(int skillIndex, int value)
     unsigned char* dest = gInterfaceWindowBuffer + y * gInterfaceBarWidth + x;
 
     blitBufferToBuffer(numbers + hundreds * digitW, digitW, digitH, numbersPitch,
-                       dest, gInterfaceBarWidth);
+        dest, gInterfaceBarWidth);
     blitBufferToBuffer(numbers + tens * digitW, digitW, digitH, numbersPitch,
-                       dest + digitW, gInterfaceBarWidth);
+        dest + digitW, gInterfaceBarWidth);
     blitBufferToBuffer(numbers + ones * digitW, digitW, digitH, numbersPitch,
-                       dest + 2 * digitW, gInterfaceBarWidth);
+        dest + 2 * digitW, gInterfaceBarWidth);
 
     Rect rect = { x, y, x + 3 * digitW - 1, y + digitH - 1 };
     windowRefreshRect(gInterfaceBarWindow, &rect);
