@@ -497,6 +497,99 @@ ModQuestInfo gModQuests[MOD_QUEST_MAX - MOD_QUEST_START];
 int gModQuestCount = 0;
 char gQuestModNames[TOTAL_QUEST_MAX][64];
 
+// For title -> filepath mapping (case-insensitive)
+typedef struct WikiLinkEntry {
+    char title[256];
+    char filepath[COMPAT_MAX_PATH];
+} WikiLinkEntry;
+
+static WikiLinkEntry* gWikiLinkMap = nullptr;
+static int gWikiLinkMapSize = 0;
+
+// For links on the current page (used to create buttons)
+typedef struct WikiPageLink {
+    char targetTitle[256];
+    int x, y, width, height;
+} WikiPageLink;
+
+static WikiPageLink* gWikiPageLinks = nullptr;
+static int gWikiPageLinkCount = 0;
+
+// For button ID mapping
+static int gLinkButtonIds[256];
+static int gLinkButtonCount = 0;
+
+// Normalize title (lowercase, trim spaces)
+static void normalizeTitle(const char* src, char* dest, size_t destSize)
+{
+    char temp[256];
+    strncpy(temp, src, sizeof(temp) - 1);
+    temp[sizeof(temp) - 1] = '\0';
+    
+    // Trim leading/trailing spaces
+    char* start = temp;
+    while (*start == ' ') start++;
+    char* end = start + strlen(start) - 1;
+    while (end > start && *end == ' ') end--;
+    *(end + 1) = '\0';
+    
+    // To lowercase
+    for (int i = 0; start[i]; i++)
+        dest[i] = tolower(start[i]);
+    dest[strlen(start)] = '\0';
+}
+
+// Free the link map
+static void wikiFreeLinkMap()
+{
+    if (gWikiLinkMap) {
+        internal_free(gWikiLinkMap);
+        gWikiLinkMap = nullptr;
+    }
+    gWikiLinkMapSize = 0;
+}
+
+// Clear per-page links
+static void wikiClearPageLinks()
+{
+    if (gWikiPageLinks) {
+        internal_free(gWikiPageLinks);
+        gWikiPageLinks = nullptr;
+    }
+    gWikiPageLinkCount = 0;
+}
+
+// Destroy link buttons
+static void wikiDestroyLinkButtons()
+{
+    for (int i = 0; i < gLinkButtonCount; i++) {
+        if (gLinkButtonIds[i] != -1)
+            buttonDestroy(gLinkButtonIds[i]);
+    }
+    gLinkButtonCount = 0;
+}
+
+// Create transparent buttons for each link on the current page
+static void wikiCreateLinkButtons()
+{
+    wikiDestroyLinkButtons();
+    int eventCode = 2000;
+    for (int i = 0; i < gWikiPageLinkCount && gLinkButtonCount < 256; i++) {
+        WikiPageLink* link = &gWikiPageLinks[i];
+        int btn = buttonCreate(gPipboyWindow,
+                               link->x, link->y,
+                               link->width, link->height,
+                               -1, -1, -1,
+                               eventCode,
+                               nullptr, nullptr, nullptr,
+                               BUTTON_FLAG_TRANSPARENT);
+        if (btn != -1) {
+            gLinkButtonIds[gLinkButtonCount++] = btn;
+        }
+        eventCode++;
+    }
+}
+
 // Load a mod holodisk using the new block allocation system
 static bool loadModHolodisk(const char* mod_name, const char* block_key, int gvar)
 {
@@ -919,6 +1012,12 @@ int pipboyOpen(int intent)
             continue;
         }
 
+        // Wiki link buttons (2000+)
+        if (keyCode >= 2000 && keyCode < 2000 + 256) {
+            _PipFnctn[gPipboyTab](keyCode);
+            continue;
+        }
+
         if (keyCode == KEY_F12) {
             takeScreenshot();
         } else if (keyCode >= 500 && keyCode <= 505) {
@@ -1211,6 +1310,10 @@ static void pipboyWindowFree()
     indicatorBarShow();
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
     interfaceBarRefresh();
+
+    wikiFreeLinkMap();
+    wikiClearPageLinks();
+    wikiDestroyLinkButtons();
 
     // NOTE: Uninline.
     questFree();
@@ -4845,6 +4948,8 @@ static void wikiScanFolder()
     }
     gWikiArticleCount = 0;
 
+    wikiFreeLinkMap();
+
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "wiki%c*.txt", DIR_SEPARATOR);
 
@@ -4880,11 +4985,82 @@ static void wikiScanFolder()
         } else {
             strcpy(gWikiArticles[gWikiArticleCount].title, "Untitled");
         }
+        // Add to link map
+        WikiLinkEntry* newMap = (WikiLinkEntry*)internal_realloc(gWikiLinkMap, sizeof(WikiLinkEntry) * (gWikiLinkMapSize + 1));
+        if (newMap) {
+            gWikiLinkMap = newMap;
+            char normTitle[256];
+            normalizeTitle(gWikiArticles[gWikiArticleCount].title, normTitle, sizeof(normTitle));
+            strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title)-1);
+            strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[gWikiArticleCount].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath)-1);
+            gWikiLinkMapSize++;
+        }
+
         strncpy(gWikiArticles[gWikiArticleCount].filepath, fullPath, sizeof(gWikiArticles[gWikiArticleCount].filepath) - 1);
         gWikiArticles[gWikiArticleCount].filepath[sizeof(gWikiArticles[gWikiArticleCount].filepath) - 1] = '\0';
         gWikiArticleCount++;
     }
     fileNameListFree(&foundFiles, 0);
+}
+
+// Draw a line that may contain [[links]]; does not word wrap.
+static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, int lineIndex)
+{
+    int x = PIPBOY_WINDOW_CONTENT_VIEW_X + 8 + indent;
+    int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + lineIndex * fontGetLineHeight();
+    const char* p = line;
+    char buffer[512];
+    int bufPos = 0;
+    
+    while (*p) {
+        if (p[0] == '[' && p[1] == '[') {
+            // Flush pending normal text
+            if (bufPos > 0) {
+                buffer[bufPos] = '\0';
+                fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
+                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
+                x += fontGetStringWidth(buffer);
+                bufPos = 0;
+            }
+            const char* end = strstr(p + 2, "]]");
+            if (end) {
+                int len = end - (p + 2);
+                char linkText[256];
+                strncpy(linkText, p + 2, len);
+                linkText[len] = '\0';
+                
+                // Record link rectangle
+                int linkWidth = fontGetStringWidth(linkText);
+                WikiPageLink* newLinks = (WikiPageLink*)internal_realloc(gWikiPageLinks, sizeof(WikiPageLink) * (gWikiPageLinkCount + 1));
+                if (newLinks) {
+                    gWikiPageLinks = newLinks;
+                    strncpy(gWikiPageLinks[gWikiPageLinkCount].targetTitle, linkText, sizeof(gWikiPageLinks[gWikiPageLinkCount].targetTitle)-1);
+                    gWikiPageLinks[gWikiPageLinkCount].x = x;
+                    gWikiPageLinks[gWikiPageLinkCount].y = y;
+                    gWikiPageLinks[gWikiPageLinkCount].width = linkWidth;
+                    gWikiPageLinks[gWikiPageLinkCount].height = fontGetLineHeight();
+                    gWikiPageLinkCount++;
+                }
+                // Draw link (yellow? + underline)
+                fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
+                             linkText, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                             _colorTable[32747] | FONT_UNDERLINE);
+                x += linkWidth;
+                p = end + 2;
+            } else {
+                buffer[bufPos++] = *p++;
+            }
+        } else {
+            buffer[bufPos++] = *p++;
+            if (bufPos >= (int)sizeof(buffer)-1) break;
+        }
+    }
+    // Flush remaining text
+    if (bufPos > 0) {
+        buffer[bufPos] = '\0';
+        fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
+                     buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
+    }
 }
 
 // Helper: returns indent in pixels if line starts with list marker
@@ -5023,6 +5199,8 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
 // Renders an article with word wrap and pagination
 static void wikiRenderArticle(int articleIdx, int page)
 {
+    wikiClearPageLinks();
+    wikiDestroyLinkButtons();
     const int LINES_PER_PAGE = 32; // Conservative for now - we are not counting wordwrapped lines
 
     File* f = fileOpen(gWikiArticles[articleIdx].filepath, "rt");
@@ -5067,6 +5245,10 @@ static void wikiRenderArticle(int articleIdx, int page)
         _colorTable[992]);
     gPipboyCurrentLine = 2;
 
+    // Clear previous page links and buttons
+    wikiClearPageLinks();
+    wikiDestroyLinkButtons();
+
     int start = page * LINES_PER_PAGE;
     int end = start + LINES_PER_PAGE;
     if (end > lineCount) end = lineCount;
@@ -5075,16 +5257,22 @@ static void wikiRenderArticle(int articleIdx, int page)
         char* line = lines[i];
         int indent = wikiGetListIndent(line);
         char* content = line;
-
         if (indent > 0) {
-            // Skip the list marker (e.g., "- " or "* ") so it's not parsed as formatting
-            while (*content == ' ')
-                content++; // skip any leading spaces
-            content += 2; // skip the marker and the following space
+            while (*content == ' ') content++;
+            content += 2; // skip "- " or "* "
         }
-
-        wikiDrawFormattedLine(content, indent, _colorTable[992]);
+        if (strstr(content, "[[") != nullptr) {
+            // Line contains a link - draw without word wrap
+            wikiDrawLineWithLinks(content, indent, _colorTable[992], gPipboyCurrentLine);
+            gPipboyCurrentLine++;
+        } else {
+            // Use existing formatted drawing (bold/italic, word wrap)
+            wikiDrawFormattedLine(content, indent, _colorTable[992]);
+        }
     }
+
+    // After drawing all lines, create buttons for detected links
+    wikiCreateLinkButtons();
 
     // Pagination display
     if (gWikiArticleTotalPages > 1) {
@@ -5122,6 +5310,7 @@ static void pipboyHandleWiki(int userInput)
                 } else {
                     // First page - exit to list
                     soundPlayFile("ib1p1xx1");
+                    wikiDestroyLinkButtons();
                     gWikiInArticle = false;
                     pipboyHandleWiki(1024);
                 }
@@ -5136,8 +5325,33 @@ static void pipboyHandleWiki(int userInput)
                 } else {
                     // Last page - exit to list
                     soundPlayFile("ib1p1xx1");
+                    wikiDestroyLinkButtons();
                     gWikiInArticle = false;
                     pipboyHandleWiki(1024);
+                }
+            }
+            return;
+        }
+
+        // Handle link button clicks
+        if (userInput >= 2000 && userInput < 2000 + gLinkButtonCount) {
+            int linkIdx = userInput - 2000;
+            if (linkIdx >= 0 && linkIdx < gWikiPageLinkCount) {
+                char normTarget[256];
+                normalizeTitle(gWikiPageLinks[linkIdx].targetTitle, normTarget, sizeof(normTarget));
+                // Look up target in link map
+                for (int i = 0; i < gWikiLinkMapSize; i++) {
+                    if (strcmp(gWikiLinkMap[i].title, normTarget) == 0) {
+                        // Switch to target article
+                        soundPlayFile("ib1p1xx1");
+                        gWikiCurrentArticleIndex = i;
+                        gWikiCurrentPage = 0;
+                        gWikiArticlePage = 0;
+                        // Re-render article (this will destroy old buttons and create new ones)
+                        wikiRenderArticle(gWikiCurrentArticleIndex, 0);
+                        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+                        break;
+                    }
                 }
             }
             return;
@@ -5146,6 +5360,7 @@ static void pipboyHandleWiki(int userInput)
         // Other keys in article mode
         if (userInput == 1024 || userInput == PIPBOY_KEY_SELECT) {
             soundPlayFile("ib1p1xx1");
+            wikiDestroyLinkButtons();
             gWikiInArticle = false;
             pipboyHandleWiki(1024);
             return;
@@ -5158,6 +5373,7 @@ static void pipboyHandleWiki(int userInput)
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
                 // At first page, left arrow also exits
+                wikiDestroyLinkButtons();
                 soundPlayFile("ib1p1xx1");
                 gWikiInArticle = false;
                 pipboyHandleWiki(1024);
@@ -5172,6 +5388,7 @@ static void pipboyHandleWiki(int userInput)
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
                 // At last page, right arrow also exits
+                wikiDestroyLinkButtons();
                 soundPlayFile("ib1p1xx1");
                 gWikiInArticle = false;
                 pipboyHandleWiki(1024);
