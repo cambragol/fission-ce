@@ -4891,9 +4891,10 @@ static void wikiScanFolder()
 static int wikiGetListIndent(const char* line)
 {
     // Skip leading spaces
-    while (*line == ' ') line++;
+    while (*line == ' ')
+        line++;
     if ((line[0] == '-' || line[0] == '*') && line[1] == ' ')
-        return 15;  // indent width in pixels
+        return 15; // indent width in pixels
     return 0;
 }
 
@@ -4904,19 +4905,16 @@ static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseCol
     char buffer[512];
     int bufPos = 0;
 
-    while (*p)
-    {
+    while (*p) {
         // Bold start
-        if (*p == '*' && !*inBold)
-        {
-            if (bufPos > 0)
-            {
+        if (*p == '*' && !*inBold) {
+            if (bufPos > 0) {
                 buffer[bufPos] = '\0';
                 int color = *inUnderline ? baseColor : (*inBold ? _colorTable[32747] : baseColor);
                 int flags = *inUnderline ? FONT_UNDERLINE : 0;
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                             color | flags);
+                    buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                    color | flags);
                 x += fontGetStringWidth(buffer);
                 bufPos = 0;
             }
@@ -4924,16 +4922,14 @@ static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseCol
             p++;
         }
         // Bold end
-        else if (*p == '*' && *inBold)
-        {
-            if (bufPos > 0)
-            {
+        else if (*p == '*' && *inBold) {
+            if (bufPos > 0) {
                 buffer[bufPos] = '\0';
                 int color = *inUnderline ? baseColor : (*inBold ? _colorTable[32747] : baseColor);
                 int flags = *inUnderline ? FONT_UNDERLINE : 0;
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                             color | flags);
+                    buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                    color | flags);
                 x += fontGetStringWidth(buffer);
                 bufPos = 0;
             }
@@ -4941,16 +4937,14 @@ static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseCol
             p++;
         }
         // Underline start
-        else if (*p == '_' && !*inUnderline)
-        {
-            if (bufPos > 0)
-            {
+        else if (*p == '_' && !*inUnderline) {
+            if (bufPos > 0) {
                 buffer[bufPos] = '\0';
                 int color = *inUnderline ? baseColor : (*inBold ? _colorTable[32747] : baseColor);
                 int flags = *inUnderline ? FONT_UNDERLINE : 0;
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                             color | flags);
+                    buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                    color | flags);
                 x += fontGetStringWidth(buffer);
                 bufPos = 0;
             }
@@ -4958,38 +4952,33 @@ static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseCol
             p++;
         }
         // Underline end
-        else if (*p == '_' && *inUnderline)
-        {
-            if (bufPos > 0)
-            {
+        else if (*p == '_' && *inUnderline) {
+            if (bufPos > 0) {
                 buffer[bufPos] = '\0';
                 int color = *inUnderline ? baseColor : (*inBold ? _colorTable[32747] : baseColor);
                 int flags = *inUnderline ? FONT_UNDERLINE : 0;
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                             color | flags);
+                    buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                    color | flags);
                 x += fontGetStringWidth(buffer);
                 bufPos = 0;
             }
             *inUnderline = false;
             p++;
-        }
-        else
-        {
+        } else {
             buffer[bufPos++] = *p++;
             if (bufPos >= (int)sizeof(buffer) - 1) break;
         }
     }
 
     // Flush remaining text in this segment
-    if (bufPos > 0)
-    {
+    if (bufPos > 0) {
         buffer[bufPos] = '\0';
         int color = *inUnderline ? baseColor : (*inBold ? _colorTable[32747] : baseColor);
         int flags = *inUnderline ? FONT_UNDERLINE : 0;
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                     buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                     color | flags);
+            buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+            color | flags);
     }
 }
 
@@ -4997,8 +4986,7 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
 {
     short wraps[WORD_WRAP_MAX_COUNT];
     short wrapCount;
-    if (wordWrap(line, 350 - indent, wraps, &wrapCount) != 0)
-    {
+    if (wordWrap(line, 350 - indent, wraps, &wrapCount) != 0) {
         // Word wrap failed - draw as a single segment without wrapping
         int x = PIPBOY_WINDOW_CONTENT_VIEW_X + 8 + indent;
         int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + gPipboyCurrentLine * fontGetLineHeight();
@@ -5012,8 +5000,7 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
     bool inUnderline = false;
     int startIdx = 0;
 
-    for (int seg = 0; seg < wrapCount - 1; seg++)
-    {
+    for (int seg = 0; seg < wrapCount - 1; seg++) {
         int endIdx = wraps[seg + 1];
         // Extract the substring for this segment
         char segment[512];
@@ -5031,7 +5018,6 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
         gPipboyCurrentLine++;
         startIdx = endIdx;
     }
-    
 }
 
 // Renders an article with word wrap and pagination
@@ -5050,10 +5036,11 @@ static void wikiRenderArticle(int articleIdx, int page)
     char* lines[500];
     lineCount = 0;
     char buf[256];
-    while (fileReadString(buf, sizeof(buf)-1, f) && lineCount < 500)
-    {
-        char* nl = strchr(buf, '\n'); if (nl) *nl = '\0';
-        char* cr = strchr(buf, '\r'); if (cr) *cr = '\0';
+    while (fileReadString(buf, sizeof(buf) - 1, f) && lineCount < 500) {
+        char* nl = strchr(buf, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(buf, '\r');
+        if (cr) *cr = '\0';
         lines[lineCount] = internal_strdup(buf);
         lineCount++;
     }
@@ -5076,38 +5063,36 @@ static void wikiRenderArticle(int articleIdx, int page)
 
     gPipboyCurrentLine = 0;
     pipboyDrawText(gWikiArticles[articleIdx].title,
-                   PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
-                   _colorTable[992]);
+        PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
+        _colorTable[992]);
     gPipboyCurrentLine = 2;
 
     int start = page * LINES_PER_PAGE;
     int end = start + LINES_PER_PAGE;
     if (end > lineCount) end = lineCount;
 
-    for (int i = start; i < end; i++)
-    {
+    for (int i = start; i < end; i++) {
         char* line = lines[i];
         int indent = wikiGetListIndent(line);
         char* content = line;
 
-        if (indent > 0)
-        {
+        if (indent > 0) {
             // Skip the list marker (e.g., "- " or "* ") so it's not parsed as formatting
-            while (*content == ' ') content++;  // skip any leading spaces
-            content += 2;  // skip the marker and the following space
+            while (*content == ' ')
+                content++; // skip any leading spaces
+            content += 2; // skip the marker and the following space
         }
 
         wikiDrawFormattedLine(content, indent, _colorTable[992]);
     }
 
     // Pagination display
-    if (gWikiArticleTotalPages > 1)
-    {
+    if (gWikiArticleTotalPages > 1) {
         char ptext[32];
         snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gWikiArticleTotalPages);
         int len = fontGetStringWidth(ptext);
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
-                     ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
+            ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
     }
 
     renderNavigationButtons(page, gWikiArticleTotalPages, true);
