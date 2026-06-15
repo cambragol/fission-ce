@@ -525,14 +525,16 @@ static void normalizeTitle(const char* src, char* dest, size_t destSize)
     char temp[256];
     strncpy(temp, src, sizeof(temp) - 1);
     temp[sizeof(temp) - 1] = '\0';
-    
+
     // Trim leading/trailing spaces
     char* start = temp;
-    while (*start == ' ') start++;
+    while (*start == ' ')
+        start++;
     char* end = start + strlen(start) - 1;
-    while (end > start && *end == ' ') end--;
+    while (end > start && *end == ' ')
+        end--;
     *(end + 1) = '\0';
-    
+
     // To lowercase
     for (int i = 0; start[i]; i++)
         dest[i] = tolower(start[i]);
@@ -577,12 +579,12 @@ static void wikiCreateLinkButtons()
     for (int i = 0; i < gWikiPageLinkCount && gLinkButtonCount < 256; i++) {
         WikiPageLink* link = &gWikiPageLinks[i];
         int btn = buttonCreate(gPipboyWindow,
-                               link->x, link->y,
-                               link->width, link->height,
-                               -1, -1, -1,
-                               eventCode,
-                               nullptr, nullptr, nullptr,
-                               BUTTON_FLAG_TRANSPARENT);
+            link->x, link->y,
+            link->width, link->height,
+            -1, -1, -1,
+            eventCode,
+            nullptr, nullptr, nullptr,
+            BUTTON_FLAG_TRANSPARENT);
         if (btn != -1) {
             gLinkButtonIds[gLinkButtonCount++] = btn;
         }
@@ -4991,8 +4993,8 @@ static void wikiScanFolder()
             gWikiLinkMap = newMap;
             char normTitle[256];
             normalizeTitle(gWikiArticles[gWikiArticleCount].title, normTitle, sizeof(normTitle));
-            strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title)-1);
-            strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[gWikiArticleCount].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath)-1);
+            strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title) - 1);
+            strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[gWikiArticleCount].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath) - 1);
             gWikiLinkMapSize++;
         }
 
@@ -5011,14 +5013,14 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
     const char* p = line;
     char buffer[512];
     int bufPos = 0;
-    
+
     while (*p) {
         if (p[0] == '[' && p[1] == '[') {
             // Flush pending normal text
             if (bufPos > 0) {
                 buffer[bufPos] = '\0';
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
+                    buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
                 x += fontGetStringWidth(buffer);
                 bufPos = 0;
             }
@@ -5028,13 +5030,13 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
                 char linkText[256];
                 strncpy(linkText, p + 2, len);
                 linkText[len] = '\0';
-                
+
                 // Record link rectangle
                 int linkWidth = fontGetStringWidth(linkText);
                 WikiPageLink* newLinks = (WikiPageLink*)internal_realloc(gWikiPageLinks, sizeof(WikiPageLink) * (gWikiPageLinkCount + 1));
                 if (newLinks) {
                     gWikiPageLinks = newLinks;
-                    strncpy(gWikiPageLinks[gWikiPageLinkCount].targetTitle, linkText, sizeof(gWikiPageLinks[gWikiPageLinkCount].targetTitle)-1);
+                    strncpy(gWikiPageLinks[gWikiPageLinkCount].targetTitle, linkText, sizeof(gWikiPageLinks[gWikiPageLinkCount].targetTitle) - 1);
                     gWikiPageLinks[gWikiPageLinkCount].x = x;
                     gWikiPageLinks[gWikiPageLinkCount].y = y;
                     gWikiPageLinks[gWikiPageLinkCount].width = linkWidth;
@@ -5043,8 +5045,8 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
                 }
                 // Draw link (yellow? + underline)
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                             linkText, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
-                             _colorTable[32747] | FONT_UNDERLINE);
+                    linkText, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH,
+                    _colorTable[32747] | FONT_UNDERLINE);
                 x += linkWidth;
                 p = end + 2;
             } else {
@@ -5052,14 +5054,14 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
             }
         } else {
             buffer[bufPos++] = *p++;
-            if (bufPos >= (int)sizeof(buffer)-1) break;
+            if (bufPos >= (int)sizeof(buffer) - 1) break;
         }
     }
     // Flush remaining text
     if (bufPos > 0) {
         buffer[bufPos] = '\0';
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
-                     buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
+            buffer, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, baseColor);
     }
 }
 
@@ -5258,7 +5260,8 @@ static void wikiRenderArticle(int articleIdx, int page)
         int indent = wikiGetListIndent(line);
         char* content = line;
         if (indent > 0) {
-            while (*content == ' ') content++;
+            while (*content == ' ')
+                content++;
             content += 2; // skip "- " or "* "
         }
         if (strstr(content, "[[") != nullptr) {
