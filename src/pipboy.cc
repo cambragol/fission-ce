@@ -4949,16 +4949,17 @@ static void wikiScanFolder()
         gWikiArticles = nullptr;
     }
     gWikiArticleCount = 0;
-    
+
     wikiFreeLinkMap();
     wikiClearPageLinks();
     wikiDestroyLinkButtons();
 
     // Normalize language to lowercase
     char langLower[64];
-    strncpy(langLower, settings.system.language.c_str(), sizeof(langLower)-1);
-    langLower[sizeof(langLower)-1] = '\0';
-    for (int i = 0; langLower[i]; i++) langLower[i] = tolower(langLower[i]);
+    strncpy(langLower, settings.system.language.c_str(), sizeof(langLower) - 1);
+    langLower[sizeof(langLower) - 1] = '\0';
+    for (int i = 0; langLower[i]; i++)
+        langLower[i] = tolower(langLower[i]);
 
     char folderPath[COMPAT_MAX_PATH];
     char** foundFiles = nullptr;
@@ -4969,14 +4970,14 @@ static void wikiScanFolder()
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
     fileCount = fileNameListInit(searchPattern, &foundFiles);
-    
+
     // Fallback to English if language folder not found and not already English
     if (fileCount == 0 && strcmp(langLower, "english") != 0) {
         snprintf(folderPath, sizeof(folderPath), "text%cenglish%cwiki%c", DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
         snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
         fileCount = fileNameListInit(searchPattern, &foundFiles);
     }
-    
+
     if (fileCount <= 0) return;
 
     // Temporary storage for unique articles
@@ -5002,8 +5003,10 @@ static void wikiScanFolder()
         }
 
         // Remove trailing newline/CR
-        char* nl = strchr(firstLine, '\n'); if (nl) *nl = '\0';
-        char* cr = strchr(firstLine, '\r'); if (cr) *cr = '\0';
+        char* nl = strchr(firstLine, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(firstLine, '\r');
+        if (cr) *cr = '\0';
 
         // Normalize title for duplicate check - duplicates to be ignored
         char normTitle[256];
@@ -5026,10 +5029,10 @@ static void wikiScanFolder()
         }
 
         // Stroe article
-        strncpy(tempArticles[tempCount].title, firstLine, sizeof(tempArticles[tempCount].title)-1);
-        tempArticles[tempCount].title[sizeof(tempArticles[tempCount].title)-1] = '\0';
-        strncpy(tempArticles[tempCount].filepath, fullPath, sizeof(tempArticles[tempCount].filepath)-1);
-        tempArticles[tempCount].filepath[sizeof(tempArticles[tempCount].filepath)-1] = '\0';
+        strncpy(tempArticles[tempCount].title, firstLine, sizeof(tempArticles[tempCount].title) - 1);
+        tempArticles[tempCount].title[sizeof(tempArticles[tempCount].title) - 1] = '\0';
+        strncpy(tempArticles[tempCount].filepath, fullPath, sizeof(tempArticles[tempCount].filepath) - 1);
+        tempArticles[tempCount].filepath[sizeof(tempArticles[tempCount].filepath) - 1] = '\0';
         tempCount++;
 
         fileClose(f);
@@ -5051,8 +5054,8 @@ static void wikiScanFolder()
                 WikiLinkEntry* newMap = (WikiLinkEntry*)internal_realloc(gWikiLinkMap, sizeof(WikiLinkEntry) * (gWikiLinkMapSize + 1));
                 if (newMap) {
                     gWikiLinkMap = newMap;
-                    strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title)-1);
-                    strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[i].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath)-1);
+                    strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title) - 1);
+                    strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[i].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath) - 1);
                     gWikiLinkMapSize++;
                 }
             }
