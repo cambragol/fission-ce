@@ -4949,60 +4949,117 @@ static void wikiScanFolder()
         gWikiArticles = nullptr;
     }
     gWikiArticleCount = 0;
-
+    
     wikiFreeLinkMap();
+    wikiClearPageLinks();
+    wikiDestroyLinkButtons();
 
-    char searchPattern[COMPAT_MAX_PATH];
-    snprintf(searchPattern, sizeof(searchPattern), "wiki%c*.txt", DIR_SEPARATOR);
+    // Normalize language to lowercase
+    char langLower[64];
+    strncpy(langLower, settings.system.language.c_str(), sizeof(langLower)-1);
+    langLower[sizeof(langLower)-1] = '\0';
+    for (int i = 0; langLower[i]; i++) langLower[i] = tolower(langLower[i]);
 
+    char folderPath[COMPAT_MAX_PATH];
     char** foundFiles = nullptr;
-    int fileCount = fileNameListInit(searchPattern, &foundFiles);
+    int fileCount = 0;
+
+    // Try language-specific subfolder
+    snprintf(folderPath, sizeof(folderPath), "text%c%s%cwiki%c", DIR_SEPARATOR, langLower, DIR_SEPARATOR, DIR_SEPARATOR);
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
+    fileCount = fileNameListInit(searchPattern, &foundFiles);
+    
+    // Fallback to English if language folder not found and not already English
+    if (fileCount == 0 && strcmp(langLower, "english") != 0) {
+        snprintf(folderPath, sizeof(folderPath), "text%cenglish%cwiki%c", DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
+        snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
+        fileCount = fileNameListInit(searchPattern, &foundFiles);
+    }
+    
     if (fileCount <= 0) return;
 
-    gWikiArticles = (WikiArticle*)internal_malloc(sizeof(WikiArticle) * fileCount);
-    if (!gWikiArticles) {
+    // Temporary storage for unique articles
+    WikiArticle* tempArticles = (WikiArticle*)internal_malloc(sizeof(WikiArticle) * fileCount);
+    if (!tempArticles) {
         fileNameListFree(&foundFiles, 0);
         return;
     }
+    int tempCount = 0;
 
     for (int i = 0; i < fileCount; i++) {
+        // Build full virtual path: folderPath + filename
         char fullPath[COMPAT_MAX_PATH];
-        snprintf(fullPath, sizeof(fullPath), "wiki%c%s", DIR_SEPARATOR, foundFiles[i]);
+        snprintf(fullPath, sizeof(fullPath), "%s%s", folderPath, foundFiles[i]);
 
         File* f = fileOpen(fullPath, "rt");
-        if (f) {
-            char firstLine[256];
-            if (fileReadString(firstLine, sizeof(firstLine) - 1, f)) {
-                // Remove trailing newline/cr
-                char* nl = strchr(firstLine, '\n');
-                if (nl) *nl = '\0';
-                char* cr = strchr(firstLine, '\r');
-                if (cr) *cr = '\0';
-                strncpy(gWikiArticles[gWikiArticleCount].title, firstLine, sizeof(gWikiArticles[gWikiArticleCount].title) - 1);
-                gWikiArticles[gWikiArticleCount].title[sizeof(gWikiArticles[gWikiArticleCount].title) - 1] = '\0';
-            } else {
-                strcpy(gWikiArticles[gWikiArticleCount].title, "Untitled");
-            }
+        if (!f) continue;
+
+        char firstLine[256];
+        if (!fileReadString(firstLine, sizeof(firstLine) - 1, f)) {
             fileClose(f);
-        } else {
-            strcpy(gWikiArticles[gWikiArticleCount].title, "Untitled");
-        }
-        // Add to link map
-        WikiLinkEntry* newMap = (WikiLinkEntry*)internal_realloc(gWikiLinkMap, sizeof(WikiLinkEntry) * (gWikiLinkMapSize + 1));
-        if (newMap) {
-            gWikiLinkMap = newMap;
-            char normTitle[256];
-            normalizeTitle(gWikiArticles[gWikiArticleCount].title, normTitle, sizeof(normTitle));
-            strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title) - 1);
-            strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[gWikiArticleCount].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath) - 1);
-            gWikiLinkMapSize++;
+            continue;
         }
 
-        strncpy(gWikiArticles[gWikiArticleCount].filepath, fullPath, sizeof(gWikiArticles[gWikiArticleCount].filepath) - 1);
-        gWikiArticles[gWikiArticleCount].filepath[sizeof(gWikiArticles[gWikiArticleCount].filepath) - 1] = '\0';
-        gWikiArticleCount++;
+        // Remove trailing newline/CR
+        char* nl = strchr(firstLine, '\n'); if (nl) *nl = '\0';
+        char* cr = strchr(firstLine, '\r'); if (cr) *cr = '\0';
+
+        // Normalize title for duplicate check - duplicates to be ignored
+        char normTitle[256];
+        normalizeTitle(firstLine, normTitle, sizeof(normTitle));
+
+        // Check duplicate
+        bool duplicate = false;
+        for (int j = 0; j < tempCount; j++) {
+            char existingNorm[256];
+            normalizeTitle(tempArticles[j].title, existingNorm, sizeof(existingNorm));
+            if (strcmp(existingNorm, normTitle) == 0) {
+                duplicate = true;
+                break;
+            }
+        }
+
+        if (duplicate) {
+            fileClose(f);
+            continue; // just skip duplicate
+        }
+
+        // Stroe article
+        strncpy(tempArticles[tempCount].title, firstLine, sizeof(tempArticles[tempCount].title)-1);
+        tempArticles[tempCount].title[sizeof(tempArticles[tempCount].title)-1] = '\0';
+        strncpy(tempArticles[tempCount].filepath, fullPath, sizeof(tempArticles[tempCount].filepath)-1);
+        tempArticles[tempCount].filepath[sizeof(tempArticles[tempCount].filepath)-1] = '\0';
+        tempCount++;
+
+        fileClose(f);
     }
+
     fileNameListFree(&foundFiles, 0);
+
+    // Build final gWikiArticles and link map
+    if (tempCount > 0) {
+        gWikiArticles = (WikiArticle*)internal_malloc(sizeof(WikiArticle) * tempCount);
+        if (gWikiArticles) {
+            memcpy(gWikiArticles, tempArticles, sizeof(WikiArticle) * tempCount);
+            gWikiArticleCount = tempCount;
+
+            // Build link map
+            for (int i = 0; i < tempCount; i++) {
+                char normTitle[256];
+                normalizeTitle(gWikiArticles[i].title, normTitle, sizeof(normTitle));
+                WikiLinkEntry* newMap = (WikiLinkEntry*)internal_realloc(gWikiLinkMap, sizeof(WikiLinkEntry) * (gWikiLinkMapSize + 1));
+                if (newMap) {
+                    gWikiLinkMap = newMap;
+                    strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title)-1);
+                    strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[i].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath)-1);
+                    gWikiLinkMapSize++;
+                }
+            }
+        }
+    }
+
+    internal_free(tempArticles);
 }
 
 // Draw a line that may contain [[links]]; does not word wrap.
