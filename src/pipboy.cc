@@ -109,6 +109,8 @@ static int gWikiCurrentArticleIndex = -1; // index of open article
 static int gWikiArticlePage = 0; // page within article
 static int gWikiArticleTotalPages = 0; // total pages of current article
 
+extern unsigned char _cmap[256 * 3];
+
 int lineCount = 0;
 
 typedef enum PipboyColumn {
@@ -5268,39 +5270,162 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
     }
 }
 
-// Renders an article with word wrap and pagination
+static int wikiGetImageHeight(const char* filename)
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "text%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+    Art* art = artLoad(path);
+    if (!art) return 0;
+    int width, height;
+    if (artGetSize(art, 0, 0, &width, &height) != 0) {
+        internal_free(art);
+        return 0;
+    }
+    internal_free(art);
+    int lineHeight = fontGetLineHeight();
+    int lines = (height + lineHeight - 1) / lineHeight;
+    if (lines < 1) lines = 1;
+    return lines;
+}
+
+static int wikiCountDisplayLines(const char* content, int indent)
+{
+    // Check for image tag
+    if (strncmp(content, "[img:", 5) == 0) {
+        const char* imgEnd = strchr(content + 5, ']');
+        if (imgEnd) {
+            char filename[256];
+            int len = imgEnd - (content + 5);
+            if (len > 0 && len < (int)sizeof(filename)-1) {
+                strncpy(filename, content + 5, len);
+                filename[len] = '\0';
+                return wikiGetImageHeight(filename);
+            }
+        }
+        return 1; // malformed, treat as one line
+    }
+
+    // Check for links (no word wrap)
+    if (strstr(content, "[[") != nullptr) {
+        return 1;
+    }
+
+    // Plain text: word wrap and count lines
+    short wraps[WORD_WRAP_MAX_COUNT];
+    short wrapCount;
+    int maxWidth = 350 - indent;
+    if (wordWrap(content, maxWidth, wraps, &wrapCount) == 0) {
+        int lines = wrapCount - 1;
+        if (lines < 1) lines = 1;
+        return lines;
+    }
+    return 1; // fallback
+}
+
+static void wikiRenderImage(const char* filename, int* currentLine)
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "text%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+
+    Art* art = artLoad(path);
+    if (!art) {
+        return;
+    }
+
+    int frame = 0;
+    int direction = 0;
+    int width, height;
+    if (artGetSize(art, frame, direction, &width, &height) != 0) {
+        internal_free(art);
+        return;
+    }
+
+    unsigned char* data = artGetFrameData(art, frame, direction);
+    if (!data) {
+        internal_free(art);
+        return;
+    }
+
+    // Clamp to content area
+    if (width > PIPBOY_WINDOW_CONTENT_VIEW_WIDTH)
+        width = PIPBOY_WINDOW_CONTENT_VIEW_WIDTH;
+    if (height > PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT)
+        height = PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT;
+
+    int x = PIPBOY_WINDOW_CONTENT_VIEW_X + (PIPBOY_WINDOW_CONTENT_VIEW_WIDTH - width) / 2;
+    int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + (*currentLine) * fontGetLineHeight();
+
+    // Use the Pip-Boy green colors - 2 for now
+    unsigned char brightGreen = (unsigned char)_colorTable[992];   // bright green
+    unsigned char darkGreen = (unsigned char)_colorTable[8804];    // dark green (disabled)
+
+    int frameWidth = artGetWidth(art, frame, direction);
+    int frameHeight = artGetHeight(art, frame, direction);
+
+    for (int row = 0; row < height && row < frameHeight; row++) {
+        // Scanline effect: skip even rows
+        if ((row % 2) == 0) continue;
+
+        int destY = y + row;
+        if (destY >= PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT)
+            break;
+
+        unsigned char* src = data + row * frameWidth;
+        for (int col = 0; col < width; col++) {
+            unsigned char idx = src[col];
+            if (idx == 0) continue; // transparent
+
+            int destX = x + col;
+            if (destX >= PIPBOY_WINDOW_CONTENT_VIEW_X + PIPBOY_WINDOW_CONTENT_VIEW_WIDTH)
+                break;
+
+            // Convert to luminance using the global palette
+            unsigned char* pal = &_cmap[idx * 3];
+            int luminance = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            unsigned char color = (luminance > 25) ? brightGreen : darkGreen;
+
+            int bufferIndex = destY * PIPBOY_WINDOW_WIDTH + destX;
+            gPipboyWindowBuffer[bufferIndex] = color;
+        }
+    }
+
+    // Advance the line counter
+    int lineHeight = fontGetLineHeight();
+    int linesOccupied = (height + lineHeight - 1) / lineHeight;
+    if (linesOccupied < 1) linesOccupied = 1;
+    *currentLine += linesOccupied;
+
+    internal_free(art);
+}
+
+static int wikiGetImageLineCount(const char* filename)
+{
+    char path[COMPAT_MAX_PATH];
+    snprintf(path, sizeof(path), "wiki%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+    Art* art = artLoad(path);
+    if (!art) return 0;
+    int width, height;
+    if (artGetSize(art, 0, 0, &width, &height) != 0) {
+        internal_free(art);
+        return 0;
+    }
+    internal_free(art);
+
+    if (width > PIPBOY_WINDOW_CONTENT_VIEW_WIDTH) {
+        // For now nothing --- resize? Clip?
+    }
+    int lineHeight = fontGetLineHeight();
+    int lines = (height + lineHeight - 1) / lineHeight;
+    if (lines < 1) lines = 1;
+    return lines;
+}
+
+// Renders an article with word wrap, pagination, links and images
 static void wikiRenderArticle(int articleIdx, int page)
 {
+    // Clear old links and buttons
     wikiClearPageLinks();
     wikiDestroyLinkButtons();
-    const int LINES_PER_PAGE = 32; // Conservative for now - we are not counting wordwrapped lines
-
-    File* f = fileOpen(gWikiArticles[articleIdx].filepath, "rt");
-    if (!f) return;
-
-    // Skip the first line (title already stored in gWikiArticles[articleIdx].title)
-    char dummy[256];
-    fileReadString(dummy, sizeof(dummy), f);
-
-    // Read all remaining lines
-    char* lines[500];
-    lineCount = 0;
-    char buf[256];
-    while (fileReadString(buf, sizeof(buf) - 1, f) && lineCount < 500) {
-        char* nl = strchr(buf, '\n');
-        if (nl) *nl = '\0';
-        char* cr = strchr(buf, '\r');
-        if (cr) *cr = '\0';
-        lines[lineCount] = internal_strdup(buf);
-        lineCount++;
-    }
-    fileClose(f);
-
-    // Pagination
-    gWikiArticleTotalPages = (lineCount + LINES_PER_PAGE - 1) / LINES_PER_PAGE;
-    if (page >= gWikiArticleTotalPages) page = gWikiArticleTotalPages - 1;
-    if (page < 0) page = 0;
-    gWikiArticlePage = page;
 
     // Clear content area
     blitBufferToBuffer(
@@ -5311,55 +5436,153 @@ static void wikiRenderArticle(int articleIdx, int page)
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_WIDTH);
 
+    File* f = fileOpen(gWikiArticles[articleIdx].filepath, "rt");
+    if (!f) return;
+
+    // Skip the first line (title already stored in gWikiArticles[articleIdx].title)
+    char dummy[256];
+    if (!fileReadString(dummy, sizeof(dummy), f)) {
+        fileClose(f);
+        return;
+    }
+
+    // Read all remaining lines
+    char* lines[500];
+    int lineCount = 0;
+    char buf[256];
+    while (fileReadString(buf, sizeof(buf)-1, f) && lineCount < 500) {
+        char* nl = strchr(buf, '\n'); if (nl) *nl = '\0';
+        char* cr = strchr(buf, '\r'); if (cr) *cr = '\0';
+        lines[lineCount] = internal_strdup(buf);
+        lineCount++;
+    }
+    fileClose(f);
+
+    if (lineCount == 0) {
+        // No content - draw a placeholder? 
+        const char* msg = "Empty article.";
+        pipboyDrawText(msg, PIPBOY_TEXT_ALIGNMENT_CENTER, _colorTable[992]);
+        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+        return;
+    }
+
+    // Build pagination table based on display lines
+    const int LINES_PER_PAGE = 37;
+
+    // Store page start line indices and display line counts per page
+    struct PageInfo { int startLine; int displayLines; };
+    PageInfo pages[100]; // should be enough
+    int pageCount = 0;
+
+    int curLine = 0;
+    while (curLine < lineCount) {
+        pages[pageCount].startLine = curLine;
+        int displayLinesUsed = 0;
+
+        while (curLine < lineCount && displayLinesUsed < LINES_PER_PAGE) {
+            char* rawLine = lines[curLine];
+            // Determine indent and content
+            int indent = wikiGetListIndent(rawLine);
+            char* content = rawLine;
+            if (indent > 0) {
+                while (*content == ' ') content++;
+                content += 2; // skip "- " or "* "
+            }
+            int dl = wikiCountDisplayLines(content, indent);
+            if (displayLinesUsed + dl <= LINES_PER_PAGE || displayLinesUsed == 0) {
+                // We can fit this line (or it's the first line, so we must include at least one)
+                displayLinesUsed += dl;
+                curLine++;
+            } else {
+                // This line doesn't fit - start a new page
+                break;
+            }
+        }
+        pages[pageCount].displayLines = displayLinesUsed;
+        pageCount++;
+        if (pageCount >= 100) break;
+    }
+
+    gWikiArticleTotalPages = pageCount;
+    if (page >= pageCount) page = pageCount - 1;
+    if (page < 0) page = 0;
+    gWikiArticlePage = page;
+
+    // Draw title
     gPipboyCurrentLine = 0;
     pipboyDrawText(gWikiArticles[articleIdx].title,
-        PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
-        _colorTable[992]);
-    gPipboyCurrentLine = 2;
+                   PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
+                   _colorTable[992]);
+    gPipboyCurrentLine = 2; // one blank line
 
-    // Clear previous page links and buttons
-    wikiClearPageLinks();
-    wikiDestroyLinkButtons();
+    // Draw content for this page
+    int startLine = pages[page].startLine;
+    int endLine = (page < pageCount - 1) ? pages[page + 1].startLine : lineCount;
+    int maxLines = pages[page].displayLines;
+    int drawn = 0;
 
-    int start = page * LINES_PER_PAGE;
-    int end = start + LINES_PER_PAGE;
-    if (end > lineCount) end = lineCount;
-
-    for (int i = start; i < end; i++) {
-        char* line = lines[i];
-        int indent = wikiGetListIndent(line);
-        char* content = line;
+    for (int i = startLine; i < endLine && drawn < maxLines; i++) {
+        char* rawLine = lines[i];
+        int indent = wikiGetListIndent(rawLine);
+        char* content = rawLine;
         if (indent > 0) {
-            while (*content == ' ')
-                content++;
+            while (*content == ' ') content++;
             content += 2; // skip "- " or "* "
         }
+
+        // Check for image tag
+        if (strncmp(content, "[img:", 5) == 0) {
+            char* imgEnd = strchr(content + 5, ']');
+            if (imgEnd) {
+                char filename[256];
+                int len = imgEnd - (content + 5);
+                if (len > 0 && len < (int)sizeof(filename)-1) {
+                    strncpy(filename, content + 5, len);
+                    filename[len] = '\0';
+                    wikiRenderImage(filename, &gPipboyCurrentLine);
+                    // wikiRenderImage advances gPipboyCurrentLine by image lines
+                    drawn += wikiGetImageHeight(filename);
+                    if (drawn < 0) drawn = 0; // safety
+                    continue;
+                }
+            }
+            // fall through to text
+        }
+
+        // Not an image: draw as formatted text
         if (strstr(content, "[[") != nullptr) {
-            // Line contains a link - draw without word wrap
             wikiDrawLineWithLinks(content, indent, _colorTable[992], gPipboyCurrentLine);
             gPipboyCurrentLine++;
+            drawn++;
         } else {
-            // Use existing formatted drawing (bold/italic, word wrap)
+            // Use word-wrapped drawing (which may take multiple lines)
+            int before = gPipboyCurrentLine;
             wikiDrawFormattedLine(content, indent, _colorTable[992]);
+            int after = gPipboyCurrentLine;
+            drawn += (after - before);
         }
     }
 
-    // After drawing all lines, create buttons for detected links
-    wikiCreateLinkButtons();
-
-    // Pagination display
+    // Pagination info (top-right)
     if (gWikiArticleTotalPages > 1) {
         char ptext[32];
         snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gWikiArticleTotalPages);
         int len = fontGetStringWidth(ptext);
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
-            ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
+                     ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
     }
 
+    // Bottom navigation
     renderNavigationButtons(page, gWikiArticleTotalPages, true);
 
+    // Create link buttons (if any)
+    wikiCreateLinkButtons();
+
+    // Cleanup
     for (int i = 0; i < lineCount; i++)
         internal_free(lines[i]);
+
+    windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
 }
 
 // Main wiki handler - list and article navigation
