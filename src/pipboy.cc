@@ -197,6 +197,8 @@ typedef enum PipboyFrm {
     PIPBOY_FRM_ALARM_UP,
     PIPBOY_FRM_LOGO,
     PIPBOY_FRM_BOMB,
+    PIPBOY_FRM_WIKI_BUTTON_UP,
+    PIPBOY_FRM_WIKI_BUTTON_DOWN,
     PIPBOY_FRM_COUNT,
 } PipboyFrm;
 
@@ -289,17 +291,19 @@ const Rect gPipboyWindowContentRect = {
 
 // 0x496FD0
 const int gPipboyFrmIds[PIPBOY_FRM_COUNT] = {
-    8,
-    9,
-    82,
-    127,
-    128,
-    129,
-    130,
-    131,
-    132,
-    133,
-    226,
+    8,    // PIPBOY_FRM_LITTLE_RED_BUTTON_UP
+    9,    // PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN
+    82,   // PIPBOY_FRM_NUMBERS
+    127,  // PIPBOY_FRM_BACKGROUND
+    128,  // PIPBOY_FRM_NOTE
+    129,  // PIPBOY_FRM_MONTHS
+    130,  // PIPBOY_FRM_NOTE_NUMBERS
+    131,  // PIPBOY_FRM_ALARM_DOWN
+    132,  // PIPBOY_FRM_ALARM_UP
+    133,  // PIPBOY_FRM_LOGO
+    226,  // PIPBOY_FRM_BOMB
+    8177, // PIPBOY_FRM_WIKI_BUTTON_UP
+    7563, // PIPBOY_FRM_WIKI_BUTTON_DOWN
 };
 
 // 0x51C128
@@ -1165,22 +1169,29 @@ static int pipboyWindowInit(int intent)
 
     int y = 340;
     int eventCode = 500;
-    int yOffsets[] = { 27, 27, 29, 25, 27 }; // offsets for all 5 buttons
+    int yOffsets[5] = { 27, 27, 29, 25, 27 };
+
     for (int index = 0; index < 5; index++) {
+        // Choose up/down images: wiki tab (index 1) uses custom images, others use red button.
+        int upImage = (index == 1) ? PIPBOY_FRM_WIKI_BUTTON_UP : PIPBOY_FRM_LITTLE_RED_BUTTON_UP;
+        int downImage = (index == 1) ? PIPBOY_FRM_WIKI_BUTTON_DOWN : PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN;
+
         int btn = buttonCreate(gPipboyWindow,
             53,
             y,
-            _pipboyFrmImages[PIPBOY_FRM_LITTLE_RED_BUTTON_UP].getWidth(),
-            _pipboyFrmImages[PIPBOY_FRM_LITTLE_RED_BUTTON_UP].getHeight(),
+            _pipboyFrmImages[upImage].getWidth(),
+            _pipboyFrmImages[upImage].getHeight(),
             -1, -1, -1,
             eventCode,
-            _pipboyFrmImages[PIPBOY_FRM_LITTLE_RED_BUTTON_UP].getData(),
-            _pipboyFrmImages[PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN].getData(),
+            _pipboyFrmImages[upImage].getData(),
+            _pipboyFrmImages[downImage].getData(),
             nullptr,
             BUTTON_FLAG_TRANSPARENT);
+
         if (btn != -1) {
             buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
         }
+
         eventCode++;
         y += yOffsets[index];
     }
@@ -3810,7 +3821,6 @@ static void pipboyDrawHitPoints()
     fontDrawText(gPipboyWindowBuffer + 66 * PIPBOY_WINDOW_WIDTH + 254 + (350 - len) / 2, msg, PIPBOY_WINDOW_WIDTH, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
 }
 
-// 0x4998C0
 // 0x4998C0
 static void pipboyWindowCreateButtons(int start, int count, bool a3)
 {

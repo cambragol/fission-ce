@@ -33,3 +33,5 @@ INVDAUP.FRM         ; Drop All button up
 INVDADN.FRM         ; Drop All button down
 DI_DOWDS.FRM        ; Inventory Large down disabled button
 DI_UPDS.FRM         ; Inventory Large up disabled button
+PIPBBUUP.frm        ; Broken Pipboy up button
+PIPBBUDN.frm        ; Broken Pipboy down button
