@@ -111,6 +111,13 @@ static int gWikiArticleTotalPages = 0; // total pages of current article
 
 extern unsigned char _cmap[256 * 3];
 
+// Distortion effect for wiki first entry
+static int gWikiDistortionFrames = 0;
+static int gWikiDistortionMaxFrames = 20;
+static int gWikiDistortionAmplitude = 100;
+static unsigned char* gWikiDistortionBuffer = nullptr;
+static bool gWikiFirstEntry = true;
+
 int lineCount = 0;
 
 typedef enum PipboyColumn {
@@ -282,6 +289,9 @@ static void holodiskFree();
 
 static void questLoadModFileNew(const char* filename);
 static void pipboyHandleWiki(int userInput);
+
+static void wikiApplyDistortion();
+static void wikiResetDistortion();
 
 // 0x496FC0
 const Rect gPipboyWindowContentRect = {
@@ -1029,12 +1039,27 @@ int pipboyOpen(int intent)
         if (keyCode == KEY_F12) {
             takeScreenshot();
         } else if (keyCode >= 500 && keyCode <= 505) {
+            int newTab = keyCode - 500;
+            
+            // Clean up distortion if switching away from wiki
+            if (gPipboyTab == 1) {
+                wikiResetDistortion();
+            }
+            
             gPipboyPrevTab = gPipboyTab;
-            gPipboyTab = keyCode - 500;
-            _view_page_automap_main = 0; // ensures button click to automaps renders first page
-            _view_page_quest = 0; // ensures button click to quest renders first page
-            _view_page_holodisk = 0; // ensures button click to status renders first page
-            gWikiCurrentPage = 0; // ensures buton click to wiki renders first page
+            gPipboyTab = newTab;
+            
+            // Entering wiki tab, randomize effect and set flag
+            if (gPipboyTab == 1) {
+                gWikiDistortionMaxFrames = randomBetween(5, 10);
+                gWikiDistortionAmplitude = randomBetween(5, 200);
+                gWikiFirstEntry = true;
+            }
+            
+            _view_page_automap_main = 0;
+            _view_page_quest = 0;
+            _view_page_holodisk = 0;
+            gWikiCurrentPage = 0;
             _PipFnctn[gPipboyTab](1024);
         } else if (keyCode >= 506 && keyCode <= 528) {
             _PipFnctn[gPipboyTab](keyCode - 506);
@@ -1048,6 +1073,11 @@ int pipboyOpen(int intent)
 
         if (_proc_bail_flag) {
             break;
+        }
+
+        if (gWikiDistortionFrames > 0 && gWikiDistortionBuffer) {
+            wikiApplyDistortion();
+            windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         }
 
         renderPresent();
@@ -1329,6 +1359,8 @@ static void pipboyWindowFree()
     wikiFreeLinkMap();
     wikiClearPageLinks();
     wikiDestroyLinkButtons();
+
+    wikiResetDistortion();
 
     // NOTE: Uninline.
     questFree();
@@ -5270,6 +5302,115 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
     }
 }
 
+static void wikiResetDistortion()
+{
+    gWikiDistortionFrames = 0;
+    if (gWikiDistortionBuffer) {
+        internal_free(gWikiDistortionBuffer);
+        gWikiDistortionBuffer = nullptr;
+    }
+}
+
+static void wikiCaptureContentArea()
+{
+    wikiResetDistortion();
+    gWikiDistortionBuffer = (unsigned char*)internal_malloc(
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT
+    );
+    if (!gWikiDistortionBuffer) return;
+    blitBufferToBuffer(
+        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+        PIPBOY_WINDOW_WIDTH,
+        gWikiDistortionBuffer,
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH
+    );
+}
+
+static void wikiApplyDistortion()
+{
+    if (!gWikiDistortionBuffer || gWikiDistortionFrames <= 0) return;
+
+    // If this is the last frame, display the undistorted buffer and reset.
+    if (gWikiDistortionFrames == 1) {
+        // Clear content area to background
+        blitBufferToBuffer(
+            _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() +
+                PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+            PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+            PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+            PIPBOY_WINDOW_WIDTH,
+            gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+            PIPBOY_WINDOW_WIDTH
+        );
+        // Copy clean captured buffer (no distortion)
+        blitBufferToBuffer(
+            gWikiDistortionBuffer,
+            PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+            PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+            PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+            gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+            PIPBOY_WINDOW_WIDTH
+        );
+        gWikiDistortionFrames = 0;
+        return;
+    }
+
+    // Normal distortion for frames > 1
+    // Clear content area to background
+    blitBufferToBuffer(
+        _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() +
+            PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
+        PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
+        PIPBOY_WINDOW_WIDTH,
+        gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        PIPBOY_WINDOW_WIDTH
+    );
+
+    float progress = (float)gWikiDistortionFrames / gWikiDistortionMaxFrames;
+    float amplitude = (float)gWikiDistortionAmplitude * progress;
+    int contentW = PIPBOY_WINDOW_CONTENT_VIEW_WIDTH;
+    int contentH = PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT;
+
+    // Text colors (green shades used in wiki)
+    unsigned char textGreen1 = (unsigned char)_colorTable[992];
+    unsigned char textGreen2 = (unsigned char)_colorTable[32747];
+    unsigned char textGreen3 = (unsigned char)_colorTable[8804];
+
+    for (int row = 0; row < contentH; row++) {
+        float shift = amplitude * sinf(row * 0.15f + gWikiDistortionFrames * 0.5f);
+        int shiftPixels = (int)(shift + 0.5f);
+        if (shiftPixels < -contentW/2) shiftPixels = -contentW/2;
+        if (shiftPixels > contentW/2) shiftPixels = contentW/2;
+
+        unsigned char* srcRow = gWikiDistortionBuffer + row * contentW;
+        unsigned char* dstRow = gPipboyWindowBuffer +
+            (PIPBOY_WINDOW_CONTENT_VIEW_Y + row) * PIPBOY_WINDOW_WIDTH +
+            PIPBOY_WINDOW_CONTENT_VIEW_X;
+
+        if (shiftPixels >= 0) {
+            for (int col = 0; col < contentW - shiftPixels; col++) {
+                unsigned char pixel = srcRow[col];
+                if (pixel == textGreen1 || pixel == textGreen2 || pixel == textGreen3) {
+                    dstRow[col + shiftPixels] = pixel;
+                }
+            }
+        } else {
+            int offset = -shiftPixels;
+            for (int col = 0; col < contentW + shiftPixels; col++) {
+                unsigned char pixel = srcRow[col + offset];
+                if (pixel == textGreen1 || pixel == textGreen2 || pixel == textGreen3) {
+                    dstRow[col] = pixel;
+                }
+            }
+        }
+    }
+
+    gWikiDistortionFrames--;
+}
+
 static int wikiGetImageHeight(const char* filename)
 {
     char path[COMPAT_MAX_PATH];
@@ -5655,7 +5796,10 @@ static void pipboyHandleWiki(int userInput)
 
         // Other keys in article mode
         if (userInput == 1024 || userInput == PIPBOY_KEY_SELECT) {
-            soundPlayFile("ib1p1xx1");
+            if(userInput == PIPBOY_KEY_SELECT){
+                // Click when returning from subpages (PIPBOY_KEY_SELECT) - 1024 (Pipboy button click) handled elsewhere
+                soundPlayFile("ib1p1xx1");
+            } 
             wikiDestroyLinkButtons();
             gWikiInArticle = false;
             pipboyHandleWiki(1024);
@@ -5762,6 +5906,14 @@ static void pipboyHandleWiki(int userInput)
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         pipboyWindowCreateButtons(2, itemsOnPage, true);
         windowRefresh(gPipboyWindow);
+        windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+
+        // Capture for distortion if first entry
+        if (gWikiFirstEntry) {
+            gWikiFirstEntry = false;
+            wikiCaptureContentArea();
+            gWikiDistortionFrames = gWikiDistortionMaxFrames;
+        }
         return;
     }
 
