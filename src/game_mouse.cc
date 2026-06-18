@@ -344,6 +344,8 @@ static Object* gGameMousePointedObject;
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
 
+bool gBypassNoHighlight = false;
+
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
 static int gameMouseSetBouncingCursorFid(int fid);
@@ -551,16 +553,30 @@ bool HandleHoldToHighlight()
         if (!wasHighlighting) {
             wasHighlighting = true;
 
-            // Highlight all items
+            // Enable bypass for this batch
+            gBypassNoHighlight = true;
+
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
                 if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                    int outlineType = OUTLINE_TYPE_ITEM; // yellow
+
+                    // If it has OBJECT_NO_HIGHLIGHT, it's a container
+                    if (obj->flags & OBJECT_NO_HIGHLIGHT) {
+                        // Empty container? Use grey
+                        if (obj->data.inventory.length == 0) {
+                            outlineType = OUTLINE_TYPE_GREY;
+                        }
+                        // Non-empty container stays yellow (already set)
+                    }
+
                     Rect tmp;
-                    objectSetOutline(obj, OUTLINE_TYPE_ITEM, &tmp);
+                    objectSetOutline(obj, outlineType, &tmp);
                 }
                 obj = objectFindNextAtElevation();
             }
 
+            gBypassNoHighlight = false;  // Reset after batch
             tileWindowRefresh();
         }
     } else if (!shiftKeyPressed && keyProcessed) {
@@ -794,14 +810,26 @@ void gameMouseRefresh()
                     case OBJ_TYPE_ITEM:
                         primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
 
-                        // Don't set individual outline if we're mass highlighting
                         if (gGameMouseItemHighlightEnabled && !isMassHighlighting) {
+                            int outlineType = OUTLINE_TYPE_ITEM; // yellow
+
+                            // If it has OBJECT_NO_HIGHLIGHT, it's a container
+                            if (pointedObject->flags & OBJECT_NO_HIGHLIGHT) {
+                                if (pointedObject->data.inventory.length == 0) {
+                                    outlineType = OUTLINE_TYPE_GREY; // grey for empty
+                                }
+                            }
+
+                            gBypassNoHighlight = true;
+                            objectClearOutline(pointedObject, nullptr);
                             Rect tmp;
-                            if (objectSetOutline(pointedObject, OUTLINE_TYPE_ITEM, &tmp) == 0) {
+                            if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
                                 tileWindowRefreshRect(&tmp, gElevation);
                                 gGameMouseHighlightedItem = pointedObject;
                             }
+                            gBypassNoHighlight = false;
                         }
+                        break;
                         break;
                     case OBJ_TYPE_CRITTER:
                         if (pointedObject == gDude) {

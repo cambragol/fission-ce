@@ -38,11 +38,11 @@ enum {
 
 typedef enum OutlineType {
     OUTLINE_TYPE_HOSTILE = 1,
-    OUTLINE_TYPE_2 = 2,
-    OUTLINE_TYPE_4 = 4,
+    OUTLINE_TYPE_2 = 2, // red
+    OUTLINE_TYPE_GREY = 4,
     OUTLINE_TYPE_FRIENDLY = 8,
     OUTLINE_TYPE_ITEM = 16,
-    OUTLINE_TYPE_32 = 32,
+    OUTLINE_TYPE_32 = 32, // dark yellow
 } OutlineType;
 
 typedef enum ObjectFlags {
