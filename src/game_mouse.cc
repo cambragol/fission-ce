@@ -576,7 +576,7 @@ bool HandleHoldToHighlight()
                 obj = objectFindNextAtElevation();
             }
 
-            gBypassNoHighlight = false;  // Reset after batch
+            gBypassNoHighlight = false; // Reset after batch
             tileWindowRefresh();
         }
     } else if (!shiftKeyPressed && keyProcessed) {
