@@ -502,7 +502,7 @@ int preferencesInit()
 
     // manually switch itemHighlight and combatLooks
     if (!settings.enhancements.strict_vanilla) {
-        
+
         // Index 4 -> Item Highlight (3 options)
         gPreferenceDescriptions[4].valuesCount = 3; //
         gPreferenceDescriptions[4].labelIds[0] = 111;
@@ -793,7 +793,7 @@ static void _UpdateThing(int index)
 
         for (int valueIndex = 0; valueIndex < meta->valuesCount; valueIndex++) {
             const char* text;
-            
+
             // Conditionally fetch from fission.msg for Item Highlight when not strict vanilla
             if (index == 4 && !settings.enhancements.strict_vanilla) {
                 text = getmsg(&gFissionMessageList, &gFissionMessageListItem, meta->labelIds[valueIndex]);
