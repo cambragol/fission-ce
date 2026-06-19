@@ -309,9 +309,6 @@ static unsigned int gGameMouseAnimatedCursorLastUpdateTimestamp = 0;
 // 0x518D8C
 static int _gmouse_bk_last_cursor = -1;
 
-// 0x518D90
-static bool gGameMouseItemHighlightEnabled = true;
-
 // 0x518D94
 static Object* gGameMouseHighlightedItem = nullptr;
 
@@ -559,19 +556,23 @@ bool HandleHoldToHighlight()
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
                 if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
-                    int outlineType = OUTLINE_TYPE_ITEM; // yellow
-
                     // If it has OBJECT_NO_HIGHLIGHT, it's a container
-                    if (obj->flags & OBJECT_NO_HIGHLIGHT) {
-                        // Empty container? Use grey
-                        if (obj->data.inventory.length == 0) {
-                            outlineType = OUTLINE_TYPE_GREY;
-                        }
-                        // Non-empty container stays yellow (already set)
-                    }
+                    bool isContainer = (obj->flags & OBJECT_NO_HIGHLIGHT) != 0;
 
-                    Rect tmp;
-                    objectSetOutline(obj, outlineType, &tmp);
+                    // Only process containers if item_highlight > 1
+                    if (!isContainer || settings.preferences.item_highlight > 1) {
+                        int outlineType = OUTLINE_TYPE_ITEM; // yellow
+
+                        if (isContainer && settings.preferences.item_highlight > 1) {
+                            if (obj->data.inventory.length == 0) {
+                                outlineType = OUTLINE_TYPE_GREY; // grey for empty
+                            }
+                            // Non-empty container stays yellow (already set)
+                        }
+
+                        Rect tmp;
+                        objectSetOutline(obj, outlineType, &tmp);
+                    }
                 }
                 obj = objectFindNextAtElevation();
             }
@@ -759,7 +760,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!settings.enhancements.strict_vanilla && gGameMouseItemHighlightEnabled && settings.enhancements.mass_highlight) {
+    if (!settings.enhancements.strict_vanilla && (settings.preferences.item_highlight > 0) && settings.enhancements.mass_highlight) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 
@@ -810,26 +811,33 @@ void gameMouseRefresh()
                     case OBJ_TYPE_ITEM:
                         primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
 
-                        if (gGameMouseItemHighlightEnabled && !isMassHighlighting) {
-                            int outlineType = OUTLINE_TYPE_ITEM; // yellow
+                        // Only outline if item_highlight is enabled and we are NOT mass-highlighting
+                        if (!isMassHighlighting && settings.preferences.item_highlight > 0) {
+                            bool isContainer = (pointedObject->flags & OBJECT_NO_HIGHLIGHT) != 0;
 
-                            // If it has OBJECT_NO_HIGHLIGHT, it's a container
-                            if (pointedObject->flags & OBJECT_NO_HIGHLIGHT) {
-                                if (pointedObject->data.inventory.length == 0) {
-                                    outlineType = OUTLINE_TYPE_GREY; // grey for empty
+                            // If it's a container, only outline when item_highlight > 1
+                            if (!isContainer || settings.preferences.item_highlight > 1) {
+                                int outlineType = OUTLINE_TYPE_ITEM; // default yellow for items and non-empty containers
+
+                                if (isContainer && settings.preferences.item_highlight > 1) {
+                                    // Empty container -> grey; non-empty stays yellow
+                                    if (pointedObject->data.inventory.length == 0) {
+                                        outlineType = OUTLINE_TYPE_GREY;
+                                    }
                                 }
-                            }
 
-                            gBypassNoHighlight = true;
-                            objectClearOutline(pointedObject, nullptr);
-                            Rect tmp;
-                            if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
-                                tileWindowRefreshRect(&tmp, gElevation);
-                                gGameMouseHighlightedItem = pointedObject;
+                                // Apply bypass (needed for containers with OBJECT_NO_HIGHLIGHT)
+                                gBypassNoHighlight = true;
+                                objectClearOutline(pointedObject, nullptr);
+                                Rect tmp;
+                                if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
+                                    tileWindowRefreshRect(&tmp, gElevation);
+                                    gGameMouseHighlightedItem = pointedObject;
+                                }
+                                gBypassNoHighlight = false;
                             }
-                            gBypassNoHighlight = false;
+                            // If it's a container and item_highlight == 1, we do nothing (skip)
                         }
-                        break;
                         break;
                     case OBJ_TYPE_CRITTER:
                         if (pointedObject == gDude) {
@@ -2120,12 +2128,6 @@ int gameMouseRenderActionPoints(const char* string, int color)
     return 0;
 }
 
-// 0x44D954
-void gameMouseLoadItemHighlight()
-{
-    gGameMouseItemHighlightEnabled = settings.preferences.item_highlight;
-}
-
 // 0x44D984
 int gameMouseObjectsInit()
 {
@@ -2176,8 +2178,6 @@ int gameMouseObjectsInit()
 
     gGameMouseObjectsInitialized = true;
 
-    gameMouseLoadItemHighlight();
-
     return 0;
 }
 
@@ -2203,7 +2203,6 @@ int gameMouseObjectsReset()
     gGameMouseLastY = -1;
     _gmouse_3d_hover_test = false;
     _gmouse_3d_last_move_time = getTicks();
-    gameMouseLoadItemHighlight();
 
     return 0;
 }

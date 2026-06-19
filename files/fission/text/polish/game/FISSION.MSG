@@ -25,6 +25,9 @@
 #
 
 {110}{}{Zmieñ prêdkoœæ poza walk¹}
+{111}{}{Wy³.}
+{112}{}{W³.}
+{113}{}{Kontenery}
 
 #
 # Extended Titles

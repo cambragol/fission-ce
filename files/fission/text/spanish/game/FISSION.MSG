@@ -25,6 +25,9 @@
 #
 
 {110}{}{Afectar velocidad fuera de combate}
+{111}{}{No}
+{112}{}{S�}
+{113}{}{Contenedores}
 
 #
 # Extended Titles
@@ -33,7 +36,7 @@
 {124}{}{PANTALLA}
 {125}{}{ESTIRAR PANTALLA}
 {126}{}{CALIDAD}
-{127}{}{ÁREA ACTIVA}
+{127}{}{ÝREA ACTIVA}
 {128}{}{} #Leave blank
 {129}{}{} #Leave blank
 
