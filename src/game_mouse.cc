@@ -578,8 +578,8 @@ bool HandleHoldToHighlight()
                     // If it has OBJECT_NO_HIGHLIGHT, it's a container
                     bool isContainer = (obj->flags & OBJECT_NO_HIGHLIGHT) != 0;
 
-                        // Only process containers if item_highlight > 1
-                        if (!isContainer || settings.preferences.item_highlight > 1) {
+                    // Only process containers if item_highlight > 1
+                    if (!isContainer || settings.preferences.item_highlight > 1) {
                         int outlineType = OUTLINE_TYPE_ITEM; // yellow
                         if (isContainer && (obj->flags & OBJECT_CONTAINER_OPENED)) {
                             outlineType = OUTLINE_TYPE_GREY;
