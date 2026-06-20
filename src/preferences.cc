@@ -1557,30 +1557,43 @@ static int preferencesWindowInit()
 
     fontSetCurrent(103);
 
+    char primaryTitles[PRIMARY_PREF_COUNT][100];
+    char secondaryTitles[SECONDARY_PREF_COUNT][100];
+
+    // Reset the message ID counter to the start
     messageItemId = 101;
-    // Primary Prefs Main labels
+
+    // Fetch primary titles (IDs 101-105) and copy them
     for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
-        int msgId = 101 + i; // original
-        if (i == 4) {
-            if (!settings.enhancements.strict_vanilla) {
-                msgId = 111; // "Item Highlight"
-            }
-        }
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, msgId);
-        x = gOffsets.primLabelColX - fontGetStringWidth(messageItemText) / 2;
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+        const char* text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
+        strcpy(primaryTitles[i], text ? text : "");
     }
 
-    // Secondary Prefs Main labels
+    // Fetch secondary titles (IDs 106-111) and copy them
     for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
-        int msgId = 106 + i; // original
-        if (i == 5) {
-            if (!settings.enhancements.strict_vanilla) {
-                msgId = 105; // "Combat Looks"
-            }
-        }
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, msgId);
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+        const char* text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
+        strcpy(secondaryTitles[i], text ? text : "");
+    }
+
+    // Swap Combat Look and Item Highlight titles if not strict vanilla
+    if (!settings.enhancements.strict_vanilla) {
+        char temp[100];
+        strcpy(temp, primaryTitles[4]);             // Combat Looks (ID 105)
+        strcpy(primaryTitles[4], secondaryTitles[5]); // Item Highlight (ID 111)
+        strcpy(secondaryTitles[5], temp);           // Combat Looks
+    }
+
+    // Draw Primary Prefs Main labels
+    for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
+        int x = gOffsets.primLabelColX - fontGetStringWidth(primaryTitles[i]) / 2;
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x,
+                    primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+    }
+
+    // Draw Secondary Prefs Main labels
+    for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX,
+                    secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
     }
 
     if (gameIsWidescreen()) {

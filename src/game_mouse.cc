@@ -561,15 +561,10 @@ bool HandleHoldToHighlight()
 
                     // Only process containers if item_highlight > 1
                     if (!isContainer || settings.preferences.item_highlight > 1) {
-                        int outlineType = OUTLINE_TYPE_ITEM; // yellow
-
-                        if (isContainer && settings.preferences.item_highlight > 1) {
-                            if (obj->data.inventory.length == 0) {
-                                outlineType = OUTLINE_TYPE_GREY; // grey for empty
-                            }
-                            // Non-empty container stays yellow (already set)
+                        int outlineType = OUTLINE_TYPE_ITEM;
+                        if (isContainer && (obj->flags & OBJECT_CONTAINER_OPENED)) {
+                            outlineType = OUTLINE_TYPE_GREY;
                         }
-
                         Rect tmp;
                         objectSetOutline(obj, outlineType, &tmp);
                     }
@@ -817,13 +812,13 @@ void gameMouseRefresh()
 
                             // If it's a container, only outline when item_highlight > 1
                             if (!isContainer || settings.preferences.item_highlight > 1) {
-                                int outlineType = OUTLINE_TYPE_ITEM; // default yellow for items and non-empty containers
+                                int outlineType = OUTLINE_TYPE_ITEM; // default yellow
 
-                                if (isContainer && settings.preferences.item_highlight > 1) {
-                                    // Empty container -> grey; non-empty stays yellow
-                                    if (pointedObject->data.inventory.length == 0) {
-                                        outlineType = OUTLINE_TYPE_GREY;
+                                if (isContainer) {
+                                    if (pointedObject->flags & OBJECT_CONTAINER_OPENED) {
+                                        outlineType = OUTLINE_TYPE_GREY; // already opened/viewed containers
                                     }
+                                    // else unopened -> yellow
                                 }
 
                                 // Apply bypass (needed for containers with OBJECT_NO_HIGHLIGHT)

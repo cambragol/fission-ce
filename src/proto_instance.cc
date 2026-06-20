@@ -1862,6 +1862,8 @@ int objectUseContainer(Object* critter, Object* item)
 
     reg_anim_end();
 
+    item->flags |= OBJECT_CONTAINER_OPENED;   // mark as opened
+
     if (critter == gDude) {
         MessageListItem messageListItem;
         messageListItem.num = item->frame != 0
