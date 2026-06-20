@@ -1578,22 +1578,22 @@ static int preferencesWindowInit()
     // Swap Combat Look and Item Highlight titles if not strict vanilla
     if (!settings.enhancements.strict_vanilla) {
         char temp[100];
-        strcpy(temp, primaryTitles[4]);             // Combat Looks (ID 105)
+        strcpy(temp, primaryTitles[4]); // Combat Looks (ID 105)
         strcpy(primaryTitles[4], secondaryTitles[5]); // Item Highlight (ID 111)
-        strcpy(secondaryTitles[5], temp);           // Combat Looks
+        strcpy(secondaryTitles[5], temp); // Combat Looks
     }
 
     // Draw Primary Prefs Main labels
     for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
         int x = gOffsets.primLabelColX - fontGetStringWidth(primaryTitles[i]) / 2;
         fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x,
-                    primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+            primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
     }
 
     // Draw Secondary Prefs Main labels
     for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
         fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX,
-                    secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+            secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
     }
 
     if (gameIsWidescreen()) {

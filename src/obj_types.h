@@ -58,7 +58,7 @@ typedef enum ObjectFlags {
     //  - To prevent saving of objects which cannot be removed for some reason,
     // like objects trying to delete themselves from scripting engine (used
     // together with `OBJECT_HIDDEN` to prevent affecting game world).
-    OBJECT_CONTAINER_OPENED = 0x02,   // new flag for containers
+    OBJECT_CONTAINER_OPENED = 0x02, // new flag for containers
     OBJECT_NO_SAVE = 0x04,
     OBJECT_FLAT = 0x08,
     OBJECT_NO_BLOCK = 0x10,
