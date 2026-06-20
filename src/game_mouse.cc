@@ -341,6 +341,8 @@ static Object* gGameMousePointedObject;
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
 
+static bool gInContainerOutline = false;
+
 bool gBypassNoHighlight = false;
 
 static int _gmouse_get_click_to_scroll();
@@ -529,6 +531,17 @@ int _gmouse_is_scrolling()
     return isScrolling;
 }
 
+static bool isObjectValid(Object* obj)
+{
+    if (obj == nullptr) return false;
+    Object* current = objectFindFirst();
+    while (current != nullptr) {
+        if (current == obj) return true;
+        current = objectFindNext();
+    }
+    return false;
+}
+
 // Function to handle hold-to-highlight functionality
 bool HandleHoldToHighlight()
 {
@@ -544,12 +557,18 @@ bool HandleHoldToHighlight()
         shiftKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
     }
 
+    // Re-entrancy guard: if we're already inside an outline operation, skip.
+    if (gInContainerOutline) {
+        return wasHighlighting;
+    }
+
     if (shiftKeyPressed && !keyProcessed) {
         keyProcessed = true;
 
         if (!wasHighlighting) {
             wasHighlighting = true;
 
+            gInContainerOutline = true;
             // Enable bypass for this batch
             gBypassNoHighlight = true;
 
@@ -559,9 +578,9 @@ bool HandleHoldToHighlight()
                     // If it has OBJECT_NO_HIGHLIGHT, it's a container
                     bool isContainer = (obj->flags & OBJECT_NO_HIGHLIGHT) != 0;
 
-                    // Only process containers if item_highlight > 1
-                    if (!isContainer || settings.preferences.item_highlight > 1) {
-                        int outlineType = OUTLINE_TYPE_ITEM;
+                        // Only process containers if item_highlight > 1
+                        if (!isContainer || settings.preferences.item_highlight > 1) {
+                        int outlineType = OUTLINE_TYPE_ITEM; // yellow
                         if (isContainer && (obj->flags & OBJECT_CONTAINER_OPENED)) {
                             outlineType = OUTLINE_TYPE_GREY;
                         }
@@ -573,6 +592,8 @@ bool HandleHoldToHighlight()
             }
 
             gBypassNoHighlight = false; // Reset after batch
+            gInContainerOutline = false;
+
             tileWindowRefresh();
         }
     } else if (!shiftKeyPressed && keyProcessed) {
@@ -580,6 +601,8 @@ bool HandleHoldToHighlight()
 
         if (wasHighlighting) {
             wasHighlighting = false;
+
+            gInContainerOutline = true;
 
             // Get the item currently under the cursor (if any)
             Object* pointedObject = gameMouseGetObjectUnderCursor(-1, true, gElevation);
@@ -589,18 +612,19 @@ bool HandleHoldToHighlight()
                 gGameMouseHighlightedItem = pointedObject;
             }
 
-            // Clear all item outlines
+            // Clear all item outlines (manual, no function calls)
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
                 // Don't clear mouse-highlighted item
                 if (obj != gGameMouseHighlightedItem) {
                     if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
-                        Rect tmp;
-                        objectClearOutline(obj, &tmp);
+                        obj->outline = 0;
                     }
                 }
                 obj = objectFindNextAtElevation();
             }
+
+            gInContainerOutline = false;
 
             tileWindowRefresh();
         }
@@ -808,22 +832,26 @@ void gameMouseRefresh()
 
                         // Only outline if item_highlight is enabled and we are NOT mass-highlighting
                         if (!isMassHighlighting && settings.preferences.item_highlight > 0) {
+                            // Prevent re-entrant calls
+                            if (gInContainerOutline) break;
+                            gInContainerOutline = true;
+
+                            // Re-validate the pointer (it might have become invalid)
+                            if (pointedObject == nullptr || !isObjectValid(pointedObject)) {
+                                gInContainerOutline = false;
+                                break;
+                            }
+
                             bool isContainer = (pointedObject->flags & OBJECT_NO_HIGHLIGHT) != 0;
-
-                            // If it's a container, only outline when item_highlight > 1
                             if (!isContainer || settings.preferences.item_highlight > 1) {
-                                int outlineType = OUTLINE_TYPE_ITEM; // default yellow
-
-                                if (isContainer) {
-                                    if (pointedObject->flags & OBJECT_CONTAINER_OPENED) {
-                                        outlineType = OUTLINE_TYPE_GREY; // already opened/viewed containers
-                                    }
-                                    // else unopened -> yellow
+                                int outlineType = OUTLINE_TYPE_ITEM; // yellow
+                                if (isContainer && (pointedObject->flags & OBJECT_CONTAINER_OPENED)) {
+                                    outlineType = OUTLINE_TYPE_GREY;
                                 }
 
                                 // Apply bypass (needed for containers with OBJECT_NO_HIGHLIGHT)
                                 gBypassNoHighlight = true;
-                                objectClearOutline(pointedObject, nullptr);
+                                pointedObject->outline = 0; // manual clear (no function call)
                                 Rect tmp;
                                 if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
                                     tileWindowRefreshRect(&tmp, gElevation);
@@ -831,7 +859,7 @@ void gameMouseRefresh()
                                 }
                                 gBypassNoHighlight = false;
                             }
-                            // If it's a container and item_highlight == 1, we do nothing (skip)
+                            gInContainerOutline = false;
                         }
                         break;
                     case OBJ_TYPE_CRITTER:
