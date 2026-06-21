@@ -852,7 +852,7 @@ void gameMouseRefresh()
                         if (!isMassHighlighting && settings.preferences.item_highlight > 0) {
                             // Skip outlining while loot window is open
                             if (GameMode::getCurrentGameMode() == GameMode::kLoot) break;
-                            
+
                             // Prevent re-entrant calls
                             if (gInContainerOutline) break;
                             gInContainerOutline = true;
