@@ -880,19 +880,22 @@ void gameMouseRefresh()
                         if (critterIsDead(pointedObject) && !critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL) && !isMassHighlighting && settings.preferences.item_highlight > 1) {
                             if (gInContainerOutline) break;
                             gInContainerOutline = true;
-                            if (!isObjectValid(pointedObject)) { gInContainerOutline = false; break; }
-
-                                gBypassNoHighlight = true;
-                                pointedObject->outline = 0;   // manual clear
-                                Rect tmp;
-                                int outlineType = (pointedObject->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
-                                if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
-                                    tileWindowRefreshRect(&tmp, gElevation);
-                                    gGameMouseHighlightedItem = pointedObject;
-                                }
-                                gBypassNoHighlight = false;
+                            if (!isObjectValid(pointedObject)) {
                                 gInContainerOutline = false;
+                                break;
                             }
+
+                            gBypassNoHighlight = true;
+                            pointedObject->outline = 0; // manual clear
+                            Rect tmp;
+                            int outlineType = (pointedObject->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                            if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
+                                tileWindowRefreshRect(&tmp, gElevation);
+                                gGameMouseHighlightedItem = pointedObject;
+                            }
+                            gBypassNoHighlight = false;
+                            gInContainerOutline = false;
+                        }
 
                         // Vanilla critter interaction logic
                         if (pointedObject == gDude) {
