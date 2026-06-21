@@ -6062,13 +6062,13 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
     memcpy(arrowFrmIds, gInventoryArrowFrmIds, sizeof(gInventoryArrowFrmIds));
 
-    if (looter != _inven_dude) {
+    if (looter != _inven_dude || target == nullptr) {
         return 0;
     }
 
     // Mark 'corpses' as looted for highlighting
-    if (target != nullptr && critterIsDead(target)) {
-        target->flags |= OBJECT_CORPSE_LOOTED;
+    if (critterIsDead(target)) {
+        target->flags |= OBJECT_OPENED;
     }
 
     ScopedGameMode gm(GameMode::kLoot);
@@ -6086,6 +6086,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
     if (FID_TYPE(target->fid) == OBJ_TYPE_ITEM) {
         if (itemGetType(target) == ITEM_TYPE_CONTAINER) {
+            target->flags |= OBJECT_OPENED; // mark as opened
             if (target->frame == 0) {
                 CacheEntry* handle;
                 Art* frm = artLock(target->fid, &handle);

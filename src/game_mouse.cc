@@ -545,6 +545,11 @@ static bool isObjectValid(Object* obj)
 // Function to handle hold-to-highlight functionality
 bool HandleHoldToHighlight()
 {
+    // Skip mass-highlighting while loot window is open
+    if (GameMode::getCurrentGameMode() == GameMode::kLoot) {
+        return false;
+    }
+
     static bool wasHighlighting = false;
     static bool keyProcessed = false;
 
@@ -585,7 +590,7 @@ bool HandleHoldToHighlight()
                     // Only process containers if item_highlight > 1
                     if (!isContainer || settings.preferences.item_highlight > 1) {
                         if (isContainer) {
-                            outlineType = (obj->flags & OBJECT_CONTAINER_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                            outlineType = (obj->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
                         }
                         Rect tmp;
                         objectSetOutline(obj, outlineType, &tmp);
@@ -595,7 +600,7 @@ bool HandleHoldToHighlight()
                 else if (type == OBJ_TYPE_CRITTER && critterIsDead(obj)) {
                     // Only process corpse 'containers' if item_highlight > 1
                     if (!critterFlagCheck(obj->pid, CRITTER_NO_STEAL) && settings.preferences.item_highlight > 1) {
-                        outlineType = (obj->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                        outlineType = (obj->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
                         Rect tmp;
                         objectSetOutline(obj, outlineType, &tmp);
                     }
@@ -845,6 +850,9 @@ void gameMouseRefresh()
 
                         // Only outline if item_highlight is enabled and we are NOT mass-highlighting
                         if (!isMassHighlighting && settings.preferences.item_highlight > 0) {
+                            // Skip outlining while loot window is open
+                            if (GameMode::getCurrentGameMode() == GameMode::kLoot) break;
+                            
                             // Prevent re-entrant calls
                             if (gInContainerOutline) break;
                             gInContainerOutline = true;
@@ -858,7 +866,7 @@ void gameMouseRefresh()
                             bool isContainer = (pointedObject->flags & OBJECT_NO_HIGHLIGHT) != 0;
                             if (!isContainer || settings.preferences.item_highlight > 1) {
                                 int outlineType = OUTLINE_TYPE_ITEM; // yellow
-                                if (isContainer && (pointedObject->flags & OBJECT_CONTAINER_OPENED)) {
+                                if (isContainer && (pointedObject->flags & OBJECT_OPENED)) {
                                     outlineType = OUTLINE_TYPE_GREY;
                                 }
 
@@ -877,7 +885,7 @@ void gameMouseRefresh()
                         break;
                     case OBJ_TYPE_CRITTER:
                         // Corpse highlighting on mouse-over
-                        if (critterIsDead(pointedObject) && !critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL) && !isMassHighlighting && settings.preferences.item_highlight > 1) {
+                        if (GameMode::getCurrentGameMode() != GameMode::kLoot && critterIsDead(pointedObject) && !critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL) && !isMassHighlighting && settings.preferences.item_highlight > 1) {
                             if (gInContainerOutline) break;
                             gInContainerOutline = true;
                             if (!isObjectValid(pointedObject)) {
@@ -888,7 +896,7 @@ void gameMouseRefresh()
                             gBypassNoHighlight = true;
                             pointedObject->outline = 0; // manual clear
                             Rect tmp;
-                            int outlineType = (pointedObject->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                            int outlineType = (pointedObject->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
                             if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
                                 tileWindowRefreshRect(&tmp, gElevation);
                                 gGameMouseHighlightedItem = pointedObject;
