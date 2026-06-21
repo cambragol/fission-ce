@@ -574,20 +574,33 @@ bool HandleHoldToHighlight()
 
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
-                if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                int type = FID_TYPE(obj->fid);
+                int outlineType = OUTLINE_TYPE_ITEM; // yellow
+
+                // Handle items (regular and containers)
+                if (type == OBJ_TYPE_ITEM) {
                     // If it has OBJECT_NO_HIGHLIGHT, it's a container
                     bool isContainer = (obj->flags & OBJECT_NO_HIGHLIGHT) != 0;
 
                     // Only process containers if item_highlight > 1
                     if (!isContainer || settings.preferences.item_highlight > 1) {
-                        int outlineType = OUTLINE_TYPE_ITEM; // yellow
-                        if (isContainer && (obj->flags & OBJECT_CONTAINER_OPENED)) {
-                            outlineType = OUTLINE_TYPE_GREY;
+                        if (isContainer) {
+                            outlineType = (obj->flags & OBJECT_CONTAINER_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
                         }
                         Rect tmp;
                         objectSetOutline(obj, outlineType, &tmp);
                     }
                 }
+                // Handle corpses (dead critters)
+                else if (type == OBJ_TYPE_CRITTER && critterIsDead(obj)) {
+                    // Only process corpse 'containers' if item_highlight > 1
+                    if (!critterFlagCheck(obj->pid, CRITTER_NO_STEAL) && settings.preferences.item_highlight > 1) {
+                        outlineType = (obj->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                        Rect tmp;
+                        objectSetOutline(obj, outlineType, &tmp);
+                    }
+                }
+
                 obj = objectFindNextAtElevation();
             }
 
@@ -617,7 +630,7 @@ bool HandleHoldToHighlight()
             while (obj != nullptr) {
                 // Don't clear mouse-highlighted item
                 if (obj != gGameMouseHighlightedItem) {
-                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
+                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM || (FID_TYPE(obj->fid) == OBJ_TYPE_CRITTER && critterIsDead(obj))) {
                         obj->outline = 0;
                     }
                 }
@@ -863,6 +876,25 @@ void gameMouseRefresh()
                         }
                         break;
                     case OBJ_TYPE_CRITTER:
+                        // Corpse highlighting on mouse-over
+                        if (critterIsDead(pointedObject) && !critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL) && !isMassHighlighting && settings.preferences.item_highlight > 1) {
+                            if (gInContainerOutline) break;
+                            gInContainerOutline = true;
+                            if (!isObjectValid(pointedObject)) { gInContainerOutline = false; break; }
+
+                                gBypassNoHighlight = true;
+                                pointedObject->outline = 0;   // manual clear
+                                Rect tmp;
+                                int outlineType = (pointedObject->flags & OBJECT_CORPSE_LOOTED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                                if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
+                                    tileWindowRefreshRect(&tmp, gElevation);
+                                    gGameMouseHighlightedItem = pointedObject;
+                                }
+                                gBypassNoHighlight = false;
+                                gInContainerOutline = false;
+                            }
+
+                        // Vanilla critter interaction logic
                         if (pointedObject == gDude) {
                             primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_ROTATE;
                         } else {
@@ -1160,7 +1192,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                                 actionTalk(gDude, targetObj);
                             }
                         } else {
-                            _action_loot_container(gDude, targetObj);
+                            _action_loot_corpse(gDude, targetObj);
                         }
                     }
                     break;
@@ -1390,7 +1422,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             _action_use_an_object(gDude, targetObj);
                             break;
                         case OBJ_TYPE_CRITTER:
-                            _action_loot_container(gDude, targetObj);
+                            _action_loot_corpse(gDude, targetObj);
                             break;
                         default:
                             actionPickUp(gDude, targetObj);

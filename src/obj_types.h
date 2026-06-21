@@ -63,6 +63,7 @@ typedef enum ObjectFlags {
     OBJECT_FLAT = 0x08,
     OBJECT_NO_BLOCK = 0x10,
     OBJECT_LIGHTING = 0x20,
+    OBJECT_CORPSE_LOOTED = 0x40, // new flag for looted corpses
 
     // Specifies that the object should not be removed (freed) from the game
     // world for whatever reason.

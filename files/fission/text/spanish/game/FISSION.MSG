@@ -2,7 +2,7 @@
 # 
 #
 # Text labels and messages used by FISSION
-#
+# Windows 1252 encoding
 #
 
 #
@@ -15,10 +15,10 @@
 
 {100}{}{Quitar la pantalla completa}
 {101}{}{desactiva las preferencias}
-{102}{}{adicionales. ¬øContinuar?}
+{102}{}{adicionales. øContinuar?}
 {103}{}{Reinicia para aplicar los}
-{104}{}{cambios gr√°ficos.}
-{105}{}{Cambiar √°rea de juego a original}
+{104}{}{cambios gr·ficos.}
+{105}{}{Cambiar ·rea de juego a original}
 
 #
 # Preferencias Ajustadas
@@ -26,7 +26,7 @@
 
 {110}{}{Afectar velocidad fuera de combate}
 {111}{}{No}
-{112}{}{S√≠}
+{112}{}{SÌ}
 {113}{}{Contenedores}
 
 #
@@ -36,7 +36,7 @@
 {124}{}{PANTALLA}
 {125}{}{ESTIRAR PANTALLA}
 {126}{}{CALIDAD}
-{127}{}{√ÅREA ACTIVA}
+{127}{}{¡REA ACTIVA}
 {128}{}{} #Leave blank
 {129}{}{} #Leave blank
 
@@ -51,13 +51,13 @@
 {229}{}{No}           
 {230}{}{Estirar} 
 {231}{}{No}
-{232}{}{Relaci√≥n Aspecto}
+{232}{}{RelaciÛn Aspecto}
 {233}{}{No}         
 {234}{}{Alta Calidad}        
 {235}{}{No}
 {236}{}{Pixeles Cuadrados}
 {237}{}{Original}      
-{238}{}{Est√°ndar}        
+{238}{}{Est·ndar}        
 {239}{}{Grande}
 {240}{}{Enorme}
 
@@ -66,17 +66,17 @@
 #
 
 {300}{}{F.I.S.S.I.O.N.}
-{301}{}{Flexible e Isom√©trico Sistema de Simulaci√≥n}
+{301}{}{Flexible e IsomÈtrico Sistema de SimulaciÛn}
 {302}{}{Interactiva de Origen Nuclear}
 
 #
-# Men√∫ contextual de ordenamiento
+# Men˙ contextual de ordenamiento
 #
 
 # Acciones del jugador
-{400}{}{Organizas tu mochila por categor√≠a.}
+{400}{}{Organizas tu mochila por categorÌa.}
 {401}{}{Colocas tus armas en la parte superior.}
-{402}{}{Colocas tu munici√≥n en la parte superior.}
+{402}{}{Colocas tu municiÛn en la parte superior.}
 {403}{}{Colocas tus drogas en la parte superior.}
 {404}{}{Colocas tus objetos varios en la parte superior.}
 {405}{}{Ordenas tu inventario por peso.}
@@ -84,9 +84,9 @@
 {407}{}{Ordenas tu inventario en orden inverso.}
 
 # Otras acciones de inventario - con %s para el nombre del objeto
-{410}{}{Inventario de %s organizado por categor√≠a.}
+{410}{}{Inventario de %s organizado por categorÌa.}
 {411}{}{Armas de %s colocadas en la parte superior.}
-{412}{}{Munici√≥n de %s colocada en la parte superior.}
+{412}{}{MuniciÛn de %s colocada en la parte superior.}
 {413}{}{Drogas de %s colocadas en la parte superior.}
 {414}{}{Objetos varios de %s colocados en la parte superior.}
 {415}{}{Inventario de %s ordenado por peso.}
@@ -95,19 +95,19 @@
 
 # Mensajes sin objetos
 {450}{}{No hay armas para ordenar.}
-{451}{}{No hay munici√≥n para ordenar.}
+{451}{}{No hay municiÛn para ordenar.}
 {452}{}{No hay drogas para ordenar}
 {453}{}{No hay objetos varios para ordenar.}
 
-# Mensajes de inventario vac√≠o
-{460}{}{Tu inventario ya est√° "optimizado."}
-{461}{}{Hay una grave falta de oportunidades de ordenamiento aqu√≠.}
+# Mensajes de inventario vacÌo
+{460}{}{Tu inventario ya est· "optimizado."}
+{461}{}{Hay una grave falta de oportunidades de ordenamiento aquÌ.}
 
 #
-# Men√∫ de carga de mods
+# Men˙ de carga de mods
 #
 
-# T√≠tulos
+# TÌtulos
 {500}{}{MODS CARGADOS}
 {501}{}{LISTO}
 {502}{}{CANCELAR}
@@ -115,16 +115,16 @@
 {504}{}{DESACTIVADO}
 
 # Restart popup
-{510}{}{Los cambios al orden de mods se aplicar√°n}
+{510}{}{Los cambios al orden de mods se aplicar·n}
 {511}{}{al reiniciar.}
 
-{520}{}{Configuraci√≥n de mods no coincide}
-{521}{}{Esta partida espera un conjunto distinto de mods activados. ¬øCargar de todos modos? (Puede causar comportamientos extra√±os o fallos.)}
+{520}{}{ConfiguraciÛn de mods no coincide}
+{521}{}{Esta partida espera un conjunto distinto de mods activados. øCargar de todos modos? (Puede causar comportamientos extraÒos o fallos.)}
 {522}{}{Formato de guardado antiguo}
-{523}{}{Esta partida fue creada antes del seguimiento de mods por guardado. Vuelve a guardar para fijar su configuraci√≥n. Cargando con los mods actuales.}
+{523}{}{Esta partida fue creada antes del seguimiento de mods por guardado. Vuelve a guardar para fijar su configuraciÛn. Cargando con los mods actuales.}
 {524}{}{Mod faltante}
-{525}{}{La partida requiere el mod '%s', que no est√° cargado actualmente. ¬øCargar de todos modos? (El contenido faltante puede causar fallos.)}
+{525}{}{La partida requiere el mod '%s', que no est· cargado actualmente. øCargar de todos modos? (El contenido faltante puede causar fallos.)}
 
-{526}{}{¬øAjustar mods para coincidir con esta partida y reiniciar?}
-{527}{}{La configuraci√≥n de mods fue actualizada para coincidir con la partida. Reinicia el juego antes de cargarla.}
-{528}{}{No se pudo aplicar la configuraci√≥n de mods.}
+{526}{}{øAjustar mods para coincidir con esta partida y reiniciar?}
+{527}{}{La configuraciÛn de mods fue actualizada para coincidir con la partida. Reinicia el juego antes de cargarla.}
+{528}{}{No se pudo aplicar la configuraciÛn de mods.}

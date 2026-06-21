@@ -6066,6 +6066,11 @@ int inventoryOpenLooting(Object* looter, Object* target)
         return 0;
     }
 
+    // Mark 'corpses' as looted for highlighting
+    if (target != nullptr && critterIsDead(target)) {
+        target->flags |= OBJECT_CORPSE_LOOTED;
+    }
+
     ScopedGameMode gm(GameMode::kLoot);
 
     if (FID_TYPE(target->fid) == OBJ_TYPE_CRITTER) {
