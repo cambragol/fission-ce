@@ -189,6 +189,8 @@ namespace fallout {
 #define INVENTORY_HAND_LEFT_KEY 2007
 #define INVENTORY_ARMOR_KEY 2008
 
+#define SORT_MENU_ITEM_COUNT (sizeof(_act_sort) / sizeof(_act_sort[0]))
+
 typedef enum InventoryArrowFrm {
     INVENTORY_ARROW_FRM_LEFT_ARROW_UP,
     INVENTORY_ARROW_FRM_LEFT_ARROW_DOWN,
@@ -5470,7 +5472,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
         }
 
         if (inputGetInput() == KEY_ESCAPE) {
-            menuItemIndex = 5; // Cancel
+            menuItemIndex = SORT_MENU_ITEM_COUNT - 1; // Cancel
             menuActive = false;
         }
 
@@ -5482,7 +5484,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
         // Track mouse vertical movement for menu selection
         // Threshold of 10 pixels prevents accidental selection changes
         if (abs(currentY - previousMouseY) > 10) {
-            if (currentY > previousMouseY && menuItemIndex < 5) {
+            if (currentY > previousMouseY && menuItemIndex < SORT_MENU_ITEM_COUNT - 1) {
                 menuItemIndex++; // Move down in menu
             } else if (currentY < previousMouseY && menuItemIndex > 0) {
                 menuItemIndex--; // Move up in menu
@@ -5516,22 +5518,25 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
         _mouse_set_position(screenX, screenY);
 
         // Handle trade window selection
-        if (menuItemIndex >= 0 && menuItemIndex < 6) {
-            int selectedAction = _act_sort[menuItemIndex];
+        // Clamp the index to the valid range (0 to 4)
+        if (menuItemIndex < 0 || menuItemIndex >= SORT_MENU_ITEM_COUNT) {
+            menuItemIndex = SORT_MENU_ITEM_COUNT - 1; // maps to Cancel (index 4)
+        }
+        int selectedAction = _act_sort[menuItemIndex];
 
-            if (selectedAction != GAME_MOUSE_ACTION_MENU_ITEM_CANCEL) {
-                // Re-determine which inventory to sort (same logic as beginning)
-                Object* inventoryToSort = nullptr;
-                if (keyCode == INVENTORY_BUTTON_LEFT) {
-                    inventoryToSort = _stack[_curr_stack]; // Left inventory (player)
-                } else if (keyCode == INVENTORY_BUTTON_RIGHT) {
-                    inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
-                }
+        if (selectedAction != GAME_MOUSE_ACTION_MENU_ITEM_CANCEL) {
+            // Re-determine which inventory to sort
+            Object* inventoryToSort = nullptr;
+            if (keyCode == INVENTORY_BUTTON_LEFT) {
+                inventoryToSort = _stack[_curr_stack]; // Left inventory (player)
+            } else if (keyCode == INVENTORY_BUTTON_RIGHT) {
+                inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
+            }
 
-                if (inventoryToSort != nullptr) {
-                    // Perform the sort based on the selected action
-                    bool didSort = false;
-                    switch (selectedAction) {
+            if (inventoryToSort != nullptr) {
+                // Perform the sort based on the selected action
+                bool didSort = false;
+                switch (selectedAction) {
                     case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
                         didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
                         break;
@@ -5544,23 +5549,22 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                     case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
                         didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
                         break;
-                    }
+                }
 
-                    if (didSort) {
-                        _show_sort_message(inventoryToSort, selectedAction, inventoryWindowType);
-
-                        // Reset quick-click rotation to the chosen context menu option
-                        // Next quick click will be the next type in rotation from this choice
-                        _last_quick_sorted_object = inventoryToSort;
-                        _next_quick_sort_type = _get_next_quick_sort_type(selectedAction);
-                    } else {
-                        // Check if inventory is empty or has only 1 item
-                        if (inventoryToSort->data.inventory.length <= 1) {
-                            _nothing_to_sort_message(inventoryToSort, inventoryWindowType);
-                        }
+                if (didSort) {
+                    _show_sort_message(inventoryToSort, selectedAction, inventoryWindowType);
+                    // Reset quick-click rotation to the chosen context menu option
+                    // Next quick click will be the next type in rotation from this choice
+                    _last_quick_sorted_object = inventoryToSort;
+                    _next_quick_sort_type = _get_next_quick_sort_type(selectedAction);
+                } else {
+                    // Check if inventory is empty or has only 1 item
+                    if (inventoryToSort->data.inventory.length <= 1) {
+                        _nothing_to_sort_message(inventoryToSort, inventoryWindowType);
                     }
                 }
             }
+        }
 
             // ALWAYS refresh the display, even on cancel
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
@@ -5574,7 +5578,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
 
             windowRefresh(_barter_back_win);
             windowRefresh(gInventoryWindow);
-        }
+
     } else {
         // Non-trade windows cleanup
         buttonDestroy(btn);
@@ -5614,6 +5618,9 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
         _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
 
         // Handle non-trade window selection
+        if (menuItemIndex < 0 || menuItemIndex >= SORT_MENU_ITEM_COUNT) {
+            menuItemIndex = SORT_MENU_ITEM_COUNT - 1;
+        }
         int selectedAction = _act_sort[menuItemIndex];
         if (selectedAction != GAME_MOUSE_ACTION_MENU_ITEM_CANCEL) {
             // Re-determine which inventory to sort
