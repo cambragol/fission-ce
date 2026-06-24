@@ -1195,7 +1195,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
         Object* targetObj = gameMouseGetObjectUnderCursor(-1, true, gElevation);
         if (targetObj != nullptr) {
             int actionMenuItemsCount = 0;
-            int actionMenuItems[6];
+            int actionMenuItems[GAME_MOUSE_ACTION_MENU_ITEM_COUNT - 1];
             switch (FID_TYPE(targetObj->fid)) {
             case OBJ_TYPE_ITEM:
                 actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_USE;
@@ -1279,6 +1279,10 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                                 actionIndex += 1;
                             }
 
+                            // After adjusting actionIndex, clamp it.
+                            if (actionIndex < 0) actionIndex = 0;
+                            if (actionIndex >= actionMenuItemsCount) actionIndex = actionMenuItemsCount - 1;
+
                             if (gameMouseHighlightActionMenuItemAtIndex(actionIndex) == 0) {
                                 tileWindowRefreshRect(&cursorRect, gElevation);
                             }
@@ -1307,6 +1311,10 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                     if (gameMouseUpdateHexCursorFid(&cursorRect) == 0) {
                         tileWindowRefreshRect(&cursorRect, gElevation);
                     }
+
+                    // Clamp final index before using it.
+                    if (actionIndex < 0) actionIndex = 0;
+                    if (actionIndex >= actionMenuItemsCount) actionIndex = actionMenuItemsCount - 1;
 
                     switch (actionMenuItems[actionIndex]) {
                     case GAME_MOUSE_ACTION_MENU_ITEM_INVENTORY:
