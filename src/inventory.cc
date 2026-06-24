@@ -5537,18 +5537,18 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 // Perform the sort based on the selected action
                 bool didSort = false;
                 switch (selectedAction) {
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-                        didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
-                        didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
-                        didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
-                        break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
-                        didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
-                        break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+                    didSort = _inven_sort_inventory(inventoryToSort, GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
+                    didSort = _sort_by_weight(inventoryToSort, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
+                    didSort = _sort_by_value(inventoryToSort, inventoryWindowType);
+                    break;
+                case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
+                    didSort = _sort_reverse(inventoryToSort, inventoryWindowType);
+                    break;
                 }
 
                 if (didSort) {
@@ -5566,18 +5566,18 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             }
         }
 
-            // ALWAYS refresh the display, even on cancel
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
-            _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
-            inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
+        // ALWAYS refresh the display, even on cancel
+        _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
+        _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
+        inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
 
-            _inven_redrawing_after_sort_menu = true;
-            _display_body(-1, INVENTORY_WINDOW_TYPE_TRADE);
-            _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_TRADE);
-            _inven_redrawing_after_sort_menu = false;
+        _inven_redrawing_after_sort_menu = true;
+        _display_body(-1, INVENTORY_WINDOW_TYPE_TRADE);
+        _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_TRADE);
+        _inven_redrawing_after_sort_menu = false;
 
-            windowRefresh(_barter_back_win);
-            windowRefresh(gInventoryWindow);
+        windowRefresh(_barter_back_win);
+        windowRefresh(gInventoryWindow);
 
     } else {
         // Non-trade windows cleanup
