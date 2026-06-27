@@ -1829,7 +1829,7 @@ int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int heig
     int requiredSize = (arrowFrmWidth + menuItemFrmWidth) * menuItemFrmHeight;
     if (requiredSize > gGameMouseActionPickFrmDataSize) {
         debugPrint("gameMouseRenderPrimaryAction: buffer too small! needed %d, have %d\n",
-                   requiredSize, gGameMouseActionPickFrmDataSize);
+            requiredSize, gGameMouseActionPickFrmDataSize);
         artUnlock(arrowFrmHandle);
         artUnlock(menuItemFrmHandle);
         return -1;
@@ -1969,7 +1969,7 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
     int requiredSize = requiredWidth * requiredHeight;
     if (requiredSize > gGameMouseActionMenuFrmDataSize) {
         debugPrint("gameMouseRenderActionMenuItems: buffer too small! needed %d, have %d\n",
-                   requiredSize, gGameMouseActionMenuFrmDataSize);
+            requiredSize, gGameMouseActionMenuFrmDataSize);
         artUnlock(arrowFrmHandle);
         for (int index = 0; index < menuItemsLength; index++) {
             artUnlock(menuItemFrmHandles[index]);
@@ -2021,8 +2021,7 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
     }
 
     // Verify arrowFrmDest is within bounds
-    if (arrowFrmDest < gGameMouseActionMenuFrmData ||
-        arrowFrmDest + (arrowWidth * arrowHeight) > gGameMouseActionMenuFrmData + gGameMouseActionMenuFrmDataSize) {
+    if (arrowFrmDest < gGameMouseActionMenuFrmData || arrowFrmDest + (arrowWidth * arrowHeight) > gGameMouseActionMenuFrmData + gGameMouseActionMenuFrmDataSize) {
         debugPrint("gameMouseRenderActionMenuItems: arrowFrmDest out of bounds!\n");
         artUnlock(arrowFrmHandle);
         for (int index = 0; index < menuItemsLength; index++) {
