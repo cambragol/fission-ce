@@ -5797,9 +5797,12 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
     int inventoryWindowX = windowRect.left;
     int inventoryWindowY = windowRect.top;
 
-    gameMouseRenderActionMenuItems(x, y, actionMenuItems, actionMenuItemsLength,
-        windowDescription->width + inventoryWindowX,
-        windowDescription->height + inventoryWindowY);
+    if (gameMouseRenderActionMenuItems(x, y, actionMenuItems, actionMenuItemsLength,
+            windowDescription->width + inventoryWindowX,
+            windowDescription->height + inventoryWindowY) == -1) {
+        inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
+        return;
+    }
 
     InventoryCursorData* cursorData = &(gInventoryCursorData[INVENTORY_WINDOW_CURSOR_MENU]);
 
