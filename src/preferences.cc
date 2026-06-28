@@ -500,6 +500,21 @@ int preferencesInit()
 
     _SetSystemPrefs();
 
+    // manually switch itemHighlight and combatLooks
+    if (!settings.enhancements.strict_vanilla) {
+
+        // Index 4 -> Item Highlight (3 options)
+        gPreferenceDescriptions[4].valuesCount = 3; //
+        gPreferenceDescriptions[4].labelIds[0] = 111;
+        gPreferenceDescriptions[4].labelIds[1] = 112;
+        gPreferenceDescriptions[4].labelIds[2] = 113;
+        gPreferenceDescriptions[4].labelIds[3] = 0;
+        gPreferenceDescriptions[4].valuePtr = &gPreferencesItemHighlight1;
+
+        // Index 10 -> Combat Looks (2 options)
+        gPreferenceDescriptions[10].valuePtr = &gPreferencesCombatLooks1;
+    }
+
     return 0;
 }
 
@@ -675,8 +690,11 @@ static void _JustUpdate_()
     gPreferencesLanguageFilter1 = std::clamp(gPreferencesLanguageFilter1, 0, 1);
     gPreferencesRunning1 = std::clamp(gPreferencesRunning1, 0, 1);
     gPreferencesSubtitles1 = std::clamp(gPreferencesSubtitles1, 0, 1);
-    gPreferencesItemHighlight1 = std::clamp(gPreferencesItemHighlight1, 0, 1);
-
+    if (settings.enhancements.strict_vanilla) {
+        gPreferencesItemHighlight1 = std::clamp(gPreferencesItemHighlight1, 0, 1);
+    } else {
+        gPreferencesItemHighlight1 = std::clamp(gPreferencesItemHighlight1, 0, 2); // adds 'containers'
+    }
     gPreferencesFullscreen1 = std::clamp(gPreferencesFullscreen1, 0, 1);
     gPreferencesHighQuality1 = std::clamp(gPreferencesHighQuality1, 0, 1);
     gPreferencesPreserveAspect1 = std::clamp(gPreferencesPreserveAspect1, 0, 1);
@@ -697,7 +715,6 @@ static void _JustUpdate_()
     gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
 
     textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
-    gameMouseLoadItemHighlight();
 
     double textLineDelay = (gPreferencesTextBaseDelay1 + (-1.0)) * 0.2 * 2.0;
     textLineDelay = std::clamp(textLineDelay, 0.0, 2.0);
@@ -775,8 +792,14 @@ static void _UpdateThing(int index)
             pitch);
 
         for (int valueIndex = 0; valueIndex < meta->valuesCount; valueIndex++) {
-            const char* text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, meta->labelIds[valueIndex]);
+            const char* text;
 
+            // Conditionally fetch from fission.msg for Item Highlight when not strict vanilla
+            if (index == 4 && !settings.enhancements.strict_vanilla) {
+                text = getmsg(&gFissionMessageList, &gFissionMessageListItem, meta->labelIds[valueIndex]);
+            } else {
+                text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, meta->labelIds[valueIndex]);
+            }
             char copy[100]; // TODO: Size is probably wrong.
             strcpy(copy, text);
 
@@ -1534,18 +1557,43 @@ static int preferencesWindowInit()
 
     fontSetCurrent(103);
 
+    char primaryTitles[PRIMARY_PREF_COUNT][100];
+    char secondaryTitles[SECONDARY_PREF_COUNT][100];
+
+    // Reset the message ID counter to the start
     messageItemId = 101;
-    // Primary Prefs Main labels
+
+    // Fetch primary titles (IDs 101-105) and copy them
     for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
-        x = gOffsets.primLabelColX - fontGetStringWidth(messageItemText) / 2;
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+        const char* text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
+        strcpy(primaryTitles[i], text ? text : "");
     }
 
-    // Secondary Prefs Main labels
+    // Fetch secondary titles (IDs 106-111) and copy them
     for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+        const char* text = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
+        strcpy(secondaryTitles[i], text ? text : "");
+    }
+
+    // Swap Combat Look and Item Highlight titles if not strict vanilla
+    if (!settings.enhancements.strict_vanilla) {
+        char temp[100];
+        strcpy(temp, primaryTitles[4]); // Combat Looks (ID 105)
+        strcpy(primaryTitles[4], secondaryTitles[5]); // Item Highlight (ID 111)
+        strcpy(secondaryTitles[5], temp); // Combat Looks
+    }
+
+    // Draw Primary Prefs Main labels
+    for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
+        int x = gOffsets.primLabelColX - fontGetStringWidth(primaryTitles[i]) / 2;
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x,
+            primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+    }
+
+    // Draw Secondary Prefs Main labels
+    for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX,
+            secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
     }
 
     if (gameIsWidescreen()) {

@@ -1256,7 +1256,7 @@ int actionPickUp(Object* critter, Object* item)
 // Check if it can be called with a living critter.
 //
 // 0x4123E8
-int _action_loot_container(Object* critter, Object* container)
+int _action_loot_corpse(Object* critter, Object* container)
 {
     if (FID_TYPE(container->fid) != OBJ_TYPE_CRITTER) {
         return -1;

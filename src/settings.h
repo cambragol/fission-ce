@@ -34,7 +34,7 @@ struct PreferencesSettings {
     int combat_difficulty = COMBAT_DIFFICULTY_NORMAL;
     int violence_level = VIOLENCE_LEVEL_MAXIMUM_BLOOD;
     int target_highlight = TARGET_HIGHLIGHT_TARGETING_ONLY;
-    bool item_highlight = true;
+    int item_highlight = 1;
     bool combat_looks = false;
     bool combat_messages = true;
     bool combat_taunts = true;

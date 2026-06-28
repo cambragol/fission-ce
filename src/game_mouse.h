@@ -110,7 +110,6 @@ int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int heig
 int _gmouse_3d_pick_frame_hot(int* x, int* y);
 int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuItemsCount, int width, int height);
 int gameMouseHighlightActionMenuItemAtIndex(int menuItemIndex);
-void gameMouseLoadItemHighlight();
 void _gmouse_remove_item_outline(Object* object);
 
 // used for y-offset in trade/barter screen sort context meun
@@ -118,6 +117,7 @@ void gameMouseSetActionMenuYAdjustment(int adjustment);
 
 void gameMouseRefreshImmediately();
 Object* gmouse_get_outlined_object();
+bool isObjectValid(Object* obj);
 
 } // namespace fallout
 
