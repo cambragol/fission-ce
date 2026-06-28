@@ -33,6 +33,7 @@ extern int gInterfaceBarWindow;
 extern int gInterfaceBarWidth;
 extern bool gInterfaceBarIsWide;
 extern int gInterfaceBarContentOffset;
+extern const int gMultidexSkillIds[8];
 
 int interfaceInit();
 void interfaceReset();
@@ -73,6 +74,7 @@ void multidexRefreshMap(void);
 void multidexUpdateButtonStates(void);
 bool interfaceIsSuperWide(void);
 void multidexTogglePanel(void);
+void multidexRefreshSkilldexAnimated(const int oldValues[8]);
 
 } // namespace fallout
 
