@@ -527,7 +527,7 @@ static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int 
         // Clamp
         if (value < 0) value = 0;
         if (value > 999) value = 999;
-        
+
         int hundreds = value / 100;
         int tens = (value % 100) / 10;
         int ones = value % 10;
