@@ -117,6 +117,7 @@ void gameMouseSetActionMenuYAdjustment(int adjustment);
 
 void gameMouseRefreshImmediately();
 Object* gmouse_get_outlined_object();
+bool isObjectValid(Object* obj);
 
 } // namespace fallout
 

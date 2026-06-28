@@ -532,7 +532,7 @@ int _gmouse_is_scrolling()
     return isScrolling;
 }
 
-static bool isObjectValid(Object* obj)
+bool isObjectValid(Object* obj)
 {
     if (obj == nullptr) return false;
     Object* current = objectFindFirst();
