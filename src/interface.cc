@@ -348,6 +348,11 @@ static void multidexDrawSkillValue(int skillIndex, int value)
 {
     if (!gInterfaceBarSuperWide || !gMultidexSkilldexMode) return;
     if (gInterfaceBarWindow == -1) return;
+    if (!gBigNumbersFrmImage.getData()) return;
+
+    // Clamp values just in case
+    if (value < 0) value = 0;
+    if (value > 999) value = 999;
 
     int extX = 800, extY = 0;
     int leftColX = extX + 90;
@@ -519,7 +524,10 @@ static void multidexDrawSkillNumbers(unsigned char* destBuf, int destPitch, int 
 
     for (int i = 0; i < 8; i++) {
         int value = skillGetValue(gDude, gMultidexSkillIds[i]);
+        // Clamp
         if (value < 0) value = 0;
+        if (value > 999) value = 999;
+        
         int hundreds = value / 100;
         int tens = (value % 100) / 10;
         int ones = value % 10;
