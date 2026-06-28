@@ -303,17 +303,17 @@ const Rect gPipboyWindowContentRect = {
 
 // 0x496FD0
 const int gPipboyFrmIds[PIPBOY_FRM_COUNT] = {
-    8,    // PIPBOY_FRM_LITTLE_RED_BUTTON_UP
-    9,    // PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN
-    82,   // PIPBOY_FRM_NUMBERS
-    127,  // PIPBOY_FRM_BACKGROUND
-    128,  // PIPBOY_FRM_NOTE
-    129,  // PIPBOY_FRM_MONTHS
-    130,  // PIPBOY_FRM_NOTE_NUMBERS
-    131,  // PIPBOY_FRM_ALARM_DOWN
-    132,  // PIPBOY_FRM_ALARM_UP
-    133,  // PIPBOY_FRM_LOGO
-    226,  // PIPBOY_FRM_BOMB
+    8, // PIPBOY_FRM_LITTLE_RED_BUTTON_UP
+    9, // PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN
+    82, // PIPBOY_FRM_NUMBERS
+    127, // PIPBOY_FRM_BACKGROUND
+    128, // PIPBOY_FRM_NOTE
+    129, // PIPBOY_FRM_MONTHS
+    130, // PIPBOY_FRM_NOTE_NUMBERS
+    131, // PIPBOY_FRM_ALARM_DOWN
+    132, // PIPBOY_FRM_ALARM_UP
+    133, // PIPBOY_FRM_LOGO
+    226, // PIPBOY_FRM_BOMB
     8177, // PIPBOY_FRM_WIKI_BUTTON_UP
     7563, // PIPBOY_FRM_WIKI_BUTTON_DOWN
 };
@@ -1040,22 +1040,22 @@ int pipboyOpen(int intent)
             takeScreenshot();
         } else if (keyCode >= 500 && keyCode <= 505) {
             int newTab = keyCode - 500;
-            
+
             // Clean up distortion if switching away from wiki
             if (gPipboyTab == 1) {
                 wikiResetDistortion();
             }
-            
+
             gPipboyPrevTab = gPipboyTab;
             gPipboyTab = newTab;
-            
+
             // Entering wiki tab, randomize effect and set flag
             if (gPipboyTab == 1) {
                 gWikiDistortionMaxFrames = randomBetween(5, 10);
                 gWikiDistortionAmplitude = randomBetween(5, 200);
                 gWikiFirstEntry = true;
             }
-            
+
             _view_page_automap_main = 0;
             _view_page_quest = 0;
             _view_page_holodisk = 0;
@@ -5315,8 +5315,7 @@ static void wikiCaptureContentArea()
 {
     wikiResetDistortion();
     gWikiDistortionBuffer = (unsigned char*)internal_malloc(
-        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT
-    );
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT);
     if (!gWikiDistortionBuffer) return;
     blitBufferToBuffer(
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
@@ -5324,8 +5323,7 @@ static void wikiCaptureContentArea()
         PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
         PIPBOY_WINDOW_WIDTH,
         gWikiDistortionBuffer,
-        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH
-    );
+        PIPBOY_WINDOW_CONTENT_VIEW_WIDTH);
 }
 
 static void wikiApplyDistortion()
@@ -5336,14 +5334,12 @@ static void wikiApplyDistortion()
     if (gWikiDistortionFrames == 1) {
         // Clear content area to background
         blitBufferToBuffer(
-            _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() +
-                PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+            _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
             PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
             PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
             PIPBOY_WINDOW_WIDTH,
             gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-            PIPBOY_WINDOW_WIDTH
-        );
+            PIPBOY_WINDOW_WIDTH);
         // Copy clean captured buffer (no distortion)
         blitBufferToBuffer(
             gWikiDistortionBuffer,
@@ -5351,8 +5347,7 @@ static void wikiApplyDistortion()
             PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
             PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
             gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-            PIPBOY_WINDOW_WIDTH
-        );
+            PIPBOY_WINDOW_WIDTH);
         gWikiDistortionFrames = 0;
         return;
     }
@@ -5360,14 +5355,12 @@ static void wikiApplyDistortion()
     // Normal distortion for frames > 1
     // Clear content area to background
     blitBufferToBuffer(
-        _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() +
-            PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
+        _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
         PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
         PIPBOY_WINDOW_WIDTH,
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
-        PIPBOY_WINDOW_WIDTH
-    );
+        PIPBOY_WINDOW_WIDTH);
 
     float progress = (float)gWikiDistortionFrames / gWikiDistortionMaxFrames;
     float amplitude = (float)gWikiDistortionAmplitude * progress;
@@ -5382,13 +5375,11 @@ static void wikiApplyDistortion()
     for (int row = 0; row < contentH; row++) {
         float shift = amplitude * sinf(row * 0.15f + gWikiDistortionFrames * 0.5f);
         int shiftPixels = (int)(shift + 0.5f);
-        if (shiftPixels < -contentW/2) shiftPixels = -contentW/2;
-        if (shiftPixels > contentW/2) shiftPixels = contentW/2;
+        if (shiftPixels < -contentW / 2) shiftPixels = -contentW / 2;
+        if (shiftPixels > contentW / 2) shiftPixels = contentW / 2;
 
         unsigned char* srcRow = gWikiDistortionBuffer + row * contentW;
-        unsigned char* dstRow = gPipboyWindowBuffer +
-            (PIPBOY_WINDOW_CONTENT_VIEW_Y + row) * PIPBOY_WINDOW_WIDTH +
-            PIPBOY_WINDOW_CONTENT_VIEW_X;
+        unsigned char* dstRow = gPipboyWindowBuffer + (PIPBOY_WINDOW_CONTENT_VIEW_Y + row) * PIPBOY_WINDOW_WIDTH + PIPBOY_WINDOW_CONTENT_VIEW_X;
 
         if (shiftPixels >= 0) {
             for (int col = 0; col < contentW - shiftPixels; col++) {
@@ -5437,7 +5428,7 @@ static int wikiCountDisplayLines(const char* content, int indent)
         if (imgEnd) {
             char filename[256];
             int len = imgEnd - (content + 5);
-            if (len > 0 && len < (int)sizeof(filename)-1) {
+            if (len > 0 && len < (int)sizeof(filename) - 1) {
                 strncpy(filename, content + 5, len);
                 filename[len] = '\0';
                 return wikiGetImageHeight(filename);
@@ -5497,8 +5488,8 @@ static void wikiRenderImage(const char* filename, int* currentLine)
     int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + (*currentLine) * fontGetLineHeight();
 
     // Use the Pip-Boy green colors - 2 for now
-    unsigned char brightGreen = (unsigned char)_colorTable[992];   // bright green
-    unsigned char darkGreen = (unsigned char)_colorTable[8804];    // dark green (disabled)
+    unsigned char brightGreen = (unsigned char)_colorTable[992]; // bright green
+    unsigned char darkGreen = (unsigned char)_colorTable[8804]; // dark green (disabled)
 
     int frameWidth = artGetWidth(art, frame, direction);
     int frameHeight = artGetHeight(art, frame, direction);
@@ -5591,16 +5582,18 @@ static void wikiRenderArticle(int articleIdx, int page)
     char* lines[500];
     int lineCount = 0;
     char buf[256];
-    while (fileReadString(buf, sizeof(buf)-1, f) && lineCount < 500) {
-        char* nl = strchr(buf, '\n'); if (nl) *nl = '\0';
-        char* cr = strchr(buf, '\r'); if (cr) *cr = '\0';
+    while (fileReadString(buf, sizeof(buf) - 1, f) && lineCount < 500) {
+        char* nl = strchr(buf, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(buf, '\r');
+        if (cr) *cr = '\0';
         lines[lineCount] = internal_strdup(buf);
         lineCount++;
     }
     fileClose(f);
 
     if (lineCount == 0) {
-        // No content - draw a placeholder? 
+        // No content - draw a placeholder?
         const char* msg = "Empty article.";
         pipboyDrawText(msg, PIPBOY_TEXT_ALIGNMENT_CENTER, _colorTable[992]);
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
@@ -5611,7 +5604,10 @@ static void wikiRenderArticle(int articleIdx, int page)
     const int LINES_PER_PAGE = 37;
 
     // Store page start line indices and display line counts per page
-    struct PageInfo { int startLine; int displayLines; };
+    struct PageInfo {
+        int startLine;
+        int displayLines;
+    };
     PageInfo pages[100]; // should be enough
     int pageCount = 0;
 
@@ -5626,7 +5622,8 @@ static void wikiRenderArticle(int articleIdx, int page)
             int indent = wikiGetListIndent(rawLine);
             char* content = rawLine;
             if (indent > 0) {
-                while (*content == ' ') content++;
+                while (*content == ' ')
+                    content++;
                 content += 2; // skip "- " or "* "
             }
             int dl = wikiCountDisplayLines(content, indent);
@@ -5652,8 +5649,8 @@ static void wikiRenderArticle(int articleIdx, int page)
     // Draw title
     gPipboyCurrentLine = 0;
     pipboyDrawText(gWikiArticles[articleIdx].title,
-                   PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
-                   _colorTable[992]);
+        PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
+        _colorTable[992]);
     gPipboyCurrentLine = 2; // one blank line
 
     // Draw content for this page
@@ -5667,7 +5664,8 @@ static void wikiRenderArticle(int articleIdx, int page)
         int indent = wikiGetListIndent(rawLine);
         char* content = rawLine;
         if (indent > 0) {
-            while (*content == ' ') content++;
+            while (*content == ' ')
+                content++;
             content += 2; // skip "- " or "* "
         }
 
@@ -5677,7 +5675,7 @@ static void wikiRenderArticle(int articleIdx, int page)
             if (imgEnd) {
                 char filename[256];
                 int len = imgEnd - (content + 5);
-                if (len > 0 && len < (int)sizeof(filename)-1) {
+                if (len > 0 && len < (int)sizeof(filename) - 1) {
                     strncpy(filename, content + 5, len);
                     filename[len] = '\0';
                     wikiRenderImage(filename, &gPipboyCurrentLine);
@@ -5710,7 +5708,7 @@ static void wikiRenderArticle(int articleIdx, int page)
         snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gWikiArticleTotalPages);
         int len = fontGetStringWidth(ptext);
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
-                     ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
+            ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
     }
 
     // Bottom navigation
@@ -5796,10 +5794,10 @@ static void pipboyHandleWiki(int userInput)
 
         // Other keys in article mode
         if (userInput == 1024 || userInput == PIPBOY_KEY_SELECT) {
-            if(userInput == PIPBOY_KEY_SELECT){
+            if (userInput == PIPBOY_KEY_SELECT) {
                 // Click when returning from subpages (PIPBOY_KEY_SELECT) - 1024 (Pipboy button click) handled elsewhere
                 soundPlayFile("ib1p1xx1");
-            } 
+            }
             wikiDestroyLinkButtons();
             gWikiInArticle = false;
             pipboyHandleWiki(1024);
