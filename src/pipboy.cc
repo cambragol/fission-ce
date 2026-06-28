@@ -3975,7 +3975,9 @@ static bool pipboyRest(int hours, int minutes, int duration)
                     pipboyDrawDate();
                     windowRefresh(gPipboyWindow);
 
-                    delay_ms(50 - (getTicks() - start));
+                    int delay = 50 - (getTicks() - start);
+                    if (delay < 0) delay = 0;
+                    delay_ms(delay);
                 }
 
                 renderPresent();
@@ -4045,7 +4047,9 @@ static bool pipboyRest(int hours, int minutes, int duration)
                     pipboyDrawHitPoints();
                     windowRefresh(gPipboyWindow);
 
-                    delay_ms(50 - (getTicks() - start));
+                    int delay = 50 - (getTicks() - start);
+                    if (delay < 0) delay = 0;
+                    delay_ms(delay);
                 }
 
                 renderPresent();
