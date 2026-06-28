@@ -5487,12 +5487,15 @@ static void cluesRenderImage(const char* filename, int* currentLine)
     // Configurable green shades
     // Each entry: { palette_index, luminance_threshold }
     // The last threshold should be 255 (max luminance).
-    struct { unsigned char palIdx; unsigned char threshold; } shades[] = {
-        { _colorTable[5571],  8 },   // darkest green
-        { _colorTable[6722],  16 },   // slightly lighter
-        { _colorTable[6850],  64 },  // normal green
-        { _colorTable[8001],  128 },  // lighter normal
-        { _colorTable[8160],  255 }   // bright green
+    struct {
+        unsigned char palIdx;
+        unsigned char threshold;
+    } shades[] = {
+        { _colorTable[5571], 8 }, // darkest green
+        { _colorTable[6722], 16 }, // slightly lighter
+        { _colorTable[6850], 64 }, // normal green
+        { _colorTable[8001], 128 }, // lighter normal
+        { _colorTable[8160], 255 } // bright green
     };
     const int numShades = sizeof(shades) / sizeof(shades[0]);
 
