@@ -45,6 +45,9 @@ typedef struct AutomapHeader {
 
 // expose automap window to control visibility with interface
 extern int gAutomapWindow;
+extern int gAutomapFlags;
+extern int zoom;
+extern bool gUseNewAutomapProjection;
 
 int automapInit();
 int automapReset();
@@ -65,6 +68,12 @@ bool automapHandleKey(int keyCode);
 void automapUpdate();
 void automapClose();
 void automapNotifyCombatEnded();
+
+// Renders a cropped portion of the minimap into a buffer for Multidex minimap.
+void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
+    int destX, int destY,
+    const Rect* srcClip,
+    int flags);
 
 } // namespace fallout
 

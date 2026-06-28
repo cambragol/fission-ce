@@ -3216,7 +3216,10 @@ static int _combat_input()
             combatAttemptEnd();
         } else {
             _scripts_check_state_in_combat();
-            gameHandleKey(keyCode, true);
+            // Let automap handle its keys (Multidex toggles) first
+            if (!automapHandleKey(keyCode)) {
+                gameHandleKey(keyCode, true);
+            }
         }
 
         renderPresent();
