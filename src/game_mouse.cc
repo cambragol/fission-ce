@@ -310,9 +310,6 @@ static unsigned int gGameMouseAnimatedCursorLastUpdateTimestamp = 0;
 // 0x518D8C
 static int _gmouse_bk_last_cursor = -1;
 
-// 0x518D90
-static bool gGameMouseItemHighlightEnabled = true;
-
 // 0x518D94
 static Object* gGameMouseHighlightedItem = nullptr;
 
@@ -344,6 +341,10 @@ static Object* gGameMousePointedObject;
 
 // used for y-offset in trade/barter screen sort context meun
 static int gGameMouseActionMenuYAdjustment = 0;
+
+static bool gInContainerOutline = false;
+
+bool gBypassNoHighlight = false;
 
 static int _gmouse_get_click_to_scroll();
 static void _gmouse_3d_enable_modes();
@@ -531,9 +532,25 @@ int _gmouse_is_scrolling()
     return isScrolling;
 }
 
+bool isObjectValid(Object* obj)
+{
+    if (obj == nullptr) return false;
+    Object* current = objectFindFirst();
+    while (current != nullptr) {
+        if (current == obj) return true;
+        current = objectFindNext();
+    }
+    return false;
+}
+
 // Function to handle hold-to-highlight functionality
 bool HandleHoldToHighlight()
 {
+    // Skip mass-highlighting while loot window is open
+    if (GameMode::getCurrentGameMode() == GameMode::kLoot) {
+        return false;
+    }
+
     static bool wasHighlighting = false;
     static bool keyProcessed = false;
 
@@ -546,21 +563,55 @@ bool HandleHoldToHighlight()
         shiftKeyPressed = (keyState == KEY_STATE_DOWN || keyState == KEY_STATE_REPEAT);
     }
 
+    // Re-entrancy guard: if we're already inside an outline operation, skip.
+    if (gInContainerOutline) {
+        return wasHighlighting;
+    }
+
     if (shiftKeyPressed && !keyProcessed) {
         keyProcessed = true;
 
         if (!wasHighlighting) {
             wasHighlighting = true;
 
-            // Highlight all items
+            gInContainerOutline = true;
+            // Enable bypass for this batch
+            gBypassNoHighlight = true;
+
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
-                if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
-                    Rect tmp;
-                    objectSetOutline(obj, OUTLINE_TYPE_ITEM, &tmp);
+                int type = FID_TYPE(obj->fid);
+                int outlineType = OUTLINE_TYPE_ITEM; // yellow
+
+                // Handle items (regular and containers)
+                if (type == OBJ_TYPE_ITEM) {
+                    // If it has OBJECT_NO_HIGHLIGHT, it's a container
+                    bool isContainer = (obj->flags & OBJECT_NO_HIGHLIGHT) != 0;
+
+                    // Only process containers if item_highlight > 1
+                    if (!isContainer || settings.preferences.item_highlight > 1) {
+                        if (isContainer) {
+                            outlineType = (obj->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                        }
+                        Rect tmp;
+                        objectSetOutline(obj, outlineType, &tmp);
+                    }
                 }
+                // Handle corpses (dead critters)
+                else if (type == OBJ_TYPE_CRITTER && critterIsDead(obj)) {
+                    // Only process corpse 'containers' if item_highlight > 1
+                    if (!critterFlagCheck(obj->pid, CRITTER_NO_STEAL) && settings.preferences.item_highlight > 1) {
+                        outlineType = (obj->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                        Rect tmp;
+                        objectSetOutline(obj, outlineType, &tmp);
+                    }
+                }
+
                 obj = objectFindNextAtElevation();
             }
+
+            gBypassNoHighlight = false; // Reset after batch
+            gInContainerOutline = false;
 
             tileWindowRefresh();
         }
@@ -570,6 +621,8 @@ bool HandleHoldToHighlight()
         if (wasHighlighting) {
             wasHighlighting = false;
 
+            gInContainerOutline = true;
+
             // Get the item currently under the cursor (if any)
             Object* pointedObject = gameMouseGetObjectUnderCursor(-1, true, gElevation);
 
@@ -578,18 +631,19 @@ bool HandleHoldToHighlight()
                 gGameMouseHighlightedItem = pointedObject;
             }
 
-            // Clear all item outlines
+            // Clear all item outlines (manual, no function calls)
             Object* obj = objectFindFirstAtElevation(gElevation);
             while (obj != nullptr) {
                 // Don't clear mouse-highlighted item
                 if (obj != gGameMouseHighlightedItem) {
-                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM) {
-                        Rect tmp;
-                        objectClearOutline(obj, &tmp);
+                    if (FID_TYPE(obj->fid) == OBJ_TYPE_ITEM || (FID_TYPE(obj->fid) == OBJ_TYPE_CRITTER && critterIsDead(obj))) {
+                        obj->outline = 0;
                     }
                 }
                 obj = objectFindNextAtElevation();
             }
+
+            gInContainerOutline = false;
 
             tileWindowRefresh();
         }
@@ -744,7 +798,7 @@ void gameMouseRefresh()
     // hold-to-highlight function here, to prevent out of window highlighting.
     bool isMassHighlighting = false;
     // turn off if strictVanilla is being enforced or highlighting not enabled
-    if (!settings.enhancements.strict_vanilla && gGameMouseItemHighlightEnabled && settings.enhancements.mass_highlight) {
+    if (!settings.enhancements.strict_vanilla && (settings.preferences.item_highlight > 0) && settings.enhancements.mass_highlight) {
         isMassHighlighting = HandleHoldToHighlight();
     }
 
@@ -795,16 +849,64 @@ void gameMouseRefresh()
                     case OBJ_TYPE_ITEM:
                         primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_USE;
 
-                        // Don't set individual outline if we're mass highlighting
-                        if (gGameMouseItemHighlightEnabled && !isMassHighlighting) {
-                            Rect tmp;
-                            if (objectSetOutline(pointedObject, OUTLINE_TYPE_ITEM, &tmp) == 0) {
-                                tileWindowRefreshRect(&tmp, gElevation);
-                                gGameMouseHighlightedItem = pointedObject;
+                        // Only outline if item_highlight is enabled and we are NOT mass-highlighting
+                        if (!isMassHighlighting && settings.preferences.item_highlight > 0) {
+                            // Skip outlining while loot window is open
+                            if (GameMode::getCurrentGameMode() == GameMode::kLoot) break;
+
+                            // Prevent re-entrant calls
+                            if (gInContainerOutline) break;
+                            gInContainerOutline = true;
+
+                            // Re-validate the pointer (it might have become invalid)
+                            if (pointedObject == nullptr || !isObjectValid(pointedObject)) {
+                                gInContainerOutline = false;
+                                break;
                             }
+
+                            bool isContainer = (pointedObject->flags & OBJECT_NO_HIGHLIGHT) != 0;
+                            if (!isContainer || settings.preferences.item_highlight > 1) {
+                                int outlineType = OUTLINE_TYPE_ITEM; // yellow
+                                if (isContainer && (pointedObject->flags & OBJECT_OPENED)) {
+                                    outlineType = OUTLINE_TYPE_GREY;
+                                }
+
+                                // Apply bypass (needed for containers with OBJECT_NO_HIGHLIGHT)
+                                gBypassNoHighlight = true;
+                                pointedObject->outline = 0; // manual clear (no function call)
+                                Rect tmp;
+                                if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
+                                    tileWindowRefreshRect(&tmp, gElevation);
+                                    gGameMouseHighlightedItem = pointedObject;
+                                }
+                                gBypassNoHighlight = false;
+                            }
+                            gInContainerOutline = false;
                         }
                         break;
                     case OBJ_TYPE_CRITTER:
+                        // Corpse highlighting on mouse-over
+                        if (GameMode::getCurrentGameMode() != GameMode::kLoot && critterIsDead(pointedObject) && !critterFlagCheck(pointedObject->pid, CRITTER_NO_STEAL) && !isMassHighlighting && settings.preferences.item_highlight > 1) {
+                            if (gInContainerOutline) break;
+                            gInContainerOutline = true;
+                            if (!isObjectValid(pointedObject)) {
+                                gInContainerOutline = false;
+                                break;
+                            }
+
+                            gBypassNoHighlight = true;
+                            pointedObject->outline = 0; // manual clear
+                            Rect tmp;
+                            int outlineType = (pointedObject->flags & OBJECT_OPENED) ? OUTLINE_TYPE_GREY : OUTLINE_TYPE_ITEM;
+                            if (objectSetOutline(pointedObject, outlineType, &tmp) == 0) {
+                                tileWindowRefreshRect(&tmp, gElevation);
+                                gGameMouseHighlightedItem = pointedObject;
+                            }
+                            gBypassNoHighlight = false;
+                            gInContainerOutline = false;
+                        }
+
+                        // Vanilla critter interaction logic
                         if (pointedObject == gDude) {
                             primaryAction = GAME_MOUSE_ACTION_MENU_ITEM_ROTATE;
                         } else {
@@ -1102,7 +1204,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                                 actionTalk(gDude, targetObj);
                             }
                         } else {
-                            _action_loot_container(gDude, targetObj);
+                            _action_loot_corpse(gDude, targetObj);
                         }
                     }
                     break;
@@ -1340,7 +1442,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             _action_use_an_object(gDude, targetObj);
                             break;
                         case OBJ_TYPE_CRITTER:
-                            _action_loot_container(gDude, targetObj);
+                            _action_loot_corpse(gDude, targetObj);
                             break;
                         default:
                             actionPickUp(gDude, targetObj);
@@ -2177,12 +2279,6 @@ int gameMouseRenderActionPoints(const char* string, int color)
     return 0;
 }
 
-// 0x44D954
-void gameMouseLoadItemHighlight()
-{
-    gGameMouseItemHighlightEnabled = settings.preferences.item_highlight;
-}
-
 // 0x44D984
 int gameMouseObjectsInit()
 {
@@ -2233,8 +2329,6 @@ int gameMouseObjectsInit()
 
     gGameMouseObjectsInitialized = true;
 
-    gameMouseLoadItemHighlight();
-
     return 0;
 }
 
@@ -2260,7 +2354,6 @@ int gameMouseObjectsReset()
     gGameMouseLastY = -1;
     _gmouse_3d_hover_test = false;
     _gmouse_3d_last_move_time = getTicks();
-    gameMouseLoadItemHighlight();
 
     return 0;
 }

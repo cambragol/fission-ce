@@ -627,6 +627,8 @@ static bool _inven_redrawing_after_sort_menu = false;
 // Tracks insult-based price increases
 static int gBarterInsultIncrease = 0;
 
+bool lootWindowOpened = false;
+
 // Rotation tracking for quick-click sort
 static Object* _last_quick_sorted_object;
 static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
@@ -6090,7 +6092,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
     memcpy(arrowFrmIds, gInventoryArrowFrmIds, sizeof(gInventoryArrowFrmIds));
 
-    if (looter != _inven_dude) {
+    if (looter != _inven_dude || target == nullptr) {
         return 0;
     }
 
@@ -6141,6 +6143,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
     if (inventoryCommonInit() == -1) {
         return 0;
     }
+    lootWindowOpened = true;
 
     _target_pud = &(target->data.inventory);
     _target_curr_stack = 0;
@@ -6552,6 +6555,16 @@ int inventoryOpenLooting(Object* looter, Object* target)
         // TODO: Looks like inlining, script is not used.
         Script* script;
         scriptGetScript(sid, &script);
+    }
+
+    // Mark as opened/looted after the loot window is fully closed
+    if (lootWindowOpened && target != nullptr && isObjectValid(target)) {
+        int type = FID_TYPE(target->fid);
+        if (type == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER) {
+            target->flags |= OBJECT_OPENED;
+        } else if (type == OBJ_TYPE_CRITTER && critterIsDead(target)) {
+            target->flags |= OBJECT_OPENED;
+        }
     }
 
     return 0;

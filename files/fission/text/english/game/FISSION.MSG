@@ -25,6 +25,9 @@
 #
 
 {110}{}{Affect Non-Combat Speed}
+{111}{}{Off}
+{112}{}{On}
+{113}{}{Containers}
 
 #
 # Extended Titles

@@ -281,6 +281,8 @@ static char _obj_seen_check[5001];
 // 0x662445
 static char _obj_seen[5001];
 
+extern bool gBypassNoHighlight;
+
 // obj_init
 // 0x488780
 int objectsInit(unsigned char* buf, int width, int height, int pitch)
@@ -2980,7 +2982,9 @@ int objectSetOutline(Object* obj, int outlineType, Rect* rect)
         return -1;
     }
 
-    if ((obj->flags & OBJECT_NO_HIGHLIGHT) != 0) {
+    // Only block if OBJECT_NO_HIGHLIGHT is set AND we're not bypassing it
+    // This effectively extends normal item highlight to containers too
+    if ((obj->flags & OBJECT_NO_HIGHLIGHT) != 0 && !gBypassNoHighlight) {
         return -1;
     }
 
@@ -4846,7 +4850,7 @@ static void objectDrawOutline(Object* object, Rect* rect)
                 v48 = _redBlendTable;
             }
             break;
-        case OUTLINE_TYPE_4:
+        case OUTLINE_TYPE_GREY:
             color = _colorTable[15855];
             v44 = 0;
             if (v53 != 0) {
