@@ -672,7 +672,7 @@ bool modConfigInit(int argc, char** argv)
     // Write back mods_order.txt (new pipe format)
     writeModsOrderFile(gLoadedMods, gLoadedModsCount);
 
-    // Read global mod.cfg and enabled mods' configs (for settings)
+    // Read global game.cfg and enabled mods' configs (for settings)
     char cfgMainPath[COMPAT_MAX_PATH];
     snprintf(cfgMainPath, sizeof(cfgMainPath), "data%c%s", DIR_SEPARATOR, MOD_CONFIG_FILE_NAME);
     configRead(&gModConfig, cfgMainPath, true);
@@ -681,7 +681,7 @@ bool modConfigInit(int argc, char** argv)
         const ModInfo* info = &gLoadedMods[i];
         if (info->enabled && info->name[0] != '\0') {
             char modCfgPath[COMPAT_MAX_PATH];
-            snprintf(modCfgPath, sizeof(modCfgPath), "data%cmod_%s.cfg", DIR_SEPARATOR, info->name);
+            snprintf(modCfgPath, sizeof(modCfgPath), "data%cgame_%s.cfg", DIR_SEPARATOR, info->name);
             configRead(&gModConfig, modCfgPath, true);
         }
     }
