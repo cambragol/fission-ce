@@ -3021,10 +3021,9 @@ static void pipboyWindowHandleAutomaps(int userInput)
 
     // Handle left/right arrow keys for page navigation
     if (userInput == 1026) { // Right arrow (next page)
-        soundPlayFile("ib1p1xx1");
-
         if (main_sub_mode == 0) { // Main page
             if (_view_page_automap_main < totalPages - 1) {
+                soundPlayFile("ib1p1xx1");
                 _view_page_automap_main++;
 
                 gPipboySelectedIndex = 0;
@@ -3050,6 +3049,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
                 // Restore saved main page state
+                soundPlayFile("ib1p1xx1");
                 _view_page_automap_main = gAutomapSavedPage;
                 gPipboySelectedIndex = gAutomapSavedIndex;
                 main_sub_mode = 0;
@@ -3058,10 +3058,9 @@ static void pipboyWindowHandleAutomaps(int userInput)
         }
         return;
     } else if (userInput == 1027) { // Left arrow (previous page)
-        soundPlayFile("ib1p1xx1");
-
         if (main_sub_mode == 0) { // Main page
             if (_view_page_automap_main > 0) {
+                soundPlayFile("ib1p1xx1");
                 _view_page_automap_main--;
 
                 gPipboySelectedIndex = 0;
@@ -3087,6 +3086,7 @@ static void pipboyWindowHandleAutomaps(int userInput)
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
                 // Restore saved main page state
+                soundPlayFile("ib1p1xx1");
                 _view_page_automap_main = gAutomapSavedPage;
                 gPipboySelectedIndex = gAutomapSavedIndex;
                 main_sub_mode = 0;
