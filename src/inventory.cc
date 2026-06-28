@@ -5600,6 +5600,8 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
         int backgroundFid;
         if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         } else {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDesc->frmId, 0, 0, 0);
         }
@@ -5895,6 +5897,8 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
         int backgroundFid;
         if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
         } else {
             backgroundFid = buildFid(OBJ_TYPE_INTERFACE, windowDescription->frmId, 0, 0, 0);
         }
