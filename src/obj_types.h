@@ -281,15 +281,15 @@ typedef struct Object {
     int fid; // obj_fid
     int flags; // obj_flags
     int elevation; // obj_elev
-    ObjectData data;
     int pid; // obj_pid
     int cid; // obj_cid
     int lightDistance; // obj_light_distance
     int lightIntensity; // obj_light_intensity
     int outline; // obj_outline
     int sid; // obj_sid
-    Object* owner;
     int scriptIndex;
+    Object* owner;
+    ObjectData data;
 } Object;
 
 typedef struct ObjectListNode {
