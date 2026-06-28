@@ -94,32 +94,32 @@ int gPipboySelectedIndex = 0; // Currently selected item index (0-based)
 int gPipboyMaxSelectableItems = 0; // Maximum selectable items on current page
 bool gPipboyKeyboardMode = false; // Are we in keyboard navigation mode?
 
-// Wiki system globals
-typedef struct WikiArticle {
+// Clues system globals
+typedef struct CluesArticle {
     char title[256];
     char filepath[COMPAT_MAX_PATH];
-} WikiArticle;
+} CluesArticle;
 
-static WikiArticle* gWikiArticles = nullptr;
-static int gWikiArticleCount = 0;
-static int gWikiCurrentPage = 0; // current page in list (0-based)
-static int gWikiSelectedIndex = 0; // selected article index on current page
-static bool gWikiInArticle = false;
-static int gWikiCurrentArticleIndex = -1; // index of open article
-static int gWikiArticlePage = 0; // page within article
-static int gWikiArticleTotalPages = 0; // total pages of current article
+static CluesArticle* gCluesArticles = nullptr;
+static int gCluesArticleCount = 0;
+static int gCluesCurrentPage = 0; // current page in list (0-based)
+static int gCluesSelectedIndex = 0; // selected article index on current page
+static bool gCluesInArticle = false;
+static int gCluesCurrentArticleIndex = -1; // index of open article
+static int gCluesArticlePage = 0; // page within article
+static int gCluesArticleTotalPages = 0; // total pages of current article
 static int gQuestTotalPages = 0;
 static int gHolodiskTotalPages = 0;
 static int gPipboyVideoSelectedIndex = 0; // 0-based index for video archive list
 
 extern unsigned char _cmap[256 * 3];
 
-// Distortion effect for wiki first entry
-static int gWikiDistortionFrames = 0;
-static int gWikiDistortionMaxFrames = 20;
-static int gWikiDistortionAmplitude = 100;
-static unsigned char* gWikiDistortionBuffer = nullptr;
-static bool gWikiFirstEntry = true;
+// Distortion effect for clues first entry
+static int gCluesDistortionFrames = 0;
+static int gCluesDistortionMaxFrames = 20;
+static int gCluesDistortionAmplitude = 100;
+static unsigned char* gCluesDistortionBuffer = nullptr;
+static bool gCluesFirstEntry = true;
 
 int lineCount = 0;
 
@@ -209,8 +209,8 @@ typedef enum PipboyFrm {
     PIPBOY_FRM_ALARM_UP,
     PIPBOY_FRM_LOGO,
     PIPBOY_FRM_BOMB,
-    PIPBOY_FRM_WIKI_BUTTON_UP,
-    PIPBOY_FRM_WIKI_BUTTON_DOWN,
+    PIPBOY_FRM_CLUES_BUTTON_UP,
+    PIPBOY_FRM_CLUES_BUTTON_DOWN,
     PIPBOY_FRM_COUNT,
 } PipboyFrm;
 
@@ -291,10 +291,10 @@ static int holodiskInit();
 static void holodiskFree();
 
 static void questLoadModFileNew(const char* filename);
-static void pipboyHandleWiki(int userInput);
+static void pipboyHandleClues(int userInput);
 
-static void wikiApplyDistortion();
-static void wikiResetDistortion();
+static void cluesApplyDistortion();
+static void cluesResetDistortion();
 
 // 0x496FC0
 const Rect gPipboyWindowContentRect = {
@@ -317,8 +317,8 @@ const int gPipboyFrmIds[PIPBOY_FRM_COUNT] = {
     132, // PIPBOY_FRM_ALARM_UP
     133, // PIPBOY_FRM_LOGO
     226, // PIPBOY_FRM_BOMB
-    8177, // PIPBOY_FRM_WIKI_BUTTON_UP
-    7563, // PIPBOY_FRM_WIKI_BUTTON_DOWN
+    8177, // PIPBOY_FRM_CLUES_BUTTON_UP
+    7563, // PIPBOY_FRM_CLUES_BUTTON_DOWN
 };
 
 // 0x51C128
@@ -363,7 +363,7 @@ const HolidayDescription gHolidayDescriptions[HOLIDAY_COUNT] = {
 // 0x51C170
 PipboyRenderProc* _PipFnctn[6] = {
     pipboyWindowHandleStatus, // tab 0 - event 500
-    pipboyHandleWiki, // tab 1 - event 501
+    pipboyHandleClues, // tab 1 - event 501
     pipboyWindowHandleAutomaps, // tab 2 - event 502
     pipboyHandleVideoArchive, // tab 3 - event 503
     pipboyHandleAlarmClock, // tab 4 - event 504
@@ -517,22 +517,22 @@ int gModQuestCount = 0;
 char gQuestModNames[TOTAL_QUEST_MAX][64];
 
 // For title -> filepath mapping (case-insensitive)
-typedef struct WikiLinkEntry {
+typedef struct CluesLinkEntry {
     char title[256];
     char filepath[COMPAT_MAX_PATH];
-} WikiLinkEntry;
+} CluesLinkEntry;
 
-static WikiLinkEntry* gWikiLinkMap = nullptr;
-static int gWikiLinkMapSize = 0;
+static CluesLinkEntry* gCluesLinkMap = nullptr;
+static int gCluesLinkMapSize = 0;
 
 // For links on the current page (used to create buttons)
-typedef struct WikiPageLink {
+typedef struct CluesPageLink {
     char targetTitle[256];
     int x, y, width, height;
-} WikiPageLink;
+} CluesPageLink;
 
-static WikiPageLink* gWikiPageLinks = nullptr;
-static int gWikiPageLinkCount = 0;
+static CluesPageLink* gCluesPageLinks = nullptr;
+static int gCluesPageLinkCount = 0;
 
 // For button ID mapping
 static int gLinkButtonIds[256];
@@ -561,27 +561,27 @@ static void normalizeTitle(const char* src, char* dest, size_t destSize)
 }
 
 // Free the link map
-static void wikiFreeLinkMap()
+static void cluesFreeLinkMap()
 {
-    if (gWikiLinkMap) {
-        internal_free(gWikiLinkMap);
-        gWikiLinkMap = nullptr;
+    if (gCluesLinkMap) {
+        internal_free(gCluesLinkMap);
+        gCluesLinkMap = nullptr;
     }
-    gWikiLinkMapSize = 0;
+    gCluesLinkMapSize = 0;
 }
 
 // Clear per-page links
-static void wikiClearPageLinks()
+static void cluesClearPageLinks()
 {
-    if (gWikiPageLinks) {
-        internal_free(gWikiPageLinks);
-        gWikiPageLinks = nullptr;
+    if (gCluesPageLinks) {
+        internal_free(gCluesPageLinks);
+        gCluesPageLinks = nullptr;
     }
-    gWikiPageLinkCount = 0;
+    gCluesPageLinkCount = 0;
 }
 
 // Destroy link buttons
-static void wikiDestroyLinkButtons()
+static void cluesDestroyLinkButtons()
 {
     for (int i = 0; i < gLinkButtonCount; i++) {
         if (gLinkButtonIds[i] != -1)
@@ -591,12 +591,12 @@ static void wikiDestroyLinkButtons()
 }
 
 // Create transparent buttons for each link on the current page
-static void wikiCreateLinkButtons()
+static void cluesCreateLinkButtons()
 {
-    wikiDestroyLinkButtons();
+    cluesDestroyLinkButtons();
     int eventCode = 2000;
-    for (int i = 0; i < gWikiPageLinkCount && gLinkButtonCount < 256; i++) {
-        WikiPageLink* link = &gWikiPageLinks[i];
+    for (int i = 0; i < gCluesPageLinkCount && gLinkButtonCount < 256; i++) {
+        CluesPageLink* link = &gCluesPageLinks[i];
         int btn = buttonCreate(gPipboyWindow,
             link->x, link->y,
             link->width, link->height,
@@ -1068,7 +1068,7 @@ int pipboyOpen(int intent)
             continue;
         }
 
-        // Wiki link buttons (2000+)
+        // Clues link buttons (2000+)
         if (keyCode >= 2000 && keyCode < 2000 + 256) {
             _PipFnctn[gPipboyTab](keyCode);
             continue;
@@ -1079,25 +1079,25 @@ int pipboyOpen(int intent)
         } else if (keyCode >= 500 && keyCode <= 505) {
             int newTab = keyCode - 500;
 
-            // Clean up distortion if switching away from wiki
+            // Clean up distortion if switching away from clues
             if (gPipboyTab == 1) {
-                wikiResetDistortion();
+                cluesResetDistortion();
             }
 
             gPipboyPrevTab = gPipboyTab;
             gPipboyTab = newTab;
 
-            // Entering wiki tab, randomize effect and set flag
+            // Entering clues tab, randomize effect and set flag
             if (gPipboyTab == 1) {
-                gWikiDistortionMaxFrames = randomBetween(5, 10);
-                gWikiDistortionAmplitude = randomBetween(5, 200);
-                gWikiFirstEntry = true;
+                gCluesDistortionMaxFrames = randomBetween(5, 10);
+                gCluesDistortionAmplitude = randomBetween(5, 200);
+                gCluesFirstEntry = true;
             }
 
             _view_page_automap_main = 0;
             _view_page_quest = 0;
             _view_page_holodisk = 0;
-            gWikiCurrentPage = 0;
+            gCluesCurrentPage = 0;
             _PipFnctn[gPipboyTab](1024);
         } else if (keyCode >= 506 && keyCode <= 528) {
             _PipFnctn[gPipboyTab](keyCode - 506);
@@ -1113,8 +1113,8 @@ int pipboyOpen(int intent)
             break;
         }
 
-        if (gWikiDistortionFrames > 0 && gWikiDistortionBuffer) {
-            wikiApplyDistortion();
+        if (gCluesDistortionFrames > 0 && gCluesDistortionBuffer) {
+            cluesApplyDistortion();
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         }
 
@@ -1242,9 +1242,9 @@ static int pipboyWindowInit(int intent)
     int yOffsets[5] = { 27, 27, 29, 25, 27 };
 
     for (int index = 0; index < 5; index++) {
-        // Choose up/down images: wiki tab (index 1) uses custom images, others use red button.
-        int upImage = (index == 1) ? PIPBOY_FRM_WIKI_BUTTON_UP : PIPBOY_FRM_LITTLE_RED_BUTTON_UP;
-        int downImage = (index == 1) ? PIPBOY_FRM_WIKI_BUTTON_DOWN : PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN;
+        // Choose up/down images: clues tab (index 1) uses custom images, others use red button.
+        int upImage = (index == 1) ? PIPBOY_FRM_CLUES_BUTTON_UP : PIPBOY_FRM_LITTLE_RED_BUTTON_UP;
+        int downImage = (index == 1) ? PIPBOY_FRM_CLUES_BUTTON_DOWN : PIPBOY_FRM_LITTLE_RED_BUTTON_DOWN;
 
         int btn = buttonCreate(gPipboyWindow,
             53,
@@ -1394,11 +1394,11 @@ static void pipboyWindowFree()
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
     interfaceBarRefresh();
 
-    wikiFreeLinkMap();
-    wikiClearPageLinks();
-    wikiDestroyLinkButtons();
+    cluesFreeLinkMap();
+    cluesClearPageLinks();
+    cluesDestroyLinkButtons();
 
-    wikiResetDistortion();
+    cluesResetDistortion();
 
     // NOTE: Uninline.
     questFree();
@@ -4980,18 +4980,18 @@ static void holodiskFree()
     gHolodisksCount = 0;
 }
 
-// Scans data/wiki/*.txt and populates gWikiArticles
-static void wikiScanFolder()
+// Scans data/clues/*.txt and populates gCluesArticles
+static void cluesScanFolder()
 {
-    if (gWikiArticles) {
-        internal_free(gWikiArticles);
-        gWikiArticles = nullptr;
+    if (gCluesArticles) {
+        internal_free(gCluesArticles);
+        gCluesArticles = nullptr;
     }
-    gWikiArticleCount = 0;
+    gCluesArticleCount = 0;
 
-    wikiFreeLinkMap();
-    wikiClearPageLinks();
-    wikiDestroyLinkButtons();
+    cluesFreeLinkMap();
+    cluesClearPageLinks();
+    cluesDestroyLinkButtons();
 
     // Normalize language to lowercase
     char langLower[64];
@@ -5005,14 +5005,14 @@ static void wikiScanFolder()
     int fileCount = 0;
 
     // Try language-specific subfolder
-    snprintf(folderPath, sizeof(folderPath), "text%c%s%cwiki%c", DIR_SEPARATOR, langLower, DIR_SEPARATOR, DIR_SEPARATOR);
+    snprintf(folderPath, sizeof(folderPath), "text%c%s%cclues%c", DIR_SEPARATOR, langLower, DIR_SEPARATOR, DIR_SEPARATOR);
     char searchPattern[COMPAT_MAX_PATH];
     snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
     fileCount = fileNameListInit(searchPattern, &foundFiles);
 
     // Fallback to English if language folder not found and not already English
     if (fileCount == 0 && strcmp(langLower, "english") != 0) {
-        snprintf(folderPath, sizeof(folderPath), "text%cenglish%cwiki%c", DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
+        snprintf(folderPath, sizeof(folderPath), "text%cenglish%cclues%c", DIR_SEPARATOR, DIR_SEPARATOR, DIR_SEPARATOR);
         snprintf(searchPattern, sizeof(searchPattern), "%s*.txt", folderPath);
         fileCount = fileNameListInit(searchPattern, &foundFiles);
     }
@@ -5020,7 +5020,7 @@ static void wikiScanFolder()
     if (fileCount <= 0) return;
 
     // Temporary storage for unique articles
-    WikiArticle* tempArticles = (WikiArticle*)internal_malloc(sizeof(WikiArticle) * fileCount);
+    CluesArticle* tempArticles = (CluesArticle*)internal_malloc(sizeof(CluesArticle) * fileCount);
     if (!tempArticles) {
         fileNameListFree(&foundFiles, 0);
         return;
@@ -5079,23 +5079,23 @@ static void wikiScanFolder()
 
     fileNameListFree(&foundFiles, 0);
 
-    // Build final gWikiArticles and link map
+    // Build final gCluesArticles and link map
     if (tempCount > 0) {
-        gWikiArticles = (WikiArticle*)internal_malloc(sizeof(WikiArticle) * tempCount);
-        if (gWikiArticles) {
-            memcpy(gWikiArticles, tempArticles, sizeof(WikiArticle) * tempCount);
-            gWikiArticleCount = tempCount;
+        gCluesArticles = (CluesArticle*)internal_malloc(sizeof(CluesArticle) * tempCount);
+        if (gCluesArticles) {
+            memcpy(gCluesArticles, tempArticles, sizeof(CluesArticle) * tempCount);
+            gCluesArticleCount = tempCount;
 
             // Build link map
             for (int i = 0; i < tempCount; i++) {
                 char normTitle[256];
-                normalizeTitle(gWikiArticles[i].title, normTitle, sizeof(normTitle));
-                WikiLinkEntry* newMap = (WikiLinkEntry*)internal_realloc(gWikiLinkMap, sizeof(WikiLinkEntry) * (gWikiLinkMapSize + 1));
+                normalizeTitle(gCluesArticles[i].title, normTitle, sizeof(normTitle));
+                CluesLinkEntry* newMap = (CluesLinkEntry*)internal_realloc(gCluesLinkMap, sizeof(CluesLinkEntry) * (gCluesLinkMapSize + 1));
                 if (newMap) {
-                    gWikiLinkMap = newMap;
-                    strncpy(gWikiLinkMap[gWikiLinkMapSize].title, normTitle, sizeof(gWikiLinkMap[gWikiLinkMapSize].title) - 1);
-                    strncpy(gWikiLinkMap[gWikiLinkMapSize].filepath, gWikiArticles[i].filepath, sizeof(gWikiLinkMap[gWikiLinkMapSize].filepath) - 1);
-                    gWikiLinkMapSize++;
+                    gCluesLinkMap = newMap;
+                    strncpy(gCluesLinkMap[gCluesLinkMapSize].title, normTitle, sizeof(gCluesLinkMap[gCluesLinkMapSize].title) - 1);
+                    strncpy(gCluesLinkMap[gCluesLinkMapSize].filepath, gCluesArticles[i].filepath, sizeof(gCluesLinkMap[gCluesLinkMapSize].filepath) - 1);
+                    gCluesLinkMapSize++;
                 }
             }
         }
@@ -5105,7 +5105,7 @@ static void wikiScanFolder()
 }
 
 // Draw a line that may contain [[links]]; does not word wrap.
-static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, int lineIndex)
+static void cluesDrawLineWithLinks(const char* line, int indent, int baseColor, int lineIndex)
 {
     int x = PIPBOY_WINDOW_CONTENT_VIEW_X + 8 + indent;
     int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + lineIndex * fontGetLineHeight();
@@ -5132,15 +5132,15 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
 
                 // Record link rectangle
                 int linkWidth = fontGetStringWidth(linkText);
-                WikiPageLink* newLinks = (WikiPageLink*)internal_realloc(gWikiPageLinks, sizeof(WikiPageLink) * (gWikiPageLinkCount + 1));
+                CluesPageLink* newLinks = (CluesPageLink*)internal_realloc(gCluesPageLinks, sizeof(CluesPageLink) * (gCluesPageLinkCount + 1));
                 if (newLinks) {
-                    gWikiPageLinks = newLinks;
-                    strncpy(gWikiPageLinks[gWikiPageLinkCount].targetTitle, linkText, sizeof(gWikiPageLinks[gWikiPageLinkCount].targetTitle) - 1);
-                    gWikiPageLinks[gWikiPageLinkCount].x = x;
-                    gWikiPageLinks[gWikiPageLinkCount].y = y;
-                    gWikiPageLinks[gWikiPageLinkCount].width = linkWidth;
-                    gWikiPageLinks[gWikiPageLinkCount].height = fontGetLineHeight();
-                    gWikiPageLinkCount++;
+                    gCluesPageLinks = newLinks;
+                    strncpy(gCluesPageLinks[gCluesPageLinkCount].targetTitle, linkText, sizeof(gCluesPageLinks[gCluesPageLinkCount].targetTitle) - 1);
+                    gCluesPageLinks[gCluesPageLinkCount].x = x;
+                    gCluesPageLinks[gCluesPageLinkCount].y = y;
+                    gCluesPageLinks[gCluesPageLinkCount].width = linkWidth;
+                    gCluesPageLinks[gCluesPageLinkCount].height = fontGetLineHeight();
+                    gCluesPageLinkCount++;
                 }
                 // Draw link (yellow? + underline)
                 fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * y + x,
@@ -5165,7 +5165,7 @@ static void wikiDrawLineWithLinks(const char* line, int indent, int baseColor, i
 }
 
 // Helper: returns indent in pixels if line starts with list marker
-static int wikiGetListIndent(const char* line)
+static int cluesGetListIndent(const char* line)
 {
     // Skip leading spaces
     while (*line == ' ')
@@ -5176,7 +5176,7 @@ static int wikiGetListIndent(const char* line)
 }
 
 // Draw a single word-wrap segment (a piece of a line) with formatting.
-static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseColor, bool* inBold, bool* inUnderline)
+static void cluesDrawSegmentWithState(const char* text, int x, int y, int baseColor, bool* inBold, bool* inUnderline)
 {
     const char* p = text;
     char buffer[512];
@@ -5259,7 +5259,7 @@ static void wikiDrawSegmentWithState(const char* text, int x, int y, int baseCol
     }
 }
 
-static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
+static void cluesDrawFormattedLine(const char* line, int indent, int baseColor)
 {
     short wraps[WORD_WRAP_MAX_COUNT];
     short wrapCount;
@@ -5268,7 +5268,7 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
         int x = PIPBOY_WINDOW_CONTENT_VIEW_X + 8 + indent;
         int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + gPipboyCurrentLine * fontGetLineHeight();
         bool inBold = false, inUnderline = false;
-        wikiDrawSegmentWithState(line, x, y, baseColor, &inBold, &inUnderline);
+        cluesDrawSegmentWithState(line, x, y, baseColor, &inBold, &inUnderline);
         gPipboyCurrentLine++;
         return;
     }
@@ -5289,7 +5289,7 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
         // Draw this segment on a new line
         int x = PIPBOY_WINDOW_CONTENT_VIEW_X + 8 + indent;
         int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + gPipboyCurrentLine * fontGetLineHeight();
-        wikiDrawSegmentWithState(segment, x, y, baseColor, &inBold, &inUnderline);
+        cluesDrawSegmentWithState(segment, x, y, baseColor, &inBold, &inUnderline);
 
         // Advance to next display line
         gPipboyCurrentLine++;
@@ -5297,36 +5297,36 @@ static void wikiDrawFormattedLine(const char* line, int indent, int baseColor)
     }
 }
 
-static void wikiResetDistortion()
+static void cluesResetDistortion()
 {
-    gWikiDistortionFrames = 0;
-    if (gWikiDistortionBuffer) {
-        internal_free(gWikiDistortionBuffer);
-        gWikiDistortionBuffer = nullptr;
+    gCluesDistortionFrames = 0;
+    if (gCluesDistortionBuffer) {
+        internal_free(gCluesDistortionBuffer);
+        gCluesDistortionBuffer = nullptr;
     }
 }
 
-static void wikiCaptureContentArea()
+static void cluesCaptureContentArea()
 {
-    wikiResetDistortion();
-    gWikiDistortionBuffer = (unsigned char*)internal_malloc(
+    cluesResetDistortion();
+    gCluesDistortionBuffer = (unsigned char*)internal_malloc(
         PIPBOY_WINDOW_CONTENT_VIEW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT);
-    if (!gWikiDistortionBuffer) return;
+    if (!gCluesDistortionBuffer) return;
     blitBufferToBuffer(
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
         PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
         PIPBOY_WINDOW_WIDTH,
-        gWikiDistortionBuffer,
+        gCluesDistortionBuffer,
         PIPBOY_WINDOW_CONTENT_VIEW_WIDTH);
 }
 
-static void wikiApplyDistortion()
+static void cluesApplyDistortion()
 {
-    if (!gWikiDistortionBuffer || gWikiDistortionFrames <= 0) return;
+    if (!gCluesDistortionBuffer || gCluesDistortionFrames <= 0) return;
 
     // If this is the last frame, display the undistorted buffer and reset.
-    if (gWikiDistortionFrames == 1) {
+    if (gCluesDistortionFrames == 1) {
         // Clear content area to background
         blitBufferToBuffer(
             _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
@@ -5337,13 +5337,13 @@ static void wikiApplyDistortion()
             PIPBOY_WINDOW_WIDTH);
         // Copy clean captured buffer (no distortion)
         blitBufferToBuffer(
-            gWikiDistortionBuffer,
+            gCluesDistortionBuffer,
             PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
             PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT,
             PIPBOY_WINDOW_CONTENT_VIEW_WIDTH,
             gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
             PIPBOY_WINDOW_WIDTH);
-        gWikiDistortionFrames = 0;
+        gCluesDistortionFrames = 0;
         return;
     }
 
@@ -5357,23 +5357,23 @@ static void wikiApplyDistortion()
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_WIDTH);
 
-    float progress = (float)gWikiDistortionFrames / gWikiDistortionMaxFrames;
-    float amplitude = (float)gWikiDistortionAmplitude * progress;
+    float progress = (float)gCluesDistortionFrames / gCluesDistortionMaxFrames;
+    float amplitude = (float)gCluesDistortionAmplitude * progress;
     int contentW = PIPBOY_WINDOW_CONTENT_VIEW_WIDTH;
     int contentH = PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT;
 
-    // Text colors (green shades used in wiki)
+    // Text colors (green shades used in clues)
     unsigned char textGreen1 = (unsigned char)_colorTable[992];
     unsigned char textGreen2 = (unsigned char)_colorTable[32747];
     unsigned char textGreen3 = (unsigned char)_colorTable[8804];
 
     for (int row = 0; row < contentH; row++) {
-        float shift = amplitude * sinf(row * 0.15f + gWikiDistortionFrames * 0.5f);
+        float shift = amplitude * sinf(row * 0.15f + gCluesDistortionFrames * 0.5f);
         int shiftPixels = (int)(shift + 0.5f);
         if (shiftPixels < -contentW / 2) shiftPixels = -contentW / 2;
         if (shiftPixels > contentW / 2) shiftPixels = contentW / 2;
 
-        unsigned char* srcRow = gWikiDistortionBuffer + row * contentW;
+        unsigned char* srcRow = gCluesDistortionBuffer + row * contentW;
         unsigned char* dstRow = gPipboyWindowBuffer + (PIPBOY_WINDOW_CONTENT_VIEW_Y + row) * PIPBOY_WINDOW_WIDTH + PIPBOY_WINDOW_CONTENT_VIEW_X;
 
         if (shiftPixels >= 0) {
@@ -5394,13 +5394,13 @@ static void wikiApplyDistortion()
         }
     }
 
-    gWikiDistortionFrames--;
+    gCluesDistortionFrames--;
 }
 
-static int wikiGetImageHeight(const char* filename)
+static int cluesGetImageHeight(const char* filename)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "text%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+    snprintf(path, sizeof(path), "art%cclues%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
     Art* art = artLoad(path);
     if (!art) return 0;
     int width, height;
@@ -5415,7 +5415,7 @@ static int wikiGetImageHeight(const char* filename)
     return lines;
 }
 
-static int wikiCountDisplayLines(const char* content, int indent)
+static int cluesCountDisplayLines(const char* content, int indent)
 {
     // Check for image tag
     if (strncmp(content, "[img:", 5) == 0) {
@@ -5426,7 +5426,7 @@ static int wikiCountDisplayLines(const char* content, int indent)
             if (len > 0 && len < (int)sizeof(filename) - 1) {
                 strncpy(filename, content + 5, len);
                 filename[len] = '\0';
-                return wikiGetImageHeight(filename);
+                return cluesGetImageHeight(filename);
             }
         }
         return 1; // malformed, treat as one line
@@ -5449,18 +5449,15 @@ static int wikiCountDisplayLines(const char* content, int indent)
     return 1; // fallback
 }
 
-static void wikiRenderImage(const char* filename, int* currentLine)
+static void cluesRenderImage(const char* filename, int* currentLine)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "text%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+    snprintf(path, sizeof(path), "art%cclues%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
 
     Art* art = artLoad(path);
-    if (!art) {
-        return;
-    }
+    if (!art) return;
 
-    int frame = 0;
-    int direction = 0;
+    int frame = 0, direction = 0;
     int width, height;
     if (artGetSize(art, frame, direction, &width, &height) != 0) {
         internal_free(art);
@@ -5473,7 +5470,7 @@ static void wikiRenderImage(const char* filename, int* currentLine)
         return;
     }
 
-    // Clamp to content area
+    // Clamp image to content area
     if (width > PIPBOY_WINDOW_CONTENT_VIEW_WIDTH)
         width = PIPBOY_WINDOW_CONTENT_VIEW_WIDTH;
     if (height > PIPBOY_WINDOW_CONTENT_VIEW_HEIGHT)
@@ -5482,15 +5479,28 @@ static void wikiRenderImage(const char* filename, int* currentLine)
     int x = PIPBOY_WINDOW_CONTENT_VIEW_X + (PIPBOY_WINDOW_CONTENT_VIEW_WIDTH - width) / 2;
     int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + (*currentLine) * fontGetLineHeight();
 
-    // Use the Pip-Boy green colors - 2 for now
-    unsigned char brightGreen = (unsigned char)_colorTable[992]; // bright green
-    unsigned char darkGreen = (unsigned char)_colorTable[8804]; // dark green (disabled)
+    // Configurable black threshold
+    // Any pixel with luminance <= blackThreshold will be treated as black and skipped.
+    // This preserves the Pip-Boy screen background texture.
+    int blackThreshold = 4;
+
+    // Configurable green shades
+    // Each entry: { palette_index, luminance_threshold }
+    // The last threshold should be 255 (max luminance).
+    struct { unsigned char palIdx; unsigned char threshold; } shades[] = {
+        { _colorTable[5571],  8 },   // darkest green
+        { _colorTable[6722],  16 },   // slightly lighter
+        { _colorTable[6850],  64 },  // normal green
+        { _colorTable[8001],  128 },  // lighter normal
+        { _colorTable[8160],  255 }   // bright green
+    };
+    const int numShades = sizeof(shades) / sizeof(shades[0]);
 
     int frameWidth = artGetWidth(art, frame, direction);
     int frameHeight = artGetHeight(art, frame, direction);
 
     for (int row = 0; row < height && row < frameHeight; row++) {
-        // Scanline effect: skip even rows
+        // Scanline effect - skip even rows to simulate CRT / Pip-Boy display
         if ((row % 2) == 0) continue;
 
         int destY = y + row;
@@ -5506,17 +5516,27 @@ static void wikiRenderImage(const char* filename, int* currentLine)
             if (destX >= PIPBOY_WINDOW_CONTENT_VIEW_X + PIPBOY_WINDOW_CONTENT_VIEW_WIDTH)
                 break;
 
-            // Convert to luminance using the global palette
+            // Convert to luminance (grayscale)
             unsigned char* pal = &_cmap[idx * 3];
             int luminance = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
-            unsigned char color = (luminance > 25) ? brightGreen : darkGreen;
 
-            int bufferIndex = destY * PIPBOY_WINDOW_WIDTH + destX;
-            gPipboyWindowBuffer[bufferIndex] = color;
+            // If luminance is below the threshold, skip (preserve background)
+            if (luminance <= blackThreshold) continue;
+
+            // Find the first shade whose threshold is >= luminance
+            unsigned char color = shades[0].palIdx; // fallback
+            for (int s = 0; s < numShades; s++) {
+                if (luminance <= shades[s].threshold) {
+                    color = shades[s].palIdx;
+                    break;
+                }
+            }
+
+            gPipboyWindowBuffer[destY * PIPBOY_WINDOW_WIDTH + destX] = color;
         }
     }
 
-    // Advance the line counter
+    // Advance line counter by image height (in text lines)
     int lineHeight = fontGetLineHeight();
     int linesOccupied = (height + lineHeight - 1) / lineHeight;
     if (linesOccupied < 1) linesOccupied = 1;
@@ -5525,10 +5545,10 @@ static void wikiRenderImage(const char* filename, int* currentLine)
     internal_free(art);
 }
 
-static int wikiGetImageLineCount(const char* filename)
+static int cluesGetImageLineCount(const char* filename)
 {
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "wiki%cimages%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
+    snprintf(path, sizeof(path), "art%cclues%c%s.frm", DIR_SEPARATOR, DIR_SEPARATOR, filename);
     Art* art = artLoad(path);
     if (!art) return 0;
     int width, height;
@@ -5539,7 +5559,7 @@ static int wikiGetImageLineCount(const char* filename)
     internal_free(art);
 
     if (width > PIPBOY_WINDOW_CONTENT_VIEW_WIDTH) {
-        // For now nothing --- resize? Clip?
+        // For now nothing - resize? Clip?
     }
     int lineHeight = fontGetLineHeight();
     int lines = (height + lineHeight - 1) / lineHeight;
@@ -5548,11 +5568,11 @@ static int wikiGetImageLineCount(const char* filename)
 }
 
 // Renders an article with word wrap, pagination, links and images
-static void wikiRenderArticle(int articleIdx, int page)
+static void cluesRenderArticle(int articleIdx, int page)
 {
     // Clear old links and buttons
-    wikiClearPageLinks();
-    wikiDestroyLinkButtons();
+    cluesClearPageLinks();
+    cluesDestroyLinkButtons();
 
     // Clear content area
     blitBufferToBuffer(
@@ -5563,10 +5583,10 @@ static void wikiRenderArticle(int articleIdx, int page)
         gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
         PIPBOY_WINDOW_WIDTH);
 
-    File* f = fileOpen(gWikiArticles[articleIdx].filepath, "rt");
+    File* f = fileOpen(gCluesArticles[articleIdx].filepath, "rt");
     if (!f) return;
 
-    // Skip the first line (title already stored in gWikiArticles[articleIdx].title)
+    // Skip the first line (title already stored in gCluesArticles[articleIdx].title)
     char dummy[256];
     if (!fileReadString(dummy, sizeof(dummy), f)) {
         fileClose(f);
@@ -5614,14 +5634,14 @@ static void wikiRenderArticle(int articleIdx, int page)
         while (curLine < lineCount && displayLinesUsed < LINES_PER_PAGE) {
             char* rawLine = lines[curLine];
             // Determine indent and content
-            int indent = wikiGetListIndent(rawLine);
+            int indent = cluesGetListIndent(rawLine);
             char* content = rawLine;
             if (indent > 0) {
                 while (*content == ' ')
                     content++;
                 content += 2; // skip "- " or "* "
             }
-            int dl = wikiCountDisplayLines(content, indent);
+            int dl = cluesCountDisplayLines(content, indent);
             if (displayLinesUsed + dl <= LINES_PER_PAGE || displayLinesUsed == 0) {
                 // We can fit this line (or it's the first line, so we must include at least one)
                 displayLinesUsed += dl;
@@ -5636,14 +5656,14 @@ static void wikiRenderArticle(int articleIdx, int page)
         if (pageCount >= 100) break;
     }
 
-    gWikiArticleTotalPages = pageCount;
+    gCluesArticleTotalPages = pageCount;
     if (page >= pageCount) page = pageCount - 1;
     if (page < 0) page = 0;
-    gWikiArticlePage = page;
+    gCluesArticlePage = page;
 
     // Draw title
     gPipboyCurrentLine = 0;
-    pipboyDrawText(gWikiArticles[articleIdx].title,
+    pipboyDrawText(gCluesArticles[articleIdx].title,
         PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE,
         _colorTable[992]);
     gPipboyCurrentLine = 2; // one blank line
@@ -5656,7 +5676,7 @@ static void wikiRenderArticle(int articleIdx, int page)
 
     for (int i = startLine; i < endLine && drawn < maxLines; i++) {
         char* rawLine = lines[i];
-        int indent = wikiGetListIndent(rawLine);
+        int indent = cluesGetListIndent(rawLine);
         char* content = rawLine;
         if (indent > 0) {
             while (*content == ' ')
@@ -5673,9 +5693,9 @@ static void wikiRenderArticle(int articleIdx, int page)
                 if (len > 0 && len < (int)sizeof(filename) - 1) {
                     strncpy(filename, content + 5, len);
                     filename[len] = '\0';
-                    wikiRenderImage(filename, &gPipboyCurrentLine);
-                    // wikiRenderImage advances gPipboyCurrentLine by image lines
-                    drawn += wikiGetImageHeight(filename);
+                    cluesRenderImage(filename, &gPipboyCurrentLine);
+                    // cluesRenderImage advances gPipboyCurrentLine by image lines
+                    drawn += cluesGetImageHeight(filename);
                     if (drawn < 0) drawn = 0; // safety
                     continue;
                 }
@@ -5683,34 +5703,34 @@ static void wikiRenderArticle(int articleIdx, int page)
             // fall through to text
         }
 
-        // Not an image: draw as formatted text
+        // Not an image - draw as formatted text
         if (strstr(content, "[[") != nullptr) {
-            wikiDrawLineWithLinks(content, indent, _colorTable[992], gPipboyCurrentLine);
+            cluesDrawLineWithLinks(content, indent, _colorTable[992], gPipboyCurrentLine);
             gPipboyCurrentLine++;
             drawn++;
         } else {
             // Use word-wrapped drawing (which may take multiple lines)
             int before = gPipboyCurrentLine;
-            wikiDrawFormattedLine(content, indent, _colorTable[992]);
+            cluesDrawFormattedLine(content, indent, _colorTable[992]);
             int after = gPipboyCurrentLine;
             drawn += (after - before);
         }
     }
 
     // Pagination info (top-right)
-    if (gWikiArticleTotalPages > 1) {
+    if (gCluesArticleTotalPages > 1) {
         char ptext[32];
-        snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gWikiArticleTotalPages);
+        snprintf(ptext, sizeof(ptext), "%d/%d", page + 1, gCluesArticleTotalPages);
         int len = fontGetStringWidth(ptext);
         fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
             ptext, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
     }
 
     // Bottom navigation
-    renderNavigationButtons(page, gWikiArticleTotalPages, true);
+    renderNavigationButtons(page, gCluesArticleTotalPages, true);
 
     // Create link buttons (if any)
-    wikiCreateLinkButtons();
+    cluesCreateLinkButtons();
 
     // Cleanup
     for (int i = 0; i < lineCount; i++)
@@ -5719,54 +5739,54 @@ static void wikiRenderArticle(int articleIdx, int page)
     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
 }
 
-// Main wiki handler - list and article navigation
-static void pipboyHandleWiki(int userInput)
+// Main clues handler - list and article navigation
+static void pipboyHandleClues(int userInput)
 {
     const int ARTICLES_PER_PAGE = PIPBOY_STATUS_QUEST_LINES; // 19
 
     // Helper to compute items on current page
-    auto getWikiItemsOnPage = [&]() -> int {
-        if (gWikiArticleCount == 0) return 0;
-        int startIdx = gWikiCurrentPage * ARTICLES_PER_PAGE;
+    auto getCluesItemsOnPage = [&]() -> int {
+        if (gCluesArticleCount == 0) return 0;
+        int startIdx = gCluesCurrentPage * ARTICLES_PER_PAGE;
         int endIdx = startIdx + ARTICLES_PER_PAGE;
-        if (endIdx > gWikiArticleCount) endIdx = gWikiArticleCount;
+        if (endIdx > gCluesArticleCount) endIdx = gCluesArticleCount;
         return endIdx - startIdx;
     };
 
     // Article View Mode
-    if (gWikiInArticle) {
+    if (gCluesInArticle) {
         // Handle bottom button (Back/More)
         if (userInput == 1025) {
             int mouseX = gPipboyMouseX;
             if (mouseX < 459) {
-                // LEFT side: "Back"
-                if (gWikiArticlePage > 0) {
+                // Left side - "Back"
+                if (gCluesArticlePage > 0) {
                     // Not first page - go to previous page
                     soundPlayFile("ib1p1xx1");
-                    gWikiArticlePage--;
-                    wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                    gCluesArticlePage--;
+                    cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
                     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
                 } else {
                     // First page - exit to list
                     soundPlayFile("ib1p1xx1");
-                    wikiDestroyLinkButtons();
-                    gWikiInArticle = false;
-                    pipboyHandleWiki(1024);
+                    cluesDestroyLinkButtons();
+                    gCluesInArticle = false;
+                    pipboyHandleClues(1024);
                 }
             } else {
-                // RIGHT side: "More" / "Done"
-                if (gWikiArticlePage < gWikiArticleTotalPages - 1) {
+                // Right side - "More" / "Done"
+                if (gCluesArticlePage < gCluesArticleTotalPages - 1) {
                     // Not last page - next page
                     soundPlayFile("ib1p1xx1");
-                    gWikiArticlePage++;
-                    wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                    gCluesArticlePage++;
+                    cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
                     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
                 } else {
                     // Last page - exit to list
                     soundPlayFile("ib1p1xx1");
-                    wikiDestroyLinkButtons();
-                    gWikiInArticle = false;
-                    pipboyHandleWiki(1024);
+                    cluesDestroyLinkButtons();
+                    gCluesInArticle = false;
+                    pipboyHandleClues(1024);
                 }
             }
             return;
@@ -5775,19 +5795,19 @@ static void pipboyHandleWiki(int userInput)
         // Handle link button clicks
         if (userInput >= 2000 && userInput < 2000 + gLinkButtonCount) {
             int linkIdx = userInput - 2000;
-            if (linkIdx >= 0 && linkIdx < gWikiPageLinkCount) {
+            if (linkIdx >= 0 && linkIdx < gCluesPageLinkCount) {
                 char normTarget[256];
-                normalizeTitle(gWikiPageLinks[linkIdx].targetTitle, normTarget, sizeof(normTarget));
+                normalizeTitle(gCluesPageLinks[linkIdx].targetTitle, normTarget, sizeof(normTarget));
                 // Look up target in link map
-                for (int i = 0; i < gWikiLinkMapSize; i++) {
-                    if (strcmp(gWikiLinkMap[i].title, normTarget) == 0) {
+                for (int i = 0; i < gCluesLinkMapSize; i++) {
+                    if (strcmp(gCluesLinkMap[i].title, normTarget) == 0) {
                         // Switch to target article
                         soundPlayFile("ib1p1xx1");
-                        gWikiCurrentArticleIndex = i;
-                        gWikiCurrentPage = 0;
-                        gWikiArticlePage = 0;
+                        gCluesCurrentArticleIndex = i;
+                        gCluesCurrentPage = 0;
+                        gCluesArticlePage = 0;
                         // Re-render article (this will destroy old buttons and create new ones)
-                        wikiRenderArticle(gWikiCurrentArticleIndex, 0);
+                        cluesRenderArticle(gCluesCurrentArticleIndex, 0);
                         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
                         break;
                     }
@@ -5802,53 +5822,52 @@ static void pipboyHandleWiki(int userInput)
                 // Click when returning from subpages (PIPBOY_KEY_SELECT) - 1024 (Pipboy button click) handled elsewhere
                 soundPlayFile("ib1p1xx1");
             }
-            wikiDestroyLinkButtons();
-            gWikiInArticle = false;
-            pipboyHandleWiki(1024);
+            cluesDestroyLinkButtons();
+            gCluesInArticle = false;
+            pipboyHandleClues(1024);
             return;
         }
         if (userInput == PIPBOY_KEY_LEFT) {
-            if (gWikiArticlePage > 0) {
+            if (gCluesArticlePage > 0) {
                 soundPlayFile("ib1p1xx1");
-                gWikiArticlePage--;
-                wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                gCluesArticlePage--;
+                cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
-                wikiDestroyLinkButtons();
+                cluesDestroyLinkButtons();
                 soundPlayFile("ib1p1xx1");
-                gWikiInArticle = false;
-                pipboyHandleWiki(1024);
+                gCluesInArticle = false;
+                pipboyHandleClues(1024);
             }
             return;
         }
         if (userInput == PIPBOY_KEY_RIGHT) {
-            if (gWikiArticlePage < gWikiArticleTotalPages - 1) {
+            if (gCluesArticlePage < gCluesArticleTotalPages - 1) {
                 soundPlayFile("ib1p1xx1");
-                gWikiArticlePage++;
-                wikiRenderArticle(gWikiCurrentArticleIndex, gWikiArticlePage);
+                gCluesArticlePage++;
+                cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             } else {
-                wikiDestroyLinkButtons();
+                cluesDestroyLinkButtons();
                 soundPlayFile("ib1p1xx1");
-                gWikiInArticle = false;
-                pipboyHandleWiki(1024);
+                gCluesInArticle = false;
+                pipboyHandleClues(1024);
             }
             return;
         }
         return;
     }
 
-    // ----- LIST VIEW MODE -----
-
+    // List view mode
     // 1024 = redraw the article list (initial entry or after returning)
     if (userInput == 1024) {
         pipboyWindowDestroyButtons();
-        gWikiInArticle = false;
-        gWikiArticlePage = 0;
-        gWikiCurrentArticleIndex = -1;
+        gCluesInArticle = false;
+        gCluesArticlePage = 0;
+        gCluesCurrentArticleIndex = -1;
         gPipboyKeyboardMode = true;
 
-        wikiScanFolder();
+        cluesScanFolder();
 
         blitBufferToBuffer(
             _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
@@ -5859,33 +5878,33 @@ static void pipboyHandleWiki(int userInput)
             PIPBOY_WINDOW_WIDTH);
 
         gPipboyCurrentLine = 0;
-        pipboyDrawText("WIKI", PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[992]);
+        pipboyDrawText("CLUES", PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[992]);
 
-        if (gWikiArticleCount == 0) {
-            pipboyDrawText("No wiki articles found.", PIPBOY_TEXT_ALIGNMENT_CENTER, _colorTable[992]);
+        if (gCluesArticleCount == 0) {
+            pipboyDrawText("No clues articles found.", PIPBOY_TEXT_ALIGNMENT_CENTER, _colorTable[992]);
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             return;
         }
 
         gPipboyCurrentLine = 2;
 
-        int totalPages = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
-        if (gWikiCurrentPage >= totalPages) gWikiCurrentPage = totalPages - 1;
-        if (gWikiCurrentPage < 0) gWikiCurrentPage = 0;
+        int totalPages = (gCluesArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
+        if (gCluesCurrentPage >= totalPages) gCluesCurrentPage = totalPages - 1;
+        if (gCluesCurrentPage < 0) gCluesCurrentPage = 0;
 
-        int startIdx = gWikiCurrentPage * ARTICLES_PER_PAGE;
+        int startIdx = gCluesCurrentPage * ARTICLES_PER_PAGE;
         int endIdx = startIdx + ARTICLES_PER_PAGE;
-        if (endIdx > gWikiArticleCount) endIdx = gWikiArticleCount;
+        if (endIdx > gCluesArticleCount) endIdx = gCluesArticleCount;
         int itemsOnPage = endIdx - startIdx;
 
         // Ensure selection is within bounds
-        if (gWikiSelectedIndex >= itemsOnPage) gWikiSelectedIndex = itemsOnPage - 1;
-        if (gWikiSelectedIndex < 0) gWikiSelectedIndex = 0;
+        if (gCluesSelectedIndex >= itemsOnPage) gCluesSelectedIndex = itemsOnPage - 1;
+        if (gCluesSelectedIndex < 0) gCluesSelectedIndex = 0;
 
         for (int i = startIdx; i < endIdx; i++) {
             int relIdx = i - startIdx;
-            int color = (relIdx == gWikiSelectedIndex) ? _colorTable[32747] : _colorTable[992];
-            pipboyDrawText(gWikiArticles[i].title, 0, color);
+            int color = (relIdx == gCluesSelectedIndex) ? _colorTable[32747] : _colorTable[992];
+            pipboyDrawText(gCluesArticles[i].title, 0, color);
             if (gPipboyCurrentLine < gPipboyLinesCount) {
                 gPipboyCurrentLine++;
             }
@@ -5893,14 +5912,14 @@ static void pipboyHandleWiki(int userInput)
 
         if (totalPages > 1) {
             char pageText[32];
-            snprintf(pageText, sizeof(pageText), "%d/%d", gWikiCurrentPage + 1, totalPages);
+            snprintf(pageText, sizeof(pageText), "%d/%d", gCluesCurrentPage + 1, totalPages);
             int len = fontGetStringWidth(pageText);
             fontDrawText(gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * 47 + 616 + 604 - len,
                 pageText, 350, PIPBOY_WINDOW_WIDTH, _colorTable[992]);
         }
 
         // Draw bottom navigation text (Back/More)
-        renderNavigationButtons(gWikiCurrentPage, totalPages, false);
+        renderNavigationButtons(gCluesCurrentPage, totalPages, false);
 
         // Create clickable buttons for articles + bottom navigation button
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
@@ -5909,118 +5928,118 @@ static void pipboyHandleWiki(int userInput)
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
 
         // Capture for distortion if first entry
-        if (gWikiFirstEntry) {
-            gWikiFirstEntry = false;
-            wikiCaptureContentArea();
-            gWikiDistortionFrames = gWikiDistortionMaxFrames;
+        if (gCluesFirstEntry) {
+            gCluesFirstEntry = false;
+            cluesCaptureContentArea();
+            gCluesDistortionFrames = gCluesDistortionMaxFrames;
         }
         return;
     }
 
     // List mode: handle bottom button (1025) for page navigation
     if (userInput == 1025) {
-        int totalPages = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
+        int totalPages = (gCluesArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
         if (totalPages <= 1) return;
 
         if (gPipboyMouseX < 459) { // Back
-            if (gWikiCurrentPage > 0) {
+            if (gCluesCurrentPage > 0) {
                 soundPlayFile("ib1p1xx1");
-                gWikiCurrentPage--;
-                gWikiSelectedIndex = 0; // go to top of new page
-                pipboyHandleWiki(1024); // redraw
+                gCluesCurrentPage--;
+                gCluesSelectedIndex = 0; // go to top of new page
+                pipboyHandleClues(1024); // redraw
             }
         } else { // More
-            if (gWikiCurrentPage < totalPages - 1) {
+            if (gCluesCurrentPage < totalPages - 1) {
                 soundPlayFile("ib1p1xx1");
-                gWikiCurrentPage++;
-                gWikiSelectedIndex = 0; // go to top of new page
-                pipboyHandleWiki(1024);
+                gCluesCurrentPage++;
+                gCluesSelectedIndex = 0; // go to top of new page
+                pipboyHandleClues(1024);
             }
         }
         return;
     }
 
-    // List mode: keyboard navigation
-    if (gWikiArticleCount == 0) return;
+    // List mode - keyboard navigation
+    if (gCluesArticleCount == 0) return;
 
-    int totalPages = (gWikiArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
-    int itemsOnPage = getWikiItemsOnPage();
+    int totalPages = (gCluesArticleCount + ARTICLES_PER_PAGE - 1) / ARTICLES_PER_PAGE;
+    int itemsOnPage = getCluesItemsOnPage();
 
     // Up arrow
     if (userInput == PIPBOY_KEY_UP) {
-        if (gWikiSelectedIndex > 0) {
+        if (gCluesSelectedIndex > 0) {
             // Move up within current page
-            gWikiSelectedIndex--;
-            pipboyHandleWiki(1024);
-        } else if (gWikiCurrentPage > 0) {
+            gCluesSelectedIndex--;
+            pipboyHandleClues(1024);
+        } else if (gCluesCurrentPage > 0) {
             // Wrap to previous page - go to bottom of that page
             soundPlayFile("ib1p1xx1");
-            gWikiCurrentPage--;
-            int newItems = getWikiItemsOnPage();
-            gWikiSelectedIndex = (newItems > 0) ? (newItems - 1) : 0;
-            pipboyHandleWiki(1024);
+            gCluesCurrentPage--;
+            int newItems = getCluesItemsOnPage();
+            gCluesSelectedIndex = (newItems > 0) ? (newItems - 1) : 0;
+            pipboyHandleClues(1024);
         }
         return;
     }
 
     // Down arrow
     if (userInput == PIPBOY_KEY_DOWN) {
-        if (gWikiSelectedIndex < itemsOnPage - 1) {
+        if (gCluesSelectedIndex < itemsOnPage - 1) {
             // Move down within current page
-            gWikiSelectedIndex++;
-            pipboyHandleWiki(1024);
-        } else if (gWikiCurrentPage < totalPages - 1) {
+            gCluesSelectedIndex++;
+            pipboyHandleClues(1024);
+        } else if (gCluesCurrentPage < totalPages - 1) {
             // Wrap to next page - go to top of that page
             soundPlayFile("ib1p1xx1");
-            gWikiCurrentPage++;
-            gWikiSelectedIndex = 0;
-            pipboyHandleWiki(1024);
+            gCluesCurrentPage++;
+            gCluesSelectedIndex = 0;
+            pipboyHandleClues(1024);
         }
         return;
     }
 
     // Left Arrow (previous page, preserve relative index)
     if (userInput == PIPBOY_KEY_LEFT) {
-        if (gWikiCurrentPage > 0) {
+        if (gCluesCurrentPage > 0) {
             soundPlayFile("ib1p1xx1");
-            int oldIndex = gWikiSelectedIndex;
-            gWikiCurrentPage--;
-            int newItems = getWikiItemsOnPage();
+            int oldIndex = gCluesSelectedIndex;
+            gCluesCurrentPage--;
+            int newItems = getCluesItemsOnPage();
             // Preserve relative index: clamp old index to new page length
-            gWikiSelectedIndex = (oldIndex < newItems) ? oldIndex : (newItems - 1);
-            if (gWikiSelectedIndex < 0) gWikiSelectedIndex = 0;
-            pipboyHandleWiki(1024);
+            gCluesSelectedIndex = (oldIndex < newItems) ? oldIndex : (newItems - 1);
+            if (gCluesSelectedIndex < 0) gCluesSelectedIndex = 0;
+            pipboyHandleClues(1024);
         }
         return;
     }
 
     // Right arrow (next page, preserve relative index)
     if (userInput == PIPBOY_KEY_RIGHT) {
-        if (gWikiCurrentPage < totalPages - 1) {
+        if (gCluesCurrentPage < totalPages - 1) {
             soundPlayFile("ib1p1xx1");
-            int oldIndex = gWikiSelectedIndex;
-            gWikiCurrentPage++;
-            int newItems = getWikiItemsOnPage();
+            int oldIndex = gCluesSelectedIndex;
+            gCluesCurrentPage++;
+            int newItems = getCluesItemsOnPage();
             // Preserve relative index: clamp old index to new page length
-            gWikiSelectedIndex = (oldIndex < newItems) ? oldIndex : (newItems - 1);
-            if (gWikiSelectedIndex < 0) gWikiSelectedIndex = 0;
-            pipboyHandleWiki(1024);
+            gCluesSelectedIndex = (oldIndex < newItems) ? oldIndex : (newItems - 1);
+            if (gCluesSelectedIndex < 0) gCluesSelectedIndex = 0;
+            pipboyHandleClues(1024);
         }
         return;
     }
 
     // Enter / Select (open article)
     if (userInput == PIPBOY_KEY_SELECT) {
-        if (itemsOnPage > 0 && gWikiSelectedIndex < itemsOnPage) {
+        if (itemsOnPage > 0 && gCluesSelectedIndex < itemsOnPage) {
             soundPlayFile("ib1p1xx1");
-            int articleIdx = gWikiCurrentPage * ARTICLES_PER_PAGE + gWikiSelectedIndex;
-            if (articleIdx >= 0 && articleIdx < gWikiArticleCount) {
-                gWikiCurrentArticleIndex = articleIdx;
-                gWikiInArticle = true;
-                gWikiArticlePage = 0;
+            int articleIdx = gCluesCurrentPage * ARTICLES_PER_PAGE + gCluesSelectedIndex;
+            if (articleIdx >= 0 && articleIdx < gCluesArticleCount) {
+                gCluesCurrentArticleIndex = articleIdx;
+                gCluesInArticle = true;
+                gCluesArticlePage = 0;
                 pipboyWindowDestroyButtons();
                 pipboyWindowCreateButtons(0, 0, true);
-                wikiRenderArticle(articleIdx, 0);
+                cluesRenderArticle(articleIdx, 0);
                 windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
             }
         }
@@ -6034,21 +6053,21 @@ static void pipboyHandleWiki(int userInput)
     // So a click on first article (event 507) becomes userInput = 1.
     if (userInput >= 1 && userInput <= itemsOnPage) {
         soundPlayFile("ib1p1xx1");
-        gWikiSelectedIndex = userInput - 1;
+        gCluesSelectedIndex = userInput - 1;
         gPipboyKeyboardMode = true;
-        pipboyHandleWiki(1024);
+        pipboyHandleClues(1024);
         windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         renderPresent();
         inputPauseForTocks(200);
 
-        int articleIdx = gWikiCurrentPage * ARTICLES_PER_PAGE + gWikiSelectedIndex;
-        if (articleIdx >= 0 && articleIdx < gWikiArticleCount) {
-            gWikiCurrentArticleIndex = articleIdx;
-            gWikiInArticle = true;
-            gWikiArticlePage = 0;
+        int articleIdx = gCluesCurrentPage * ARTICLES_PER_PAGE + gCluesSelectedIndex;
+        if (articleIdx >= 0 && articleIdx < gCluesArticleCount) {
+            gCluesCurrentArticleIndex = articleIdx;
+            gCluesInArticle = true;
+            gCluesArticlePage = 0;
             pipboyWindowDestroyButtons();
             pipboyWindowCreateButtons(0, 0, true);
-            wikiRenderArticle(articleIdx, 0);
+            cluesRenderArticle(articleIdx, 0);
             windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
         }
         return;
