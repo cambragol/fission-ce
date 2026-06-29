@@ -374,6 +374,15 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
     tileWindowRefreshRect(&rect, realNPC->elevation);
     realNPC->flags |= OBJECT_GHOST_HIDDEN;
 
+    // If no animation slot is available, clean up and bail out
+    if (reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT) == -1) {
+        objectDestroy(ghost, nullptr);
+        realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
+        objectShow(realNPC, &rect);
+        tileWindowRefreshRect(&rect, realNPC->elevation);
+        return;
+    }
+
     reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT);
     animationRegisterUnsetFlag(ghost, OBJECT_HIDDEN, 0);
     animationRegisterMoveToTileStraight(ghost, toTile, elevation, ANIM_WALK, 0);
@@ -449,6 +458,7 @@ static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int exc
             Object* occupant = _obj_blocking_at(obj, tile, obj->elevation);
             if (occupant == nullptr) {
                 // Free tile found for this object
+                if (numMoves >= MAX_PUSH_DEPTH) return false;
                 moves[numMoves].obj = obj;
                 moves[numMoves].fromTile = obj->tile;
                 moves[numMoves].toTile = tile;
@@ -459,6 +469,7 @@ static bool findFreeTileRecursive(Object* obj, int depth, int playerDir, int exc
                 if (findFreeTileRecursive(occupant, depth + 1, playerDir, obj->tile,
                         moves, numMoves)) {
                     // After moving occupant, this tile is now free for current object
+                    if (numMoves >= MAX_PUSH_DEPTH) return false;
                     moves[numMoves].obj = obj;
                     moves[numMoves].fromTile = obj->tile;
                     moves[numMoves].toTile = tile;
@@ -1744,16 +1755,43 @@ static int _anim_set_end(int animationSequenceIndex)
         }
     }
 
+    // Build a set of destroyed owners so the second loop doesn't dereference them
+    Object* destroyedOwners[ANIMATION_DESCRIPTION_LIST_CAPACITY] = {};
+    int destroyedOwnersLength = 0;
+
+    for (i = 0; i < animationSequence->length; i++) {
+        animationDescription = &(animationSequence->animations[i]);
+        if (animationDescription->kind == ANIM_KIND_HIDE
+            && ((i < animationSequence->animationIndex)
+                || (animationDescription->extendedFlags & ANIMATION_SEQUENCE_FORCED))) {
+            destroyedOwners[destroyedOwnersLength++] = animationDescription->owner;
+        }
+    }
+
+    // Second loop — skip any owner that was destroyed above
     for (i = 0; i < animationSequence->length; i++) {
         animationDescription = &(animationSequence->animations[i]);
         if (animationDescription->artCacheKey) {
             artUnlock(animationDescription->artCacheKey);
+            animationDescription->artCacheKey = nullptr;
         }
 
         if (animationDescription->kind != 11 && animationDescription->kind != 12) {
-            // TODO: Check.
             if (animationDescription->kind != ANIM_KIND_PING) {
                 Object* owner = animationDescription->owner;
+
+                // Skip if this owner was already destroyed
+                bool ownerDestroyed = false;
+                for (int d = 0; d < destroyedOwnersLength; d++) {
+                    if (destroyedOwners[d] == owner) {
+                        ownerDestroyed = true;
+                        break;
+                    }
+                }
+                if (ownerDestroyed) {
+                    continue;
+                }
+
                 if (FID_TYPE(owner->fid) == OBJ_TYPE_CRITTER) {
                     int j = 0;
                     for (; j < i; j++) {
