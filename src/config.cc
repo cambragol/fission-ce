@@ -611,4 +611,29 @@ bool configGetIntArray(Config* config, const char* section, const char* key, int
     return true;
 }
 
+int configGetSectionCount(Config* config)
+{
+    if (config == nullptr) {
+        return 0;
+    }
+    return config->entriesLength;
+}
+
+bool configGetSectionKey(Config* config, int index, char* buffer, size_t bufferSize)
+{
+    if (config == nullptr || buffer == nullptr || bufferSize == 0) {
+        return false;
+    }
+    if (index < 0 || index >= config->entriesLength) {
+        return false;
+    }
+    DictionaryEntry* entry = &(config->entries[index]);
+    size_t len = strlen(entry->key);
+    if (len + 1 > bufferSize) {
+        return false;
+    }
+    strcpy(buffer, entry->key);
+    return true;
+}
+
 } // namespace fallout

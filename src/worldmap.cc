@@ -73,6 +73,8 @@ namespace fallout {
 
 #define ENCOUNTER_SUBINFO_DEAD (0x01)
 
+#define ENCOUNTER_TABLE_MSG_OFFSET 100
+
 #define WM_WINDOW_DIAL_X (532)
 #define WM_WINDOW_DIAL_Y (48)
 
@@ -329,6 +331,8 @@ typedef struct EncounterTable {
     int field_48;
     int entriesLength;
     EncounterTableEntry entries[41];
+    int msgBaseId; // base message ID for this table's mod (0 for vanilla)
+    int localModIndex; // sequential index within mod file (or vanilla table index)
 } EncounterTable;
 
 typedef struct EncounterItem {
@@ -581,6 +585,11 @@ static int wmMapLoadBaseFile(const char* filename);
 static int wmMapLoadModFile(const char* filename);
 static void wmMapLoadModFiles();
 static void wmGenerateMapListDebug();
+
+static void wmEncounterTableLoadModFiles();
+static void wmTileLoadModFiles();
+static void wmGenerateEncounterTablesDebug();
+static void wmGenerateNamedEncountersDebug();
 
 static char _aErrorF2[] = "ERROR! F2";
 
@@ -842,22 +851,28 @@ static Config* pConfigCfg;
 // 0x672FD8
 static int wmTownMapSubButtonIds[7];
 
-// 0x672FF4
-static Encounter* wmEncBaseTypeList;
-
 // 0x672FF8
 static CitySizeDescription wmSphereData[CITY_SIZE_COUNT];
 
-// 0x673034
-static EncounterTable* wmEncounterTableList;
+// Fixed array sizes for worldmap encounter data (mod support)
+#define TOTAL_ENCOUNTER_TABLE_MAX 2048
+#define MOD_ENCOUNTER_TABLE_START 1024
 
-// Number of enc_base_types.
-//
-// 0x673038
-static int wmMaxEncBaseTypes;
+#define TOTAL_NAMED_ENCOUNTER_MAX 2048
+#define MOD_NAMED_ENCOUNTER_START 1024
 
-// 0x67303C
-static int wmMaxEncounterInfoTables;
+// Fixed arrays for all encounter tables and named encounters
+static EncounterTable wmFixedEncounterTableList[TOTAL_ENCOUNTER_TABLE_MAX];
+static int wmVanillaEncounterTableCount = 0;
+static EncounterTable* wmEncounterTableList = wmFixedEncounterTableList; // pointer for legacy code
+static int wmMaxEncounterInfoTables = 0; // will hold vanilla count after loading
+
+static Encounter wmFixedEncBaseTypeList[TOTAL_NAMED_ENCOUNTER_MAX];
+static int wmVanillaEncBaseTypeCount = 0;
+static Encounter* wmEncBaseTypeList = wmFixedEncBaseTypeList;
+static int wmMaxEncBaseTypes = 0; // will hold vanilla count after loading
+
+static int wmMaxNamedEncounterIndexUsed = -1;
 
 static char gBaseMapOverrides[BASE_MAP_MAX][COMPAT_MAX_PATH] = { 0 };
 static char gBaseAreaOverrides[BASE_AREA_MAX][COMPAT_MAX_PATH] = { 0 };
@@ -1063,6 +1078,24 @@ static uint16_t wmCalculateModMapSlot(const char* lookupName, uint32_t modNamesp
     return slot;
 }
 
+// Calculate consistent slot for an encounter table within a mod namespace
+static uint16_t wmCalculateEncounterTableSlot(const char* lookupName, uint32_t modNamespace, int localIndex)
+{
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", lookupName, modNamespace, localIndex);
+    uint32_t hash = wmHashString(combinedKey);
+    return MOD_ENCOUNTER_TABLE_START + (hash % (TOTAL_ENCOUNTER_TABLE_MAX - MOD_ENCOUNTER_TABLE_START));
+}
+
+// Calculate consistent slot for a named encounter within a mod namespace
+static uint16_t wmCalculateNamedEncounterSlot(const char* name, uint32_t modNamespace, int localIndex)
+{
+    char combinedKey[256];
+    snprintf(combinedKey, sizeof(combinedKey), "%s|%u|%d", name, modNamespace, localIndex);
+    uint32_t hash = wmHashString(combinedKey);
+    return MOD_NAMED_ENCOUNTER_START + (hash % (TOTAL_NAMED_ENCOUNTER_MAX - MOD_NAMED_ENCOUNTER_START));
+}
+
 static inline bool cityIsValid(int city)
 {
     return city >= 0 && city < wmMaxAreaNum;
@@ -1101,7 +1134,7 @@ static void wmLoadModWorldmapMsgFiles()
         }
 
         // Compute base ID for this mod's entrance block
-        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+        uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
         if (baseId == 0) {
             debugPrint("ERROR: Base ID is zero for worldmap mod '%s' (modName='%s'). Check MOD_BLOCK_WORLDMAP in gModBlockRanges.\n", msgFiles[i], modName);
             continue;
@@ -1309,19 +1342,10 @@ void wmWorldMap_exit()
     wmNumHorizontalTiles = 0;
     wmMaxTileNum = 0;
 
-    if (wmEncounterTableList != nullptr) {
-        internal_free(wmEncounterTableList);
-        wmEncounterTableList = nullptr;
-    }
-
     wmMaxEncounterInfoTables = 0;
-
-    if (wmEncBaseTypeList != nullptr) {
-        internal_free(wmEncBaseTypeList);
-        wmEncBaseTypeList = nullptr;
-    }
-
+    wmVanillaEncounterTableCount = 0;
     wmMaxEncBaseTypes = 0;
+    wmVanillaEncBaseTypeCount = 0;
 
     if (wmAreaInfoList != nullptr) {
         internal_free(wmAreaInfoList);
@@ -1702,6 +1726,16 @@ static int wmConfigInit()
             }
         }
 
+        // Set the vanilla table count for save/load (mod tables are not saved)
+        wmMaxEncounterInfoTables = wmVanillaEncounterTableCount;
+
+        // Load mod encounter tables from worldmap_*.txt
+        wmEncounterTableLoadModFiles();
+
+        // Generate debug reports
+        wmGenerateEncounterTablesDebug();
+        wmGenerateNamedEncountersDebug();
+
         if (!configGetInt(&config, "Tile Data", "num_horizontal_tiles", &wmNumHorizontalTiles)) {
             showMesageBox("\nwmConfigInit::Error loading tile data!");
             return -1;
@@ -1761,6 +1795,9 @@ static int wmConfigInit()
                 }
             }
         }
+
+        // Load tile overrides from mod files
+        wmTileLoadModFiles();
     }
 
     configFree(&config);
@@ -1771,22 +1808,23 @@ static int wmConfigInit()
 // 0x4BD9F0
 static int wmReadEncounterType(Config* config, char* lookupName, char* sectionKey)
 {
-    wmMaxEncounterInfoTables++;
-
-    EncounterTable* encounterTables = (EncounterTable*)internal_realloc(wmEncounterTableList, sizeof(EncounterTable) * wmMaxEncounterInfoTables);
-    if (encounterTables == nullptr) {
-        showMesageBox("\nwmConfigInit::Error loading Encounter Table!");
+    // Use fixed array for vanilla tables
+    if (wmVanillaEncounterTableCount >= TOTAL_ENCOUNTER_TABLE_MAX) {
+        showMesageBox("\nwmConfigInit::Error: Too many encounter tables! Increase TOTAL_ENCOUNTER_TABLE_MAX.");
         exit(1);
     }
 
-    wmEncounterTableList = encounterTables;
+    EncounterTable* encounterTable = &wmFixedEncounterTableList[wmVanillaEncounterTableCount];
+    wmVanillaEncounterTableCount++;
 
-    EncounterTable* encounterTable = &(encounterTables[wmMaxEncounterInfoTables - 1]);
+    // Update global pointers/counts for legacy code
+    wmEncounterTableList = wmFixedEncounterTableList;
+    wmMaxEncounterInfoTables = wmVanillaEncounterTableCount;
 
-    // NOTE: Uninline.
     wmEncounterTableSlotInit(encounterTable);
-
-    encounterTable->index = wmMaxEncounterInfoTables - 1;
+    encounterTable->index = wmVanillaEncounterTableCount - 1;
+    encounterTable->msgBaseId = 3000; // vanilla base ID
+    encounterTable->localModIndex = wmVanillaEncounterTableCount - 1;
     strncpy(encounterTable->lookupName, lookupName, 40);
 
     char* str;
@@ -1828,6 +1866,428 @@ static int wmReadEncounterType(Config* config, char* lookupName, char* sectionKe
     }
 
     return 0;
+}
+
+// Parse an encounter from a given config and section name into an already allocated Encounter structure.
+// Returns 0 on success, -1 on failure.
+static int wmParseEncounterFromConfig(Config* config, const char* sectionName, Encounter* encounter)
+{
+    // Initialize the encounter slot
+    wmEncBaseTypeSlotInit(encounter);
+
+    char key[40];
+    snprintf(key, sizeof(key), "type_00");
+
+    char* string;
+    if (!configGetString(config, sectionName, key, &string)) {
+        return -1;
+    }
+
+    while (1) {
+        if (wmParseEncBaseSubTypeStr(&(encounter->entries[encounter->entriesLength]), &string) == -1) {
+            return -1;
+        }
+
+        encounter->entriesLength++;
+
+        snprintf(key, sizeof(key), "type_%02d", encounter->entriesLength);
+
+        if (!configGetString(config, sectionName, key, &string)) {
+            int team;
+            configGetInt(config, sectionName, "team_num", &team);
+
+            for (int index = 0; index < encounter->entriesLength; index++) {
+                EncounterEntry* entry = &(encounter->entries[index]);
+                if (PID_TYPE(entry->pid) == OBJ_TYPE_CRITTER) {
+                    entry->team = team;
+                }
+            }
+
+            if (configGetString(config, sectionName, "position", &string)) {
+                strParseStrFromList(&string, &(encounter->position), wmFormationStrs, ENCOUNTER_FORMATION_TYPE_COUNT);
+                strParseIntWithKey(&string, "spacing", &(encounter->spacing), ":");
+                strParseIntWithKey(&string, "distance", &(encounter->distance), ":");
+            }
+
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+// Parses a named encounter from a config section directly into a pre-allocated Encounter slot.
+// Section name is expected to be e.g. "Encounter: MyEncounter".
+static int wmParseEncounterFromConfigSection(Config* config, const char* sectionName, Encounter* outEncounter)
+{
+    // Initialize the slot
+    wmEncBaseTypeSlotInit(outEncounter);
+
+    // Extract name from "Encounter: Name"
+    const char* nameStart = sectionName + 11;
+    while (*nameStart == ' ')
+        nameStart++;
+    strncpy(outEncounter->name, nameStart, 39);
+    outEncounter->name[39] = '\0';
+
+    char key[40];
+    snprintf(key, sizeof(key), "type_00");
+    char* string;
+    if (!configGetString(config, sectionName, key, &string)) {
+        return -1;
+    }
+
+    while (1) {
+        if (wmParseEncBaseSubTypeStr(&(outEncounter->entries[outEncounter->entriesLength]), &string) == -1) {
+            return -1;
+        }
+        outEncounter->entriesLength++;
+
+        snprintf(key, sizeof(key), "type_%02d", outEncounter->entriesLength);
+        if (!configGetString(config, sectionName, key, &string)) {
+            // All entries parsed – now apply team setting if present
+            int team;
+            configGetInt(config, sectionName, "team_num", &team);
+            for (int i = 0; i < outEncounter->entriesLength; i++) {
+                EncounterEntry* entry = &(outEncounter->entries[i]);
+                if (PID_TYPE(entry->pid) == OBJ_TYPE_CRITTER) {
+                    entry->team = team;
+                }
+            }
+            // Optional formation data
+            if (configGetString(config, sectionName, "position", &string)) {
+                strParseStrFromList(&string, &(outEncounter->position), wmFormationStrs, ENCOUNTER_FORMATION_TYPE_COUNT);
+                strParseIntWithKey(&string, "spacing", &(outEncounter->spacing), ":");
+                strParseIntWithKey(&string, "distance", &(outEncounter->distance), ":");
+            }
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static void wmEncounterTableLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cworldmap_*.txt", DIR_SEPARATOR);
+
+    char** modFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &modFiles);
+
+    if (fileCount == 0) return;
+
+    for (int i = 0; i < fileCount; i++) {
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, modFiles[i]);
+
+        // Extract mod name from the file
+        char modName[64] = { 0 };
+        const char* prefix = "worldmap_";
+        const char* suffix = ".txt";
+        if (strncmp(modFiles[i], prefix, strlen(prefix)) == 0) {
+            size_t nameLen = strlen(modFiles[i]) - strlen(prefix) - strlen(suffix);
+            if (nameLen > 0 && nameLen < sizeof(modName)) {
+                strncpy(modName, modFiles[i] + strlen(prefix), nameLen);
+                modName[nameLen] = '\0';
+            }
+        }
+        uint32_t baseId = 0;
+        if (modName[0] != '\0') {
+            baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
+        }
+
+        Config config;
+        if (!configInit(&config)) continue;
+        if (!configRead(&config, fullPath, true)) {
+            configFree(&config);
+            continue;
+        }
+
+        uint32_t modNamespace = wmGetModNamespace(fullPath);
+        int tableIndexInMod = 0;
+        int namedIndexInMod = 0;
+
+        // --- FIRST PASS: Load Encounter Tables ---
+        for (int tableNum = 0; tableNum < 1000; tableNum++) {
+            char section[64];
+            snprintf(section, sizeof(section), "Encounter Table %d", tableNum);
+
+            char* lookupName = nullptr;
+            if (!configGetString(&config, section, "lookup_name", &lookupName))
+                break;
+
+            uint16_t targetSlot = wmCalculateEncounterTableSlot(lookupName, modNamespace, tableIndexInMod);
+
+            // Collision check
+            if (wmFixedEncounterTableList[targetSlot].lookupName[0] != '\0') {
+                if (strcmp(wmFixedEncounterTableList[targetSlot].lookupName, lookupName) != 0) {
+                    char errorMsg[512];
+                    snprintf(errorMsg, sizeof(errorMsg),
+                        "ENCOUNTER TABLE SLOT COLLISION!\nMod file: %s\nTable: %s\nTarget slot: %d\nExisting: %s",
+                        fullPath, lookupName, targetSlot, wmFixedEncounterTableList[targetSlot].lookupName);
+                    showMesageBox(errorMsg);
+                    continue;
+                }
+                continue;
+            }
+
+            EncounterTable* table = &wmFixedEncounterTableList[targetSlot];
+            wmEncounterTableSlotInit(table);
+            strncpy(table->lookupName, lookupName, 40);
+            table->index = targetSlot;
+            table->msgBaseId = baseId;
+            table->localModIndex = tableIndexInMod;
+
+            char* mapsStr;
+            if (configGetString(&config, section, "maps", &mapsStr)) {
+                while (*mapsStr != '\0' && table->mapsLength < 6) {
+                    if (strParseStrFromFunc(&mapsStr, &(table->maps[table->mapsLength]), wmParseFindMapIdxMatch) == -1) break;
+                    table->mapsLength++;
+                }
+            }
+
+            int entryIndex = 0;
+            while (entryIndex < 40) {
+                char key[16];
+                snprintf(key, sizeof(key), "enc_%02d", entryIndex);
+                char* encStr;
+                if (!configGetString(&config, section, key, &encStr)) break;
+                pConfigCfg = &config;
+                if (wmParseEncounterTableIndex(&(table->entries[entryIndex]), encStr) == -1) {
+                    debugPrint("Failed to parse %s in %s\n", key, fullPath);
+                    break;
+                }
+                entryIndex++;
+            }
+            table->entriesLength = entryIndex;
+            tableIndexInMod++;
+        }
+
+        // Load Named Encounters using section enumeration
+        int sectionCount = configGetSectionCount(&config);
+        for (int secIdx = 0; secIdx < sectionCount; secIdx++) {
+            char sectionKey[256];
+            if (!configGetSectionKey(&config, secIdx, sectionKey, sizeof(sectionKey))) {
+                continue;
+            }
+            // Look for sections named "Encounter: Something"
+            if (strncmp(sectionKey, "Encounter: ", 11) != 0) {
+                continue;
+            }
+
+            // Extract encounter name (trim spaces)
+            const char* nameStart = sectionKey + 11;
+            while (*nameStart == ' ')
+                nameStart++;
+            char encounterName[64];
+            strncpy(encounterName, nameStart, sizeof(encounterName) - 1);
+            encounterName[sizeof(encounterName) - 1] = '\0';
+            char* end = encounterName + strlen(encounterName) - 1;
+            while (end > encounterName && *end == ' ')
+                end--;
+            *(end + 1) = '\0';
+
+            // Compute deterministic slot
+            uint16_t targetSlot = wmCalculateNamedEncounterSlot(encounterName, modNamespace, namedIndexInMod);
+
+            // Collision check
+            if (wmFixedEncBaseTypeList[targetSlot].name[0] != '\0') {
+                if (strcmp(wmFixedEncBaseTypeList[targetSlot].name, encounterName) != 0) {
+                    char errorMsg[512];
+                    snprintf(errorMsg, sizeof(errorMsg),
+                        "NAMED ENCOUNTER SLOT COLLISION!\nMod file: %s\nEncounter: %s\nTarget slot: %d\nExisting: %s",
+                        fullPath, encounterName, targetSlot, wmFixedEncBaseTypeList[targetSlot].name);
+                    showMesageBox(errorMsg);
+                    continue;
+                }
+                // Already loaded from another file (maybe same name), skip
+                namedIndexInMod++;
+                continue;
+            }
+
+            // Parse the encounter into the slot
+            Encounter* enc = &wmFixedEncBaseTypeList[targetSlot];
+            Config* oldConfig = pConfigCfg;
+            pConfigCfg = &config;
+            int result = wmParseEncounterFromConfigSection(&config, sectionKey, enc);
+            pConfigCfg = oldConfig;
+
+            if (result == 0) {
+                namedIndexInMod++;
+                debugPrint("Loaded named encounter '%s' from %s into slot %d\n", encounterName, fullPath, targetSlot);
+            } else {
+                char errmsg[256];
+                snprintf(errmsg, sizeof(errmsg), "Failed to parse named encounter %s in %s", encounterName, fullPath);
+                showMesageBox(errmsg);
+            }
+        }
+
+        configFree(&config);
+    }
+
+    fileNameListFree(&modFiles, 0);
+}
+
+// Load tile overrides from worldmap_*.txt files
+static void wmTileLoadModFiles()
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cworldmap_*.txt", DIR_SEPARATOR);
+
+    char** modFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &modFiles);
+    if (fileCount == 0) return;
+
+    for (int i = 0; i < fileCount; i++) {
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, modFiles[i]);
+
+        Config config;
+        if (!configInit(&config)) continue;
+        if (!configRead(&config, fullPath, true)) {
+            configFree(&config);
+            continue;
+        }
+
+        int sectionCount = configGetSectionCount(&config);
+        for (int s = 0; s < sectionCount; s++) {
+            char sectionKey[256];
+            if (!configGetSectionKey(&config, s, sectionKey, sizeof(sectionKey)))
+                continue;
+
+            // Only handle "Tile N" sections (exact match, case-sensitive vanilla uses "Tile N")
+            if (strncmp(sectionKey, "Tile ", 5) != 0)
+                continue;
+
+            int tileIdx = atoi(sectionKey + 5);
+            if (tileIdx < 0 || tileIdx >= wmMaxTileNum) {
+                debugPrint("wmTileLoadModFiles: Invalid tile index %d in %s", tileIdx, fullPath);
+                continue;
+            }
+            TileInfo* tile = &wmTileInfoList[tileIdx];
+
+            // Override tile-level properties
+            int artIdx;
+            if (configGetInt(&config, sectionKey, "art_idx", &artIdx)) {
+                tile->fid = buildFid(OBJ_TYPE_INTERFACE, artIdx, 0, 0, 0);
+                // Force art reload next time it's needed
+                if (tile->handle != INVALID_CACHE_ENTRY) {
+                    artUnlock(tile->handle);
+                    tile->handle = INVALID_CACHE_ENTRY;
+                    tile->data = nullptr;
+                }
+            }
+
+            char* walkMaskName;
+            if (configGetString(&config, sectionKey, "walk_mask_name", &walkMaskName)) {
+                strncpy(tile->walkMaskName, walkMaskName, TILE_WALK_MASK_NAME_SIZE);
+                // Free old mask data if any
+                if (tile->walkMaskData != nullptr) {
+                    internal_free(tile->walkMaskData);
+                    tile->walkMaskData = nullptr;
+                }
+            }
+
+            int encDiff;
+            if (configGetInt(&config, sectionKey, "encounter_difficulty", &encDiff)) {
+                tile->encounterDifficultyModifier = encDiff;
+            }
+
+            // Override subtiles using "x_y" keys (where x = column 0..6, y = row 0..5)(same as vanilla)
+            for (int row = 0; row < SUBTILE_GRID_HEIGHT; row++) { // y
+                for (int col = 0; col < SUBTILE_GRID_WIDTH; col++) { // x
+                    char key[16];
+                    snprintf(key, sizeof(key), "%d_%d", col, row);
+                    char* subStr;
+                    if (configGetString(&config, sectionKey, key, &subStr)) {
+                        // Parse the subtile string (same format as worldmap.txt)
+                        if (wmParseSubTileInfo(tile, col, row, subStr) == -1) {
+                            debugPrint("Failed to parse subtile override %s in %s", key, fullPath);
+                        }
+                    }
+                }
+            }
+        }
+
+        configFree(&config);
+    }
+
+    fileNameListFree(&modFiles, 0);
+}
+
+// Lazy load a named encounter from any worldmap_*.txt file
+static int wmLazyLoadNamedEncounter(const char* name)
+{
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern), "data%cworldmap_*.txt", DIR_SEPARATOR);
+
+    char** modFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &modFiles);
+    if (fileCount == 0) return -1;
+
+    int foundSlot = -1;
+
+    for (int i = 0; i < fileCount && foundSlot == -1; i++) {
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath), "data%c%s", DIR_SEPARATOR, modFiles[i]);
+
+        Config config;
+        if (!configInit(&config)) continue;
+        if (!configRead(&config, fullPath, true)) {
+            configFree(&config);
+            continue;
+        }
+
+        char sectionName[256];
+        snprintf(sectionName, sizeof(sectionName), "Encounter: %s", name);
+
+        // Check if section exists by looking for type_00
+        char* test;
+        if (configGetString(&config, sectionName, "type_00", &test)) {
+            // Found it – load into a deterministic mod slot
+            uint32_t modNamespace = wmGetModNamespace(fullPath);
+
+            // Deterministic slot using name + namespace (no local index)
+            char combinedKey[256];
+            snprintf(combinedKey, sizeof(combinedKey), "%s|%u", name, modNamespace);
+            uint32_t hash = wmHashString(combinedKey);
+            uint16_t targetSlot = MOD_NAMED_ENCOUNTER_START + (hash % (TOTAL_NAMED_ENCOUNTER_MAX - MOD_NAMED_ENCOUNTER_START));
+
+            // Collision check
+            if (wmFixedEncBaseTypeList[targetSlot].name[0] != '\0' && strcmp(wmFixedEncBaseTypeList[targetSlot].name, name) != 0) {
+                char errorMsg[512];
+                snprintf(errorMsg, sizeof(errorMsg),
+                    "LAZY LOAD COLLISION: Encounter '%s' from %s collides with '%s' at slot %d",
+                    name, fullPath, wmFixedEncBaseTypeList[targetSlot].name, targetSlot);
+                showMesageBox(errorMsg);
+                configFree(&config);
+                continue;
+            }
+
+            // Parse encounter into the slot
+            Encounter* enc = &wmFixedEncBaseTypeList[targetSlot];
+            wmEncBaseTypeSlotInit(enc);
+            strncpy(enc->name, name, 40);
+
+            Config* oldConfig = pConfigCfg;
+            pConfigCfg = &config;
+            int result = wmParseEncounterFromConfig(&config, sectionName, enc);
+            pConfigCfg = oldConfig;
+
+            if (result == 0) {
+                foundSlot = targetSlot;
+            } else {
+                char errmsg[256];
+                snprintf(errmsg, sizeof(errmsg), "Failed to parse named encounter %s from %s", name, fullPath);
+                showMesageBox(errmsg);
+            }
+        }
+
+        configFree(&config);
+    }
+
+    fileNameListFree(&modFiles, 0);
+    return foundSlot;
 }
 
 // 0x4BDB64
@@ -1992,19 +2452,43 @@ static int wmParseFindSubEncTypeMatch(char* str, int* valuePtr)
 {
     *valuePtr = 0;
 
+    // Special case: "player" means the player himself (used in some encounter definitions)
     if (compat_stricmp(str, "player") == 0) {
         *valuePtr = -1;
         return 0;
     }
 
-    if (wmFindEncBaseTypeMatch(str, valuePtr) == 0) {
+    // Search all already-loaded named encounters (vanilla + mod)
+    // We limit the search to the highest index that actually contains data.
+    // wmMaxNamedEncounterIndexUsed is updated whenever we add an encounter.
+    for (int index = 0; index <= wmMaxNamedEncounterIndexUsed; index++) {
+        if (wmFixedEncBaseTypeList[index].name[0] != '\0' && compat_stricmp(str, wmFixedEncBaseTypeList[index].name) == 0) {
+            *valuePtr = index;
+            return 0;
+        }
+    }
+
+    // Not found – it must be a vanilla encounter defined in the main worldmap.txt.
+    // wmReadEncBaseType will load it from the main file and add it to the fixed array.
+    int slot;
+    if (wmReadEncBaseType(str, &slot) == 0) {
+        *valuePtr = slot;
+        // Update the max used index (wmReadEncBaseType already does this, but safe)
+        if (slot > wmMaxNamedEncounterIndexUsed)
+            wmMaxNamedEncounterIndexUsed = slot;
         return 0;
     }
 
-    if (wmReadEncBaseType(str, valuePtr) == 0) {
+    // Still not found – try lazy loading from mod files
+    slot = wmLazyLoadNamedEncounter(str);
+    if (slot != -1) {
+        *valuePtr = slot;
+        if (slot > wmMaxNamedEncounterIndexUsed)
+            wmMaxNamedEncounterIndexUsed = slot;
         return 0;
     }
 
+    debugPrint("WorldMap Error: Named encounter '%s' not found in any loaded file.", str);
     return -1;
 }
 
@@ -2025,66 +2509,60 @@ static int wmFindEncBaseTypeMatch(char* str, int* valuePtr)
 // 0x4BDF34
 static int wmReadEncBaseType(char* name, int* valuePtr)
 {
+    // First, verify the section exists in the current config (pConfigCfg)
     char section[40];
     snprintf(section, sizeof(section), "Encounter: %s", name);
+    char* testString;
+    if (!configGetString(pConfigCfg, section, "type_00", &testString)) {
+        return -1; // Section doesn't exist – do NOT allocate a slot
+    }
 
+    // Now give it a slot
+    if (wmVanillaEncBaseTypeCount >= TOTAL_NAMED_ENCOUNTER_MAX) {
+        showMesageBox("\nwmConfigInit::Error: Too many named encounters!");
+        exit(1);
+    }
+
+    Encounter* encounter = &wmFixedEncBaseTypeList[wmVanillaEncBaseTypeCount];
+    int slot = wmVanillaEncBaseTypeCount;
+    wmVanillaEncBaseTypeCount++;
+    if (slot > wmMaxNamedEncounterIndexUsed)
+        wmMaxNamedEncounterIndexUsed = slot;
+
+    wmEncBaseTypeSlotInit(encounter);
+    strncpy(encounter->name, name, 40);
+
+    // Parse the encounter
     char key[40];
     snprintf(key, sizeof(key), "type_00");
-
     char* string;
     if (!configGetString(pConfigCfg, section, key, &string)) {
         return -1;
     }
 
-    wmMaxEncBaseTypes++;
-
-    Encounter* encounters = (Encounter*)internal_realloc(wmEncBaseTypeList, sizeof(*wmEncBaseTypeList) * wmMaxEncBaseTypes);
-    if (encounters == nullptr) {
-        showMesageBox("\nwmConfigInit::Error Reading EncBaseType!");
-        exit(1);
-    }
-
-    wmEncBaseTypeList = encounters;
-
-    Encounter* encounter = &(encounters[wmMaxEncBaseTypes - 1]);
-
-    // NOTE: Uninline.
-    wmEncBaseTypeSlotInit(encounter);
-
-    strncpy(encounter->name, name, 40);
-
     while (1) {
-        if (wmParseEncBaseSubTypeStr(&(encounter->entries[encounter->entriesLength]), &string) == -1) {
+        if (wmParseEncBaseSubTypeStr(&(encounter->entries[encounter->entriesLength]), &string) == -1)
             return -1;
-        }
-
         encounter->entriesLength++;
-
         snprintf(key, sizeof(key), "type_%02d", encounter->entriesLength);
-
         if (!configGetString(pConfigCfg, section, key, &string)) {
             int team;
             configGetInt(pConfigCfg, section, "team_num", &team);
-
-            for (int index = 0; index < encounter->entriesLength; index++) {
-                EncounterEntry* encounterEntry = &(encounter->entries[index]);
-                if (PID_TYPE(encounterEntry->pid) == OBJ_TYPE_CRITTER) {
-                    encounterEntry->team = team;
+            for (int i = 0; i < encounter->entriesLength; i++) {
+                EncounterEntry* entry = &(encounter->entries[i]);
+                if (PID_TYPE(entry->pid) == OBJ_TYPE_CRITTER) {
+                    entry->team = team;
                 }
             }
-
             if (configGetString(pConfigCfg, section, "position", &string)) {
                 strParseStrFromList(&string, &(encounter->position), wmFormationStrs, ENCOUNTER_FORMATION_TYPE_COUNT);
                 strParseIntWithKey(&string, "spacing", &(encounter->spacing), ":");
                 strParseIntWithKey(&string, "distance", &(encounter->distance), ":");
             }
-
-            *valuePtr = wmMaxEncBaseTypes - 1;
-
+            *valuePtr = slot;
             return 0;
         }
     }
-
     return -1;
 }
 
@@ -2374,17 +2852,16 @@ static int wmParseSubTileInfo(TileInfo* tile, int row, int column, char* string)
 // 0x4BE6D4
 static int wmParseFindEncounterTypeMatch(char* string, int* valuePtr)
 {
-    for (int index = 0; index < wmMaxEncounterInfoTables; index++) {
-        if (compat_stricmp(string, wmEncounterTableList[index].lookupName) == 0) {
+    // Search all possible slots (vanilla + mod)
+    for (int index = 0; index < TOTAL_ENCOUNTER_TABLE_MAX; index++) {
+        if (wmFixedEncounterTableList[index].lookupName[0] != '\0' && compat_stricmp(string, wmFixedEncounterTableList[index].lookupName) == 0) {
             *valuePtr = index;
             return 0;
         }
     }
 
-    debugPrint("WorldMap Error: Couldn't find match for Encounter Type!");
-
+    debugPrint("WorldMap Error: Couldn't find match for Encounter Type: %s", string);
     *valuePtr = -1;
-
     return -1;
 }
 
@@ -3461,6 +3938,147 @@ static void wmGenerateAreaListDebug()
 
     fclose(debugStream);
     debugPrint("\nwmGenerateAreaListDebug: Generated area_list.txt with %d base, %d mod areas", baseCount, modCount);
+}
+
+static void wmGenerateEncounterTablesDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cencounter_tables_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\nwmGenerateEncounterTablesDebug: Could not create encounter_tables_list.txt");
+        return;
+    }
+
+    // Header
+    fprintf(debugStream,
+        "==============================================================================\n"
+        "Fallout 2 Fission - Encounter Tables Report\n"
+        "==============================================================================\n"
+        "This report shows all encounter tables loaded from worldmap.txt and worldmap_*.txt\n\n"
+        "Slot Ranges:\n"
+        "  Vanilla: 0 .. %d\n"
+        "  Mod:     %d .. %d\n\n"
+        "Indices are stable across game sessions.\n"
+        "==============================================================================\n\n",
+        wmVanillaEncounterTableCount - 1,
+        MOD_ENCOUNTER_TABLE_START, TOTAL_ENCOUNTER_TABLE_MAX - 1);
+
+    // Count used slots
+    int vanillaUsed = 0, modUsed = 0;
+    for (int i = 0; i < TOTAL_ENCOUNTER_TABLE_MAX; i++) {
+        if (wmFixedEncounterTableList[i].lookupName[0] != '\0') {
+            if (i < wmVanillaEncounterTableCount)
+                vanillaUsed++;
+            else
+                modUsed++;
+        }
+    }
+
+    fprintf(debugStream, "Total Tables: %d (Vanilla: %d, Mod: %d)\n\n", vanillaUsed + modUsed, vanillaUsed, modUsed);
+
+    // Table details
+    for (int i = 0; i < TOTAL_ENCOUNTER_TABLE_MAX; i++) {
+        EncounterTable* table = &wmFixedEncounterTableList[i];
+        if (table->lookupName[0] == '\0') continue;
+
+        const char* type = (i < wmVanillaEncounterTableCount) ? "Vanilla" : "Mod";
+        fprintf(debugStream, "Slot %5d [%s]: %s\n", i, type, table->lookupName);
+        fprintf(debugStream, "  Maps: ");
+        if (table->mapsLength == 0)
+            fprintf(debugStream, "(none)");
+        else {
+            for (int m = 0; m < table->mapsLength; m++) {
+                fprintf(debugStream, "%s ", wmMapInfoList[table->maps[m]].lookupName);
+            }
+        }
+        fprintf(debugStream, "\n  Entries: %d\n", table->entriesLength);
+        for (int e = 0; e < table->entriesLength; e++) {
+            EncounterTableEntry* entry = &table->entries[e];
+            fprintf(debugStream, "    Entry %02d: chance=%d, map=%d, scenery=%d, counter=%d, flags=0x%X\n",
+                e, entry->chance, entry->map, entry->scenery, entry->counter, entry->flags);
+            if (entry->subEntiesLength > 0) {
+                fprintf(debugStream, "      Sub-encounters:\n");
+                for (int s = 0; s < entry->subEntiesLength; s++) {
+                    EncounterTableSubEntry* sub = &entry->subEntries[s];
+                    fprintf(debugStream, "        min=%d, max=%d, encIdx=%d, situation=%d\n",
+                        sub->minimumCount, sub->maximumCount, sub->encounterIndex, sub->situation);
+                }
+            }
+        }
+        fprintf(debugStream, "\n");
+    }
+
+    fclose(debugStream);
+    debugPrint("\nwmGenerateEncounterTablesDebug: Generated encounter_tables_list.txt");
+}
+
+static void wmGenerateNamedEncountersDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+    snprintf(debugPath, sizeof(debugPath), "./data%clists%cnamed_encounters_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+    if (debugStream == nullptr) {
+        debugPrint("\nwmGenerateNamedEncountersDebug: Could not create named_encounters_list.txt");
+        return;
+    }
+
+    // Header
+    fprintf(debugStream,
+        "==============================================================================\n"
+        "Fallout 2 Fission - Named Encounters Report\n"
+        "==============================================================================\n"
+        "This report shows all named encounters (Encounter: ...) loaded from worldmap.txt and worldmap_*.txt\n\n"
+        "Slot Ranges:\n"
+        "  Vanilla: 0 .. %d\n"
+        "  Mod:     %d .. %d\n\n"
+        "Indices are stable across game sessions.\n"
+        "==============================================================================\n\n",
+        wmVanillaEncBaseTypeCount - 1,
+        MOD_NAMED_ENCOUNTER_START, TOTAL_NAMED_ENCOUNTER_MAX - 1);
+
+    // Count used slots
+    int vanillaUsed = 0, modUsed = 0;
+    for (int i = 0; i < TOTAL_NAMED_ENCOUNTER_MAX; i++) {
+        if (wmFixedEncBaseTypeList[i].name[0] != '\0') {
+            if (i < wmVanillaEncBaseTypeCount)
+                vanillaUsed++;
+            else
+                modUsed++;
+        }
+    }
+
+    fprintf(debugStream, "Total Named Encounters: %d (Vanilla: %d, Mod: %d)\n\n", vanillaUsed + modUsed, vanillaUsed, modUsed);
+
+    // Details
+    for (int i = 0; i < TOTAL_NAMED_ENCOUNTER_MAX; i++) {
+        Encounter* enc = &wmFixedEncBaseTypeList[i];
+        if (enc->name[0] == '\0') continue;
+
+        const char* type = (i < wmVanillaEncBaseTypeCount) ? "Vanilla" : "Mod";
+        fprintf(debugStream, "Slot %5d [%s]: %s\n", i, type, enc->name);
+        fprintf(debugStream, "  Formation: %d, Spacing: %d, Distance: %d\n", enc->position, enc->spacing, enc->distance);
+        fprintf(debugStream, "  Entries: %d\n", enc->entriesLength);
+        for (int e = 0; e < enc->entriesLength; e++) {
+            EncounterEntry* entry = &enc->entries[e];
+            fprintf(debugStream, "    Entry %02d: pid=%d, ratio=%d, flags=0x%X, distance=%d, tile=%d, team=%d, items=%d\n",
+                e, entry->pid, entry->ratio, entry->flags, entry->distance, entry->tile, entry->team, entry->itemsLength);
+            if (entry->itemsLength > 0) {
+                fprintf(debugStream, "      Items:\n");
+                for (int it = 0; it < entry->itemsLength; it++) {
+                    EncounterItem* item = &entry->items[it];
+                    fprintf(debugStream, "        pid=%d, qty=%d-%d, equipped=%d\n",
+                        item->pid, item->minimumQuantity, item->maximumQuantity, item->isEquipped);
+                }
+            }
+        }
+        fprintf(debugStream, "\n");
+    }
+
+    fclose(debugStream);
+    debugPrint("\nwmGenerateNamedEncountersDebug: Generated named_encounters_list.txt");
 }
 
 // 0x4BEF68
@@ -5093,12 +5711,20 @@ static int wmRndEncounterOccurred()
 
     if (randomEncounterIsDetected) {
         MessageListItem messageListItem;
-
         const char* title = gWorldmapEncDefaultMsg[0];
         const char* body = gWorldmapEncDefaultMsg[1];
 
         title = getmsg(&wmMsgFile, &messageListItem, 2999);
-        body = getmsg(&wmMsgFile, &messageListItem, 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId);
+        EncounterTable* table = &wmEncounterTableList[wmGenData.encounterTableId];
+        int msgId;
+        if (table->msgBaseId == 3000) {
+            // Vanilla table
+            msgId = 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId;
+        } else {
+            // Mod table
+            msgId = table->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + table->localModIndex * 50 + wmGenData.encounterEntryId;
+        }
+        body = getmsg(&wmMsgFile, &messageListItem, msgId);
         if (showDialogBox(title, &body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
             wmGenData.encounterIconIsVisible = false;
             wmGenData.encounterMapId = -1;
@@ -5255,12 +5881,21 @@ int wmSetupRandomEncounter()
     EncounterTable* encounterTable = &(wmEncounterTableList[wmGenData.encounterTableId]);
     EncounterTableEntry* encounterTableEntry = &(encounterTable->entries[wmGenData.encounterEntryId]);
 
-    // SFALL: Display encounter description in one line.
+    // Determine message ID for the encounter description
+    int msgId;
+    if (encounterTable->msgBaseId == 3000) {
+        // Vanilla table: use original formula
+        msgId = 3000 + 50 * encounterTable->localModIndex + wmGenData.encounterEntryId;
+    } else {
+        // Mod table: baseId + offset + localTableIndex*50 + entryIndex
+        msgId = encounterTable->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + encounterTable->localModIndex * 50 + wmGenData.encounterEntryId;
+    }
+
     char formattedText[512];
     snprintf(formattedText, sizeof(formattedText),
         "%s %s",
         getmsg(&wmMsgFile, &messageListItem, 2998),
-        getmsg(&wmMsgFile, &messageListItem, 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId));
+        getmsg(&wmMsgFile, &messageListItem, msgId));
     displayMonitorAddMessage(formattedText);
 
     int gameDifficulty = settings.preferences.game_difficulty;
@@ -7829,7 +8464,7 @@ static int wmTownMapRefresh()
         if (city->firstEntranceOffset >= 0) {
             const char* modName = wmGetAreaModName(wmGenData.currentAreaId);
             if (modName && modName[0] != '\0') {
-                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "entrances");
+                uint32_t baseId = generate_mod_block_base_id(MOD_BLOCK_WORLDMAP, modName, "worldmap");
                 if (baseId != 0) {
                     messageListItem.num = baseId + city->firstEntranceOffset + index;
                     if (messageListGetItem(&wmMsgFile, &messageListItem)) {

@@ -36,6 +36,12 @@ bool configSetBool(Config* config, const char* sectionKey, const char* key, bool
 void configSetIntArray(Config* config, const char* section, const char* key, const int* values, int count);
 bool configGetIntArray(Config* config, const char* section, const char* key, int* values, int count);
 
+// Returns the number of sections in the config.
+int configGetSectionCount(Config* config);
+
+// Retrieves the key of the section at the given index.
+bool configGetSectionKey(Config* config, int index, char* buffer, size_t bufferSize);
+
 } // namespace fallout
 
 #endif /* CONFIG_H */

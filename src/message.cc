@@ -60,7 +60,7 @@ const ModBlockRange gModBlockRanges[] = {
     { MOD_BLOCK_COMBAT, 30000, 1000000, 1000 }, // combat messages
     { MOD_BLOCK_COMBATAI, 100000, 1000000, 1000 }, // combat AI messages
     { MOD_BLOCK_QUESTS, 20000, 1000000, 100 }, // quest descriptions, 100 IDs per mod block
-    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 30 }, // entrance names per town
+    { MOD_BLOCK_WORLDMAP, 20000, 1000000, 500 }, // entrance names per town and encounter messages
 };
 
 const int gModBlockRangesCount = sizeof(gModBlockRanges) / sizeof(gModBlockRanges[0]);
