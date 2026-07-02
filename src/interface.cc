@@ -116,6 +116,7 @@ static int endTurnButtonFree();
 static int endCombatButtonInit();
 static int endCombatButtonFree();
 static void interfaceUpdateAmmoBar(int x, int ratio);
+static void enhancedInterfaceUpdateAmmoBar(int x, int ratio);
 static int _intface_item_reload();
 static void interfaceDrawActionButtonOverlay(unsigned char* data, int width, int height, int pitch, int upX, int upY, int darkenColor);
 static void interfaceRenderCounterAnimationStep(unsigned char* src, unsigned char* dest, int delay, Rect* numbersRect, bool refreshMouse);
@@ -1789,7 +1790,11 @@ int _intface_update_ammo_lights()
         }
     }
 
-    interfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    if (settings.enhancements.strict_vanilla){
+        interfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    } else {
+        enhancedInterfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    }
 
     return 0;
 }
@@ -2424,6 +2429,121 @@ static void interfaceUpdateAmmoBar(int x, int ratio)
         rect.top = 26;
         rect.right = x + 1;
         rect.bottom = 26 + 70;
+        windowRefreshRect(gInterfaceBarWindow, &rect);
+    }
+}
+
+// Discrete ammo bar with uniform block sizes, gaps, and bottom-up consumption.
+static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
+{
+    (void)ratio;
+
+    if (gInterfaceBarWindow == -1) return;
+
+    InterfaceItemState* itemState = &gInterfaceItemStates[gInterfaceCurrentHand];
+    Object* weapon = itemState->item;
+
+    // No weapon -> clear bar
+    if (!weapon || itemGetType(weapon) != ITEM_TYPE_WEAPON) {
+        unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
+        unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+        for (int row = 0; row < 70; row++) {
+            dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+        }
+        if (!gInterfaceBarInitialized) {
+            Rect rect = { x, 26, x + 1, 26 + 70 - 1 };
+            windowRefreshRect(gInterfaceBarWindow, &rect);
+        }
+        return;
+    }
+
+    int maxAmmo = ammoGetCapacity(weapon);
+    int currentAmmo = ammoGetQuantity(weapon);
+    if (maxAmmo <= 0) return;
+
+    int hitMode;
+    bool aiming;
+    if (interfaceGetCurrentHitMode(&hitMode, &aiming) != 0) {
+        hitMode = itemState->primaryHitMode;
+    }
+    int anim = critterGetAnimationForHitMode(gDude, hitMode);
+    bool isBurst = (anim == ANIM_FIRE_BURST || anim == ANIM_FIRE_CONTINUOUS);
+    int burstSize = isBurst ? weaponGetBurstRounds(weapon) : 1;
+
+    int maxUnits = maxAmmo / burstSize;
+    int currentUnits = currentAmmo / burstSize;
+
+    int displayMax;
+    int displayCurrent;
+    int gap;
+    int blockSize;
+    bool dotted;
+
+    if (maxUnits <= 24) {
+        // Dotted 'round' blocks, fills the bar, uses 3px gaps (fallback to 2)
+        displayMax = maxUnits;
+        displayCurrent = currentUnits;
+        gap = 3;
+        blockSize = (70 - gap * (displayMax - 1)) / displayMax;
+        if (blockSize < 1) {
+            gap = 2;
+            blockSize = (70 - gap * (displayMax - 1)) / displayMax;
+            if (blockSize < 1) blockSize = 1;
+        }
+        dotted = true;
+    } else if (maxUnits <= 35) {
+        // Secondary fallback - exactly 1 pixel = 1 round, gap=1, no stretching
+        displayMax = maxUnits;
+        displayCurrent = currentUnits;
+        gap = 1;
+        blockSize = 1;
+        dotted = false;
+    } else {
+        // Overflow: cap at 35 blocks - any weapons more than 35 rounds?
+        displayMax = 35;
+        displayCurrent = (currentUnits > 35) ? 35 : currentUnits;
+        gap = 1;
+        blockSize = 1;
+        dotted = false;
+    }
+
+    if (displayMax == 0) return;
+
+    unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
+    unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+
+    // Restore background
+    for (int row = 0; row < 70; row++) {
+        dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+    }
+
+    // Draw blocks from bottom (row 69) upward.
+    for (int i = 0; i < displayMax; i++) {
+        // Lit if this block is among the bottom `displayCurrent` blocks.
+        bool lit = (i < displayCurrent);
+
+        // Calculate the starting row for this block (absolute, 0 = top).
+        // Block 0 starts at row 69 - blockSize + 1.
+        // Block 1 starts at row 69 - blockSize - gap - blockSize + 1, etc.
+        int startRow = 69 - (i * (blockSize + gap)) - blockSize + 1;
+        if (startRow < 0) break;
+
+        for (int r = 0; r < blockSize; r++) {
+            int row = startRow + r;
+            if (row < 0 || row >= 70) continue;
+            if (lit) {
+                // In dotted mode (normal), skip odd rows to let the background show.
+                if (dotted && (r % 2 == 1)) {
+                    continue;
+                }
+                dest[row * gInterfaceBarWidth] = 196; // green
+            }
+        }
+    }
+
+    // Refresh the column
+    if (!gInterfaceBarInitialized) {
+        Rect rect = { x, 26, x + 1, 26 + 70 - 1 };
         windowRefreshRect(gInterfaceBarWindow, &rect);
     }
 }
