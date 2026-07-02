@@ -467,7 +467,7 @@ static void opGiveExpPoints(Program* program)
     int xp = programStackPopInteger(program);
 
     if (pcAddExperience(xp) != 0) {
-        scriptError("\nScript Error: %s: op_give_exp_points: stat_pc_set failed");
+        scriptError("\nScript Error: %s: op_give_exp_points: stat_pc_set failed", program->name);
     }
 }
 
@@ -2528,7 +2528,7 @@ static void opRemoveTimerEvent(Program* program)
 
     if (object == nullptr) {
         // FIXME: Should be op_rm_timer_event.
-        scriptError("\nScript Error: %s: op_add_timer_event: pobj is NULL!");
+        scriptError("\nScript Error: %s: op_add_timer_event: pobj is NULL!", program->name);
         return;
     }
 
@@ -2934,7 +2934,7 @@ static void opCritterRemoveTrait(Program* program)
     Object* object = static_cast<Object*>(programStackPopPointer(program));
 
     if (object == nullptr) {
-        scriptPredefinedError(program, "critter_rm_trait", SCRIPT_ERROR_OBJECT_IS_NULL);
+        scriptError("\nScript Error %s: op_critter_rm_trait: perk_sub failed", program->name);
         // FIXME: Ruins stack.
         return;
     }

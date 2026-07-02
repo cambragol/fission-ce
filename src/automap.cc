@@ -56,7 +56,6 @@ static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
 static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
-static void automapUpdateButtonStates(bool playsound);
 
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
@@ -2275,7 +2274,7 @@ void automapNotifyCombatEnded()
     }
 }
 
-static void automapUpdateButtonStates(bool playsound)
+void automapUpdateButtonStates(bool playsound)
 {
     // Update floating minimap buttons (if they exist)
     if (gDetailsButton != -1) {
