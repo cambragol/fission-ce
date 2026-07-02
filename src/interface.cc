@@ -2436,15 +2436,48 @@ static void interfaceUpdateAmmoBar(int x, int ratio)
 // Discrete ammo bar with uniform block sizes, gaps, and bottom-up consumption.
 static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
 {
-    (void)ratio;
+    (void)ratio; // ratio is not used directly; recompute from the item.
 
     if (gInterfaceBarWindow == -1) return;
 
     InterfaceItemState* itemState = &gInterfaceItemStates[gInterfaceCurrentHand];
-    Object* weapon = itemState->item;
+    Object* item = itemState->item;
 
-    // No weapon -> clear bar
-    if (!weapon || itemGetType(weapon) != ITEM_TYPE_WEAPON) {
+    int maxUnits = 0;
+    int currentUnits = 0;
+
+    if (item != nullptr) {
+        int itemType = itemGetType(item);
+
+        if (itemState->isWeapon != 0) {
+            int maxAmmo = ammoGetCapacity(item);
+            int currentAmmo = ammoGetQuantity(item);
+            if (maxAmmo > 0) {
+                // Determine burst size
+                int hitMode;
+                bool aiming;
+                if (interfaceGetCurrentHitMode(&hitMode, &aiming) != 0) {
+                    hitMode = itemState->primaryHitMode;
+                }
+                int anim = critterGetAnimationForHitMode(gDude, hitMode);
+                bool isBurst = (anim == ANIM_FIRE_BURST || anim == ANIM_FIRE_CONTINUOUS);
+                int burstSize = isBurst ? weaponGetBurstRounds(item) : 1;
+
+                maxUnits = maxAmmo / burstSize;
+                currentUnits = currentAmmo / burstSize;
+            }
+        } else if (itemType == ITEM_TYPE_MISC) {
+            int maxCharges = miscItemGetMaxCharges(item);
+            int currentCharges = miscItemGetCharges(item);
+            if (maxCharges > 0) {
+                maxUnits = maxCharges;
+                currentUnits = currentCharges;
+            }
+        }
+    }
+
+    if (maxUnits <= 0) {
+        // Clear the bar - no ammo/charges to display.
         unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
         unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
         for (int row = 0; row < 70; row++) {
@@ -2457,57 +2490,36 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         return;
     }
 
-    int maxAmmo = ammoGetCapacity(weapon);
-    int currentAmmo = ammoGetQuantity(weapon);
-    if (maxAmmo <= 0) return;
+    if (currentUnits > maxUnits) currentUnits = maxUnits;
 
-    int hitMode;
-    bool aiming;
-    if (interfaceGetCurrentHitMode(&hitMode, &aiming) != 0) {
-        hitMode = itemState->primaryHitMode;
-    }
-    int anim = critterGetAnimationForHitMode(gDude, hitMode);
-    bool isBurst = (anim == ANIM_FIRE_BURST || anim == ANIM_FIRE_CONTINUOUS);
-    int burstSize = isBurst ? weaponGetBurstRounds(weapon) : 1;
-
-    int maxUnits = maxAmmo / burstSize;
-    int currentUnits = currentAmmo / burstSize;
-
-    int displayMax;
-    int displayCurrent;
+    // Determine gap and block size based on maxUnits.
     int gap;
     int blockSize;
     bool dotted;
 
+    // Main style - 3 pixel gap (fallback to 2)
     if (maxUnits <= 24) {
-        // Dotted 'round' blocks, fills the bar, uses 3px gaps (fallback to 2)
-        displayMax = maxUnits;
-        displayCurrent = currentUnits;
         gap = 3;
-        blockSize = (70 - gap * (displayMax - 1)) / displayMax;
+        blockSize = (70 - gap * (maxUnits - 1)) / maxUnits;
         if (blockSize < 1) {
             gap = 2;
-            blockSize = (70 - gap * (displayMax - 1)) / displayMax;
+            blockSize = (70 - gap * (maxUnits - 1)) / maxUnits;
             if (blockSize < 1) blockSize = 1;
         }
         dotted = true;
-    } else if (maxUnits <= 35) {
-        // Secondary fallback - exactly 1 pixel = 1 round, gap=1, no stretching
-        displayMax = maxUnits;
-        displayCurrent = currentUnits;
-        gap = 1;
-        blockSize = 1;
-        dotted = false;
+    // Second fallback - gap of 1, 'round' of 1
     } else {
-        // Overflow: cap at 35 blocks - any weapons more than 35 rounds?
-        displayMax = 35;
-        displayCurrent = (currentUnits > 35) ? 35 : currentUnits;
         gap = 1;
         blockSize = 1;
         dotted = false;
+        if (maxUnits > 35) {
+            // We'll cap maxUnits to 35 and scale currentUnits - any weapon/item more than 35 rounds?
+            int oldMax = maxUnits;
+            maxUnits = 35;
+            currentUnits = (currentUnits * maxUnits + oldMax - 1) / oldMax;
+            if (currentUnits > maxUnits) currentUnits = maxUnits;
+        }
     }
-
-    if (displayMax == 0) return;
 
     unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
     unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
@@ -2518,13 +2530,8 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
     }
 
     // Draw blocks from bottom (row 69) upward.
-    for (int i = 0; i < displayMax; i++) {
-        // Lit if this block is among the bottom `displayCurrent` blocks.
-        bool lit = (i < displayCurrent);
-
-        // Calculate the starting row for this block (absolute, 0 = top).
-        // Block 0 starts at row 69 - blockSize + 1.
-        // Block 1 starts at row 69 - blockSize - gap - blockSize + 1, etc.
+    for (int i = 0; i < maxUnits; i++) {
+        bool lit = (i < currentUnits);
         int startRow = 69 - (i * (blockSize + gap)) - blockSize + 1;
         if (startRow < 0) break;
 
@@ -2532,9 +2539,8 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
             int row = startRow + r;
             if (row < 0 || row >= 70) continue;
             if (lit) {
-                // In dotted mode (normal), skip odd rows to let the background show.
                 if (dotted && (r % 2 == 1)) {
-                    continue;
+                    continue; // skip odd rows to let background show
                 }
                 dest[row * gInterfaceBarWidth] = 196; // green
             }
