@@ -277,6 +277,8 @@ static unsigned char _itemButtonUp[INTERFACE_ITEM_ACTION_BUTTON_WIDTH * INTERFAC
 // 0x59D3F4
 static unsigned char* gInterfaceWindowBuffer;
 
+static int extraShift;
+
 // A slice of main interface background containing 10 shadowed action point
 // dots. In combat mode individual colored dots are rendered on top of this
 // background.
@@ -670,6 +672,9 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
+    // Add an extra shift right for wide interfaces (more room for ammometre)
+    extraShift = gInterfaceBarIsWide ? 4 : 0;
+
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
         backgroundFrmImage.getHeight(),
@@ -807,7 +812,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gMapButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 39, 41, 19, -1, -1, -1, KEY_TAB, _mapButtonNormalFrmImage.getData(), _mapButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
+    gMapButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 39, 41, 19, -1, -1, -1, KEY_TAB, _mapButtonNormalFrmImage.getData(), _mapButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
     if (gMapButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -828,7 +833,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gPipboyButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 77, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, _pipboyButtonNormalFrmImage.getData(), _pipboyButtonPressedFrmImage.getData(), nullptr, 0);
+    gPipboyButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 77, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, _pipboyButtonNormalFrmImage.getData(), _pipboyButtonPressedFrmImage.getData(), nullptr, 0);
     if (gPipboyButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -849,7 +854,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gCharacterButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 58, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, _characterButtonNormalFrmImage.getData(), _characterButtonPressedFrmImage.getData(), nullptr, 0);
+    gCharacterButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 58, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, _characterButtonNormalFrmImage.getData(), _characterButtonPressedFrmImage.getData(), nullptr, 0);
     if (gCharacterButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -1355,10 +1360,10 @@ void interfaceRenderHitPoints(bool animate)
     if (animate) {
         int delay = 250 / (abs(gInterfaceLastRenderedHitPoints - hp) + 1);
         for (int index = 0; index < count; index++) {
-            interfaceRenderCounter(473 + gInterfaceBarContentOffset, 40, transitionPoints[index], transitionPoints[index + 1], transitionColors[index], delay);
+            interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 40, transitionPoints[index], transitionPoints[index + 1], transitionColors[index], delay);
         }
     } else {
-        interfaceRenderCounter(473 + gInterfaceBarContentOffset, 40, gInterfaceLastRenderedHitPoints, hp, color, 0);
+        interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 40, gInterfaceLastRenderedHitPoints, hp, color, 0);
     }
 
     gInterfaceLastRenderedHitPoints = hp;
@@ -1377,7 +1382,7 @@ void interfaceRenderArmorClass(bool animate)
         delay = 250 / (abs(gInterfaceLastRenderedArmorClass - armorClass) + 1);
     }
 
-    interfaceRenderCounter(473 + gInterfaceBarContentOffset, 75, gInterfaceLastRenderedArmorClass, armorClass, 0, delay);
+    interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 75, gInterfaceLastRenderedArmorClass, armorClass, 0, delay);
 
     gInterfaceLastRenderedArmorClass = armorClass;
 }
@@ -2477,14 +2482,15 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
     }
 
     if (maxUnits <= 0) {
-        // Clear the bar - no ammo/charges to display.
+        // Clear both columns
         unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
         unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
         for (int row = 0; row < 70; row++) {
             dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+            dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
         }
         if (!gInterfaceBarInitialized) {
-            Rect rect = { x, 26, x + 1, 26 + 70 - 1 };
+            Rect rect = { x, 26, x + 1, 26 + 70 - 1 }; // width 2
             windowRefreshRect(gInterfaceBarWindow, &rect);
         }
         return;
@@ -2524,9 +2530,10 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
     unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
     unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
 
-    // Restore background
+    // Restore background for both columns
     for (int row = 0; row < 70; row++) {
         dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+        dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
     }
 
     // Draw blocks from bottom (row 69) upward.
@@ -2540,9 +2547,13 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
             if (row < 0 || row >= 70) continue;
             if (lit) {
                 if (dotted && (r % 2 == 1)) {
-                    continue; // skip odd rows to let background show
+                    dest[row * gInterfaceBarWidth] = 217;
+                    dest[row * gInterfaceBarWidth + 1] = 219;
+                    continue;
                 }
-                dest[row * gInterfaceBarWidth] = 196; // green
+                // Draw two pixels wide
+                dest[row * gInterfaceBarWidth] = 215;
+                dest[row * gInterfaceBarWidth + 1] = 216;
             }
         }
     }
