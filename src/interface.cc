@@ -1428,9 +1428,9 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
 
     // Restore background directly from the main background FRM
     blitBufferToBuffer(backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + AP_START_X,
-                       AP_BAR_WIDTH, 5, backgroundFrmImage.getWidth(),
-                       gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + AP_START_X,
-                       gInterfaceBarWidth);
+        AP_BAR_WIDTH, 5, backgroundFrmImage.getWidth(),
+        gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + AP_START_X,
+        gInterfaceBarWidth);
 
     if (actionPointsLeft == -1) {
         frmData = _redLightFrmImage.getData();
@@ -1836,7 +1836,7 @@ int _intface_update_ammo_lights()
         }
     }
 
-    if (settings.enhancements.strict_vanilla){
+    if (settings.enhancements.strict_vanilla) {
         interfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
     } else {
         enhancedInterfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
@@ -2553,7 +2553,7 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
             if (blockSize < 1) blockSize = 1;
         }
         dotted = true;
-    // Second fallback - gap of 1, 'round' of 1
+        // Second fallback - gap of 1, 'round' of 1
     } else {
         gap = 1;
         blockSize = 1;
