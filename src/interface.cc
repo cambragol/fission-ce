@@ -58,6 +58,12 @@ namespace fallout {
 #define INTERFACE_ITEM_ACTION_BUTTON_WIDTH 188
 #define INTERFACE_ITEM_ACTION_BUTTON_HEIGHT 67
 
+// Action Points bar configuration
+#define AP_MAX_DISPLAY (gInterfaceBarSuperWide ? 16 : 10)
+#define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
+#define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9 - (gInterfaceBarSuperWide ? 1 : 0))
+#define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
+
 // The values of it's members are offsets to beginning of numbers in
 // numbers.frm.
 typedef enum InterfaceNumbersColor {
@@ -284,7 +290,7 @@ static unsigned char* gInterfaceWindowBuffer;
 // This buffer is initialized once and does not change throughout the game.
 //
 // 0x59D40C
-static unsigned char gInterfaceActionPointsBarBackground[90 * 5];
+static unsigned char* gInterfaceActionPointsBarBackground = nullptr;
 
 static FrmImage _inventoryButtonNormalFrmImage;
 static FrmImage _inventoryButtonPressedFrmImage;
@@ -669,6 +675,32 @@ int interfaceInit()
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return intface_fatal_error(-1);
     }
+
+    if (gInterfaceBarSuperWide) {
+        gInterfaceActionPointsBarBackground = (unsigned char*)internal_malloc(AP_BAR_WIDTH * 5);
+        if (gInterfaceActionPointsBarBackground) {
+            // Get the background for the lights from the main background.
+            unsigned char* src = backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + AP_START_X;
+            for (int row = 0; row < 5; row++) {
+                memcpy(gInterfaceActionPointsBarBackground + row * AP_BAR_WIDTH, src, AP_BAR_WIDTH);
+                src += backgroundFrmImage.getWidth();
+            }
+        }
+    } else {
+        // Old 10-light layout (no 1pix shift...?)
+        gInterfaceActionPointsBarBackground = (unsigned char*)internal_malloc(90 * 5);
+        unsigned char* src = backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + 316;
+        for (int row = 0; row < 5; row++) {
+            memcpy(gInterfaceActionPointsBarBackground + row * 90, src, 90);
+            src += backgroundFrmImage.getWidth();
+        }
+    }
+
+    // Update the action points bar rect
+    gInterfaceBarActionPointsBarRect.left = AP_START_X;
+    gInterfaceBarActionPointsBarRect.right = AP_START_X + AP_BAR_WIDTH - 1;
+    gInterfaceBarActionPointsBarRect.top = 14;
+    gInterfaceBarActionPointsBarRect.bottom = 19;
 
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
@@ -1075,7 +1107,6 @@ void interfaceFree()
         backgroundFrmImage.unlock();
         gMultidexMapBgFrmImage.unlock();
         gMultidexSkilldexBgFrmImage.unlock();
-
         gBigNumbersFrmImage.unlock();
 
         // Destroy any remaining skilldex buttons
@@ -1091,6 +1122,10 @@ void interfaceFree()
         if (gInterfaceBarWindow != -1) {
             windowDestroy(gInterfaceBarWindow);
             gInterfaceBarWindow = -1;
+        }
+        if (gInterfaceActionPointsBarBackground) {
+            internal_free(gInterfaceActionPointsBarBackground);
+            gInterfaceActionPointsBarBackground = nullptr;
         }
     }
 
@@ -1391,11 +1426,15 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
         return;
     }
 
-    blitBufferToBuffer(gInterfaceActionPointsBarBackground, 90, 5, 90, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + gInterfaceBarContentOffset + 316, gInterfaceBarWidth);
+    // Restore background directly from the main background FRM
+    blitBufferToBuffer(backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + AP_START_X,
+                       AP_BAR_WIDTH, 5, backgroundFrmImage.getWidth(),
+                       gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + AP_START_X,
+                       gInterfaceBarWidth);
 
     if (actionPointsLeft == -1) {
         frmData = _redLightFrmImage.getData();
-        actionPointsLeft = 10;
+        actionPointsLeft = AP_MAX_DISPLAY;
         bonusActionPoints = 0;
     } else {
         frmData = _greenLightFrmImage.getData();
@@ -1403,14 +1442,13 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
         if (actionPointsLeft < 0) {
             actionPointsLeft = 0;
         }
-
-        if (actionPointsLeft > 10) {
-            actionPointsLeft = 10;
+        if (actionPointsLeft > AP_MAX_DISPLAY) {
+            actionPointsLeft = AP_MAX_DISPLAY;
         }
 
         if (bonusActionPoints >= 0) {
-            if (actionPointsLeft + bonusActionPoints > 10) {
-                bonusActionPoints = 10 - actionPointsLeft;
+            if (actionPointsLeft + bonusActionPoints > AP_MAX_DISPLAY) {
+                bonusActionPoints = AP_MAX_DISPLAY - actionPointsLeft;
             }
         } else {
             bonusActionPoints = 0;
@@ -1419,15 +1457,23 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
 
     int index;
     for (index = 0; index < actionPointsLeft; index++) {
-        blitBufferToBuffer(frmData, 5, 5, 5, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + 316 + index * 9 + gInterfaceBarContentOffset, gInterfaceBarWidth);
+        int lightX = AP_START_X + index * 9;
+        blitBufferToBufferTrans(frmData, 5, 5, 5,
+            gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + lightX,
+            gInterfaceBarWidth);
     }
 
+    unsigned char* yellowData = _yellowLightFrmImage.getData();
     for (; index < (actionPointsLeft + bonusActionPoints); index++) {
-        blitBufferToBuffer(_yellowLightFrmImage.getData(), 5, 5, 5, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + 316 + gInterfaceBarContentOffset + index * 9, gInterfaceBarWidth);
+        int lightX = AP_START_X + index * 9;
+        blitBufferToBufferTrans(yellowData, 5, 5, 5,
+            gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + lightX,
+            gInterfaceBarWidth);
     }
 
     if (!gInterfaceBarInitialized) {
-        windowRefreshRect(gInterfaceBarWindow, &gInterfaceBarActionPointsBarRect);
+        Rect rect = { AP_START_X, 14, AP_START_X + AP_BAR_WIDTH - 1, 19 };
+        windowRefreshRect(gInterfaceBarWindow, &rect);
     }
 }
 
