@@ -63,7 +63,8 @@ namespace fallout {
 #define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
 #define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9)
 #define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
-#define HIGHLIGHT_CYCLE_INDEX 238 // slow red
+#define FIRE_SLOW_CYCLE_INDEX 238
+#define FIRE_FAST_CYCLE_INDEX 243
 
 // The values of it's members are offsets to beginning of numbers in
 // numbers.frm.
@@ -2610,18 +2611,18 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
                 int color1, color2;
                 if (highlight) {
                     if (dotted && (r % 2 == 1)) {
-                        color1 = HIGHLIGHT_CYCLE_INDEX + 2;
-                        color2 = HIGHLIGHT_CYCLE_INDEX + 4;
+                        color1 = FIRE_FAST_CYCLE_INDEX;
+                        color2 = FIRE_FAST_CYCLE_INDEX;
                     } else {
-                        color1 = HIGHLIGHT_CYCLE_INDEX;
-                        color2 = HIGHLIGHT_CYCLE_INDEX + 1;
+                        color1 = FIRE_SLOW_CYCLE_INDEX;
+                        color2 = FIRE_SLOW_CYCLE_INDEX;
                     }
                 } else if (dotted && (r % 2 == 1)) {
-                    color1 = 217;
-                    color2 = 219;
+                    color1 = 217; // Dark Green
+                    color2 = 219; // Darkest Green
                 } else {
-                    color1 = 215;
-                    color2 = 216;
+                    color1 = 215; // Bright Green
+                    color2 = 216; // Green
                 }
                 dest[row * gInterfaceBarWidth] = color1;
                 if (gInterfaceBarSuperWide) {
