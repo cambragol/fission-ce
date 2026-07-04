@@ -3280,6 +3280,7 @@ static int _combat_turn(Object* obj, bool a2)
             interfaceRenderArmorClass(true);
             _combat_free_move = 2 * perkGetRank(gDude, PERK_BONUS_MOVE);
             interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
+            _intface_update_ammo_lights(); // added to start color cycle on first round
         } else {
             soundContinueAll();
         }

@@ -63,6 +63,7 @@ namespace fallout {
 #define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
 #define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9)
 #define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
+#define HIGHLIGHT_CYCLE_INDEX 238 // slow red
 
 // The values of it's members are offsets to beginning of numbers in
 // numbers.frm.
@@ -214,6 +215,8 @@ static int gEndCombatButton = -1;
 
 // 0x518FD4
 static Rect gInterfaceBarActionPointsBarRect;
+
+static bool gShowAmmoConsumption = false;
 
 // 0x518FE8
 static IndicatorDescription gIndicatorDescriptions[INDICATOR_COUNT] = {
@@ -1821,6 +1824,12 @@ int _intface_update_ammo_lights()
         return -1;
     }
 
+    // Determine if we should highlight the next round.
+    gShowAmmoConsumption = false;
+    if (isInCombat() && gDude != nullptr && gDude->data.critter.combat.ap > 0) {
+            gShowAmmoConsumption = true;
+    }
+
     InterfaceItemState* p = &(gInterfaceItemStates[gInterfaceCurrentHand]);
 
     int ratio = 0;
@@ -2590,23 +2599,33 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         int startRow = 69 - (i * (blockSize + gap)) - blockSize + 1;
         if (startRow < 0) break;
 
+        // Highlight the topmost lit block when aiming in combat.
+        bool highlight = gShowAmmoConsumption && lit && (i == currentUnits - 1);
+
         for (int r = 0; r < blockSize; r++) {
             int row = startRow + r;
             if (row < 0 || row >= 70) continue;
 
             if (lit) {
-                if (dotted && (r % 2 == 1)) {
-                    // Odd row in dotted mode - draw first pixel (217), second pixel (219) if wide.
-                    dest[row * gInterfaceBarWidth] = 217;
-                    if (gInterfaceBarSuperWide) {
-                        dest[row * gInterfaceBarWidth + 1] = 219;
+                int color1, color2;
+                if (highlight) {
+                    if (dotted && (r % 2 == 1)) {
+                    color1 = HIGHLIGHT_CYCLE_INDEX + 2;
+                    color2 = HIGHLIGHT_CYCLE_INDEX + 4;
+                    } else {
+                    color1 = HIGHLIGHT_CYCLE_INDEX;
+                    color2 = HIGHLIGHT_CYCLE_INDEX + 1;
                     }
-                    continue;
+                } else if (dotted && (r % 2 == 1)) {
+                    color1 = 217;
+                    color2 = 219;
+                } else {
+                    color1 = 215;
+                    color2 = 216;
                 }
-                // Even row - draw first pixel (215), second pixel (216) if wide.
-                dest[row * gInterfaceBarWidth] = 215;
+                dest[row * gInterfaceBarWidth] = color1;
                 if (gInterfaceBarSuperWide) {
-                    dest[row * gInterfaceBarWidth + 1] = 216;
+                    dest[row * gInterfaceBarWidth + 1] = color2;
                 }
             }
         }
