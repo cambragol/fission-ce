@@ -2527,16 +2527,19 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         }
     }
 
+    unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
+    unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+
     if (maxUnits <= 0) {
-        // Clear both columns
-        unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
-        unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+        // Clear column(s) - one or two pixels wide.
         for (int row = 0; row < 70; row++) {
             dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
-            dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+            if (gInterfaceBarSuperWide) {
+                dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+            }
         }
         if (!gInterfaceBarInitialized) {
-            Rect rect = { x, 26, x + 1, 26 + 70 - 1 }; // width 2
+            Rect rect = { x, 26, x + (gInterfaceBarSuperWide ? 1 : 0), 26 + 70 - 1 };
             windowRefreshRect(gInterfaceBarWindow, &rect);
         }
         return;
@@ -2559,13 +2562,13 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
             if (blockSize < 1) blockSize = 1;
         }
         dotted = true;
-        // Second fallback - gap of 1, 'round' of 1
     } else {
+        // Second fallback - gap of 1, block of 1
         gap = 1;
         blockSize = 1;
         dotted = false;
         if (maxUnits > 35) {
-            // We'll cap maxUnits to 35 and scale currentUnits - any weapon/item more than 35 rounds?
+            // Cap maxUnits to 35 and scale currentUnits - any weapon/item more than 35 rounds?
             int oldMax = maxUnits;
             maxUnits = 35;
             currentUnits = (currentUnits * maxUnits + oldMax - 1) / oldMax;
@@ -2573,13 +2576,12 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         }
     }
 
-    unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
-    unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
-
-    // Restore background for both columns
+    // Restore background for the column(s) - one or two pixels wide.
     for (int row = 0; row < 70; row++) {
         dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
-        dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+        if (gInterfaceBarSuperWide) {
+            dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+        }
     }
 
     // Draw blocks from bottom (row 69) upward.
@@ -2591,22 +2593,28 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         for (int r = 0; r < blockSize; r++) {
             int row = startRow + r;
             if (row < 0 || row >= 70) continue;
+
             if (lit) {
                 if (dotted && (r % 2 == 1)) {
+                    // Odd row in dotted mode - draw first pixel (217), second pixel (219) if wide.
                     dest[row * gInterfaceBarWidth] = 217;
-                    dest[row * gInterfaceBarWidth + 1] = 219;
+                    if (gInterfaceBarSuperWide) {
+                        dest[row * gInterfaceBarWidth + 1] = 219;
+                    }
                     continue;
                 }
-                // Draw two pixels wide
+                // Even row - draw first pixel (215), second pixel (216) if wide.
                 dest[row * gInterfaceBarWidth] = 215;
-                dest[row * gInterfaceBarWidth + 1] = 216;
+                if (gInterfaceBarSuperWide) {
+                    dest[row * gInterfaceBarWidth + 1] = 216;
+                }
             }
         }
     }
 
-    // Refresh the column
+    // Refresh the column - width 1 or 2 pixels.
     if (!gInterfaceBarInitialized) {
-        Rect rect = { x, 26, x + 1, 26 + 70 - 1 };
+        Rect rect = { x, 26, x + (gInterfaceBarSuperWide ? 1 : 0), 26 + 70 - 1 };
         windowRefreshRect(gInterfaceBarWindow, &rect);
     }
 }
