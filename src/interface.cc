@@ -1827,7 +1827,7 @@ int _intface_update_ammo_lights()
     // Determine if we should highlight the next round.
     gShowAmmoConsumption = false;
     if (isInCombat() && gDude != nullptr && gDude->data.critter.combat.ap > 0) {
-            gShowAmmoConsumption = true;
+        gShowAmmoConsumption = true;
     }
 
     InterfaceItemState* p = &(gInterfaceItemStates[gInterfaceCurrentHand]);
@@ -2610,11 +2610,11 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
                 int color1, color2;
                 if (highlight) {
                     if (dotted && (r % 2 == 1)) {
-                    color1 = HIGHLIGHT_CYCLE_INDEX + 2;
-                    color2 = HIGHLIGHT_CYCLE_INDEX + 4;
+                        color1 = HIGHLIGHT_CYCLE_INDEX + 2;
+                        color2 = HIGHLIGHT_CYCLE_INDEX + 4;
                     } else {
-                    color1 = HIGHLIGHT_CYCLE_INDEX;
-                    color2 = HIGHLIGHT_CYCLE_INDEX + 1;
+                        color1 = HIGHLIGHT_CYCLE_INDEX;
+                        color2 = HIGHLIGHT_CYCLE_INDEX + 1;
                     }
                 } else if (dotted && (r % 2 == 1)) {
                     color1 = 217;
