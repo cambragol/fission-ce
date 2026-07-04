@@ -61,7 +61,7 @@ namespace fallout {
 // Action Points bar configuration
 #define AP_MAX_DISPLAY (gInterfaceBarSuperWide ? 16 : 10)
 #define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
-#define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9 - (gInterfaceBarSuperWide ? 1 : 0))
+#define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9)
 #define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
 
 // The values of it's members are offsets to beginning of numbers in
