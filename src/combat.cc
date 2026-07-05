@@ -157,7 +157,7 @@ static int _combat_turn_running = 0;
 int _combatNumTurns = 0;
 
 // 0x510944
-unsigned int gCombatState = COMBAT_STATE_0x02;
+unsigned int gCombatState = COMBAT_STATE_PLAYER_TURN;
 
 // 0x510948
 static CombatAiInfo* _aiInfoList = nullptr;
@@ -2003,7 +2003,7 @@ int combatInit()
     _list_total = 0;
     _gcsd = nullptr;
     _combat_call_display = 0;
-    gCombatState = COMBAT_STATE_0x02;
+    gCombatState = COMBAT_STATE_PLAYER_TURN;
 
     max_action_points = critterGetStat(gDude, STAT_MAXIMUM_ACTION_POINTS);
 
@@ -2051,7 +2051,7 @@ void combatReset()
     _list_total = 0;
     _gcsd = nullptr;
     _combat_call_display = 0;
-    gCombatState = COMBAT_STATE_0x02;
+    gCombatState = COMBAT_STATE_PLAYER_TURN;
 
     max_action_points = critterGetStat(gDude, STAT_MAXIMUM_ACTION_POINTS);
 
@@ -2636,7 +2636,7 @@ static void _combat_begin(Object* attacker)
             }
         }
 
-        gCombatState |= COMBAT_STATE_0x01;
+        gCombatState |= COMBAT_STATE_IN_COMBAT;
 
         // Close minimap if it's open
         if (!settings.enhancements.strict_vanilla && settings.enhancements.minimap) {
@@ -2855,8 +2855,8 @@ static void _combat_over()
 
     _combat_exps = 0;
 
-    gCombatState &= ~(COMBAT_STATE_0x01 | COMBAT_STATE_0x02);
-    gCombatState |= COMBAT_STATE_0x02;
+    gCombatState &= ~(COMBAT_STATE_IN_COMBAT | COMBAT_STATE_PLAYER_TURN);
+    gCombatState |= COMBAT_STATE_PLAYER_TURN;
 
     if (_list_total != 0) {
         objectListFree(_combat_list);
@@ -3153,7 +3153,7 @@ static void combatAttemptEnd()
         }
     }
 
-    gCombatState |= COMBAT_STATE_0x08;
+    gCombatState |= COMBAT_STATE_EXIT_REQUESTED;
     _caiTeamCombatExit();
 }
 
@@ -3175,10 +3175,10 @@ static int _combat_input()
 {
     ScopedGameMode gm(GameMode::kPlayerTurn);
 
-    while ((gCombatState & COMBAT_STATE_0x02) != 0) {
+    while ((gCombatState & COMBAT_STATE_PLAYER_TURN) != 0) {
         sharedFpsLimiter.mark();
 
-        if ((gCombatState & COMBAT_STATE_0x08) != 0) {
+        if ((gCombatState & COMBAT_STATE_EXIT_REQUESTED) != 0) {
             break;
         }
 
@@ -3231,8 +3231,8 @@ static int _combat_input()
         _game_user_wants_to_quit = 0;
     }
 
-    if ((gCombatState & COMBAT_STATE_0x08) != 0) {
-        gCombatState &= ~COMBAT_STATE_0x08;
+    if ((gCombatState & COMBAT_STATE_EXIT_REQUESTED) != 0) {
+        gCombatState &= ~COMBAT_STATE_EXIT_REQUESTED;
         return -1;
     }
 
