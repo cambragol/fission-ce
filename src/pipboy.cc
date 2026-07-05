@@ -5479,31 +5479,63 @@ static void cluesRenderImage(const char* filename, int* currentLine)
     int x = PIPBOY_WINDOW_CONTENT_VIEW_X + (PIPBOY_WINDOW_CONTENT_VIEW_WIDTH - width) / 2;
     int y = PIPBOY_WINDOW_CONTENT_VIEW_Y + (*currentLine) * fontGetLineHeight();
 
-    // Configurable black threshold
-    // Any pixel with luminance <= blackThreshold will be treated as black and skipped.
-    // This preserves the Pip-Boy screen background texture.
-    int blackThreshold = 4;
-
-    // Configurable green shades
-    // Each entry: { palette_index, luminance_threshold }
-    // The last threshold should be 255 (max luminance).
-    struct {
-        unsigned char palIdx;
-        unsigned char threshold;
-    } shades[] = {
-        { _colorTable[5571], 8 }, // darkest green
-        { _colorTable[6722], 16 }, // slightly lighter
-        { _colorTable[6850], 64 }, // normal green
-        { _colorTable[8001], 128 }, // lighter normal
-        { _colorTable[8160], 255 } // bright green
-    };
-    const int numShades = sizeof(shades) / sizeof(shades[0]);
-
     int frameWidth = artGetWidth(art, frame, direction);
     int frameHeight = artGetHeight(art, frame, direction);
 
+    const int blackThreshold = 4; // pixels darker than this are treated as background
+
+    // First pass - compute luminance min/max
+    int minLum = 255;
+    int maxLum = 0;
+    bool hasPixels = false;
+
     for (int row = 0; row < height && row < frameHeight; row++) {
-        // Scanline effect - skip even rows to simulate CRT / Pip-Boy display
+        unsigned char* src = data + row * frameWidth;
+        for (int col = 0; col < width; col++) {
+            unsigned char idx = src[col];
+            if (idx == 0) continue; // transparent
+
+            unsigned char* pal = &_cmap[idx * 3];
+            int lum = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            if (lum < 0) lum = 0;
+            if (lum > 255) lum = 255;
+
+            // Skip pixels that should be considered background (very dark)
+            if (lum <= blackThreshold) continue;
+
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
+            hasPixels = true;
+        }
+    }
+
+    // If no visible pixels, just return
+    if (!hasPixels) {
+        internal_free(art);
+        return;
+    }
+
+    // Avoid division by zero if all visible pixels have the same luminance
+    if (minLum == maxLum) {
+        // Map to the brightest green to make it visible.
+        maxLum = minLum + 1; // force range
+    }
+
+    // Green palette: from darkest to brightest.
+    // Use _colorTable[32747] for the brightest as it is used elsewhere in pipboy.
+    const int greenPalettes[] = {
+        _colorTable[5571], // darkest green
+        _colorTable[6722],
+        _colorTable[6850],
+        _colorTable[8001],
+        _colorTable[8160], // brightest green
+        _colorTable[32747] // yellow - used in pipboy highlighting - so include
+    };
+    const int numShades = sizeof(greenPalettes) / sizeof(greenPalettes[0]);
+
+    // Second pass - draw with contrast stretching
+    for (int row = 0; row < height && row < frameHeight; row++) {
+        // Scanline effect - skip every other row for the pipboy look
         if ((row % 2) == 0) continue;
 
         int destY = y + row;
@@ -5521,20 +5553,24 @@ static void cluesRenderImage(const char* filename, int* currentLine)
 
             // Convert to luminance (grayscale)
             unsigned char* pal = &_cmap[idx * 3];
-            int luminance = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            int lum = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            if (lum < 0) lum = 0;
+            if (lum > 255) lum = 255;
 
             // If luminance is below the threshold, skip (preserve background)
-            if (luminance <= blackThreshold) continue;
+            if (lum <= blackThreshold) continue;
 
-            // Find the first shade whose threshold is >= luminance
-            unsigned char color = shades[0].palIdx; // fallback
-            for (int s = 0; s < numShades; s++) {
-                if (luminance <= shades[s].threshold) {
-                    color = shades[s].palIdx;
-                    break;
-                }
-            }
+            // Stretch luminance to full 0-255 range
+            int stretched = (lum - minLum) * 255 / (maxLum - minLum);
+            if (stretched < 0) stretched = 0;
+            if (stretched > 255) stretched = 255;
 
+            // Map stretched luminance to a shade index
+            int shadeIdx = (stretched * (numShades - 1) + 127) / 255;
+            if (shadeIdx < 0) shadeIdx = 0;
+            if (shadeIdx >= numShades) shadeIdx = numShades - 1;
+
+            unsigned char color = greenPalettes[shadeIdx];
             gPipboyWindowBuffer[destY * PIPBOY_WINDOW_WIDTH + destX] = color;
         }
     }
