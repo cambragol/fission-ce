@@ -183,6 +183,7 @@ For a vanilla Fallout2.exe experiecne (at widescreen) set StrictVanilla=1
 ## Contributing
 
 Contributions are welcome! Please open issues or pull requests on GitHub.
+For localization contributions, see the readme here: [Localization](https://github.com/cambragol/fission-ce/tree/main/files/localization)
 
 ---
 
