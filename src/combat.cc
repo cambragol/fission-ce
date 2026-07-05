@@ -2629,7 +2629,7 @@ static void _combat_begin(Object* attacker)
 
             scriptSetObjects(critter->sid, nullptr, nullptr);
             scriptSetFixedParam(critter->sid, 0);
-            if (critter->pid == 0x1000098) {
+            if (critter->pid == PROTO_ID_GORIS) {
                 if (!critterIsDead(critter)) {
                     v1 = critter;
                 }
@@ -2666,6 +2666,7 @@ static void _combat_begin(Object* attacker)
             reg_anim_end();
 
             while (animationIsBusy(v1)) {
+                renderPresent();
                 _process_bk();
             }
         }
@@ -2820,7 +2821,7 @@ static void _combat_over()
         scriptSetObjects(critter->sid, nullptr, nullptr);
         scriptSetFixedParam(critter->sid, 0);
 
-        if (critter->pid == 0x1000098 && !critterIsDead(critter) && !_isLoadingGame()) {
+        if (critter->pid == PROTO_ID_GORIS && !critterIsDead(critter) && !_isLoadingGame()) {
             int fid = buildFid(FID_TYPE(critter->fid),
                 99,
                 FID_ANIM_TYPE(critter->fid),
@@ -2833,6 +2834,7 @@ static void _combat_over()
             reg_anim_end();
 
             while (animationIsBusy(critter)) {
+                renderPresent();
                 _process_bk();
             }
         }
