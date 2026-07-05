@@ -39,6 +39,12 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
   <a href="https://cambragol.github.io/fallout-fission/assets/screenshot9.png">
     <img src="https://cambragol.github.io/fallout-fission/assets/screenshot9_thumb.png" width="240" alt="Screenshot 4">
   </a>
+<a href="https://cambragol.github.io/fallout-fission/assets/screenshot4.png">
+    <img src="https://cambragol.github.io/fallout-fission/assets/screenshot4_thumb.png" width="240" alt="Screenshot 3>
+  </a>
+  <a href="https://cambragol.github.io/fallout-fission/assets/screenshot5.png">
+    <img src="https://cambragol.github.io/fallout-fission/assets/screenshot5_thumb.png" width="240" alt="Screenshot 4">
+  </a>
 </p>
 
 ---
