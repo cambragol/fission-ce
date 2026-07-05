@@ -3609,8 +3609,8 @@ static void healingItemsInit()
 
 static void healingItemsInitVanilla()
 {
-    gHealingItemPids[HEALING_ITEM_STIMPACK] = PROTO_ID_STIMPACK;
-    gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK] = PROTO_ID_SUPER_STIMPACK;
+    gHealingItemPids[HEALING_ITEM_STIMPACK] = PROTO_ID_STIMPAK;
+    gHealingItemPids[HEALING_ITEM_SUPER_STIMPACK] = PROTO_ID_SUPER_STIMPAK;
     gHealingItemPids[HEALING_ITEM_HEALING_POWDER] = PROTO_ID_HEALING_POWDER;
 }
 
