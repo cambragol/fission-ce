@@ -56,7 +56,6 @@ static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
 static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
-static void automapUpdateButtonStates(bool playsound);
 
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
@@ -1046,12 +1045,12 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
                     objColor = _colorTable[31744];
                 } else {
                     if ((obj->flags & OBJECT_SEEN) == 0) continue;
-                    if (obj->pid == PROTO_ID_0x2000031)
+                    if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
                         objColor = _colorTable[32328];
                     else if (objectType == OBJ_TYPE_WALL)
                         objColor = _colorTable[992];
                     else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
-                        && obj->pid != PROTO_ID_0x2000158)
+                        && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
                         objColor = _colorTable[480];
                     else if (obj == gDude)
                         objColor = _colorTable[31744];
@@ -1153,12 +1152,12 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
                     objColor = _colorTable[31744];
                 } else {
                     if ((obj->flags & OBJECT_SEEN) == 0) continue;
-                    if (obj->pid == PROTO_ID_0x2000031)
+                    if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
                         objColor = _colorTable[32328];
                     else if (objectType == OBJ_TYPE_WALL)
                         objColor = _colorTable[992];
                     else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
-                        && obj->pid != PROTO_ID_0x2000158)
+                        && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
                         objColor = _colorTable[480];
                     else if (obj == gDude)
                         objColor = _colorTable[31744];
@@ -1326,12 +1325,12 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
                 objColor = _colorTable[31744];
             } else {
                 if ((obj->flags & OBJECT_SEEN) == 0) continue;
-                if (obj->pid == PROTO_ID_0x2000031)
+                if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
                     objColor = _colorTable[32328];
                 else if (objectType == OBJ_TYPE_WALL)
                     objColor = _colorTable[992];
                 else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
-                    && obj->pid != PROTO_ID_0x2000158)
+                    && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
                     objColor = _colorTable[480];
                 else if (obj == gDude)
                     objColor = _colorTable[31744];
@@ -1897,7 +1896,7 @@ static void _decode_map_data(int elevation)
             int contentType;
 
             int objectType = FID_TYPE(object->fid);
-            if (objectType == OBJ_TYPE_SCENERY && object->pid != PROTO_ID_0x2000158) {
+            if (objectType == OBJ_TYPE_SCENERY && object->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO) {
                 contentType = 2;
             } else if (objectType == OBJ_TYPE_WALL) {
                 contentType = 1;
@@ -2275,7 +2274,7 @@ void automapNotifyCombatEnded()
     }
 }
 
-static void automapUpdateButtonStates(bool playsound)
+void automapUpdateButtonStates(bool playsound)
 {
     // Update floating minimap buttons (if they exist)
     if (gDetailsButton != -1) {

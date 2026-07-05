@@ -316,7 +316,7 @@ int fileReadUInt16(File* stream, unsigned short* valuePtr)
 // 0x4C614C
 int fileReadInt32(File* stream, int* valuePtr)
 {
-    int value;
+    int value = 0;
 
     if (xfileRead(&value, 4, 1, stream) == -1) {
         return -1;

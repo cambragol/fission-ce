@@ -68,6 +68,7 @@ bool automapHandleKey(int keyCode);
 void automapUpdate();
 void automapClose();
 void automapNotifyCombatEnded();
+void automapUpdateButtonStates(bool playsound);
 
 // Renders a cropped portion of the minimap into a buffer for Multidex minimap.
 void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,

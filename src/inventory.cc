@@ -7316,6 +7316,9 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
         return;
     }
 
+    // Sfall: remove hidden items of barterer (relevant to Goris)
+    itemMoveAllHidden(barterer, hiddenBox);
+
     _pud = &(_inven_dude->data.inventory);
     _btable = bartererTable;
     _ptable = playerTable;

@@ -957,7 +957,7 @@ int scriptsHandleRequests()
                     while (elevatorDoors != nullptr) {
                         int pid = elevatorDoors->pid;
                         if (PID_TYPE(pid) == OBJ_TYPE_SCENERY
-                            && (pid == PROTO_ID_0x2000099 || pid == PROTO_ID_0x20001A5 || pid == PROTO_ID_0x20001D6)
+                            && (pid == PROTO_ID_BROTHERHOOD_DOOR || pid == PROTO_ID_ELEVATOR_DOOR || pid == PROTO_ID_ELEVATOR_DOOR_ALT)
                             && tileDistanceBetween(elevatorDoors->tile, gDude->tile) <= 4) {
                             break;
                         }
@@ -983,7 +983,7 @@ int scriptsHandleRequests()
                 while (elevatorDoors != nullptr) {
                     int pid = elevatorDoors->pid;
                     if (PID_TYPE(pid) == OBJ_TYPE_SCENERY
-                        && (pid == PROTO_ID_0x2000099 || pid == PROTO_ID_0x20001A5 || pid == PROTO_ID_0x20001D6)
+                        && (pid == PROTO_ID_BROTHERHOOD_DOOR || pid == PROTO_ID_ELEVATOR_DOOR || pid == PROTO_ID_ELEVATOR_DOOR_ALT)
                         && tileDistanceBetween(elevatorDoors->tile, gDude->tile) <= 4) {
                         break;
                     }
@@ -1065,7 +1065,7 @@ int _scripts_check_state_in_combat()
                     while (elevatorDoors != nullptr) {
                         int pid = elevatorDoors->pid;
                         if (PID_TYPE(pid) == OBJ_TYPE_SCENERY
-                            && (pid == PROTO_ID_0x2000099 || pid == PROTO_ID_0x20001A5 || pid == PROTO_ID_0x20001D6)
+                            && (pid == PROTO_ID_BROTHERHOOD_DOOR || pid == PROTO_ID_ELEVATOR_DOOR || pid == PROTO_ID_ELEVATOR_DOOR_ALT)
                             && tileDistanceBetween(elevatorDoors->tile, gDude->tile) <= 4) {
                             break;
                         }
@@ -1184,7 +1184,7 @@ int scriptsRequestElevator(Object* a1, int a2)
         for (int x = -5; x < 5; x++) {
             obj = objectFindFirstAtElevation(a1->elevation);
             while (obj != nullptr) {
-                if (tile == obj->tile && obj->pid == PROTO_ID_0x200050D) {
+                if (tile == obj->tile && obj->pid == PROTO_ID_ELEVATOR_STUB) {
                     break;
                 }
 

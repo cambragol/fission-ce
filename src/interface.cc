@@ -3317,6 +3317,7 @@ static void multidexCreateMapButtons(void)
         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (gMultidexDetailButton != -1) {
         buttonSetCallbacks(gMultidexDetailButton, 0, 0);
+        automapUpdateButtonStates(false);
     }
 
     gMultidexProjectionButton = buttonCreate(gInterfaceBarWindow,
@@ -3327,13 +3328,11 @@ static void multidexCreateMapButtons(void)
         nullptr, BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
     if (gMultidexProjectionButton != -1) {
         buttonSetCallbacks(gMultidexProjectionButton, 0, 0);
+        automapUpdateButtonStates(false);
     }
 
     // Zoom button currently not used; keep as -1
     gMultidexZoomButton = -1;
-
-    // Set initial button states (up/down) based on current automap flags
-    multidexUpdateButtonStates();
 }
 
 static void multidexDestroyMapButtons(void)
