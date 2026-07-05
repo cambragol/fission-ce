@@ -5524,12 +5524,12 @@ static void cluesRenderImage(const char* filename, int* currentLine)
     // Green palette: from darkest to brightest.
     // Use _colorTable[32747] for the brightest as it is used elsewhere in pipboy.
     const int greenPalettes[] = {
-        _colorTable[5571],   // darkest green
+        _colorTable[5571], // darkest green
         _colorTable[6722],
         _colorTable[6850],
         _colorTable[8001],
-        _colorTable[8160],   // brightest green
-        _colorTable[32747]  // yellow - used in pipboy highlighting - so include
+        _colorTable[8160], // brightest green
+        _colorTable[32747] // yellow - used in pipboy highlighting - so include
     };
     const int numShades = sizeof(greenPalettes) / sizeof(greenPalettes[0]);
 
