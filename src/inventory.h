@@ -17,6 +17,7 @@ typedef void InventoryPrintItemDescriptionHandler(char* string);
 
 void inventoryResetDude();
 void inventoryOpen();
+void inventoryOpenForCompanion(Object* critter);
 void adjustCritterStatsOnArmorChange(Object* critter, Object* oldArmor, Object* newArmor);
 void inventoryOpenUseItemOn(Object* targetObj);
 Object* critterGetItem2(Object* critter);
