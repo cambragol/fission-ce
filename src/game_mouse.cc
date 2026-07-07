@@ -22,6 +22,7 @@
 #include "kb.h"
 #include "mouse.h"
 #include "object.h"
+#include "party_member.h"
 #include "proto.h"
 #include "proto_instance.h"
 #include "settings.h"
@@ -1424,8 +1425,14 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         inventoryOpenUseItemOn(targetObj);
                         break;
                     case GAME_MOUSE_ACTION_MENU_ITEM_LOOK:
-                        if (objectExamine(gDude, targetObj) == -1) {
-                            objectLookAt(gDude, targetObj);
+                        // For companions, open their inventory instead of examining
+                        // Could replace/augment this with an icon switch?
+                        if (objectIsPartyMember(targetObj) && targetObj != gDude) {
+                            inventoryOpenForCompanion(targetObj);
+                        } else {
+                            if (objectExamine(gDude, targetObj) == -1) {
+                                objectLookAt(gDude, targetObj);
+                            }
                         }
                         break;
                     case GAME_MOUSE_ACTION_MENU_ITEM_ROTATE:

@@ -2322,4 +2322,24 @@ std::vector<Object*> get_all_party_members_objects(bool include_hidden)
     return value;
 }
 
+bool partyMemberCanEquipArmor(Object* critter) {
+    if (critter == gDude) return true; // player always can
+    int bodyType = critterGetBodyType(critter);
+    if (bodyType != BODY_TYPE_BIPED) return false;
+    // Exceptions: Goris and Marcus cannot wear armor
+    if (critter->pid == PROTO_ID_GORIS) return false;
+    if (critter->pid == PROTO_ID_MARCUS) return false;
+    return true;
+}
+
+bool partyMemberCanEquipWeapon(Object* critter) {
+    if (critter == gDude) return true;
+    int bodyType = critterGetBodyType(critter);
+    // Quadrupeds (dogs etc) cannot use weapons
+    if (bodyType == BODY_TYPE_QUADRUPED) return false;
+    // Goris cannot use weapons (even though biped)
+    if (critter->pid == PROTO_ID_GORIS) return false;
+    return true;
+}
+
 } // namespace fallout

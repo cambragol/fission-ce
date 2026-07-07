@@ -1056,12 +1056,10 @@ int skillsPerformStealing(Object* thief, Object* target, Object* item, bool isPl
     }
 
     int stealRoll;
-    if (thief == gDude && objectIsPartyMember(target)) {
-        stealRoll = ROLL_CRITICAL_SUCCESS;
-    } else {
-        int criticalChance = critterGetStat(thief, STAT_CRITICAL_CHANCE);
-        stealRoll = randomRoll(stealChance, criticalChance, &howMuch);
-    }
+    // Steal/Plant for companions should be stealing and planting, not 'trade'
+    // However, getting caught does not start combat (wrap in strict_vanilla)
+    int criticalChance = critterGetStat(thief, STAT_CRITICAL_CHANCE);
+    stealRoll = randomRoll(stealChance, criticalChance, &howMuch);
 
     int catchRoll;
     if (stealRoll == ROLL_CRITICAL_SUCCESS) {
