@@ -63,6 +63,7 @@ namespace fallout {
 #define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
 #define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9)
 #define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
+// Ammo counter flashing red
 #define FIRE_SLOW_CYCLE_INDEX 238
 #define FIRE_FAST_CYCLE_INDEX 243
 
@@ -216,8 +217,6 @@ static int gEndCombatButton = -1;
 
 // 0x518FD4
 static Rect gInterfaceBarActionPointsBarRect;
-
-static bool gShowAmmoConsumption = false;
 
 // 0x518FE8
 static IndicatorDescription gIndicatorDescriptions[INDICATOR_COUNT] = {
@@ -1825,12 +1824,6 @@ int _intface_update_ammo_lights()
         return -1;
     }
 
-    // Determine if we should highlight the next round.
-    gShowAmmoConsumption = false;
-    if (isInCombat() && gDude != nullptr && gDude->data.critter.combat.ap > 0) {
-        gShowAmmoConsumption = true;
-    }
-
     InterfaceItemState* p = &(gInterfaceItemStates[gInterfaceCurrentHand]);
 
     int ratio = 0;
@@ -2494,7 +2487,8 @@ static void interfaceUpdateAmmoBar(int x, int ratio)
     }
 }
 
-// Discrete ammo bar with uniform block sizes, gaps, and bottom-up consumption.
+// Discrete ammo bar with uniform block sizes, gaps, top-down consumption,
+// color zones, and last-round flashing.
 static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
 {
     (void)ratio; // ratio is not used directly; recompute from the item.
@@ -2586,6 +2580,18 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         }
     }
 
+    // Determine color zone based on remaining ammo ratio.
+    bool useYellow = false;
+    bool useRed = false;
+    if (maxUnits > 0) {
+        float percent = (float)currentUnits / maxUnits;
+        if (percent <= 0.25f) {
+            useRed = true;
+        } else if (percent <= 0.5f) {
+            useYellow = true;
+        }
+    }
+
     // Restore background for the column(s) - one or two pixels wide.
     for (int row = 0; row < 70; row++) {
         dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
@@ -2600,8 +2606,8 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
         int startRow = 69 - (i * (blockSize + gap)) - blockSize + 1;
         if (startRow < 0) break;
 
-        // Highlight the topmost lit block when aiming in combat.
-        bool highlight = gShowAmmoConsumption && lit && (i == currentUnits - 1);
+        // Flashing light for only the very last round (no AP check).
+        bool flashing = (currentUnits == 1) && lit;
 
         for (int r = 0; r < blockSize; r++) {
             int row = startRow + r;
@@ -2609,7 +2615,8 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
 
             if (lit) {
                 int color1, color2;
-                if (highlight) {
+                if (flashing) {
+                    // Flash the last round using cycling colors.
                     if (dotted && (r % 2 == 1)) {
                         color1 = FIRE_FAST_CYCLE_INDEX;
                         color2 = FIRE_FAST_CYCLE_INDEX;
@@ -2617,12 +2624,33 @@ static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
                         color1 = FIRE_SLOW_CYCLE_INDEX;
                         color2 = FIRE_SLOW_CYCLE_INDEX;
                     }
-                } else if (dotted && (r % 2 == 1)) {
-                    color1 = 217; // Dark Green
-                    color2 = 219; // Darkest Green
+                } else if (useRed) {
+                    // Red zone
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 134; // dark red
+                        color2 = 136; // darkest red
+                    } else {
+                        color1 = 132; // bright red
+                        color2 = 133; // red
+                    }
+                } else if (useYellow) {
+                    // Yellow zone
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 60; // dark yellow
+                        color2 = 62; // darkest yellow
+                    } else {
+                        color1 = 58; // bright yellow
+                        color2 = 59; // yellow
+                    }
                 } else {
-                    color1 = 215; // Bright Green
-                    color2 = 216; // Green
+                    // Green zone (default)
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 217; // Dark Green
+                        color2 = 219; // Darkest Green
+                    } else {
+                        color1 = 215; // Bright Green
+                        color2 = 216; // Green
+                    }
                 }
                 dest[row * gInterfaceBarWidth] = color1;
                 if (gInterfaceBarSuperWide) {
