@@ -171,10 +171,23 @@ For advanced tweaks, use the [enhancements] sections in 'fission.cfg':
 
 ```
 [enhancements]
-WorldMapTravelMarkers=1
-GaplessMusic=1
-EnhancedBarter=1
-Minimap=1
+AutoOpenDoors=0
+AutoPush=1
+AutoQuickSave=0
+DisplayBonusDamage=0
+DisplayKarmaChanges=0
+EnhancedBarter=0
+ExplosionsEmitLight=0
+GameSpeed=1
+GaplessMusic=0
+InventoryColumns=1
+MassHighlight=1
+Minimap=0
+NpcArmor=1
+NumbersInDialogue=0
+RemoveCriticalTimelimits=0
+SkipOpeningMovies=2
+StrictVanilla=0
 ```
 For a vanilla Fallout2.exe experiecne (at widescreen) set StrictVanilla=1
 
