@@ -58,6 +58,15 @@ namespace fallout {
 #define INTERFACE_ITEM_ACTION_BUTTON_WIDTH 188
 #define INTERFACE_ITEM_ACTION_BUTTON_HEIGHT 67
 
+// Action Points bar configuration
+#define AP_MAX_DISPLAY (gInterfaceBarSuperWide ? 16 : 10)
+#define AP_LIGHTS_SHIFT (gInterfaceBarSuperWide ? 3 : 0)
+#define AP_START_X (316 + gInterfaceBarContentOffset - AP_LIGHTS_SHIFT * 9)
+#define AP_BAR_WIDTH (AP_MAX_DISPLAY * 9)
+// Ammo counter flashing red
+#define FIRE_SLOW_CYCLE_INDEX 238
+#define FIRE_FAST_CYCLE_INDEX 243
+
 // The values of it's members are offsets to beginning of numbers in
 // numbers.frm.
 typedef enum InterfaceNumbersColor {
@@ -116,6 +125,7 @@ static int endTurnButtonFree();
 static int endCombatButtonInit();
 static int endCombatButtonFree();
 static void interfaceUpdateAmmoBar(int x, int ratio);
+static void enhancedInterfaceUpdateAmmoBar(int x, int ratio);
 static int _intface_item_reload();
 static void interfaceDrawActionButtonOverlay(unsigned char* data, int width, int height, int pitch, int upX, int upY, int darkenColor);
 static void interfaceRenderCounterAnimationStep(unsigned char* src, unsigned char* dest, int delay, Rect* numbersRect, bool refreshMouse);
@@ -276,6 +286,8 @@ static unsigned char _itemButtonUp[INTERFACE_ITEM_ACTION_BUTTON_WIDTH * INTERFAC
 // 0x59D3F4
 static unsigned char* gInterfaceWindowBuffer;
 
+static int extraShift;
+
 // A slice of main interface background containing 10 shadowed action point
 // dots. In combat mode individual colored dots are rendered on top of this
 // background.
@@ -283,7 +295,7 @@ static unsigned char* gInterfaceWindowBuffer;
 // This buffer is initialized once and does not change throughout the game.
 //
 // 0x59D40C
-static unsigned char gInterfaceActionPointsBarBackground[90 * 5];
+static unsigned char* gInterfaceActionPointsBarBackground = nullptr;
 
 static FrmImage _inventoryButtonNormalFrmImage;
 static FrmImage _inventoryButtonPressedFrmImage;
@@ -669,6 +681,35 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
+    if (gInterfaceBarSuperWide) {
+        gInterfaceActionPointsBarBackground = (unsigned char*)internal_malloc(AP_BAR_WIDTH * 5);
+        if (gInterfaceActionPointsBarBackground) {
+            // Get the background for the lights from the main background.
+            unsigned char* src = backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + AP_START_X;
+            for (int row = 0; row < 5; row++) {
+                memcpy(gInterfaceActionPointsBarBackground + row * AP_BAR_WIDTH, src, AP_BAR_WIDTH);
+                src += backgroundFrmImage.getWidth();
+            }
+        }
+    } else {
+        // Old 10-light layout (no 1pix shift...?)
+        gInterfaceActionPointsBarBackground = (unsigned char*)internal_malloc(90 * 5);
+        unsigned char* src = backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + 316;
+        for (int row = 0; row < 5; row++) {
+            memcpy(gInterfaceActionPointsBarBackground + row * 90, src, 90);
+            src += backgroundFrmImage.getWidth();
+        }
+    }
+
+    // Update the action points bar rect
+    gInterfaceBarActionPointsBarRect.left = AP_START_X;
+    gInterfaceBarActionPointsBarRect.right = AP_START_X + AP_BAR_WIDTH - 1;
+    gInterfaceBarActionPointsBarRect.top = 14;
+    gInterfaceBarActionPointsBarRect.bottom = 19;
+
+    // Add an extra shift right for wide interfaces (more room for ammometre)
+    extraShift = gInterfaceBarIsWide ? 4 : 0;
+
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
         backgroundFrmImage.getHeight(),
@@ -806,7 +847,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gMapButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 39, 41, 19, -1, -1, -1, KEY_TAB, _mapButtonNormalFrmImage.getData(), _mapButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
+    gMapButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 39, 41, 19, -1, -1, -1, KEY_TAB, _mapButtonNormalFrmImage.getData(), _mapButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
     if (gMapButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -827,7 +868,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gPipboyButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 77, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, _pipboyButtonNormalFrmImage.getData(), _pipboyButtonPressedFrmImage.getData(), nullptr, 0);
+    gPipboyButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 77, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, _pipboyButtonNormalFrmImage.getData(), _pipboyButtonPressedFrmImage.getData(), nullptr, 0);
     if (gPipboyButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -848,7 +889,7 @@ int interfaceInit()
         return intface_fatal_error(-1);
     }
 
-    gCharacterButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset, 58, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, _characterButtonNormalFrmImage.getData(), _characterButtonPressedFrmImage.getData(), nullptr, 0);
+    gCharacterButton = buttonCreate(gInterfaceBarWindow, 526 + gInterfaceBarContentOffset + extraShift, 58, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, _characterButtonNormalFrmImage.getData(), _characterButtonPressedFrmImage.getData(), nullptr, 0);
     if (gCharacterButton == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -1074,7 +1115,6 @@ void interfaceFree()
         backgroundFrmImage.unlock();
         gMultidexMapBgFrmImage.unlock();
         gMultidexSkilldexBgFrmImage.unlock();
-
         gBigNumbersFrmImage.unlock();
 
         // Destroy any remaining skilldex buttons
@@ -1090,6 +1130,10 @@ void interfaceFree()
         if (gInterfaceBarWindow != -1) {
             windowDestroy(gInterfaceBarWindow);
             gInterfaceBarWindow = -1;
+        }
+        if (gInterfaceActionPointsBarBackground) {
+            internal_free(gInterfaceActionPointsBarBackground);
+            gInterfaceActionPointsBarBackground = nullptr;
         }
     }
 
@@ -1354,10 +1398,10 @@ void interfaceRenderHitPoints(bool animate)
     if (animate) {
         int delay = 250 / (abs(gInterfaceLastRenderedHitPoints - hp) + 1);
         for (int index = 0; index < count; index++) {
-            interfaceRenderCounter(473 + gInterfaceBarContentOffset, 40, transitionPoints[index], transitionPoints[index + 1], transitionColors[index], delay);
+            interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 40, transitionPoints[index], transitionPoints[index + 1], transitionColors[index], delay);
         }
     } else {
-        interfaceRenderCounter(473 + gInterfaceBarContentOffset, 40, gInterfaceLastRenderedHitPoints, hp, color, 0);
+        interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 40, gInterfaceLastRenderedHitPoints, hp, color, 0);
     }
 
     gInterfaceLastRenderedHitPoints = hp;
@@ -1376,7 +1420,7 @@ void interfaceRenderArmorClass(bool animate)
         delay = 250 / (abs(gInterfaceLastRenderedArmorClass - armorClass) + 1);
     }
 
-    interfaceRenderCounter(473 + gInterfaceBarContentOffset, 75, gInterfaceLastRenderedArmorClass, armorClass, 0, delay);
+    interfaceRenderCounter(473 + gInterfaceBarContentOffset + extraShift, 75, gInterfaceLastRenderedArmorClass, armorClass, 0, delay);
 
     gInterfaceLastRenderedArmorClass = armorClass;
 }
@@ -1390,11 +1434,15 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
         return;
     }
 
-    blitBufferToBuffer(gInterfaceActionPointsBarBackground, 90, 5, 90, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + gInterfaceBarContentOffset + 316, gInterfaceBarWidth);
+    // Restore background directly from the main background FRM
+    blitBufferToBuffer(backgroundFrmImage.getData() + 14 * backgroundFrmImage.getWidth() + AP_START_X,
+        AP_BAR_WIDTH, 5, backgroundFrmImage.getWidth(),
+        gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + AP_START_X,
+        gInterfaceBarWidth);
 
     if (actionPointsLeft == -1) {
         frmData = _redLightFrmImage.getData();
-        actionPointsLeft = 10;
+        actionPointsLeft = AP_MAX_DISPLAY;
         bonusActionPoints = 0;
     } else {
         frmData = _greenLightFrmImage.getData();
@@ -1402,14 +1450,13 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
         if (actionPointsLeft < 0) {
             actionPointsLeft = 0;
         }
-
-        if (actionPointsLeft > 10) {
-            actionPointsLeft = 10;
+        if (actionPointsLeft > AP_MAX_DISPLAY) {
+            actionPointsLeft = AP_MAX_DISPLAY;
         }
 
         if (bonusActionPoints >= 0) {
-            if (actionPointsLeft + bonusActionPoints > 10) {
-                bonusActionPoints = 10 - actionPointsLeft;
+            if (actionPointsLeft + bonusActionPoints > AP_MAX_DISPLAY) {
+                bonusActionPoints = AP_MAX_DISPLAY - actionPointsLeft;
             }
         } else {
             bonusActionPoints = 0;
@@ -1418,15 +1465,23 @@ void interfaceRenderActionPoints(int actionPointsLeft, int bonusActionPoints)
 
     int index;
     for (index = 0; index < actionPointsLeft; index++) {
-        blitBufferToBuffer(frmData, 5, 5, 5, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + 316 + index * 9 + gInterfaceBarContentOffset, gInterfaceBarWidth);
+        int lightX = AP_START_X + index * 9;
+        blitBufferToBufferTrans(frmData, 5, 5, 5,
+            gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + lightX,
+            gInterfaceBarWidth);
     }
 
+    unsigned char* yellowData = _yellowLightFrmImage.getData();
     for (; index < (actionPointsLeft + bonusActionPoints); index++) {
-        blitBufferToBuffer(_yellowLightFrmImage.getData(), 5, 5, 5, gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + 316 + gInterfaceBarContentOffset + index * 9, gInterfaceBarWidth);
+        int lightX = AP_START_X + index * 9;
+        blitBufferToBufferTrans(yellowData, 5, 5, 5,
+            gInterfaceWindowBuffer + 14 * gInterfaceBarWidth + lightX,
+            gInterfaceBarWidth);
     }
 
     if (!gInterfaceBarInitialized) {
-        windowRefreshRect(gInterfaceBarWindow, &gInterfaceBarActionPointsBarRect);
+        Rect rect = { AP_START_X, 14, AP_START_X + AP_BAR_WIDTH - 1, 19 };
+        windowRefreshRect(gInterfaceBarWindow, &rect);
     }
 }
 
@@ -1789,7 +1844,11 @@ int _intface_update_ammo_lights()
         }
     }
 
-    interfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    if (settings.enhancements.strict_vanilla) {
+        interfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    } else {
+        enhancedInterfaceUpdateAmmoBar(463 + gInterfaceBarContentOffset, ratio);
+    }
 
     return 0;
 }
@@ -2424,6 +2483,186 @@ static void interfaceUpdateAmmoBar(int x, int ratio)
         rect.top = 26;
         rect.right = x + 1;
         rect.bottom = 26 + 70;
+        windowRefreshRect(gInterfaceBarWindow, &rect);
+    }
+}
+
+// Discrete ammo bar with uniform block sizes, gaps, top-down consumption,
+// color zones, and last-round flashing.
+static void enhancedInterfaceUpdateAmmoBar(int x, int ratio)
+{
+    (void)ratio; // ratio is not used directly; recompute from the item.
+
+    if (gInterfaceBarWindow == -1) return;
+
+    InterfaceItemState* itemState = &gInterfaceItemStates[gInterfaceCurrentHand];
+    Object* item = itemState->item;
+
+    int maxUnits = 0;
+    int currentUnits = 0;
+
+    if (item != nullptr) {
+        int itemType = itemGetType(item);
+
+        if (itemState->isWeapon != 0) {
+            int maxAmmo = ammoGetCapacity(item);
+            int currentAmmo = ammoGetQuantity(item);
+            if (maxAmmo > 0) {
+                // Determine burst size
+                int hitMode;
+                bool aiming;
+                if (interfaceGetCurrentHitMode(&hitMode, &aiming) != 0) {
+                    hitMode = itemState->primaryHitMode;
+                }
+                int anim = critterGetAnimationForHitMode(gDude, hitMode);
+                bool isBurst = (anim == ANIM_FIRE_BURST || anim == ANIM_FIRE_CONTINUOUS);
+                int burstSize = isBurst ? weaponGetBurstRounds(item) : 1;
+
+                maxUnits = maxAmmo / burstSize;
+                currentUnits = currentAmmo / burstSize;
+            }
+        } else if (itemType == ITEM_TYPE_MISC) {
+            int maxCharges = miscItemGetMaxCharges(item);
+            int currentCharges = miscItemGetCharges(item);
+            if (maxCharges > 0) {
+                maxUnits = maxCharges;
+                currentUnits = currentCharges;
+            }
+        }
+    }
+
+    unsigned char* dest = gInterfaceWindowBuffer + gInterfaceBarWidth * 26 + x;
+    unsigned char* bgSrc = backgroundFrmImage.getData() + 26 * backgroundFrmImage.getWidth() + x;
+
+    if (maxUnits <= 0) {
+        // Clear column(s) - one or two pixels wide.
+        for (int row = 0; row < 70; row++) {
+            dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+            if (gInterfaceBarSuperWide) {
+                dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+            }
+        }
+        if (!gInterfaceBarInitialized) {
+            Rect rect = { x, 26, x + (gInterfaceBarSuperWide ? 1 : 0), 26 + 70 - 1 };
+            windowRefreshRect(gInterfaceBarWindow, &rect);
+        }
+        return;
+    }
+
+    if (currentUnits > maxUnits) currentUnits = maxUnits;
+
+    // Determine gap and block size based on maxUnits.
+    int gap;
+    int blockSize;
+    bool dotted;
+
+    // Main style - 3 pixel gap (fallback to 2)
+    if (maxUnits <= 24) {
+        gap = 3;
+        blockSize = (70 - gap * (maxUnits - 1)) / maxUnits;
+        if (blockSize < 1) {
+            gap = 2;
+            blockSize = (70 - gap * (maxUnits - 1)) / maxUnits;
+            if (blockSize < 1) blockSize = 1;
+        }
+        dotted = true;
+    } else {
+        // Second fallback - gap of 1, block of 1
+        gap = 1;
+        blockSize = 1;
+        dotted = false;
+        if (maxUnits > 35) {
+            // Cap maxUnits to 35 and scale currentUnits - any weapon/item more than 35 rounds?
+            int oldMax = maxUnits;
+            maxUnits = 35;
+            currentUnits = (currentUnits * maxUnits + oldMax - 1) / oldMax;
+            if (currentUnits > maxUnits) currentUnits = maxUnits;
+        }
+    }
+
+    // Determine color zone based on remaining ammo ratio.
+    bool useYellow = false;
+    bool useRed = false;
+    if (maxUnits > 0) {
+        float percent = (float)currentUnits / maxUnits;
+        if (percent <= 0.25f) {
+            useRed = true;
+        } else if (percent <= 0.5f) {
+            useYellow = true;
+        }
+    }
+
+    // Restore background for the column(s) - one or two pixels wide.
+    for (int row = 0; row < 70; row++) {
+        dest[row * gInterfaceBarWidth] = bgSrc[row * backgroundFrmImage.getWidth()];
+        if (gInterfaceBarSuperWide) {
+            dest[row * gInterfaceBarWidth + 1] = bgSrc[row * backgroundFrmImage.getWidth() + 1];
+        }
+    }
+
+    // Draw blocks from bottom (row 69) upward.
+    for (int i = 0; i < maxUnits; i++) {
+        bool lit = (i < currentUnits);
+        int startRow = 69 - (i * (blockSize + gap)) - blockSize + 1;
+        if (startRow < 0) break;
+
+        // Flashing light for only the very last round (no AP check).
+        bool flashing = (currentUnits == 1) && lit;
+
+        for (int r = 0; r < blockSize; r++) {
+            int row = startRow + r;
+            if (row < 0 || row >= 70) continue;
+
+            if (lit) {
+                int color1, color2;
+                if (flashing) {
+                    // Flash the last round using cycling colors.
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = FIRE_FAST_CYCLE_INDEX;
+                        color2 = FIRE_FAST_CYCLE_INDEX;
+                    } else {
+                        color1 = FIRE_SLOW_CYCLE_INDEX;
+                        color2 = FIRE_SLOW_CYCLE_INDEX;
+                    }
+                } else if (useRed) {
+                    // Red zone
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 134; // dark red
+                        color2 = 136; // darkest red
+                    } else {
+                        color1 = 132; // bright red
+                        color2 = 133; // red
+                    }
+                } else if (useYellow) {
+                    // Yellow zone
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 60; // dark yellow
+                        color2 = 62; // darkest yellow
+                    } else {
+                        color1 = 58; // bright yellow
+                        color2 = 59; // yellow
+                    }
+                } else {
+                    // Green zone (default)
+                    if (dotted && (r % 2 == 1)) {
+                        color1 = 217; // Dark Green
+                        color2 = 219; // Darkest Green
+                    } else {
+                        color1 = 215; // Bright Green
+                        color2 = 216; // Green
+                    }
+                }
+                dest[row * gInterfaceBarWidth] = color1;
+                if (gInterfaceBarSuperWide) {
+                    dest[row * gInterfaceBarWidth + 1] = color2;
+                }
+            }
+        }
+    }
+
+    // Refresh the column - width 1 or 2 pixels.
+    if (!gInterfaceBarInitialized) {
+        Rect rect = { x, 26, x + (gInterfaceBarSuperWide ? 1 : 0), 26 + 70 - 1 };
         windowRefreshRect(gInterfaceBarWindow, &rect);
     }
 }
