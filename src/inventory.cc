@@ -9198,7 +9198,8 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
     }
 }
 
-static void movePlayerMoneyToTopCombined() {
+static void movePlayerMoneyToTopCombined()
+{
     if (!gUseCombinedInventory || gCombinedItemCount <= 1) return;
 
     // Collect indices of money items belonging to the player
@@ -9217,7 +9218,10 @@ static void movePlayerMoneyToTopCombined() {
     for (int i = 0; i < gCombinedItemCount; i++) {
         bool isPlayerMoney = false;
         for (int idx : moneyIndices) {
-            if (i == idx) { isPlayerMoney = true; break; }
+            if (i == idx) {
+                isPlayerMoney = true;
+                break;
+            }
         }
         if (!isPlayerMoney) {
             tempArray[writePos++] = gCombinedItems[i];
