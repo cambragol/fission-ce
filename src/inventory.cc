@@ -314,6 +314,7 @@ static void inventoryBuildCombinedList(Object* focusOwner = nullptr);
 static void transferItemToCurrentOwner(Object* item, int quantity, Object* originalOwner);
 static void sortCombinedInventory(int sortType, int inventoryWindowType);
 static void applyCombinedSort(int sortType);
+static void movePlayerMoneyToTopCombined();
 
 // 0x46E6D0
 static const int gSummaryStats[7] = {
@@ -662,6 +663,7 @@ static int gCombinedItemCount = 0;
 static bool gUseCombinedInventory = false;
 static Object* gCombinedExcludeObject = nullptr;
 static int gCombinedSortType = -1;
+static bool gIsTradeWindow = false;
 
 static int getLeftDisplayCount()
 {
@@ -2050,14 +2052,24 @@ static bool _setup_inventory(int inventoryWindowType)
             gUseCombinedInventory = true;
             gCombinedExcludeObject = nullptr;
             inventoryBuildCombinedList(_inven_dude);
+            gIsTradeWindow = false;
         } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
             gUseCombinedInventory = true;
             gCombinedExcludeObject = _target_stack[_target_curr_stack];
             inventoryBuildCombinedList(gDude);
+            gIsTradeWindow = false;
         } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
             gUseCombinedInventory = true;
             gCombinedExcludeObject = _target_stack[_target_curr_stack];
             inventoryBuildCombinedList(gDude);
+            // Move player's money to the top (end of array) for convenience
+            if (gUseCombinedInventory) {
+                movePlayerMoneyToTopCombined();
+            } else {
+                _move_money_to_top(_pud, _pud->length);
+            }
+
+            gIsTradeWindow = true;
         }
     }
 
@@ -2160,6 +2172,7 @@ static void _exit_inventory(bool shouldEnableIso)
         gCombinedExcludeObject = nullptr;
         _dropped_explosive = false;
     }
+    gIsTradeWindow = false;
 }
 
 // 0x46FDF4
@@ -8084,6 +8097,9 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
     _target_stack[0] = barterer;
     _target_stack_offset[0] = 0;
 
+    // Ensure merchant's money is at the top
+    _move_money_to_top(_target_pud, _target_pud->length);
+
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_TRADE);
     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
     _display_inventory(_stack_offset[0], -1, INVENTORY_WINDOW_TYPE_TRADE);
@@ -9182,6 +9198,39 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
     }
 }
 
+static void movePlayerMoneyToTopCombined() {
+    if (!gUseCombinedInventory || gCombinedItemCount <= 1) return;
+
+    // Collect indices of money items belonging to the player
+    std::vector<int> moneyIndices;
+    for (int i = 0; i < gCombinedItemCount; i++) {
+        CombinedItem* ci = &gCombinedItems[i];
+        if (ci->owner == gDude && ci->item->pid == PROTO_ID_MONEY) {
+            moneyIndices.push_back(i);
+        }
+    }
+    if (moneyIndices.empty()) return;
+
+    // Move all non-money items to the front, preserving order
+    CombinedItem* tempArray = (CombinedItem*)alloca(gCombinedItemCount * sizeof(CombinedItem));
+    int writePos = 0;
+    for (int i = 0; i < gCombinedItemCount; i++) {
+        bool isPlayerMoney = false;
+        for (int idx : moneyIndices) {
+            if (i == idx) { isPlayerMoney = true; break; }
+        }
+        if (!isPlayerMoney) {
+            tempArray[writePos++] = gCombinedItems[i];
+        }
+    }
+    // Append player's money items at the end (preserving their order)
+    for (int idx : moneyIndices) {
+        tempArray[writePos++] = gCombinedItems[idx];
+    }
+
+    memcpy(gCombinedItems, tempArray, gCombinedItemCount * sizeof(CombinedItem));
+}
+
 // Compare two CombinedItems by type (weapons, ammo, drugs, etc.)
 static int compareCombinedItemsByType(const void* a, const void* b)
 {
@@ -9415,6 +9464,10 @@ static void applyCombinedSort(int sortType)
         break;
     default:
         return;
+    }
+    // After sorting, if in trade window, ensure player's money is at the end
+    if (gIsTradeWindow) {
+        movePlayerMoneyToTopCombined();
     }
 }
 
