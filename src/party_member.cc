@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "art.h"
 #include "animation.h"
 #include "color.h"
 #include "combat.h"
@@ -2340,6 +2341,50 @@ bool partyMemberCanEquipWeapon(Object* critter) {
     // Goris cannot use weapons (even though biped)
     if (critter->pid == PROTO_ID_GORIS) return false;
     return true;
+}
+
+/**
+ * Checks if a companion can equip a specific weapon.
+ * First does the broad check (body type, Goris), then verifies
+ * that the weapon's animation code is supported by the critter's art.
+ * The player always returns true.
+ */
+bool partyMemberCanEquipThisWeapon(Object* critter, Object* weapon) {
+    if (critter == nullptr || weapon == nullptr) return false;
+    if (itemGetType(weapon) != ITEM_TYPE_WEAPON) return false;
+
+    // Player can equip anything
+    if (critter == gDude) return true;
+
+    // First, do the broad check (body type, Goris)
+    if (!partyMemberCanEquipWeapon(critter)) return false;
+
+    // Get weapon animation code
+    Proto* weaponProto;
+    if (protoGetProto(weapon->pid, &weaponProto) == -1) return false;
+    int animCode = weaponProto->item.data.weapon.animationCode;
+
+    // Determine base art ID for the critter (considering current armor)
+    int baseArtId;
+    Object* armor = critterGetArmor(critter);
+    if (armor != nullptr) {
+        Proto* armorProto;
+        if (protoGetProto(armor->pid, &armorProto) == -1) return false;
+        if (critterGetStat(critter, STAT_GENDER) == GENDER_FEMALE)
+            baseArtId = armorProto->item.data.armor.femaleFid;
+        else
+            baseArtId = armorProto->item.data.armor.maleFid;
+        if (baseArtId == -1) baseArtId = _art_vault_guy_num; // fallback
+    } else {
+        // Use base proto fid
+        Proto* critterProto;
+        if (protoGetProto(critter->pid, &critterProto) == -1) return false;
+        baseArtId = artGetIndex(critterProto->fid);
+    }
+
+    // Test if the combination exists in the art cache
+    int testFid = buildFid(OBJ_TYPE_CRITTER, baseArtId, 0, animCode, critter->rotation + 1);
+    return artExists(testFid);
 }
 
 } // namespace fallout
