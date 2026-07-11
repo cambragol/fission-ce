@@ -9,8 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "art.h"
 #include "animation.h"
+#include "art.h"
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
@@ -2323,7 +2323,8 @@ std::vector<Object*> get_all_party_members_objects(bool include_hidden)
     return value;
 }
 
-bool partyMemberCanEquipArmor(Object* critter) {
+bool partyMemberCanEquipArmor(Object* critter)
+{
     if (critter == gDude) return true; // player always can
     int bodyType = critterGetBodyType(critter);
     if (bodyType != BODY_TYPE_BIPED) return false;
@@ -2333,7 +2334,8 @@ bool partyMemberCanEquipArmor(Object* critter) {
     return true;
 }
 
-bool partyMemberCanEquipWeapon(Object* critter) {
+bool partyMemberCanEquipWeapon(Object* critter)
+{
     if (critter == gDude) return true;
     int bodyType = critterGetBodyType(critter);
     // Quadrupeds (dogs etc) cannot use weapons
@@ -2349,7 +2351,8 @@ bool partyMemberCanEquipWeapon(Object* critter) {
  * that the weapon's animation code is supported by the critter's art.
  * The player always returns true.
  */
-bool partyMemberCanEquipThisWeapon(Object* critter, Object* weapon) {
+bool partyMemberCanEquipThisWeapon(Object* critter, Object* weapon)
+{
     if (critter == nullptr || weapon == nullptr) return false;
     if (itemGetType(weapon) != ITEM_TYPE_WEAPON) return false;
 
