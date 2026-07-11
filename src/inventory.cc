@@ -95,20 +95,20 @@ namespace fallout {
 #define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X 250
 #define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y INVENTORY_TRADE_INNER_SCROLLER_Y
 
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X (INVENTORY_TRADE_LEFT_SCROLLER_X + INVENTORY_SLOT_PADDING)  // was 0
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_LEFT_SCROLLER_Y + INVENTORY_SLOT_PADDING)  // was 10
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)  // stays same logic
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X (INVENTORY_TRADE_LEFT_SCROLLER_X + INVENTORY_SLOT_PADDING) // was 0
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_LEFT_SCROLLER_Y + INVENTORY_SLOT_PADDING) // was 10
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH) // stays same logic
 
-#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X (INVENTORY_TRADE_INNER_LEFT_SCROLLER_X + INVENTORY_SLOT_PADDING)  // was 165
-#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y + INVENTORY_SLOT_PADDING)  // was 10
+#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X (INVENTORY_TRADE_INNER_LEFT_SCROLLER_X + INVENTORY_SLOT_PADDING) // was 165
+#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y + INVENTORY_SLOT_PADDING) // was 10
 #define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
 
-#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X + INVENTORY_SLOT_PADDING)  // was 250
-#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y + INVENTORY_SLOT_PADDING)  // was 10
+#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X + INVENTORY_SLOT_PADDING) // was 250
+#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y + INVENTORY_SLOT_PADDING) // was 10
 #define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
 
-#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X (INVENTORY_TRADE_RIGHT_SCROLLER_X + INVENTORY_SLOT_PADDING)  // was 395
-#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_RIGHT_SCROLLER_Y + INVENTORY_SLOT_PADDING)  // was 10
+#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X (INVENTORY_TRADE_RIGHT_SCROLLER_X + INVENTORY_SLOT_PADDING) // was 395
+#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y (INVENTORY_TRADE_RIGHT_SCROLLER_Y + INVENTORY_SLOT_PADDING) // was 10
 #define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
 
 #define INVENTORY_LOOT_LEFT_SCROLLER_X 180
@@ -663,7 +663,8 @@ static bool gUseCombinedInventory = false;
 static Object* gCombinedExcludeObject = nullptr;
 static int gCombinedSortType = -1;
 
-static int getLeftDisplayCount() {
+static int getLeftDisplayCount()
+{
     return gUseCombinedInventory ? gCombinedItemCount : _pud->length;
 }
 
@@ -976,7 +977,8 @@ void inventoryOpen()
     }
 }
 
-void inventoryOpenForCompanion(Object* critter) {
+void inventoryOpenForCompanion(Object* critter)
+{
     if (critter == nullptr) return;
 
     // Save original inven_dude and inven_pid (should be the player)
@@ -1050,14 +1052,14 @@ void inventoryOpenForCompanion(Object* critter) {
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
         } else if (keyCode == KEY_ARROW_DOWN) {
-            if (_stack_offset[_curr_stack] + totalVisible < getLeftDisplayCount() ) {
+            if (_stack_offset[_curr_stack] + totalVisible < getLeftDisplayCount()) {
                 _stack_offset[_curr_stack] += gInventoryColumns;
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
             }
         } else if (keyCode == KEY_PAGE_DOWN) {
             _stack_offset[_curr_stack] += totalVisible;
-            if (_stack_offset[_curr_stack] + totalVisible >= getLeftDisplayCount() ) {
-                _stack_offset[_curr_stack] = getLeftDisplayCount()  - totalVisible;
+            if (_stack_offset[_curr_stack] + totalVisible >= getLeftDisplayCount()) {
+                _stack_offset[_curr_stack] = getLeftDisplayCount() - totalVisible;
                 if (_stack_offset[_curr_stack] < 0) {
                     _stack_offset[_curr_stack] = 0;
                 }
@@ -1442,24 +1444,23 @@ static bool _setup_inventory(int inventoryWindowType)
             buttonSetMouseCallbacks(gArmorSlotButton, inventoryItemSlotOnMouseEnter, inventoryItemSlotOnMouseExit, nullptr, nullptr);
         }
 
-    if (!gGreySlotFrm.isLocked()) {
-        int fid = buildFid(OBJ_TYPE_INTERFACE, 74, 0, 0, 0); // small slot grey
-        if (!gGreySlotFrm.lock(fid)) {
-            debugPrint("Failed to load grey slot FRM 74\n");
-        } else {
-            debugPrint("Grey slot FRM 74 loaded: %dx%d\n", gGreySlotFrm.getWidth(), gGreySlotFrm.getHeight());
+        if (!gGreySlotFrm.isLocked()) {
+            int fid = buildFid(OBJ_TYPE_INTERFACE, 74, 0, 0, 0); // small slot grey
+            if (!gGreySlotFrm.lock(fid)) {
+                debugPrint("Failed to load grey slot FRM 74\n");
+            } else {
+                debugPrint("Grey slot FRM 74 loaded: %dx%d\n", gGreySlotFrm.getWidth(), gGreySlotFrm.getHeight());
+            }
         }
-    }
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-        if (!partyMemberCanEquipArmor(_inven_dude) && gArmorSlotButton != -1) {
-            buttonDisable(gArmorSlotButton);
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            if (!partyMemberCanEquipArmor(_inven_dude) && gArmorSlotButton != -1) {
+                buttonDisable(gArmorSlotButton);
+            }
+            if (!partyMemberCanEquipWeapon(_inven_dude)) {
+                if (gRightHandSlotButton != -1) buttonDisable(gRightHandSlotButton);
+                if (gLeftHandSlotButton != -1) buttonDisable(gLeftHandSlotButton);
+            }
         }
-        if (!partyMemberCanEquipWeapon(_inven_dude)) {
-            if (gRightHandSlotButton != -1) buttonDisable(gRightHandSlotButton);
-            if (gLeftHandSlotButton != -1) buttonDisable(gLeftHandSlotButton);
-        }
-    }
-
     }
 
     int btn;
@@ -2045,18 +2046,15 @@ static bool _setup_inventory(int inventoryWindowType)
     gCombinedExcludeObject = nullptr; // Excludes the target inventory (companions) from Combined Inventory
 
     if (!isInCombat()) {
-        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL ||
-            inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
             gUseCombinedInventory = true;
             gCombinedExcludeObject = nullptr;
             inventoryBuildCombinedList(_inven_dude);
-        }
-        else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
             gUseCombinedInventory = true;
             gCombinedExcludeObject = _target_stack[_target_curr_stack];
             inventoryBuildCombinedList(gDude);
-        }
-        else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
             gUseCombinedInventory = true;
             gCombinedExcludeObject = _target_stack[_target_curr_stack];
             inventoryBuildCombinedList(gDude);
@@ -2158,7 +2156,7 @@ static void _exit_inventory(bool shouldEnableIso)
                 scriptsRequestCombat(&combat);
             }
         }
-        
+
         gCombinedExcludeObject = nullptr;
         _dropped_explosive = false;
     }
@@ -2325,9 +2323,9 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL
         || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON
         || inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-        
+
         int totalItemCount = gUseCombinedInventory ? gCombinedItemCount : _pud->length;
-        
+
         if (gInventoryScrollUpButton != -1) {
             if (stackOffset < gInventoryColumns) {
                 buttonDisable(gInventoryScrollUpButton);
@@ -2572,7 +2570,8 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
  * @return The owner's name, or nullptr if the item belongs to currentOwner
  *         or if not using combined inventory.
  */
-static const char* getOwnerDisplayName(Object* item, Object* currentOwner) {
+static const char* getOwnerDisplayName(Object* item, Object* currentOwner)
+{
     if (!gUseCombinedInventory) return nullptr;
     if (item == nullptr || currentOwner == nullptr) return nullptr;
 
@@ -3034,8 +3033,8 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     // Determine if this is a hand/armor slot using the new keycodes
     bool isHandOrArmor = (buttonCode == INVENTORY_HAND_RIGHT_KEY || buttonCode == INVENTORY_HAND_LEFT_KEY || buttonCode == INVENTORY_ARMOR_KEY);
     bool pickUpFromSlot = false;
-    Object* srcOwner = nullptr;      // original owner of the item (for stack splitting)
-    bool removedFromStack = false;   // true if we removed one from a stack
+    Object* srcOwner = nullptr; // original owner of the item (for stack splitting)
+    bool removedFromStack = false; // true if we removed one from a stack
 
     if (isHandOrArmor) {
         pickUpFromSlot = true;
@@ -3186,13 +3185,10 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     _drag_item_loop(item, immediate);
 
     // Drop handling (common for both grid and hand/armor)
-    bool itemDropped = false;   // track if we successfully placed the item somewhere
+    bool itemDropped = false; // track if we successfully placed the item somewhere
 
     // Drop from hand slot onto the grid (or Ctrl+click from hand)
-    if (isHandOrArmor && (immediate || mouseHitTestInWindow(gInventoryWindow,
-            gLayout.scrollerX, gLayout.scrollerY,
-            gLayout.scrollerX + gLayout.scrollerWidth,
-            gLayout.scrollerY + gLayout.scrollerHeight))) {
+    if (isHandOrArmor && (immediate || mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY, gLayout.scrollerX + gLayout.scrollerWidth, gLayout.scrollerY + gLayout.scrollerHeight))) {
         int x, y;
         mouseGetPositionInWindow(gInventoryWindow, &x, &y);
         int row = (y - gLayout.scrollerY) / gLayout.slotHeight;
@@ -3339,9 +3335,9 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     }
     // Drop on left hand slot
     else if (mouseHitTestInWindow(gInventoryWindow,
-            gLayout.leftHandSlotX, gLayout.leftHandSlotY,
-            gLayout.leftHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-            gLayout.leftHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+                 gLayout.leftHandSlotX, gLayout.leftHandSlotY,
+                 gLayout.leftHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
+                 gLayout.leftHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (partyMemberCanEquipWeapon(_inven_dude)) { // broad body-type check
             bool canEquip = false;
             if (itemGetType(item) == ITEM_TYPE_WEAPON) {
@@ -3366,9 +3362,9 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     }
     // Drop on right hand slot
     else if (mouseHitTestInWindow(gInventoryWindow,
-            gLayout.rightHandSlotX, gLayout.rightHandSlotY,
-            gLayout.rightHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-            gLayout.rightHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+                 gLayout.rightHandSlotX, gLayout.rightHandSlotY,
+                 gLayout.rightHandSlotX + INVENTORY_LARGE_SLOT_WIDTH,
+                 gLayout.rightHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (partyMemberCanEquipWeapon(_inven_dude)) {
             bool canEquip = false;
             if (itemGetType(item) == ITEM_TYPE_WEAPON) {
@@ -3390,11 +3386,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
         }
     }
     // Drop on armor slot
-    else if ((immediate && itemGetType(item) == ITEM_TYPE_ARMOR) ||
-             mouseHitTestInWindow(gInventoryWindow,
-                 gLayout.armorSlotX, gLayout.armorSlotY,
-                 gLayout.armorSlotX + INVENTORY_LARGE_SLOT_WIDTH,
-                 gLayout.armorSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
+    else if ((immediate && itemGetType(item) == ITEM_TYPE_ARMOR) || mouseHitTestInWindow(gInventoryWindow, gLayout.armorSlotX, gLayout.armorSlotY, gLayout.armorSlotX + INVENTORY_LARGE_SLOT_WIDTH, gLayout.armorSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (itemGetType(item) == ITEM_TYPE_ARMOR) {
             if (partyMemberCanEquipArmor(_inven_dude)) {
                 transferItemToCurrentOwner(item, count, owner);
@@ -3759,14 +3751,14 @@ void inventoryOpenUseItemOn(Object* targetObj)
                             if (isInCombat()) {
                                 if (gDude->data.critter.combat.ap >= 2) {
                                     if (_action_use_an_item_on_object(gDude, targetObj, item) != -1) {
-                                                        int actionPoints = gDude->data.critter.combat.ap;
-                                                        if (actionPoints < 2) {
-                                                            gDude->data.critter.combat.ap = 0;
-                                                        } else {
-                                                            gDude->data.critter.combat.ap = actionPoints - 2;
-                                                        }
-                                                        interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
-                                                    }
+                                        int actionPoints = gDude->data.critter.combat.ap;
+                                        if (actionPoints < 2) {
+                                            gDude->data.critter.combat.ap = 0;
+                                        } else {
+                                            gDude->data.critter.combat.ap = actionPoints - 2;
+                                        }
+                                        interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
+                                    }
                                 }
                             } else {
                                 _action_use_an_item_on_object(gDude, targetObj, item);
@@ -4536,27 +4528,27 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         if (keyCode < 2000) {
             int slot = keyCode - 1000;
             int index = _stack_offset[_curr_stack] + slot;
-            
-if (gUseCombinedInventory) {
-    if (index >= gCombinedItemCount) break;
-    int actualIndex = gCombinedItemCount - (index + 1);
-    CombinedItem* ci = &gCombinedItems[actualIndex];
-    item = ci->item;
-    owner = ci->owner;
-    quantity = ci->quantity;
-    
-    debugPrint("_inven_from_button: index=%d, actualIndex=%d, item=%p, owner=%p, quantity=%d\n",
-               index, actualIndex, (void*)item, (void*)owner, quantity);
-    
-    if (owner == nullptr) {
-        debugPrint("WARNING: owner is null! Using _inven_dude as fallback.\n");
-        owner = _inven_dude;
-    }
-    if (item == nullptr) {
-        debugPrint("ERROR: item is null! Breaking.\n");
-        break;
-    }
-} else {
+
+            if (gUseCombinedInventory) {
+                if (index >= gCombinedItemCount) break;
+                int actualIndex = gCombinedItemCount - (index + 1);
+                CombinedItem* ci = &gCombinedItems[actualIndex];
+                item = ci->item;
+                owner = ci->owner;
+                quantity = ci->quantity;
+
+                debugPrint("_inven_from_button: index=%d, actualIndex=%d, item=%p, owner=%p, quantity=%d\n",
+                    index, actualIndex, (void*)item, (void*)owner, quantity);
+
+                if (owner == nullptr) {
+                    debugPrint("WARNING: owner is null! Using _inven_dude as fallback.\n");
+                    owner = _inven_dude;
+                }
+                if (item == nullptr) {
+                    debugPrint("ERROR: item is null! Breaking.\n");
+                    break;
+                }
+            } else {
                 if (index >= _pud->length) break;
                 int actualIndex = _pud->length - (index + 1);
                 InventoryItem* invItem = &(_pud->items[actualIndex]);
@@ -5822,7 +5814,7 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 int itemCountBefore = gCombinedItemCount;
                 sortCombinedInventory(sortTypeToUse, inventoryWindowType);
                 if (itemCountBefore > 1) {
-                    gCombinedSortType = sortTypeToUse;  // This now includes weight, value, reverse
+                    gCombinedSortType = sortTypeToUse; // This now includes weight, value, reverse
                     didSort = true;
                 } else {
                     didSort = false;
@@ -6276,14 +6268,14 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             } else {
                 inventoryToSort = _stack[_curr_stack];
             }
-        if (inventoryToSort != nullptr) {
+            if (inventoryToSort != nullptr) {
                 bool didSort = false;
                 if (gUseCombinedInventory && inventoryToSort == _stack[_curr_stack]) {
                     int itemCountBefore = gCombinedItemCount;
                     sortCombinedInventory(selectedAction, inventoryWindowType);
                     // Only store the sort type if there were at least 2 items (sorting actually happened)
                     if (itemCountBefore > 1) {
-                        gCombinedSortType = selectedAction;  // This includes weight, value, reverse
+                        gCombinedSortType = selectedAction; // This includes weight, value, reverse
                         didSort = true;
                     } else {
                         didSort = false; // No items to sort - don't change gCombinedSortType
@@ -7072,32 +7064,32 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
                 if (keyCode >= 1000 && keyCode <= 1000 + gInventorySlotsCount) {
-                if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
-                    inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
-                } else {
-                    int slotIndex = keyCode - 1000;
-                    Object* item = nullptr;
-                    Object* owner = nullptr;
-                    int quantity = _inven_from_button(keyCode, &item, nullptr, &owner);
-                    if (item != nullptr) {
-                        _gStealCount += 1;
-                        _gStealSize += itemGetSize(item);
-                        InventoryMoveResult rc = _move_inventory(item, slotIndex, _target_stack[_target_curr_stack], true);
-                        if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
-                            isCaughtStealing = true;
-                        } else if (rc == INVENTORY_MOVE_RESULT_SUCCESS) {
-                            stealingXp += stealingXpBonus;
-                            stealingXpBonus += 10;
+                    if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                        inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
+                    } else {
+                        int slotIndex = keyCode - 1000;
+                        Object* item = nullptr;
+                        Object* owner = nullptr;
+                        int quantity = _inven_from_button(keyCode, &item, nullptr, &owner);
+                        if (item != nullptr) {
+                            _gStealCount += 1;
+                            _gStealSize += itemGetSize(item);
+                            InventoryMoveResult rc = _move_inventory(item, slotIndex, _target_stack[_target_curr_stack], true);
+                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
+                                isCaughtStealing = true;
+                            } else if (rc == INVENTORY_MOVE_RESULT_SUCCESS) {
+                                stealingXp += stealingXpBonus;
+                                stealingXpBonus += 10;
+                            }
+                            if (gUseCombinedInventory) {
+                                inventoryBuildCombinedList(gDude);
+                            }
+                            _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
+                            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
                         }
-                        if (gUseCombinedInventory) {
-                            inventoryBuildCombinedList(gDude);
-                        }
-                        _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
-                        _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
+                        keyCode = -1;
                     }
-                    keyCode = -1;
-                }
-            } else if (keyCode >= 2000 && keyCode <= 2000 + gInventorySlotsCount) {
+                } else if (keyCode >= 2000 && keyCode <= 2000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
@@ -7214,8 +7206,8 @@ int inventoryOpenLooting(Object* looter, Object* target)
     // wrap this in strict_vanilla later
     if (_gIsSteal && isCaughtStealing && _gStealCount > 0) {
         if (objectIsPartyMember(target)) {
-                // Open dialogue with the companion instead of combat
-                gameDialogEnter(target, 0);
+            // Open dialogue with the companion instead of combat
+            gameDialogEnter(target, 0);
         } else if (objectGetSid(target, &sid) != -1) {
             scriptSetObjects(sid, looter, nullptr);
             scriptExecProc(sid, SCRIPT_PROC_PICKUP);
@@ -7339,11 +7331,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
 
     if (isPlanting) {
         // Left ? Right: check if dropped on the right side area
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_LOOT_RIGHT_SCROLLER_X,
-                INVENTORY_LOOT_RIGHT_SCROLLER_Y,
-                INVENTORY_LOOT_RIGHT_SCROLLER_MAX_X,
-                INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_LOOT_RIGHT_SCROLLER_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_LOOT_RIGHT_SCROLLER_X, INVENTORY_LOOT_RIGHT_SCROLLER_Y, INVENTORY_LOOT_RIGHT_SCROLLER_MAX_X, INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_LOOT_RIGHT_SCROLLER_Y)) {
 
             int quantityToMove = (quantity > 1 && !immediate)
                 ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
@@ -7371,11 +7359,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
         }
     } else {
         // Right ? Left: check if dropped on the left side area
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_LOOT_LEFT_SCROLLER_X,
-                INVENTORY_LOOT_LEFT_SCROLLER_Y,
-                INVENTORY_LOOT_LEFT_SCROLLER_MAX_X,
-                INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_LOOT_LEFT_SCROLLER_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_LOOT_LEFT_SCROLLER_X, INVENTORY_LOOT_LEFT_SCROLLER_Y, INVENTORY_LOOT_LEFT_SCROLLER_MAX_X, INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_LOOT_LEFT_SCROLLER_Y)) {
 
             int quantityToMove = (quantity > 1 && !immediate)
                 ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
@@ -7395,7 +7379,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
                     if (itemMove(targetObj, dest, item, quantityToMove) == 0) {
                         if ((item->flags & OBJECT_IN_RIGHT_HAND) != 0) {
                             targetObj->fid = buildFid(FID_TYPE(targetObj->fid), artGetIndex(targetObj->fid),
-                                                      FID_ANIM_TYPE(targetObj->fid), 0, targetObj->rotation + 1);
+                                FID_ANIM_TYPE(targetObj->fid), 0, targetObj->rotation + 1);
                         }
                         targetObj->flags &= ~OBJECT_EQUIPPED;
                         result = INVENTORY_MOVE_RESULT_SUCCESS;
@@ -7804,11 +7788,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
         _drag_item_loop(item, immediate);
 
         // Drop on the left offer table?
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X,
-                INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X, INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
 
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, true, true, immediate);
             if (quantityToMove != -1) {
@@ -7850,11 +7830,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
         bool immediate = _ctrl_pressed();
         _drag_item_loop(item, immediate);
 
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X,
-                INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X, INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
 
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, false, true, immediate);
             if (quantityToMove != -1) {
@@ -9191,7 +9167,8 @@ static void inventoryBuildCombinedList(Object* focusOwner)
 }
 
 // Move item from original owner to current character if needed
-static void transferItemToCurrentOwner(Object* item, int quantity, Object* originalOwner) {
+static void transferItemToCurrentOwner(Object* item, int quantity, Object* originalOwner)
+{
     if (originalOwner == nullptr) {
         debugPrint("transferItemToCurrentOwner: originalOwner is null! Skipping.\n");
         return;
@@ -9206,40 +9183,73 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
 }
 
 // Compare two CombinedItems by type (weapons, ammo, drugs, etc.)
-static int compareCombinedItemsByType(const void* a, const void* b) {
+static int compareCombinedItemsByType(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    
+
     int typeA = itemGetType(ca->item);
     int typeB = itemGetType(cb->item);
-    
+
     // Priority order (lower = higher priority, goes to top of display)
     int orderA = MAX_SORT_PRIORITY;
     int orderB = MAX_SORT_PRIORITY;
-    
+
     switch (typeA) {
-    case ITEM_TYPE_WEAPON: orderA = 1; break;
-    case ITEM_TYPE_AMMO: orderA = 2; break;
-    case ITEM_TYPE_DRUG: orderA = 3; break;
-    case ITEM_TYPE_ARMOR: orderA = 4; break;
-    case ITEM_TYPE_MISC: orderA = 5; break;
-    case ITEM_TYPE_CONTAINER: orderA = 6; break;
-    case ITEM_TYPE_KEY: orderA = 7; break;
-    default: orderA = MAX_SORT_PRIORITY; break;
+    case ITEM_TYPE_WEAPON:
+        orderA = 1;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderA = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderA = 3;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderA = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderA = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderA = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderA = 7;
+        break;
+    default:
+        orderA = MAX_SORT_PRIORITY;
+        break;
     }
     switch (typeB) {
-    case ITEM_TYPE_WEAPON: orderB = 1; break;
-    case ITEM_TYPE_AMMO: orderB = 2; break;
-    case ITEM_TYPE_DRUG: orderB = 3; break;
-    case ITEM_TYPE_ARMOR: orderB = 4; break;
-    case ITEM_TYPE_MISC: orderB = 5; break;
-    case ITEM_TYPE_CONTAINER: orderB = 6; break;
-    case ITEM_TYPE_KEY: orderB = 7; break;
-    default: orderB = MAX_SORT_PRIORITY; break;
+    case ITEM_TYPE_WEAPON:
+        orderB = 1;
+        break;
+    case ITEM_TYPE_AMMO:
+        orderB = 2;
+        break;
+    case ITEM_TYPE_DRUG:
+        orderB = 3;
+        break;
+    case ITEM_TYPE_ARMOR:
+        orderB = 4;
+        break;
+    case ITEM_TYPE_MISC:
+        orderB = 5;
+        break;
+    case ITEM_TYPE_CONTAINER:
+        orderB = 6;
+        break;
+    case ITEM_TYPE_KEY:
+        orderB = 7;
+        break;
+    default:
+        orderB = MAX_SORT_PRIORITY;
+        break;
     }
-    
+
     if (orderA != orderB) return orderB - orderA; // lower order ? end of array ? top of display
-    
+
     // Same type: type-specific sorting
     switch (typeA) {
     case ITEM_TYPE_WEAPON: {
@@ -9255,7 +9265,7 @@ static int compareCombinedItemsByType(const void* a, const void* b) {
     case ITEM_TYPE_DRUG: {
         bool healA = itemIsHealing(ca->item->pid);
         bool healB = itemIsHealing(cb->item->pid);
-        if (healA && !healB) return 1;   // healing after non-healing ? healing at end (top)
+        if (healA && !healB) return 1; // healing after non-healing ? healing at end (top)
         if (!healA && healB) return -1;
         int valueA = itemGetCost(ca->item) * ca->quantity;
         int valueB = itemGetCost(cb->item) * cb->quantity;
@@ -9280,7 +9290,8 @@ static int compareCombinedItemsByType(const void* a, const void* b) {
 }
 
 // Compare by total weight (heaviest at end)
-static int compareCombinedItemsByWeight(const void* a, const void* b) {
+static int compareCombinedItemsByWeight(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     int weightA = itemGetWeight(ca->item) * ca->quantity;
@@ -9289,7 +9300,8 @@ static int compareCombinedItemsByWeight(const void* a, const void* b) {
 }
 
 // Compare by total value (most valuable at end)
-static int compareCombinedItemsByValue(const void* a, const void* b) {
+static int compareCombinedItemsByValue(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     int valueA = itemGetCost(ca->item) * ca->quantity;
@@ -9298,7 +9310,8 @@ static int compareCombinedItemsByValue(const void* a, const void* b) {
 }
 
 // Weapons first, then by name
-static int compareCombinedItemsByWeapons(const void* a, const void* b) {
+static int compareCombinedItemsByWeapons(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     bool isWeaponA = (itemGetType(ca->item) == ITEM_TYPE_WEAPON);
@@ -9314,7 +9327,8 @@ static int compareCombinedItemsByWeapons(const void* a, const void* b) {
 }
 
 // Ammo first, then by name
-static int compareCombinedItemsByAmmo(const void* a, const void* b) {
+static int compareCombinedItemsByAmmo(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     bool isAmmoA = (itemGetType(ca->item) == ITEM_TYPE_AMMO);
@@ -9330,7 +9344,8 @@ static int compareCombinedItemsByAmmo(const void* a, const void* b) {
 }
 
 // Drugs first, then by name
-static int compareCombinedItemsByDrugs(const void* a, const void* b) {
+static int compareCombinedItemsByDrugs(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     bool isDrugA = (itemGetType(ca->item) == ITEM_TYPE_DRUG);
@@ -9346,7 +9361,8 @@ static int compareCombinedItemsByDrugs(const void* a, const void* b) {
 }
 
 // Other (Misc, Container, Key, Armor) first, then by name
-static int compareCombinedItemsByOther(const void* a, const void* b) {
+static int compareCombinedItemsByOther(const void* a, const void* b)
+{
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
     int typeA = itemGetType(ca->item);
@@ -9363,46 +9379,48 @@ static int compareCombinedItemsByOther(const void* a, const void* b) {
     return strcmp(nameA, nameB);
 }
 
-static void applyCombinedSort(int sortType) {
+static void applyCombinedSort(int sortType)
+{
     if (!gUseCombinedInventory) return;
     if (gCombinedItemCount <= 1) return;
 
     switch (sortType) {
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByType);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByWeapons);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByAmmo);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByDrugs);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByOther);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByWeight);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
-            qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByValue);
-            break;
-        case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
-            for (int i = 0; i < gCombinedItemCount / 2; i++) {
-                CombinedItem temp = gCombinedItems[i];
-                gCombinedItems[i] = gCombinedItems[gCombinedItemCount - 1 - i];
-                gCombinedItems[gCombinedItemCount - 1 - i] = temp;
-            }
-            break;
-        default:
-            return;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByType);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEAPONS:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByWeapons);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_AMMO:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByAmmo);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_DRUGS:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByDrugs);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_OTHER:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByOther);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_WEIGHT:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByWeight);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_VALUE:
+        qsort(gCombinedItems, gCombinedItemCount, sizeof(CombinedItem), compareCombinedItemsByValue);
+        break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_SORT_REVERSE:
+        for (int i = 0; i < gCombinedItemCount / 2; i++) {
+            CombinedItem temp = gCombinedItems[i];
+            gCombinedItems[i] = gCombinedItems[gCombinedItemCount - 1 - i];
+            gCombinedItems[gCombinedItemCount - 1 - i] = temp;
+        }
+        break;
+    default:
+        return;
     }
 }
 
-static void sortCombinedInventory(int sortType, int inventoryWindowType) {
-    applyCombinedSort(sortType);  // sorts the array in place
+static void sortCombinedInventory(int sortType, int inventoryWindowType)
+{
+    applyCombinedSort(sortType); // sorts the array in place
 
     // Refresh display
     _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
