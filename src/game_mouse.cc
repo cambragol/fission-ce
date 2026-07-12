@@ -1428,7 +1428,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         // For companions, open their inventory instead of examining
                         // Could replace/augment this with an icon switch?
                         if (objectIsPartyMember(targetObj) && targetObj != gDude) {
-                            inventoryOpenForCompanion(targetObj);
+                            inventoryOpenWithCycling(targetObj);
                         } else {
                             if (objectExamine(gDude, targetObj) == -1) {
                                 objectLookAt(gDude, targetObj);

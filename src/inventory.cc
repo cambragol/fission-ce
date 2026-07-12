@@ -65,18 +65,18 @@ namespace fallout {
 #define INVENTORY_SLOT_WIDTH 64
 #define INVENTORY_SLOT_HEIGHT 48
 
-#define INVENTORY_LEFT_HAND_SLOT_X 154
-#define INVENTORY_LEFT_HAND_SLOT_Y 286
+#define INVENTORY_LEFT_HAND_SLOT_X 152
+#define INVENTORY_LEFT_HAND_SLOT_Y 284
 #define INVENTORY_LEFT_HAND_SLOT_MAX_X (INVENTORY_LEFT_HAND_SLOT_X + INVENTORY_LARGE_SLOT_WIDTH)
 #define INVENTORY_LEFT_HAND_SLOT_MAX_Y (INVENTORY_LEFT_HAND_SLOT_Y + INVENTORY_LARGE_SLOT_HEIGHT)
 
 #define INVENTORY_RIGHT_HAND_SLOT_X 245
-#define INVENTORY_RIGHT_HAND_SLOT_Y 286
+#define INVENTORY_RIGHT_HAND_SLOT_Y 284
 #define INVENTORY_RIGHT_HAND_SLOT_MAX_X (INVENTORY_RIGHT_HAND_SLOT_X + INVENTORY_LARGE_SLOT_WIDTH)
 #define INVENTORY_RIGHT_HAND_SLOT_MAX_Y (INVENTORY_RIGHT_HAND_SLOT_Y + INVENTORY_LARGE_SLOT_HEIGHT)
 
-#define INVENTORY_ARMOR_SLOT_X 154
-#define INVENTORY_ARMOR_SLOT_Y 183
+#define INVENTORY_ARMOR_SLOT_X 152
+#define INVENTORY_ARMOR_SLOT_Y 181
 #define INVENTORY_ARMOR_SLOT_MAX_X (INVENTORY_ARMOR_SLOT_X + INVENTORY_LARGE_SLOT_WIDTH)
 #define INVENTORY_ARMOR_SLOT_MAX_Y (INVENTORY_ARMOR_SLOT_Y + INVENTORY_LARGE_SLOT_HEIGHT)
 
@@ -315,6 +315,8 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
 static void sortCombinedInventory(int sortType, int inventoryWindowType);
 static void applyCombinedSort(int sortType);
 static void movePlayerMoneyToTopCombined();
+static void inventoryBuildPartyList();
+void inventoryOpenWithCycling();
 
 // 0x46E6D0
 static const int gSummaryStats[7] = {
@@ -664,6 +666,10 @@ static bool gUseCombinedInventory = false;
 static Object* gCombinedExcludeObject = nullptr;
 static int gCombinedSortType = -1;
 static bool gIsTradeWindow = false;
+static bool gSwitchToCharacter = false;
+static Object* gSwitchTarget = nullptr;
+static std::vector<Object*> gPartyList;
+static int gCurrentPartyIndex = 0;
 
 static int getLeftDisplayCount()
 {
@@ -779,6 +785,32 @@ static int inventoryMessageListFree()
     return 0;
 }
 
+// New entry point for inventories - needs Strict Vanilla wrapping
+void inventoryOpenWithCycling(Object* startTarget)
+{
+    Object* target = (startTarget != nullptr) ? startTarget : gDude;
+
+    while (true) {
+        gSwitchToCharacter = false;
+        gSwitchTarget = nullptr;
+
+        if (target == gDude) {
+            inventoryOpen();
+        } else {
+            inventoryOpenForCompanion(target);
+        }
+
+        if (gSwitchToCharacter && gSwitchTarget != nullptr) {
+            target = gSwitchTarget;
+        } else {
+            break;
+        }
+    }
+
+    gSwitchToCharacter = false;
+    gSwitchTarget = nullptr;
+}
+
 // 0x46E7B0
 void inventoryOpen()
 {
@@ -789,6 +821,9 @@ void inventoryOpen()
     }
 
     ScopedGameMode gm(GameMode::kInventory);
+
+    gSwitchToCharacter = false;
+    gSwitchTarget = nullptr;
 
     // Capture old skill values for Multidex animation
     int oldSkillValues[8];
@@ -832,6 +867,17 @@ void inventoryOpen()
 
     Object* oldArmor = critterGetArmor(_inven_dude);
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
+
+    // Build party list for cycling
+    inventoryBuildPartyList();
+    gCurrentPartyIndex = 0;
+    for (size_t i = 0; i < gPartyList.size(); i++) {
+        if (gPartyList[i] == _inven_dude) {
+            gCurrentPartyIndex = (int)i;
+            break;
+        }
+    }
+
     reg_anim_clear(_inven_dude);
     inventoryRenderSummary();
     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
@@ -856,6 +902,56 @@ void inventoryOpen()
         _display_body(-1, INVENTORY_WINDOW_TYPE_NORMAL);
 
         if (gameGetState() == GAME_STATE_5) {
+            break;
+        }
+
+        if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
+            // Save who we're currently on before any list modification
+            Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
+                ? gPartyList[gCurrentPartyIndex]
+                : nullptr;
+
+            // Fail-safe: ensure player is in the list
+            bool hasPlayer = false;
+            for (Object* obj : gPartyList) {
+                if (obj == gDude) { hasPlayer = true; break; }
+            }
+            if (!hasPlayer && gDude != nullptr) {
+                debugPrint("Player missing from party list - inserting at front.\n");
+                gPartyList.insert(gPartyList.begin(), gDude);
+                // Recalculate current index by finding who we were on before insertion
+                gCurrentPartyIndex = 0;
+                for (int i = 0; i < (int)gPartyList.size(); i++) {
+                    if (gPartyList[i] == currentCritter) {
+                        gCurrentPartyIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (gPartyList.size() <= 1) continue;
+
+            // Validate current index is still in bounds
+            if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
+                gCurrentPartyIndex = 0;
+            }
+
+            int newIndex = gCurrentPartyIndex;
+            if (keyCode == KEY_ARROW_LEFT) {
+                newIndex--;
+                if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
+            } else {
+                newIndex++;
+                if (newIndex >= (int)gPartyList.size()) newIndex = 0;
+            }
+
+            if (newIndex == gCurrentPartyIndex) continue;
+
+            Object* newCritter = gPartyList[newIndex];
+            if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
+
+            gSwitchTarget = newCritter;
+            gSwitchToCharacter = true;
             break;
         }
 
@@ -987,6 +1083,9 @@ void inventoryOpenForCompanion(Object* critter)
     Object* savedDude = _inven_dude;
     int savedPid = _inven_pid;
 
+    gSwitchToCharacter = false;
+    gSwitchTarget = nullptr;
+
     if (isInCombat()) {
         if (_combat_whose_turn() != critter) {
             return;
@@ -1004,6 +1103,17 @@ void inventoryOpenForCompanion(Object* critter)
     _inven_pid = critter->pid;
 
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
+
+    // Build party list (player + alive companions)
+    inventoryBuildPartyList();
+    gCurrentPartyIndex = 0;
+    for (size_t i = 0; i < gPartyList.size(); i++) {
+        if (gPartyList[i] == _inven_dude) {
+            gCurrentPartyIndex = (int)i;
+            break;
+        }
+    }
+
     reg_anim_clear(_inven_dude);
     inventoryRenderSummary();
     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
@@ -1028,6 +1138,57 @@ void inventoryOpenForCompanion(Object* critter)
         _display_body(-1, INVENTORY_WINDOW_TYPE_NORMAL);
 
         if (gameGetState() == GAME_STATE_5) {
+            break;
+        }
+
+        // Handle party cycling
+        if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
+            // Save who we're currently on before any list modification
+            Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
+                ? gPartyList[gCurrentPartyIndex]
+                : nullptr;
+
+            // Fail-safe: ensure player is in the list
+            bool hasPlayer = false;
+            for (Object* obj : gPartyList) {
+                if (obj == gDude) { hasPlayer = true; break; }
+            }
+            if (!hasPlayer && gDude != nullptr) {
+                debugPrint("Player missing from party list - inserting at front.\n");
+                gPartyList.insert(gPartyList.begin(), gDude);
+                // Recalculate current index by finding who we were on before insertion
+                gCurrentPartyIndex = 0;
+                for (int i = 0; i < (int)gPartyList.size(); i++) {
+                    if (gPartyList[i] == currentCritter) {
+                        gCurrentPartyIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (gPartyList.size() <= 1) continue;
+
+            // Validate current index is still in bounds
+            if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
+                gCurrentPartyIndex = 0;
+            }
+
+            int newIndex = gCurrentPartyIndex;
+            if (keyCode == KEY_ARROW_LEFT) {
+                newIndex--;
+                if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
+            } else {
+                newIndex++;
+                if (newIndex >= (int)gPartyList.size()) newIndex = 0;
+            }
+
+            if (newIndex == gCurrentPartyIndex) continue;
+
+            Object* newCritter = gPartyList[newIndex];
+            if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
+
+            gSwitchTarget = newCritter;
+            gSwitchToCharacter = true;
             break;
         }
 
@@ -2643,14 +2804,14 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
         if (ownerName != nullptr) {
             // Save current font and set to a smaller size
             int ownerFont = fontGetCurrent();
-            fontSetCurrent(100); // good for now
+            fontSetCurrent(101); // good for now
 
             int lineHeight = fontGetLineHeight();
             int textWidth = fontGetStringWidth(ownerName);
 
             // Center the text horizontally and place it near the bottom
             int x = (INVENTORY_SLOT_WIDTH_PAD - textWidth) / 2;
-            int y = INVENTORY_SLOT_HEIGHT_PAD - lineHeight - 2; // 2px padding from bottom
+            int y = INVENTORY_SLOT_HEIGHT_PAD - lineHeight;
 
             // Green for now - color could be changed later
             fontDrawText(dest + pitch * y + x, ownerName, textWidth, pitch, _colorTable[992]);
@@ -9489,6 +9650,23 @@ static void sortCombinedInventory(int sortType, int inventoryWindowType)
         inventoryRenderSummary();
     }
     windowRefresh(gInventoryWindow);
+}
+
+static void inventoryBuildPartyList() {
+    gPartyList.clear();
+
+    // Always include the player
+    if (gDude != nullptr) {
+        gPartyList.push_back(gDude);
+    }
+
+    // Add all party members (excluding player) from the existing function
+    std::vector<Object*> members = get_all_party_members_objects(false);
+    for (Object* member : members) {
+        if (member != nullptr && member != gDude && critterIsActive(member)) {
+            gPartyList.push_back(member);
+        }
+    }
 }
 
 } // namespace fallout

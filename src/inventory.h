@@ -42,6 +42,7 @@ int inventoryOpenStealing(Object* thief, Object* target);
 void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* bartererTable, int barterMod);
 int inventorySetTimer(Object* item);
 Object* inventoryGetTargetObject();
+void inventoryOpenWithCycling(Object* startTarget = nullptr);
 
 } // namespace fallout
 

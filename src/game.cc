@@ -680,7 +680,7 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
         // open inventory
         if (interfaceBarEnabled()) {
             soundPlayFile("ib1p1xx1");
-            inventoryOpen();
+            inventoryOpenWithCycling();
         }
         break;
     case KEY_ESCAPE:
