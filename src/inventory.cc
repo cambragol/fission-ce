@@ -6839,7 +6839,6 @@ int inventoryOpenLooting(Object* looter, Object* target)
     // Move hidden items to the hidden box *after* assigning to items (for restoration and Goris claws)
     itemMoveAllHidden(target, hiddenBox);
 
-
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_LOOT);
 
     Object** critters = nullptr;
@@ -7176,7 +7175,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
         objectListFree(critters);
     }
 
-    // Move hidden items back from hidden box before restoring to hands/armor slots 
+    // Move hidden items back from hidden box before restoring to hands/armor slots
     itemMoveAll(hiddenBox, target);
 
     if (_gIsSteal) {
@@ -9203,7 +9202,8 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
     }
 }
 
-static void movePlayerMoneyToTopCombined() {
+static void movePlayerMoneyToTopCombined()
+{
     if (!gUseCombinedInventory || gCombinedItemCount <= 1) return;
 
     // Collect indices of money items belonging to the player
@@ -9222,7 +9222,10 @@ static void movePlayerMoneyToTopCombined() {
     for (int i = 0; i < gCombinedItemCount; i++) {
         bool isPlayerMoney = false;
         for (int idx : moneyIndices) {
-            if (i == idx) { isPlayerMoney = true; break; }
+            if (i == idx) {
+                isPlayerMoney = true;
+                break;
+            }
         }
         if (!isPlayerMoney) {
             tempArray[writePos++] = gCombinedItems[i];
