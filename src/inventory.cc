@@ -6815,8 +6815,6 @@ int inventoryOpenLooting(Object* looter, Object* target)
         return 0;
     }
 
-    itemMoveAllHidden(target, hiddenBox);
-
     Object* item1 = nullptr;
     Object* item2 = nullptr;
     Object* armor = nullptr;
@@ -6837,6 +6835,10 @@ int inventoryOpenLooting(Object* looter, Object* target)
             itemRemove(target, armor, 1);
         }
     }
+
+    // Move hidden items to the hidden box *after* assigning to items (for restoration and Goris claws)
+    itemMoveAllHidden(target, hiddenBox);
+
 
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_LOOT);
 
@@ -7174,6 +7176,9 @@ int inventoryOpenLooting(Object* looter, Object* target)
         objectListFree(critters);
     }
 
+    // Move hidden items back from hidden box before restoring to hands/armor slots 
+    itemMoveAll(hiddenBox, target);
+
     if (_gIsSteal) {
         if (item1 != nullptr) {
             item1->flags |= OBJECT_IN_LEFT_HAND;
@@ -7191,7 +7196,6 @@ int inventoryOpenLooting(Object* looter, Object* target)
         }
     }
 
-    itemMoveAll(hiddenBox, target);
     objectDestroy(hiddenBox, nullptr);
 
     if (_gIsSteal && !isCaughtStealing && stealingXp > 0 && !objectIsPartyMember(target)) {
@@ -9167,6 +9171,7 @@ static void inventoryBuildCombinedList(Object* focusOwner)
             InventoryItem* invItem = &inv->items[i];
             Object* item = invItem->item;
             if (item == nullptr) continue;
+            if (item->flags & OBJECT_HIDDEN) continue;
             if (item->flags & (OBJECT_IN_LEFT_HAND | OBJECT_IN_RIGHT_HAND | OBJECT_WORN)) continue;
 
             gCombinedItems[gCombinedItemCount].item = item;
@@ -9198,8 +9203,7 @@ static void transferItemToCurrentOwner(Object* item, int quantity, Object* origi
     }
 }
 
-static void movePlayerMoneyToTopCombined()
-{
+static void movePlayerMoneyToTopCombined() {
     if (!gUseCombinedInventory || gCombinedItemCount <= 1) return;
 
     // Collect indices of money items belonging to the player
@@ -9218,10 +9222,7 @@ static void movePlayerMoneyToTopCombined()
     for (int i = 0; i < gCombinedItemCount; i++) {
         bool isPlayerMoney = false;
         for (int idx : moneyIndices) {
-            if (i == idx) {
-                isPlayerMoney = true;
-                break;
-            }
+            if (i == idx) { isPlayerMoney = true; break; }
         }
         if (!isPlayerMoney) {
             tempArray[writePos++] = gCombinedItems[i];
