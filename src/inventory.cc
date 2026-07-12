@@ -914,7 +914,10 @@ void inventoryOpen()
             // Fail-safe: ensure player is in the list
             bool hasPlayer = false;
             for (Object* obj : gPartyList) {
-                if (obj == gDude) { hasPlayer = true; break; }
+                if (obj == gDude) {
+                    hasPlayer = true;
+                    break;
+                }
             }
             if (!hasPlayer && gDude != nullptr) {
                 debugPrint("Player missing from party list - inserting at front.\n");
@@ -1151,7 +1154,10 @@ void inventoryOpenForCompanion(Object* critter)
             // Fail-safe: ensure player is in the list
             bool hasPlayer = false;
             for (Object* obj : gPartyList) {
-                if (obj == gDude) { hasPlayer = true; break; }
+                if (obj == gDude) {
+                    hasPlayer = true;
+                    break;
+                }
             }
             if (!hasPlayer && gDude != nullptr) {
                 debugPrint("Player missing from party list - inserting at front.\n");
@@ -9652,7 +9658,8 @@ static void sortCombinedInventory(int sortType, int inventoryWindowType)
     windowRefresh(gInventoryWindow);
 }
 
-static void inventoryBuildPartyList() {
+static void inventoryBuildPartyList()
+{
     gPartyList.clear();
 
     // Always include the player
