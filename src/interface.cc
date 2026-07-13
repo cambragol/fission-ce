@@ -353,7 +353,7 @@ static unsigned char* gMultidexInnardsBuffer = nullptr;
 static bool gMultidexAnimating = false;
 
 bool gMultidexSkillSelectActive = false;
-int  gMultidexSelectedSkill = -1;
+int gMultidexSelectedSkill = -1;
 bool gMultidexSelectionDone = false;
 
 static int gInterfaceSidePanelsLeadingWindow = -1;
@@ -3684,7 +3684,7 @@ int multidexSkillSelectExact()
 
     // Create a modal window covering exactly that area.
     int modalWin = windowCreate(skillAreaX, skillAreaY, skillAreaW, skillAreaH,
-                                0, WINDOW_MODAL | WINDOW_TRANSPARENT | WINDOW_DONT_MOVE_TOP);
+        0, WINDOW_MODAL | WINDOW_TRANSPARENT | WINDOW_DONT_MOVE_TOP);
     if (modalWin == -1) {
         // Restore state on failure.
         if (isoWasEnabled) isoEnable();
@@ -3694,10 +3694,10 @@ int multidexSkillSelectExact()
     }
 
     // Button layout (same as multidexCreateSkillButtons).
-    const int leftColX  = 15;
+    const int leftColX = 15;
     const int rightColX = 137;
-    const int startY    = 12;
-    const int spacingY  = 21;
+    const int startY = 12;
+    const int spacingY = 21;
     const int btnW = gRedButtonUpFrmImage.getWidth();
     const int btnH = gRedButtonUpFrmImage.getHeight();
 
@@ -3706,10 +3706,10 @@ int multidexSkillSelectExact()
         int x = (i < 4) ? leftColX : rightColX;
         int y = startY + (i % 4) * spacingY;
         int btn = buttonCreate(modalWin, x, y, btnW, btnH,
-                               -1, -1, -1, 501 + i,
-                               gRedButtonUpFrmImage.getData(),
-                               gRedButtonDownFrmImage.getData(),
-                               nullptr, BUTTON_FLAG_TRANSPARENT);
+            -1, -1, -1, 501 + i,
+            gRedButtonUpFrmImage.getData(),
+            gRedButtonDownFrmImage.getData(),
+            nullptr, BUTTON_FLAG_TRANSPARENT);
         if (btn != -1) {
             gSkillButtonSkill[btn] = gMultidexSkillIds[i];
             buttonSetCallbacks(btn, multidexSkillSelectButtonPress, nullptr);
