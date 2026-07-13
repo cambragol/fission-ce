@@ -352,6 +352,10 @@ static FrmImage gRedButtonDownFrmImage; // ID 7803
 static unsigned char* gMultidexInnardsBuffer = nullptr;
 static bool gMultidexAnimating = false;
 
+bool gMultidexSkillSelectActive = false;
+int  gMultidexSelectedSkill = -1;
+bool gMultidexSelectionDone = false;
+
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
@@ -3632,6 +3636,134 @@ static void multidexDestroySkillButtons(void)
     }
     gSkillButtonsCreated = false;
     memset(gSkillButtonSkill, 0, sizeof(gSkillButtonSkill));
+}
+
+static void multidexSkillSelectButtonPress(int btn, int event)
+{
+    int skill = gSkillButtonSkill[btn];
+    if (skill != -1) {
+        gMultidexSelectedSkill = skill;
+        gMultidexSelectionDone = true;
+        soundPlayFile("ib1p1xx1");
+    }
+}
+
+int multidexSkillSelectExact()
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) {
+        return -1;
+    }
+
+    // Switch to skilldex panel if needed.
+    bool wasSkilldexMode = gMultidexSkilldexMode;
+    bool switched = false;
+    if (!wasSkilldexMode) {
+        multidexTogglePanel();
+        switched = true;
+    }
+
+    // Hide any custom mouse objects (action menu icons).
+    gameMouseObjectsHide();
+    // Set the cursor to the small arrow.
+    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+    // Disable iso so game world doesn't respond.
+    bool isoWasEnabled = isoDisable();
+
+    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+    // Get interface bar position.
+    Rect ifaceRect;
+    windowGetRect(gInterfaceBarWindow, &ifaceRect);
+
+    // Multidex skilldex area is 262x99 at (800,0) within interface bar.
+    int skillAreaX = ifaceRect.left + 800;
+    int skillAreaY = ifaceRect.top;
+    int skillAreaW = 262;
+    int skillAreaH = 99;
+
+    // Create a modal window covering exactly that area.
+    int modalWin = windowCreate(skillAreaX, skillAreaY, skillAreaW, skillAreaH,
+                                0, WINDOW_MODAL | WINDOW_TRANSPARENT | WINDOW_DONT_MOVE_TOP);
+    if (modalWin == -1) {
+        // Restore state on failure.
+        if (isoWasEnabled) isoEnable();
+        gameMouseObjectsShow();
+        if (switched) multidexTogglePanel();
+        return -1;
+    }
+
+    // Button layout (same as multidexCreateSkillButtons).
+    const int leftColX  = 15;
+    const int rightColX = 137;
+    const int startY    = 12;
+    const int spacingY  = 21;
+    const int btnW = gRedButtonUpFrmImage.getWidth();
+    const int btnH = gRedButtonUpFrmImage.getHeight();
+
+    // Create 8 skill buttons, key codes 501..508.
+    for (int i = 0; i < 8; i++) {
+        int x = (i < 4) ? leftColX : rightColX;
+        int y = startY + (i % 4) * spacingY;
+        int btn = buttonCreate(modalWin, x, y, btnW, btnH,
+                               -1, -1, -1, 501 + i,
+                               gRedButtonUpFrmImage.getData(),
+                               gRedButtonDownFrmImage.getData(),
+                               nullptr, BUTTON_FLAG_TRANSPARENT);
+        if (btn != -1) {
+            gSkillButtonSkill[btn] = gMultidexSkillIds[i];
+            buttonSetCallbacks(btn, multidexSkillSelectButtonPress, nullptr);
+        }
+    }
+
+    // Enter selection mode.
+    gMultidexSkillSelectActive = true;
+    gMultidexSelectedSkill = -1;
+    gMultidexSelectionDone = false;
+
+    // Modal loop (identical to skilldexOpen).
+    while (!gMultidexSelectionDone) {
+        sharedFpsLimiter.mark();
+
+        int keyCode = inputGetInput();
+        if (keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0) {
+            gMultidexSelectedSkill = -1;
+            gMultidexSelectionDone = true;
+            break;
+        }
+
+        // Right-click cancellation.
+        int mouseEvent = mouseGetEvent();
+        if (mouseEvent & MOUSE_EVENT_RIGHT_BUTTON_UP) {
+            gMultidexSelectedSkill = -1;
+            gMultidexSelectionDone = true;
+            break;
+        }
+
+        // Keep cursor as arrow (modal window prevents most changes, but just in case).
+        gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+
+    // Cleanup
+    windowDestroy(modalWin);
+    gMultidexSkillSelectActive = false;
+
+    // Restore iso and mouse
+    if (isoWasEnabled) isoEnable();
+    gameMouseObjectsShow();
+    gameMouseRefresh();
+
+    int selectedSkill = gMultidexSelectedSkill;
+
+    // Restore panel mode if switched.
+    if (switched) {
+        multidexTogglePanel();
+    }
+
+    return selectedSkill;
 }
 
 } // namespace fallout

@@ -1449,38 +1449,27 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             break;
                         }
                         break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_USE_SKILL:
-                        if (1) {
+                        case GAME_MOUSE_ACTION_MENU_ITEM_USE_SKILL:
+                        {
                             int skill = -1;
-
-                            int rc = skilldexOpen();
-                            switch (rc) {
-                            case SKILLDEX_RC_SNEAK:
-                                _action_skill_use(SKILL_SNEAK);
-                                break;
-                            case SKILLDEX_RC_LOCKPICK:
-                                skill = SKILL_LOCKPICK;
-                                break;
-                            case SKILLDEX_RC_STEAL:
-                                skill = SKILL_STEAL;
-                                break;
-                            case SKILLDEX_RC_TRAPS:
-                                skill = SKILL_TRAPS;
-                                break;
-                            case SKILLDEX_RC_FIRST_AID:
-                                skill = SKILL_FIRST_AID;
-                                break;
-                            case SKILLDEX_RC_DOCTOR:
-                                skill = SKILL_DOCTOR;
-                                break;
-                            case SKILLDEX_RC_SCIENCE:
-                                skill = SKILL_SCIENCE;
-                                break;
-                            case SKILLDEX_RC_REPAIR:
-                                skill = SKILL_REPAIR;
-                                break;
+                            if (interfaceIsSuperWide()) {
+                                // use multidex in superwide mode
+                                skill = multidexSkillSelectExact();
+                            } else {
+                                // use regular skilldex otherwise
+                                int rc = skilldexOpen();
+                                switch (rc) {
+                                    case SKILLDEX_RC_SNEAK:      skill = SKILL_SNEAK;      break;
+                                    case SKILLDEX_RC_LOCKPICK:   skill = SKILL_LOCKPICK;   break;
+                                    case SKILLDEX_RC_STEAL:      skill = SKILL_STEAL;      break;
+                                    case SKILLDEX_RC_TRAPS:      skill = SKILL_TRAPS;      break;
+                                    case SKILLDEX_RC_FIRST_AID:  skill = SKILL_FIRST_AID;  break;
+                                    case SKILLDEX_RC_DOCTOR:     skill = SKILL_DOCTOR;     break;
+                                    case SKILLDEX_RC_SCIENCE:    skill = SKILL_SCIENCE;    break;
+                                    case SKILLDEX_RC_REPAIR:     skill = SKILL_REPAIR;     break;
+                                    default: skill = -1; break;
+                                }
                             }
-
                             if (skill != -1) {
                                 actionUseSkill(gDude, targetObj, skill);
                             }
