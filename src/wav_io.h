@@ -2,7 +2,7 @@
 #define WAV_IO_H
 
 #include <stdint.h>
-#include <stdio.h>
+#include "db.h"
 
 namespace fallout {
 
