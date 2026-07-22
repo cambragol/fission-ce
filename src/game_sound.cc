@@ -28,6 +28,8 @@
 #include "svga.h"
 #include "window_manager.h"
 #include "worldmap.h"
+#include "wav_io.h"
+
 
 namespace fallout {
 
@@ -180,6 +182,12 @@ static int _gsound_get_music_path(char** out_value, const char* key);
 static Sound* _gsound_get_sound_ready_for_effect();
 static bool _gsound_file_exists_f(const char* fname);
 static int _gsound_setup_paths();
+
+static bool isWavFile(const char* path) {
+    const char* ext = strrchr(path, '.');
+    if (!ext) return false;
+    return (compat_stricmp(ext, ".WAV") == 0 || compat_stricmp(ext, ".wav") == 0);
+}
 
 // 0x44FC70
 int gameSoundInit()
@@ -619,6 +627,7 @@ int backgroundSoundGetDuration()
 int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode)
 {
     int rc;
+    char path[COMPAT_MAX_PATH + 1];
 
     _background_storage_requested = storageType;
     _background_loop_requested = loopingMode;
@@ -651,11 +660,39 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
         return -1;
     }
 
-    // FIX for .dat music: Use the same VFS-aware I/O callbacks as speech (audioOpen, not audioFileOpen)
-    rc = soundSetFileIO(gBackgroundSound, audioOpen, audioClose, audioRead, nullptr, audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+    if (storageType == GSOUND_MEMORY) {
+        rc = gameSoundFindBackgroundSoundPath(path, fileName);
+    } else if (storageType == GSOUND_STREAM) {
+        rc = gameSoundFindBackgroundSoundPathWithCopy(path, fileName);
+    }
+
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because the file could not be found.\n");
+        }
+
+        soundDelete(gBackgroundSound);
+        gBackgroundSound = nullptr;
+
+        return -1;
+    }
+
+    // Choose I/O based on file extension
+    if (isWavFile(path)) {
+        debugPrint("backgroundSoundLoad: Using WAV I/O\n");
+        rc = soundSetFileIO(gBackgroundSound,
+                            wavOpen, wavClose, wavRead, nullptr,
+                            wavSeek, wavTell, wavGetSize);
+    } else {
+        debugPrint("backgroundSoundLoad: Using ACM I/O\n");
+        rc = soundSetFileIO(gBackgroundSound,
+                            audioOpen, audioClose, audioRead, nullptr,
+                            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+    }
+
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because file IO could not be set for compression.\n");
+            debugPrint("failed because file IO could not be set.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -668,24 +705,6 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed because the channel could not be set.\n");
-        }
-
-        soundDelete(gBackgroundSound);
-        gBackgroundSound = nullptr;
-
-        return -1;
-    }
-
-    char path[COMPAT_MAX_PATH + 1];
-    if (storageType == GSOUND_MEMORY) {
-        rc = gameSoundFindBackgroundSoundPath(path, fileName);
-    } else if (storageType == GSOUND_STREAM) {
-        rc = gameSoundFindBackgroundSoundPathWithCopy(path, fileName);
-    }
-
-    if (rc != SOUND_NO_ERROR) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("'failed because the file could not be found.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -1761,7 +1780,21 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     strcpy(upperSrc, src);
     compat_strupr(upperSrc);
 
-    // Try loose files using config paths (from data)
+    // Try loose files - .WAV first
+    snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".WAV");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+    snprintf(path, sizeof(path), "%s%s%s", _sound_music_path2, src, ".WAV");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Then .ACM loose files
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".ACM");
     if (_gsound_file_exists_f(path)) {
         strncpy(dest, path, COMPAT_MAX_PATH);
@@ -1775,7 +1808,15 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
         return 0;
     }
 
-    // Fallback to VFS (DAT archives) using hardcoded VFS-relative path
+    // VFS (DAT archives) - .WAV first
+    snprintf(path, sizeof(path), "sound/music/%s.WAV", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS .ACM fallback
     snprintf(path, sizeof(path), "sound/music/%s.ACM", upperSrc);
     if (dbGetFileSize(path, &fileSize) == 0) {
         strncpy(dest, path, COMPAT_MAX_PATH);
