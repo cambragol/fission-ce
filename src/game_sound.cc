@@ -26,10 +26,9 @@
 #include "sound_effects_cache.h"
 #include "stat.h"
 #include "svga.h"
+#include "wav_io.h"
 #include "window_manager.h"
 #include "worldmap.h"
-#include "wav_io.h"
-
 
 namespace fallout {
 
@@ -183,7 +182,8 @@ static Sound* _gsound_get_sound_ready_for_effect();
 static bool _gsound_file_exists_f(const char* fname);
 static int _gsound_setup_paths();
 
-static bool isWavFile(const char* path) {
+static bool isWavFile(const char* path)
+{
     const char* ext = strrchr(path, '.');
     if (!ext) return false;
     return (compat_stricmp(ext, ".WAV") == 0 || compat_stricmp(ext, ".wav") == 0);
@@ -681,13 +681,13 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
     if (isWavFile(path)) {
         debugPrint("backgroundSoundLoad: Using WAV I/O\n");
         rc = soundSetFileIO(gBackgroundSound,
-                            wavOpen, wavClose, wavRead, nullptr,
-                            wavSeek, wavTell, wavGetSize);
+            wavOpen, wavClose, wavRead, nullptr,
+            wavSeek, wavTell, wavGetSize);
     } else {
         debugPrint("backgroundSoundLoad: Using ACM I/O\n");
         rc = soundSetFileIO(gBackgroundSound,
-                            audioOpen, audioClose, audioRead, nullptr,
-                            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+            audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
     }
 
     if (rc != 0) {
