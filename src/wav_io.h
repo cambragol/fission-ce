@@ -1,8 +1,8 @@
 #ifndef WAV_IO_H
 #define WAV_IO_H
 
-#include <stdint.h>
 #include "db.h"
+#include <stdint.h>
 
 namespace fallout {
 
