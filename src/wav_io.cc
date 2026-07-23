@@ -1,8 +1,8 @@
 #include "wav_io.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "db.h"
 #include "debug.h"
@@ -12,19 +12,21 @@ namespace fallout {
 
 #define MAX_WAV_HANDLES 32
 
-static WavHandle* gWavHandles[MAX_WAV_HANDLES] = {0};
+static WavHandle* gWavHandles[MAX_WAV_HANDLES] = { 0 };
 
-static int allocateWavHandle(WavHandle* wh) {
+static int allocateWavHandle(WavHandle* wh)
+{
     for (int i = 0; i < MAX_WAV_HANDLES; i++) {
         if (gWavHandles[i] == nullptr) {
             gWavHandles[i] = wh;
-            return i + 1;  // 1-based index
+            return i + 1; // 1-based index
         }
     }
     return 0;
 }
 
-static WavHandle* getWavHandle(int fd) {
+static WavHandle* getWavHandle(int fd)
+{
     int index = fd - 1;
     if (index < 0 || index >= MAX_WAV_HANDLES) {
         return nullptr;
@@ -32,21 +34,24 @@ static WavHandle* getWavHandle(int fd) {
     return gWavHandles[index];
 }
 
-static void freeWavHandle(int fd) {
+static void freeWavHandle(int fd)
+{
     int index = fd - 1;
     if (index >= 0 && index < MAX_WAV_HANDLES) {
         gWavHandles[index] = nullptr;
     }
 }
 
-static int readChunkHeader(File* file, char id[5], uint32_t* size) {
+static int readChunkHeader(File* file, char id[5], uint32_t* size)
+{
     if (fileRead(id, 1, 4, file) != 4) return -1;
     id[4] = '\0';
     if (fileRead(size, 4, 1, file) != 1) return -1;
     return 0;
 }
 
-int wavOpen(const char* filePath, int* sampleRate) {
+int wavOpen(const char* filePath, int* sampleRate)
+{
     debugPrint("wavOpen: Trying to open %s\n", filePath);
 
     // Open using VFS
@@ -116,19 +121,17 @@ int wavOpen(const char* filePath, int* sampleRate) {
             *sampleRate = sampleRate32;
 
             debugPrint("wavOpen: rate=%d, bits=%d, channels=%d\n",
-                       wh->sampleRate, wh->bitsPerSample, wh->channels);
+                wh->sampleRate, wh->bitsPerSample, wh->channels);
 
             long remaining = chunkSize - 16;
             if (remaining > 0) fileSeek(file, remaining, SEEK_CUR);
-        }
-        else if (strcmp(chunkId, "data") == 0) {
+        } else if (strcmp(chunkId, "data") == 0) {
             wh->dataOffset = fileTell(file);
             wh->dataSize = chunkSize;
             debugPrint("wavOpen: data chunk at offset %ld, size %ld\n",
-                       wh->dataOffset, wh->dataSize);
+                wh->dataOffset, wh->dataSize);
             break;
-        }
-        else {
+        } else {
             fileSeek(file, chunkSize, SEEK_CUR);
         }
     }
@@ -155,7 +158,8 @@ int wavOpen(const char* filePath, int* sampleRate) {
     return fd;
 }
 
-int wavClose(int fd) {
+int wavClose(int fd)
+{
     WavHandle* wh = getWavHandle(fd);
     if (!wh) return -1;
     fileClose(wh->file);
@@ -164,7 +168,8 @@ int wavClose(int fd) {
     return 0;
 }
 
-int wavRead(int fd, void* buf, unsigned int size) {
+int wavRead(int fd, void* buf, unsigned int size)
+{
     WavHandle* wh = getWavHandle(fd);
     if (!wh) return -1;
 
@@ -176,23 +181,24 @@ int wavRead(int fd, void* buf, unsigned int size) {
     return fileRead(buf, 1, size, wh->file);
 }
 
-long wavSeek(int fd, long offset, int origin) {
+long wavSeek(int fd, long offset, int origin)
+{
     WavHandle* wh = getWavHandle(fd);
     if (!wh) return -1;
 
     long newPos;
     switch (origin) {
-        case SEEK_SET:
-            newPos = wh->dataOffset + offset;
-            break;
-        case SEEK_CUR:
-            newPos = fileTell(wh->file) + offset;
-            break;
-        case SEEK_END:
-            newPos = wh->dataOffset + wh->dataSize + offset;
-            break;
-        default:
-            return -1;
+    case SEEK_SET:
+        newPos = wh->dataOffset + offset;
+        break;
+    case SEEK_CUR:
+        newPos = fileTell(wh->file) + offset;
+        break;
+    case SEEK_END:
+        newPos = wh->dataOffset + wh->dataSize + offset;
+        break;
+    default:
+        return -1;
     }
 
     if (newPos < wh->dataOffset || newPos > wh->dataOffset + wh->dataSize)
@@ -205,19 +211,22 @@ long wavSeek(int fd, long offset, int origin) {
     return newPos - wh->dataOffset;
 }
 
-long wavTell(int fd) {
+long wavTell(int fd)
+{
     WavHandle* wh = getWavHandle(fd);
     if (!wh) return -1;
     return fileTell(wh->file) - wh->dataOffset;
 }
 
-long wavGetSize(int fd) {
+long wavGetSize(int fd)
+{
     WavHandle* wh = getWavHandle(fd);
     if (!wh) return -1;
     return wh->dataSize;
 }
 
-WavHandle* wavGetHandle(int fd) {
+WavHandle* wavGetHandle(int fd)
+{
     return getWavHandle(fd);
 }
 

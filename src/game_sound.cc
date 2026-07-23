@@ -29,7 +29,6 @@
 #include "wav_io.h"
 #include "window_manager.h"
 #include "worldmap.h"
-#include "wav_io.h"
 
 namespace fallout {
 
@@ -980,7 +979,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
             debugPrint("speechLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(gSpeechSound, wavOpen, wavClose, wavRead, nullptr,
-                            wavSeek, wavTell, wavGetSize);
+            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("speechLoad: Failed to set WAV I/O (rc=%d)\n", rc);
@@ -1276,7 +1275,7 @@ Sound* soundEffectLoad(const char* name, Object* object)
             debugPrint("soundEffectLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(sound, wavOpen, wavClose, wavRead, nullptr,
-                            wavSeek, wavTell, wavGetSize);
+            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("soundEffectLoad: Failed to set WAV I/O (rc=%d)\n", rc);
