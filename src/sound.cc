@@ -632,7 +632,7 @@ int soundLoad(Sound* sound, char* filePath)
             sound->bitsPerSample = wh->bitsPerSample;
             sound->channels = wh->channels;
             debugPrint("soundLoad: WAV params - rate=%d, bits=%d, channels=%d\n",
-                    sound->rate, sound->bitsPerSample, sound->channels);
+                sound->rate, sound->bitsPerSample, sound->channels);
         } else {
             debugPrint("soundLoad: WARNING - WAV handle not found for fd=%d\n", sound->io.fd);
         }

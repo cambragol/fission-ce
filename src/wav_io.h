@@ -8,7 +8,7 @@
 namespace fallout {
 
 typedef struct WavHandle {
-    File* file;          // VFS file handle
+    File* file; // VFS file handle
     long dataOffset;
     long dataSize;
     int sampleRate;
