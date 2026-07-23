@@ -19,6 +19,7 @@
 #include "audio_engine.h"
 #include "debug.h"
 #include "platform_compat.h"
+#include "wav_io.h"
 
 namespace fallout {
 
@@ -534,6 +535,7 @@ Sound* soundAllocate(int type, int soundFlags)
     }
 
     gSoundListHead = sound;
+    sound->isWav = false;
 
     return sound;
 }
@@ -620,6 +622,20 @@ int soundLoad(Sound* sound, char* filePath)
     if (sound->io.fd == -1) {
         gSoundLastError = SOUND_FILE_NOT_FOUND;
         return gSoundLastError;
+    }
+
+    // If this is a WAV file, extract parameters
+    if (sound->isWav) {
+        WavHandle* wh = wavGetHandle(sound->io.fd);
+        if (wh != nullptr) {
+            sound->rate = wh->sampleRate;
+            sound->bitsPerSample = wh->bitsPerSample;
+            sound->channels = wh->channels;
+            debugPrint("soundLoad: WAV params - rate=%d, bits=%d, channels=%d\n",
+                    sound->rate, sound->bitsPerSample, sound->channels);
+        } else {
+            debugPrint("soundLoad: WARNING - WAV handle not found for fd=%d\n", sound->io.fd);
+        }
     }
 
     return _preloadBuffers(sound);
