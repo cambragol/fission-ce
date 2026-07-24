@@ -172,7 +172,6 @@ static void speechCallback(void* userData, int event);
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
-static int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src);
 static int gameSoundFindBackgroundSoundPath(char* dest, const char* src);
 static int gameSoundFindSpeechSoundPath(char* dest, const char* src);
 static int gameSoundFindWavEffectPath(char* dest, const char* src);
@@ -661,11 +660,7 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
         return -1;
     }
 
-    if (storageType == GSOUND_MEMORY) {
-        rc = gameSoundFindBackgroundSoundPath(path, fileName);
-    } else if (storageType == GSOUND_STREAM) {
-        rc = gameSoundFindBackgroundSoundPathWithCopy(path, fileName);
-    }
+    rc = gameSoundFindBackgroundSoundPath(path, fileName);
 
     if (rc != SOUND_NO_ERROR) {
         if (gGameSoundDebugEnabled) {
@@ -1135,104 +1130,6 @@ int _gsound_play_sfx_file_volume(const char* a1, int a2)
     soundPlay(v1);
 
     return 0;
-}
-
-int gameSoundFindWavEffectPath(char* dest, const char* src)
-{
-    char path[COMPAT_MAX_PATH + 1];
-    char upperSrc[COMPAT_MAX_PATH + 1];
-    int fileSize;
-
-    strcpy(upperSrc, src);
-    compat_strupr(upperSrc);
-
-    // VFS - try uppercase first (DAT standard)
-    snprintf(path, sizeof(path), "sound/sfx/%s.WAV", upperSrc);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // VFS - try lowercase (for mods/loose files in VFS)
-    snprintf(path, sizeof(path), "sound/sfx/%s.WAV", src);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // Loose files - try the sfx path
-    snprintf(path, sizeof(path), "%s%s%s", _sound_sfx_path, src, ".WAV");
-    if (_gsound_file_exists_f(path)) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    if (gGameSoundDebugEnabled) debugPrint("-- WAV not found ");
-    return -1;
-}
-
-int gameSoundFindSpeechPath(char* dest, const char* src)
-{
-    char path[COMPAT_MAX_PATH + 1];
-    char upperSrc[COMPAT_MAX_PATH + 1];
-    int fileSize;
-
-    strcpy(upperSrc, src);
-    compat_strupr(upperSrc);
-
-    // VFS - .WAV (uppercase)
-    snprintf(path, sizeof(path), "sound/speech/%s.WAV", upperSrc);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // VFS - .WAV (lowercase)
-    snprintf(path, sizeof(path), "sound/speech/%s.WAV", src);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // Loose - .WAV using config path
-    snprintf(path, sizeof(path), "%s%s%s", _sound_speech_path, src, ".WAV");
-    if (_gsound_file_exists_f(path)) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // VFS - .ACM (uppercase)
-    snprintf(path, sizeof(path), "sound/speech/%s.ACM", upperSrc);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // VFS - .ACM (lowercase)
-    snprintf(path, sizeof(path), "sound/speech/%s.ACM", src);
-    if (dbGetFileSize(path, &fileSize) == 0) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    // Loose - .ACM using config path (original fallback)
-    snprintf(path, sizeof(path), "%s%s%s", _sound_speech_path, src, ".ACM");
-    if (_gsound_file_exists_f(path)) {
-        strncpy(dest, path, COMPAT_MAX_PATH);
-        dest[COMPAT_MAX_PATH] = '\0';
-        return 0;
-    }
-
-    if (gGameSoundDebugEnabled) debugPrint("-- speech find failed ");
-    return -1;
 }
 
 // 0x4510DC
@@ -1832,19 +1729,11 @@ int _gsound_background_allocate(Sound** soundPtr, GameSoundStorageType storageTy
     return 0;
 }
 
-// gsound_background_find_with_copy
-// 0x451B30
-int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
-{
-    // Copying is obsolete; music files are read directly from .dat archives.
-    return gameSoundFindBackgroundSoundPath(dest, src);
-}
-
 // 0x451E2C
 int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
 {
-    char path[COMPAT_MAX_PATH];
-    char upperSrc[COMPAT_MAX_PATH];
+    char path[COMPAT_MAX_PATH + 1];
+    char upperSrc[COMPAT_MAX_PATH + 1];
     int fileSize;
 
     strcpy(upperSrc, src);
@@ -1957,6 +1846,43 @@ static int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     }
 
     if (gGameSoundDebugEnabled) debugPrint("-- speech find failed ");
+    return -1;
+}
+
+int gameSoundFindWavEffectPath(char* dest, const char* src)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    char upperSrc[COMPAT_MAX_PATH + 1];
+    int fileSize;
+
+    strcpy(upperSrc, src);
+    compat_strupr(upperSrc);
+
+    // VFS - try uppercase first (DAT standard)
+    snprintf(path, sizeof(path), "sound/sfx/%s.WAV", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - try lowercase (for mods/loose files in VFS)
+    snprintf(path, sizeof(path), "sound/sfx/%s.WAV", src);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Loose files - try the sfx path
+    snprintf(path, sizeof(path), "%s%s%s", _sound_sfx_path, src, ".WAV");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    if (gGameSoundDebugEnabled) debugPrint("-- WAV not found ");
     return -1;
 }
 
