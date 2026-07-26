@@ -153,7 +153,7 @@ int falloutMain(int argc, char** argv)
                 mainMenuWindowHide(true);
                 mainMenuWindowFree();
                 if (1) {
-                    int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+                    int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[COL_BLACK], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
 
                     main_loadgame_new(); // NOTE: Uninline.
 
@@ -290,7 +290,7 @@ static int _main_load_new(char* mapFileName)
 
     resizeContent(screenGetWidth(), screenGetHeight(), true);
 
-    int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+    int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[COL_BLACK], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
     windowRefresh(win);
 
     colorPaletteLoad("color.pal");
@@ -475,7 +475,7 @@ static void showDeath()
                         bufferFill(p - (game_width - 38), game_width - 76, fontGetLineHeight() * count + 2, game_width, 0);
                         p += 40;
                         for (int index = 0; index < count; index++) {
-                            fontDrawText(p, text + beginnings[index], game_width - 80, game_width, _colorTable[32767]);
+                            fontDrawText(p, text + beginnings[index], game_width - 80, game_width, _colorTable[COL_WHITE]);
                             p += game_width * fontGetLineHeight();
                         }
                     }
