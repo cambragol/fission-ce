@@ -2129,14 +2129,14 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
 
         Object* object = _stack[0];
 
-        int color = _colorTable[992];
+        int color = _colorTable[COL_LIME_GREEN];
         if (PID_TYPE(object->pid) == OBJ_TYPE_CRITTER) {
             int carryWeight = critterGetStat(object, STAT_CARRY_WEIGHT);
             int inventoryWeight = objectGetInventoryWeight(object);
             snprintf(formattedText, sizeof(formattedText), "%d/%d", inventoryWeight, carryWeight);
 
             if (critterIsEncumbered(object)) {
-                color = _colorTable[31744];
+                color = _colorTable[COL_PURE_RED];
             }
         } else {
             int inventoryWeight = objectGetInventoryWeight(object);
@@ -2254,14 +2254,14 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
 
         Object* object = _target_stack[_target_curr_stack];
 
-        int color = _colorTable[992];
+        int color = _colorTable[COL_LIME_GREEN];
         if (PID_TYPE(object->pid) == OBJ_TYPE_CRITTER) {
             int currentWeight = objectGetInventoryWeight(object);
             int maxWeight = critterGetStat(object, STAT_CARRY_WEIGHT);
             snprintf(formattedText, sizeof(formattedText), "%d/%d", currentWeight, maxWeight);
 
             if (critterIsEncumbered(object)) {
-                color = _colorTable[31744];
+                color = _colorTable[COL_PURE_RED];
             }
         } else if (PID_TYPE(object->pid) == OBJ_TYPE_ITEM) {
             if (itemGetType(object) == ITEM_TYPE_CONTAINER) {
@@ -2328,7 +2328,7 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
     }
 
     if (draw) {
-        fontDrawText(dest, formattedText, 80, pitch, _colorTable[32767]);
+        fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
     }
 
     fontSetCurrent(oldFont);
@@ -3422,7 +3422,7 @@ static void inventoryRenderSummary()
 
     // Render character name.
     const char* critterName = critterGetName(_stack[0]);
-    fontDrawText(windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX, critterName, 80, gLayout.windowWidth, _colorTable[992]);
+    fontDrawText(windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX, critterName, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
     bufferDrawLine(windowBuffer,
         gLayout.windowWidth,
@@ -3430,7 +3430,7 @@ static void inventoryRenderSummary()
         3 * fontGetLineHeight() / 2 + gLayout.summaryY,
         gLayout.summaryX + 151,
         3 * fontGetLineHeight() / 2 + gLayout.summaryY,
-        _colorTable[992]);
+        _colorTable[COL_LIME_GREEN]);
 
     MessageListItem messageListItem;
 
@@ -3438,12 +3438,12 @@ static void inventoryRenderSummary()
     for (int stat = 0; stat < PRIMARY_STAT_COUNT; stat++) {
         messageListItem.num = stat;
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-            fontDrawText(windowBuffer + offset, messageListItem.text, 80, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset, messageListItem.text, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
         }
 
         int value = critterGetStat(_stack[0], stat);
         snprintf(formattedText, sizeof(formattedText), "%d", value);
-        fontDrawText(windowBuffer + offset + 24, formattedText, 80, gLayout.windowWidth, _colorTable[992]);
+        fontDrawText(windowBuffer + offset + 24, formattedText, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
         offset += gLayout.windowWidth * fontGetLineHeight();
     }
@@ -3453,7 +3453,7 @@ static void inventoryRenderSummary()
     for (int index = 0; index < 7; index += 1) {
         messageListItem.num = 7 + index;
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-            fontDrawText(windowBuffer + offset + 40, messageListItem.text, 80, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset + 40, messageListItem.text, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
         }
 
         if (summaryStats2[index] == -1) {
@@ -3466,13 +3466,13 @@ static void inventoryRenderSummary()
             snprintf(formattedText, sizeof(formattedText), format, value1, value2);
         }
 
-        fontDrawText(windowBuffer + offset + 104, formattedText, 80, gLayout.windowWidth, _colorTable[992]);
+        fontDrawText(windowBuffer + offset + 104, formattedText, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
         offset += gLayout.windowWidth * fontGetLineHeight();
     }
 
-    bufferDrawLine(windowBuffer, gLayout.windowWidth, gLayout.summaryX, 18 * fontGetLineHeight() / 2 + 48, gLayout.summaryX + 151, 18 * fontGetLineHeight() / 2 + 48, _colorTable[992]);
-    bufferDrawLine(windowBuffer, gLayout.windowWidth, gLayout.summaryX, 26 * fontGetLineHeight() / 2 + 48, gLayout.summaryX + 151, 26 * fontGetLineHeight() / 2 + 48, _colorTable[992]);
+    bufferDrawLine(windowBuffer, gLayout.windowWidth, gLayout.summaryX, 18 * fontGetLineHeight() / 2 + 48, gLayout.summaryX + 151, 18 * fontGetLineHeight() / 2 + 48, _colorTable[COL_LIME_GREEN]);
+    bufferDrawLine(windowBuffer, gLayout.windowWidth, gLayout.summaryX, 26 * fontGetLineHeight() / 2 + 48, gLayout.summaryX + 151, 26 * fontGetLineHeight() / 2 + 48, _colorTable[COL_LIME_GREEN]);
 
     Object* itemsInHands[2] = {
         gInventoryLeftHandItem,
@@ -3504,7 +3504,7 @@ static void inventoryRenderSummary()
             // No item
             messageListItem.num = 14;
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[992]);
+                fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
             }
 
             offset += gLayout.windowWidth * fontGetLineHeight();
@@ -3541,14 +3541,14 @@ static void inventoryRenderSummary()
                     bonusDamage + meleeDamage + maxDamage);
             }
 
-            fontDrawText(windowBuffer + offset, formattedText, 120, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset, formattedText, 120, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
             offset += 3 * gLayout.windowWidth * fontGetLineHeight();
             continue;
         }
 
         const char* itemName = itemGetName(item);
-        fontDrawText(windowBuffer + offset, itemName, 140, gLayout.windowWidth, _colorTable[992]);
+        fontDrawText(windowBuffer + offset, itemName, 140, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
         offset += gLayout.windowWidth * fontGetLineHeight();
 
@@ -3558,7 +3558,7 @@ static void inventoryRenderSummary()
                 // (Not worn)
                 messageListItem.num = 18;
                 if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                    fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[992]);
+                    fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
                 }
             }
 
@@ -3638,7 +3638,7 @@ static void inventoryRenderSummary()
                 }
             }
 
-            fontDrawText(windowBuffer + offset, formattedText, 140, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset, formattedText, 140, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
         }
 
         offset += gLayout.windowWidth * fontGetLineHeight();
@@ -3668,7 +3668,7 @@ static void inventoryRenderSummary()
                 snprintf(formattedText, sizeof(formattedText), "%s %d/%d", messageListItem.text, quantity, capacity);
             }
 
-            fontDrawText(windowBuffer + offset, formattedText, 140, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset, formattedText, 140, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
         }
 
         offset += 2 * gLayout.windowWidth * fontGetLineHeight();
@@ -3682,9 +3682,9 @@ static void inventoryRenderSummary()
             int inventoryWeight = objectGetInventoryWeight(_stack[0]);
             snprintf(formattedText, sizeof(formattedText), "%s %d/%d", messageListItem.text, inventoryWeight, carryWeight);
 
-            int color = _colorTable[992];
+            int color = _colorTable[COL_LIME_GREEN];
             if (critterIsEncumbered(_stack[0])) {
-                color = _colorTable[31744];
+                color = _colorTable[COL_PURE_RED];
             }
 
             fontDrawText(windowBuffer + offset + 15, formattedText, 120, gLayout.windowWidth, color);
@@ -3692,7 +3692,7 @@ static void inventoryRenderSummary()
             int inventoryWeight = objectGetInventoryWeight(_stack[0]);
             snprintf(formattedText, sizeof(formattedText), "%s %d", messageListItem.text, inventoryWeight);
 
-            fontDrawText(windowBuffer + offset + 30, formattedText, 80, gLayout.windowWidth, _colorTable[992]);
+            fontDrawText(windowBuffer + offset + 30, formattedText, 80, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
         }
     }
 
@@ -4102,7 +4102,7 @@ static void inventoryRenderItemDescription(char* string)
                 // This was the last line containing very long word. Text
                 // drawing routine will silently truncate it after reaching
                 // desired length.
-                fontDrawText(windowBuffer + gLayout.windowWidth * _inven_display_msg_line * fontGetLineHeight(), c, 152, gLayout.windowWidth, _colorTable[992]);
+                fontDrawText(windowBuffer + gLayout.windowWidth * _inven_display_msg_line * fontGetLineHeight(), c, 152, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
                 return;
             }
 
@@ -4143,7 +4143,7 @@ static void inventoryRenderItemDescription(char* string)
             return;
         }
 
-        fontDrawText(windowBuffer + gLayout.windowWidth * _inven_display_msg_line * fontGetLineHeight(), c, 152, gLayout.windowWidth, _colorTable[992]);
+        fontDrawText(windowBuffer + gLayout.windowWidth * _inven_display_msg_line * fontGetLineHeight(), c, 152, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
 
         if (space != nullptr) {
             c = space + 1;
@@ -4199,7 +4199,7 @@ static void inventoryExamineItem(Object* critter, Object* item)
         (_inven_display_msg_line - 1) * lineHeight + lineHeight / 2 + 49,
         gLayout.summaryX + 151,
         (_inven_display_msg_line - 1) * lineHeight + lineHeight / 2 + 49,
-        _colorTable[992]);
+        _colorTable[COL_LIME_GREEN]);
 
     // Examine item.
     objectExamineFunc(critter, item, inventoryRenderItemDescription);
@@ -6320,7 +6320,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     // Sorry, you cannot carry that much.
                     messageListItem.num = 31;
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                        showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                        showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     }
                 }
             }
@@ -7221,7 +7221,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             snprintf(formattedText, sizeof(formattedText), "$%d", cost);
         }
 
-        fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[32767]);
+        fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[COL_WHITE]);
 
         Rect rect;
         rect.left = INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD;
@@ -7260,7 +7260,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             snprintf(formattedText, sizeof(formattedText), "$%d", cost);
         }
 
-        fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[32767]);
+        fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[COL_WHITE]);
 
         Rect rect;
         rect.left = INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X_PAD;
@@ -8056,14 +8056,14 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
         messageListItem.num = 21;
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             int length = fontGetStringWidth(messageListItem.text);
-            fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[21091]);
+            fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[COL_OLIVE_YELLOW]);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_SET_TIMER) {
         // SET TIMER
         messageListItem.num = 23;
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             int length = fontGetStringWidth(messageListItem.text);
-            fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[21091]);
+            fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[COL_OLIVE_YELLOW]);
         }
 
         // Timer overlay
@@ -8205,8 +8205,8 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
                 int length = fontGetStringWidth(messageListItem.text);
 
                 // TODO: Where is y? Is it hardcoded in to 376?
-                fontDrawText(_moveFrmImages[6].getData() + (94 - length) / 2 + 376, messageListItem.text, 200, 94, _colorTable[21091]);
-                fontDrawText(_moveFrmImages[7].getData() + (94 - length) / 2 + 376, messageListItem.text, 200, 94, _colorTable[18977]);
+                fontDrawText(_moveFrmImages[6].getData() + (94 - length) / 2 + 376, messageListItem.text, 200, 94, _colorTable[COL_OLIVE_YELLOW]);
+                fontDrawText(_moveFrmImages[7].getData() + (94 - length) / 2 + 376, messageListItem.text, 200, 94, _colorTable[COL_GREENISH_BROWN]);
 
                 btn = buttonCreate(_mt_wid,
                     120,

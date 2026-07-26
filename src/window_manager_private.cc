@@ -137,7 +137,7 @@ int _win_list_select_at(const char* title, char** items, int itemsLength, ListSe
         0,
         windowWidth - 1,
         windowHeight - 1,
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
     bufferDrawRectShadowed(windowBuffer,
         windowWidth,
         1,
@@ -797,7 +797,7 @@ int _create_pull_down(char** stringList, int stringListLength, int x, int y, int
     }
 
     _win_text(win, stringList, stringListLength, windowWidth - 4, 2, 8, foregroundColor);
-    windowDrawRect(win, 0, 0, windowWidth - 1, windowHeight - 1, _colorTable[0]);
+    windowDrawRect(win, 0, 0, windowWidth - 1, windowHeight - 1, _colorTable[COL_BLACK]);
     windowDrawRect(win, 1, 1, windowWidth - 2, windowHeight - 2, foregroundColor);
     windowRefresh(win);
     windowGetRect(win, rect);
