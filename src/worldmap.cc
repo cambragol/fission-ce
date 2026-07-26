@@ -557,7 +557,7 @@ static void wmInterfaceRefreshDate(bool shouldRefreshWindow);
 static int wmMatchWorldPosToArea(int x, int y, int* areaIdxPtr);
 static int wmInterfaceDrawCircleOverlay(CityInfo* cityInfo, CitySizeDescription* citySizeInfo, unsigned char* buffer, int x, int y);
 static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription* citySizeDescription, unsigned char* dest, int x, int y);
-static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch);
+static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch, int fogLevel);
 static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, int x, int y, int a6);
 static int wmDrawCursorStopped();
 static bool wmCursorIsVisible();
@@ -7827,14 +7827,16 @@ static int wmInterfaceDrawCircleOverlay(CityInfo* city, CitySizeDescription* cit
 // slightly darken subtile which is known, but not visited.
 //
 // 0x4C40A8
-static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch)
+static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch, int fogLevel)
 {
+    fogLevel = std::clamp(fogLevel, 0, 100);
+
     int skipY = pitch - width;
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            unsigned char color = *dest;
-            *dest++ = intensityColorTable[color][75];
+            *dest = intensityColorTable[*dest][fogLevel];
+            dest++;
         }
         dest += skipY;
     }
@@ -7876,10 +7878,10 @@ static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, i
         unsigned char* dest = wmBkWinBuf + gOffsets.windowWidth * destY + destX;
         switch (subtileInfo->state) {
         case SUBTILE_STATE_UNKNOWN:
-            bufferFill(dest, width, height, gOffsets.windowWidth, _colorTable[0]);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, settings.enhancements.map_fog);
             break;
         case SUBTILE_STATE_KNOWN:
-            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, 75 + (std::clamp(settings.enhancements.map_fog, 0, 100) * 25) / 100);
             break;
         }
     }

@@ -126,6 +126,7 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
+    int map_fog = 0;
 };
 
 struct ModSettings {
