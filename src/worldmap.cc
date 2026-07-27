@@ -8159,8 +8159,12 @@ bool wmAreaMarkVisitedState(int areaIdx, int state)
 
     CityInfo* city = &(wmAreaInfoList[areaIdx]);
     int oldVisitedState = city->visitedState;
-    if (city->state == CITY_STATE_KNOWN && state != 0) {
+    if (state != 0) {
         wmMarkSubTileRadiusVisited(city->x, city->y);
+        // Also ensure city becomes KNOWN (since it's now visited)
+        if (city->state == CITY_STATE_UNKNOWN) {
+            city->state = CITY_STATE_KNOWN;
+        }
     }
 
     city->visitedState = state;
