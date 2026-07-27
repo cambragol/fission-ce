@@ -1163,6 +1163,18 @@ int wmWorldMap_init()
         return -1;
     }
 
+    // Read the starting map x/y from CITY.txt (map 0)
+    int startingAreaIdx;
+    if (wmMatchAreaContainingMapIdx(0, &startingAreaIdx) == 0) {
+        CityInfo* city = &(wmAreaInfoList[startingAreaIdx]);
+        wmGenData.worldPosX = city->x;
+        wmGenData.worldPosY = city->y;
+    } else {
+        // Fallback to hardcoded original (Arroyo) defaults if no area found
+        wmGenData.worldPosX = 173;
+        wmGenData.worldPosY = 122;
+    }
+
     if (!messageListInit(&wmMsgFile)) {
         return -1;
     }
@@ -1184,7 +1196,6 @@ int wmWorldMap_init()
     wmGenData.viewportMaxY = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles) - gOffsets.viewHeight;
     circleBlendTable = _getColorBlendTable(_colorTable[992]);
 
-    wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
 
     // CE: City size fids should be initialized during startup. They are used
@@ -1206,8 +1217,6 @@ static int wmGenDataInit()
 {
     wmGenData.didMeetFrankHorrigan = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
     wmGenData.currentSubtile = nullptr;
     wmGenData.dword_672E18 = 0;
     wmGenData.isWalking = false;
@@ -1272,8 +1281,6 @@ static int wmGenDataReset()
     wmGenData.encounterIconIsVisible = false;
     wmGenData.mousePressed = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
     wmGenData.walkDestinationX = -1;
     wmGenData.walkDestinationY = -1;
     wmGenData.encounterMapId = -1;
