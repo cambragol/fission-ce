@@ -7467,7 +7467,23 @@ static int wmInterfaceRefresh()
     // Render cities.
     for (int index = 0; index < wmMaxAreaNum; index++) {
         CityInfo* cityInfo = &(wmAreaInfoList[index]);
-        if (cityInfo->state != CITY_STATE_UNKNOWN) {
+        if (cityInfo->state == CITY_STATE_UNKNOWN)
+            continue;   // skip if state unknown
+
+        int x = cityInfo->x;
+        int y = cityInfo->y;
+        int tileIdx = y / WM_TILE_HEIGHT * wmNumHorizontalTiles + x / WM_TILE_WIDTH;
+        if (tileIdx < 0 || tileIdx >= wmMaxTileNum) continue;
+
+        int subX = (x % WM_TILE_WIDTH) / WM_SUBTILE_SIZE;
+        int subY = (y % WM_TILE_HEIGHT) / WM_SUBTILE_SIZE;
+        if (subX < 0 || subX >= SUBTILE_GRID_WIDTH || subY < 0 || subY >= SUBTILE_GRID_HEIGHT)
+            continue;
+
+        SubtileInfo* subtile = &(wmTileInfoList[tileIdx].subtiles[subY][subX]);
+
+        // Only draw if the subtile is known or visited (i.e., fog has been lifted)
+        if (subtile->state != SUBTILE_STATE_UNKNOWN) {
             CitySizeDescription* citySizeDescription = &(wmSphereData[cityInfo->size]);
             int cityX = cityInfo->x - wmWorldOffsetX;
             int cityY = cityInfo->y - wmWorldOffsetY;
@@ -8172,6 +8188,10 @@ bool wmAreaSetVisibleState(int areaIdx, int state, bool force)
 
     CityInfo* city = &(wmAreaInfoList[areaIdx]);
     if (city->lockState != LOCK_STATE_LOCKED || force) {
+        // If the city is going from UNKNOWN to KNOWN (or VISITED), clear the fog
+        if (state != CITY_STATE_UNKNOWN && city->state == CITY_STATE_UNKNOWN) {
+            wmMarkSubTileRadiusVisited(city->x, city->y);
+        }
         city->state = state;
         return true;
     }
