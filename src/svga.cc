@@ -555,17 +555,23 @@ void resizeContent(int width, int height)
     if (gFullscreen) {
         // FULLSCREEN MODE - Handle different play area settings
 
-        if (gPlayArea == 2) { // "Large" play area (70% of screen)
-            // Content is designed for 70% of screen, then stretched to fullscreen
-            // Calculate where the 70% content area sits in the full window
-            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
+        if (gPlayArea == 2) {
+            // Use the same scale calculation as applyPlayAreaResolution()
+            // centralize this later
+            float scale = std::max(0.7f, 1100.0f / static_cast<float>(windowW));
 
-            gMouseClipRect.left = offsetX;
-            gMouseClipRect.top = offsetY;
-            gMouseClipRect.right = offsetX + gContentWidth - 1;
+            // Compute the offset using the effective content area width/height
+            int offsetX = static_cast<int>((windowW * scale - gContentWidth) / 2);
+            int offsetY = static_cast<int>((windowH * scale - gContentHeight) / 2);
+
+            // Clamp to avoid negative offsets (happens when the minimum width is enforced)
+            if (offsetX < 0) offsetX = 0;
+            if (offsetY < 0) offsetY = 0;
+
+            gMouseClipRect.left   = offsetX;
+            gMouseClipRect.top    = offsetY;
+            gMouseClipRect.right  = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
-
         } else if (gPlayArea == 3) { // "Huge" play area (100% of screen)
             // Content fills the entire screen
             // Center the content (will be stretched to fill)
@@ -579,7 +585,7 @@ void resizeContent(int width, int height)
         }
         // Note: Original (640x480) and Default (800x500) modes use the
         // same logic as windowed mode (centered content)
-
+        
     } else {
         // WINDOWED MODE - Always center the content with black borders
         int offsetX = (windowW - gContentWidth) / 2;
@@ -618,14 +624,21 @@ void resizeContent(int width, int height, bool preserveAspect)
 
     if (gFullscreen) {
         if (gPlayArea == 2) {
-            int offsetX = ((windowW * 0.7f - gContentWidth) / 2);
-            int offsetY = ((windowH * 0.7f - gContentHeight) / 2);
+            // Use the same scale calculation as applyPlayAreaResolution()
+            float scale = std::max(0.7f, 1100.0f / static_cast<float>(windowW));
 
-            gMouseClipRect.left = offsetX;
-            gMouseClipRect.top = offsetY;
-            gMouseClipRect.right = offsetX + gContentWidth - 1;
+            // Compute the offset using the effective content area width/height
+            int offsetX = static_cast<int>((windowW * scale - gContentWidth) / 2);
+            int offsetY = static_cast<int>((windowH * scale - gContentHeight) / 2);
+
+            // Clamp to avoid negative offsets (happens when the minimum width is enforced)
+            if (offsetX < 0) offsetX = 0;
+            if (offsetY < 0) offsetY = 0;
+
+            gMouseClipRect.left   = offsetX;
+            gMouseClipRect.top    = offsetY;
+            gMouseClipRect.right  = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
-
         } else if (gPlayArea == 3) {
             int offsetX = ((windowW - gContentWidth) / 2);
             int offsetY = ((windowH - gContentHeight) / 2);
