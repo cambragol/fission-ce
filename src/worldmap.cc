@@ -7468,7 +7468,7 @@ static int wmInterfaceRefresh()
     for (int index = 0; index < wmMaxAreaNum; index++) {
         CityInfo* cityInfo = &(wmAreaInfoList[index]);
         if (cityInfo->state == CITY_STATE_UNKNOWN)
-            continue;   // skip if state unknown
+            continue; // skip if state unknown
 
         int x = cityInfo->x;
         int y = cityInfo->y;
