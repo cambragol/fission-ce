@@ -568,9 +568,9 @@ void resizeContent(int width, int height)
             if (offsetX < 0) offsetX = 0;
             if (offsetY < 0) offsetY = 0;
 
-            gMouseClipRect.left   = offsetX;
-            gMouseClipRect.top    = offsetY;
-            gMouseClipRect.right  = offsetX + gContentWidth - 1;
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
+            gMouseClipRect.right = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
         } else if (gPlayArea == 3) { // "Huge" play area (100% of screen)
             // Content fills the entire screen
@@ -585,7 +585,7 @@ void resizeContent(int width, int height)
         }
         // Note: Original (640x480) and Default (800x500) modes use the
         // same logic as windowed mode (centered content)
-        
+
     } else {
         // WINDOWED MODE - Always center the content with black borders
         int offsetX = (windowW - gContentWidth) / 2;
@@ -635,9 +635,9 @@ void resizeContent(int width, int height, bool preserveAspect)
             if (offsetX < 0) offsetX = 0;
             if (offsetY < 0) offsetY = 0;
 
-            gMouseClipRect.left   = offsetX;
-            gMouseClipRect.top    = offsetY;
-            gMouseClipRect.right  = offsetX + gContentWidth - 1;
+            gMouseClipRect.left = offsetX;
+            gMouseClipRect.top = offsetY;
+            gMouseClipRect.right = offsetX + gContentWidth - 1;
             gMouseClipRect.bottom = offsetY + gContentHeight - 1;
         } else if (gPlayArea == 3) {
             int offsetX = ((windowW - gContentWidth) / 2);
