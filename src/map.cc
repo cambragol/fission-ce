@@ -1051,7 +1051,7 @@ static int mapLoad(File* stream)
         0,
         windowGetWidth(gIsoWindow),
         windowGetHeight(gIsoWindow),
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
     windowRefresh(gIsoWindow);
     animationStop();
     scriptsDisable();
@@ -1654,12 +1654,12 @@ static int _map_save_file(File* stream)
 
     if (scriptSaveAll(stream) == -1) {
         snprintf(err, sizeof(err), "Error saving scripts in %s", gMapHeader.name);
-        _win_msg(err, 80, 80, _colorTable[31744]);
+        _win_msg(err, 80, 80, _colorTable[COL_PURE_RED]);
     }
 
     if (objectSaveAll(stream) == -1) {
         snprintf(err, sizeof(err), "Error saving objects in %s", gMapHeader.name);
-        _win_msg(err, 80, 80, _colorTable[31744]);
+        _win_msg(err, 80, 80, _colorTable[COL_PURE_RED]);
     }
 
     scriptsEnable();

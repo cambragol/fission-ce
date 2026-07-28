@@ -49,7 +49,7 @@ void place_entrance_hex()
                 if (tileSetCenter(tile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) == 0) {
                     mapSetEnteringLocation(gElevation, tile, rotation);
                 } else {
-                    win_timed_msg("ERROR: Entrance out of range!", _colorTable[31744]);
+                    win_timed_msg("ERROR: Entrance out of range!", _colorTable[COL_PURE_RED]);
                 }
             }
         }
@@ -87,7 +87,7 @@ void pick_region(Rect* rect)
         if (x != temp.right || y != temp.bottom) {
             erase_rect(rect);
             sort_rect(rect, &temp);
-            draw_rect(rect, _colorTable[32747]);
+            draw_rect(rect, _colorTable[COL_LIGHT_LEMON]);
         }
     }
 
