@@ -106,12 +106,14 @@ bool audioEngineInit()
     if (gAudioEngineDeviceId == -1) {
         return false;
     }
-    // WASAPI is returning AUDIO_F32, causing audio to write 16bit integers into a 32bit float. No sound.
-    if (gAudioEngineSpec.format == AUDIO_F32) {
+    // WASAPI isn't handling 2.1, 5.1, etc correctly. No sound.
+    const char* driver = SDL_GetCurrentAudioDriver();
+    if (std::string_view(driver) == "wasapi" && gAudioEngineSpec.channels > '\x2')
+        {
         // Close device.
         SDL_CloseAudioDevice(gAudioEngineDeviceId);
         // Let SDL2 do the conversion internally instead.
-        gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, 0);
+        gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE || SDL_AUDIO_ALLOW_FORMAT_CHANGE || SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
         if (gAudioEngineDeviceId == -1) {
             return false;
         }
