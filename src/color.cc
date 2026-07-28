@@ -12,8 +12,8 @@
 namespace fallout {
 
 /*
- * Original fallout.act Palette -> 15-bit key, with unique human-readable colour names
-/*
+    Original fallout.act Palette -> 15-bit key, with unique human-readable colour names
+    
     Block 0 (indices 0-15)
        0,  // idx   0: #0000FF  (bright blue)
    30653,  // idx   1: #ECECEC  (very light gray)
