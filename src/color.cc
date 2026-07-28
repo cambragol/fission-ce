@@ -12,11 +12,9 @@
 namespace fallout {
 
 /*
- * Palette -> 15-bit key, with unique human-readable colour names
- * Use this as a quick reference when you encounter magic numbers.
- */
+ * Original fallout.act Palette -> 15-bit key, with unique human-readable colour names
 /*
-    Block 0 (indices 0–15)
+    Block 0 (indices 0-15)
        0,  // idx   0: #0000FF  (bright blue)
    30653,  // idx   1: #ECECEC  (very light gray)
    28539,  // idx   2: #DCDCDC  (light gray)
@@ -34,7 +32,7 @@ namespace fallout {
     5285,  // idx  14: #282828  (near black)
     4228,  // idx  15: #202020  (almost black)
 
-    Block 1 (indices 16–31)
+    Block 1 (indices 16-31)
    32701,  // idx  16: #FCECEC  (very pale pink)
    30587,  // idx  17: #ECD8D8  (pale pink)
    28440,  // idx  18: #DCC4C4  (light dusty rose)
@@ -52,7 +50,7 @@ namespace fallout {
     5219,  // idx  30: #2C1818  (nearly black brown)
     4162,  // idx  31: #201010  (blackish red)
 
-    Block 2 (indices 32–47)
+    Block 2 (indices 32-47)
    30655,  // idx  32: #ECECFC  (very pale lavender)
    28541,  // idx  33: #D8D8EC  (pale lavender)
    25371,  // idx  34: #C4C4DC  (light periwinkle)
@@ -70,7 +68,7 @@ namespace fallout {
     3173,  // idx  46: #18182C  (near black blue)
     2116,  // idx  47: #101020  (blackish blue)
 
-    Block 3 (indices 48–63)
+    Block 3 (indices 48-63)
    32478,  // idx  48: #FCB0F0  (orchid pink)
    24981,  // idx  49: #C460A8  (mauve)
    13452,  // idx  50: #682460  (deep mauve)
@@ -88,7 +86,7 @@ namespace fallout {
    18916,  // idx  62: #907824  (greenish brown)
    15779,  // idx  63: #7C6818  (dark olive)
 
-    Block 4 (indices 64–79)
+    Block 4 (indices 64-79)
    13666,  // idx  64: #6C5810  (olive brown)
    11553,  // idx  65: #584808  (dark olive brown)
     9440,  // idx  66: #483804  (very dark olive)
@@ -106,7 +104,7 @@ namespace fallout {
     7364,  // idx  78: #383020  (cocoa brown)
    13802,  // idx  79: #687850  (olive green)
 
-    Block 5 (indices 80–95)
+    Block 5 (indices 80-95)
    14820,  // idx  80: #707820  (moss)
    14757,  // idx  81: #706828  (drab green)
    12676,  // idx  82: #606024  (dark moss)
@@ -124,7 +122,7 @@ namespace fallout {
     2211,  // idx  94: #142818  (blackish teal)
     2178,  // idx  95: #102010  (near black green)
 
-    Block 6 (indices 96–111)
+    Block 6 (indices 96-111)
     3267,  // idx  96: #183018  (very dark forest)
     2177,  // idx  97: #10240C  (blackish green)
     1120,  // idx  98: #081C04  (almost black green)
@@ -142,7 +140,7 @@ namespace fallout {
     3273,  // idx 110: #1C304C  (very dark navy)
     3240,  // idx 111: #182840  (blackish navy)
 
-    Block 7 (indices 112–127)
+    Block 7 (indices 112-127)
    20116,  // idx 112: #9CA4A4  (warm gray)
     7469,  // idx 113: #384868  (dark blue slate)
    10603,  // idx 114: #505858  (cool dark gray)
@@ -160,7 +158,7 @@ namespace fallout {
    32569,  // idx 126: #FCCCCC  (pale coral)
    32470,  // idx 127: #FCB0B0  (coral)
 
-    Block 8 (indices 128–143)
+    Block 8 (indices 128-143)
    32371,  // idx 128: #FC9898  (light coral)
    32239,  // idx 129: #FC7C7C  (salmon)
    32140,  // idx 130: #FC6464  (warm salmon)
@@ -178,7 +176,7 @@ namespace fallout {
    32530,  // idx 142: #FCC494  (peach)
    32495,  // idx 143: #FCB878  (light apricot)
 
-    Block 9 (indices 144–159)
+    Block 9 (indices 144-159)
    32428,  // idx 144: #FCAC60  (apricot)
    32361,  // idx 145: #FC9C48  (orange)
    32325,  // idx 146: #FC942C  (vibrant orange)
@@ -196,7 +194,7 @@ namespace fallout {
    26252,  // idx 158: #C8A064  (warm sand)
    24138,  // idx 159: #BC9054  (desert sand)
 
-    Block 10 (indices 160–175)
+    Block 10 (indices 160-175)
    22024,  // idx 160: #AC8044  (warm sand)
    19910,  // idx 161: #9C7434  (buff)
    17797,  // idx 162: #8C6428  (dark buff)
@@ -214,7 +212,7 @@ namespace fallout {
    20839,  // idx 174: #A05C38  (dark camel)
    18725,  // idx 175: #904C2C  (brown)
 
-    Block 11 (indices 176–191)
+    Block 11 (indices 176-191)
    16612,  // idx 176: #843C20  (mahogany)
    15523,  // idx 177: #782C18  (dark mahogany)
    13442,  // idx 178: #6C2010  (deep mahogany)
@@ -232,7 +230,7 @@ namespace fallout {
    21896,  // idx 190: #A86040  (brick)
    18759,  // idx 191: #905038  (dark brick)
 
-    Block 12 (indices 192–207)
+    Block 12 (indices 192-207)
    15622,  // idx 192: #784030  (deep brick)
    12484,  // idx 193: #603024  (very dark brick)
     9347,  // idx 194: #48241C  (near black brick)
@@ -250,7 +248,7 @@ namespace fallout {
     9445,  // idx 206: #483828  (dark brown)
     1057,  // idx 207: #0C0C0C  (black)
 
-    Block 13 (indices 208–223)
+    Block 13 (indices 208-223)
     7399,  // idx 208: #3C3C3C  (dark gray)
    13773,  // idx 209: #6C746C  (grayish green)
    15887,  // idx 210: #788478  (gray olive)
@@ -268,7 +266,7 @@ namespace fallout {
    27377,  // idx 222: #D0B888  (ivory)
    19946,  // idx 223: #987C50  (tan)
 
-    Block 14 (indices 224–239)
+    Block 14 (indices 224-239)
    13671,  // idx 224: #68583C  (dark tan)
    10500,  // idx 225: #504024  (very dark tan)
     6307,  // idx 226: #34281C  (near black tan)
@@ -286,7 +284,7 @@ namespace fallout {
        0,  // idx 238: #000000  (color cycle)
        0,  // idx 239: #000000  (color cycle)
 
-    Block 15 (indices 240–255)
+    Block 15 (indices 240-255)
        0,  // idx 240: #000000  (color cycle)
        0,  // idx 241: #000000  (color cycle)
        0,  // idx 242: #000000  (color cycle)
