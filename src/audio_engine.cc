@@ -101,22 +101,11 @@ bool audioEngineInit()
     desiredSpec.channels = 2;
     desiredSpec.samples = 1024;
     desiredSpec.callback = audioEngineMixin;
-
-    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    const char* driver = SDL_GetCurrentAudioDriver();
+    // Prevent overriding channels, as some audio drivers (WASAPI) don't handle > 2 correctly in this context and play no sound.
+    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
     if (gAudioEngineDeviceId == -1) {
         return false;
-    }
-    // WASAPI isn't handling 2.1, 5.1, etc correctly. No sound.
-    const char* driver = SDL_GetCurrentAudioDriver();
-    if (std::string_view(driver) == "wasapi" && gAudioEngineSpec.channels > '\x2')
-        {
-        // Close device.
-        SDL_CloseAudioDevice(gAudioEngineDeviceId);
-        // Let SDL2 do the conversion internally instead.
-        gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
-        if (gAudioEngineDeviceId == -1) {
-            return false;
-        }
     }
 
     SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
