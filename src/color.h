@@ -35,16 +35,16 @@ void colorSetBrightness(double value);
 bool _initColors();
 void _colorsClose();
 
-// Colour helpers – convert 24?bit hex (#RRGGBB) to/from 15?bit keys.
+// Colour helpers - convert 24-bit hex (#RRGGBB) to/from 15-bit keys.
 
-// Convert 24?bit RGB (e.g., 0xFCFCFC) to the 15?bit key used by _colorTable[].
+// Convert 24-bit RGB (e.g., 0xFCFCFC) to the 15-bit key used by _colorTable[].
 inline constexpr uint16_t ColorRGB15(uint32_t rgb24)
 {
     return (uint16_t)((((rgb24 >> 16) & 0xFF) >> 3) << 10 | (((rgb24 >> 8) & 0xFF) >> 3) << 5 | ((rgb24 & 0xFF) >> 3));
 }
 
 // ============================================================================
-// Full palette colour constants – one per palette index.
+// Full fallout.act palette colour constants - one per palette index.
 // Replaces all magic numbers from original code. Some original magic numbers
 // Did not match colors in palette - likely a palette change at some point
 // ============================================================================
@@ -292,7 +292,7 @@ inline constexpr uint16_t COL_VERY_DARK_TAN = ColorRGB15(0x504024); // idx 225
 inline constexpr uint16_t COL_NEAR_BLACK_TAN = ColorRGB15(0x34281C); // idx 226
 inline constexpr uint16_t COL_BLACKISH_TAN = ColorRGB15(0x18100C); // idx 227
 inline constexpr uint16_t COL_BLACK = ColorRGB15(0x000000); // idx 228
-// Indices 229–255 are all #ffffff but are actually used for color cycling
+// Indices 229-255 are all #ffffff but are actually used for color cycling
 
 } // namespace fallout
 
