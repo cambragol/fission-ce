@@ -106,6 +106,16 @@ bool audioEngineInit()
     if (gAudioEngineDeviceId == -1) {
         return false;
     }
+    // WASAPI is returning AUDIO_F32, causing audio to write 16bit integers into a 32bit float. No sound.
+    if (gAudioEngineSpec.format == AUDIO_F32) {
+        // Close device.
+        SDL_CloseAudioDevice(gAudioEngineDeviceId);
+        // Let SDL2 do the conversion internally instead.
+        gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, 0);
+        if (gAudioEngineDeviceId == -1) {
+            return false;
+        }
+    }
 
     SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
 
