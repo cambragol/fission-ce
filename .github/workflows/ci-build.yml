@@ -313,7 +313,7 @@ jobs:
         run: |
           mv build/fallout2-ce build/fallout-fission-linux-${{ matrix.arch }}
 
-      - name: Package Linux ARM with fission.dat
+      - name: Package Linux ${{ matrix.arch }} with fission.dat
         run: |
           mkdir -p packaged
           # Copy binary
@@ -328,7 +328,7 @@ jobs:
           mkdir -p packages
           cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
 
-      - name: Upload Linux ARM package
+      - name: Upload Linux ${{ matrix.arch }} package
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-linux-${{ matrix.arch }}
