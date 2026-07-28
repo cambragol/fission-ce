@@ -552,7 +552,7 @@ int mapper_edit_init(int argc, char** argv)
         0,
         rectGetWidth(&_scr_size),
         16,
-        _colorTable[0],
+        _colorTable[COL_BLACK],
         WINDOW_HIDDEN);
     _win_register_menu_bar(menu_bar,
         0,
@@ -560,7 +560,7 @@ int mapper_edit_init(int argc, char** argv)
         rectGetWidth(&_scr_size),
         16,
         260,
-        _colorTable[8456]);
+        _colorTable[COL_DARK_SLATE]);
     _win_register_menu_pulldown(menu_bar,
         8,
         "FILE",
@@ -568,7 +568,7 @@ int mapper_edit_init(int argc, char** argv)
         8,
         menu_names[0],
         260,
-        _colorTable[8456]);
+        _colorTable[COL_DARK_SLATE]);
     _win_register_menu_pulldown(menu_bar,
         40,
         "TOOLS",
@@ -576,7 +576,7 @@ int mapper_edit_init(int argc, char** argv)
         21,
         menu_names[1],
         260,
-        _colorTable[8456]);
+        _colorTable[COL_DARK_SLATE]);
     _win_register_menu_pulldown(menu_bar,
         80,
         "SCRIPTS",
@@ -584,7 +584,7 @@ int mapper_edit_init(int argc, char** argv)
         8,
         menu_names[2],
         260,
-        _colorTable[8456]);
+        _colorTable[COL_DARK_SLATE]);
 
     if (can_modify_protos) {
         _win_register_menu_pulldown(menu_bar,
@@ -594,7 +594,7 @@ int mapper_edit_init(int argc, char** argv)
             6,
             &(menu_1[14]),
             260,
-            _colorTable[8456]);
+            _colorTable[COL_DARK_SLATE]);
     }
 
     tool_win = windowCreate(0,
@@ -1441,11 +1441,11 @@ void print_toolbar_name(int object_type)
         96,
         _scr_size.right - _scr_size.left + 1,
         19,
-        _colorTable[21140]);
+        _colorTable[COL_GUNMETAL]);
 
     sprintf(name, "%s", artGetObjectTypeName(object_type));
     name[0] = toupper(name[0]);
-    windowDrawText(tool_win, name, 0, 7, 7, _colorTable[32747] | 0x2000000);
+    windowDrawText(tool_win, name, 0, 7, 7, _colorTable[COL_LIGHT_LEMON] | 0x2000000);
     windowRefreshRect(tool_win, &rect);
 }
 

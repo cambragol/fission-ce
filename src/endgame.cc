@@ -309,7 +309,7 @@ static int endgameEndingHandleContinuePlaying()
     MessageListItem messageListItem;
     messageListItem.num = 30;
     if (messageListGetItem(&gMiscMessageList, &messageListItem)) {
-        rc = showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+        rc = showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_YES_NO);
         if (rc == 0) {
             _game_user_wants_to_quit = 2;
         }
@@ -350,7 +350,7 @@ static void endgameEndingRenderPanningScene(int direction, const char* narratorF
         unsigned char* backgroundData = artGetFrameData(background, 0, 0);
 
         // Clear the screen buffer
-        bufferFill(gEndgameEndingSlideshowWindowBuffer, screenWidth, screenHeight, screenWidth, _colorTable[0]);
+        bufferFill(gEndgameEndingSlideshowWindowBuffer, screenWidth, screenHeight, screenWidth, _colorTable[COL_BLACK]);
 
         // Load the appropriate palette for this art
         endgameEndingLoadPalette(6, art_num);
@@ -473,7 +473,7 @@ static void endgameEndingRenderPanningScene(int direction, const char* narratorF
 
         // Fade to black at the end of the scene
         paletteFadeTo(gPaletteBlack);
-        bufferFill(gEndgameEndingSlideshowWindowBuffer, screenWidth, screenHeight, screenWidth, _colorTable[0]);
+        bufferFill(gEndgameEndingSlideshowWindowBuffer, screenWidth, screenHeight, screenWidth, _colorTable[COL_BLACK]);
         windowRefresh(gEndgameEndingSlideshowWindow);
     }
 
@@ -616,7 +616,7 @@ static int endgameEndingSlideshowWindowInit()
 
     // CE: Every slide has a separate color palette which is incompatible with
     // main color palette. Setup overlay to hide everything.
-    gEndgameEndingOverlay = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MOVE_ON_TOP);
+    gEndgameEndingOverlay = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[COL_BLACK], WINDOW_MOVE_ON_TOP);
     if (gEndgameEndingOverlay == -1) {
         return -1;
     }
@@ -627,7 +627,7 @@ static int endgameEndingSlideshowWindowInit()
         windowEndgameEndingY,
         game_width,
         game_height,
-        _colorTable[0],
+        _colorTable[COL_BLACK],
         WINDOW_MOVE_ON_TOP);
     if (gEndgameEndingSlideshowWindow == -1) {
         return -1;
@@ -908,8 +908,8 @@ static void endgameEndingRefreshSubtitles()
 
         int width = fontGetStringWidth(beginning);
         int x = (game_width - width) / 2;
-        bufferFill(gEndgameEndingSlideshowWindowBuffer + game_width * y + x, width, height, game_width, _colorTable[0]);
-        fontDrawText(gEndgameEndingSlideshowWindowBuffer + game_width * y + x, beginning, width, game_width, _colorTable[32767]);
+        bufferFill(gEndgameEndingSlideshowWindowBuffer + game_width * y + x, width, height, game_width, _colorTable[COL_BLACK]);
+        fontDrawText(gEndgameEndingSlideshowWindowBuffer + game_width * y + x, beginning, width, game_width, _colorTable[COL_WHITE]);
 
         *ending = c;
 
@@ -1360,7 +1360,7 @@ void endgameEndingUpdateOverlay()
         windowGetWidth(gEndgameEndingOverlay),
         windowGetHeight(gEndgameEndingOverlay),
         windowGetWidth(gEndgameEndingOverlay),
-        intensityColorTable[_colorTable[0]][0]);
+        intensityColorTable[_colorTable[COL_BLACK]][0]);
     windowRefresh(gEndgameEndingOverlay);
 }
 
