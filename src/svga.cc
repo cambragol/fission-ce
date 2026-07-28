@@ -1,5 +1,6 @@
 #include "svga.h"
 
+#include <algorithm>
 #include <limits.h>
 #include <string.h>
 
