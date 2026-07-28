@@ -322,7 +322,7 @@ jobs:
           cp os/macos/fission.dat packaged/
           # Create zip
           cd packaged
-          zip fallout-fission-linux-armhf.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
+          zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
           cd ..
           # Also copy zip to a common directory for the combined package job
           mkdir -p packages
