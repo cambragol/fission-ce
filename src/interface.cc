@@ -656,7 +656,7 @@ int interfaceInit()
     int interfaceBarWindowX = (screenGetWidth() - gInterfaceBarWidth) / 2;
     int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT - interfaceBarYOffset();
 
-    gInterfaceBarWindow = windowCreate(interfaceBarWindowX, interfaceBarWindowY, gInterfaceBarWidth, INTERFACE_BAR_HEIGHT, _colorTable[0], WINDOW_HIDDEN | WINDOW_DRAGGABLE_BY_BACKGROUND | WINDOW_TRANSPARENT);
+    gInterfaceBarWindow = windowCreate(interfaceBarWindowX, interfaceBarWindowY, gInterfaceBarWidth, INTERFACE_BAR_HEIGHT, _colorTable[COL_BLACK], WINDOW_HIDDEN | WINDOW_DRAGGABLE_BY_BACKGROUND | WINDOW_TRANSPARENT);
     if (gInterfaceBarWindow == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
@@ -3120,7 +3120,7 @@ static int indicatorBarInit()
         char text[1024];
         strcpy(text, getmsg(&messageList, &messageListItem, indicator->title));
 
-        int color = indicator->isBad ? _colorTable[31744] : _colorTable[992];
+        int color = indicator->isBad ? _colorTable[COL_PURE_RED] : _colorTable[COL_LIME_GREEN];
 
         memcpy(indicator->data, indicatorBoxFrmImage.getData(), INDICATOR_BOX_WIDTH * INDICATOR_BOX_HEIGHT);
 
@@ -3232,7 +3232,7 @@ int indicatorBarRefresh()
                 indicatorBarY,
                 (INDICATOR_BOX_WIDTH - INDICATOR_BOX_CONNECTOR_WIDTH) * count,
                 INDICATOR_BOX_HEIGHT,
-                _colorTable[0],
+                _colorTable[COL_BLACK],
                 0);
             indicatorBarRender(count);
             windowRefresh(gIndicatorBarWindow);

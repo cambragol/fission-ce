@@ -67,7 +67,7 @@
 
 {300}{}{F.I.S.S.I.O.N.}
 {301}{}{Fleksyjny Izometryczny System Symulacji}
-{302}{}{Interaktywnego Otwartego Nuklearnego?œwiata}
+{302}{}{Interaktywnego Otwartego Nuklearnego-œwiata}
 
 #
 # Sort Context Menu

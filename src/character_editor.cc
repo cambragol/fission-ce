@@ -977,7 +977,7 @@ int characterEditorShow(bool isCreationMode)
                     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 119);
                     strcpy(line2, messageListItemText);
 
-                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     windowRefresh(gCharacterEditorWindow);
 
                     rc = -1;
@@ -995,7 +995,7 @@ int characterEditorShow(bool isCreationMode)
                     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 143);
                     strcpy(line2, messageListItemText);
 
-                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     windowRefresh(gCharacterEditorWindow);
 
                     rc = -1;
@@ -1013,7 +1013,7 @@ int characterEditorShow(bool isCreationMode)
                     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 158);
                     strcpy(line2, messageListItemText);
 
-                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(line1, lines, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     windowRefresh(gCharacterEditorWindow);
 
                     rc = -1;
@@ -1031,7 +1031,7 @@ int characterEditorShow(bool isCreationMode)
                     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 161);
                     strcpy(line2, messageListItemText);
 
-                    if (showDialogBox(line1, lines, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO) == 0) {
+                    if (showDialogBox(line1, lines, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_YES_NO) == 0) {
                         windowRefresh(gCharacterEditorWindow);
 
                         rc = -1;
@@ -1571,7 +1571,7 @@ static int characterEditorWindowInit()
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
         characterEditorDrawBigNumber(
             gOffsets.charPointsValueX,
             gOffsets.charPointsValueY,
@@ -1586,7 +1586,7 @@ static int characterEditorWindowInit()
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
 
         // OPTIONAL TRAITS
         str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 139);
@@ -1594,7 +1594,7 @@ static int characterEditorWindowInit()
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
         characterEditorDrawBigNumber(
             gOffsets.skillsPointsValueX,
             gOffsets.skillsPointsValueY,
@@ -1609,7 +1609,7 @@ static int characterEditorWindowInit()
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
         characterEditorDrawBigNumber(
             gOffsets.skillsPointsValueX,
             gOffsets.skillsPointsValueY,
@@ -1636,21 +1636,21 @@ static int characterEditorWindowInit()
             perks,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
 
         len = fontGetStringWidth(karma);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.karmaTitleX - len / 2),
             karma,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         len = fontGetStringWidth(kills);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.killsTitleX - len / 2),
             kills,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         // karma selected
         len = fontGetStringWidth(perks);
@@ -1658,21 +1658,21 @@ static int characterEditorWindowInit()
             perks,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         len = fontGetStringWidth(karma);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_KARMA_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.karmaTitleX - len / 2),
             karma,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
 
         len = fontGetStringWidth(kills);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_KARMA_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.killsTitleX - len / 2),
             kills,
             _editorFrmImages[46].getWidth(),
             _editorFrmImages[46].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         // kills selected
         len = fontGetStringWidth(perks);
@@ -1680,21 +1680,21 @@ static int characterEditorWindowInit()
             perks,
             _editorFrmImages[46].getWidth(),
             _editorFrmImages[46].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         len = fontGetStringWidth(karma);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_KILLS_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.karmaTitleX - len / 2),
             karma,
             _editorFrmImages[46].getWidth(),
             _editorFrmImages[46].getWidth(),
-            _colorTable[14723]);
+            _colorTable[COL_DARK_OLIVE]);
 
         len = fontGetStringWidth(kills);
         fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_KILLS_FOLDER_SELECTED] + 5 * _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth() + (gOffsets.killsTitleX - len / 2),
             kills,
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
             _editorFrmImages[EDITOR_GRAPHIC_PERKS_FOLDER_SELECTED].getWidth(),
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
 
         characterEditorDrawFolders();
 
@@ -1706,7 +1706,7 @@ static int characterEditorWindowInit()
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
 
         characterEditorDrawPcStats();
         characterEditorFolderViewInit();
@@ -1720,7 +1720,7 @@ static int characterEditorWindowInit()
         str,
         gOffsets.windowWidth,
         gOffsets.windowWidth,
-        _colorTable[18979]);
+        _colorTable[COL_GREENISH_BROWN]);
 
     // DONE
     str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 100);
@@ -1728,7 +1728,7 @@ static int characterEditorWindowInit()
         str,
         gOffsets.windowWidth,
         gOffsets.windowWidth,
-        _colorTable[18979]);
+        _colorTable[COL_GREENISH_BROWN]);
 
     characterEditorDrawPrimaryStat(RENDER_ALL_STATS, 0, 0);
     characterEditorDrawDerivedStats();
@@ -2594,9 +2594,9 @@ static void characterEditorDrawPcStats()
     // LEVEL
     y = gOffsets.pcStatsY;
     if (characterEditorSelectedItem != 7) {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     } else {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     }
 
     int level = pcGetStat(PC_STAT_LEVEL);
@@ -2613,9 +2613,9 @@ static void characterEditorDrawPcStats()
     // EXPERIENCE
     y += fontGetLineHeight() + 1;
     if (characterEditorSelectedItem != 8) {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     } else {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     }
 
     int exp = pcGetStat(PC_STAT_EXPERIENCE);
@@ -2632,9 +2632,9 @@ static void characterEditorDrawPcStats()
     // EXP NEEDED TO NEXT LEVEL
     y += fontGetLineHeight() + 1;
     if (characterEditorSelectedItem != 9) {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     } else {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     }
 
     int expToNextLevel = pcGetExperienceForNextLevel();
@@ -2681,9 +2681,9 @@ static void characterEditorDrawPrimaryStat(int stat, bool animate, int previousV
     }
 
     if (characterEditorSelectedItem == stat) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     // Use offset for description position
@@ -2788,8 +2788,8 @@ static void characterEditorDrawGender()
         width * _editorFrmImages[EDITOR_GRAPHIC_SEX_OFF].getHeight());
 
     x += 6 * width;
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_SEX_ON] + x, text, width, width, _colorTable[14723]);
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_SEX_OFF] + x, text, width, width, _colorTable[18979]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_SEX_ON] + x, text, width, width, _colorTable[COL_DARK_OLIVE]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_SEX_OFF] + x, text, width, width, _colorTable[COL_GREENISH_BROWN]);
 }
 
 // 0x43501C
@@ -2818,8 +2818,8 @@ static void characterEditorDrawAge()
         width * _editorFrmImages[EDITOR_GRAPHIC_AGE_ON].getHeight());
 
     x += 6 * width;
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_AGE_ON] + x, text, width, width, _colorTable[14723]);
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_AGE_OFF] + x, text, width, width, _colorTable[18979]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_AGE_ON] + x, text, width, width, _colorTable[COL_DARK_OLIVE]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_AGE_OFF] + x, text, width, width, _colorTable[COL_GREENISH_BROWN]);
 }
 
 // 0x435118
@@ -2874,8 +2874,8 @@ static void characterEditorDrawName()
         _editorFrmImages[EDITOR_GRAPHIC_NAME_OFF].getWidth() * _editorFrmImages[EDITOR_GRAPHIC_NAME_OFF].getHeight());
 
     x += 6 * width;
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_NAME_ON] + x, text, width, width, _colorTable[14723]);
-    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_NAME_OFF] + x, text, width, width, _colorTable[18979]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_NAME_ON] + x, text, width, width, _colorTable[COL_DARK_OLIVE]);
+    fontDrawText(gCharacterEditorFrmCopy[EDITOR_GRAPHIC_NAME_OFF] + x, text, width, width, _colorTable[COL_GREENISH_BROWN]);
 }
 
 // 0x43527C
@@ -2902,9 +2902,9 @@ static void characterEditorDrawDerivedStats()
 
     // Hit Points
     if (characterEditorSelectedItem == EDITOR_HIT_POINTS) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     int currHp;
@@ -2938,9 +2938,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_POISONED) {
-        color = critterGetPoison(gDude) != 0 ? _colorTable[32747] : _colorTable[15845];
+        color = critterGetPoison(gDude) != 0 ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = critterGetPoison(gDude) != 0 ? _colorTable[992] : _colorTable[1313];
+        color = critterGetPoison(gDude) != 0 ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 312);
@@ -2951,9 +2951,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_RADIATED) {
-        color = critterGetRadiation(gDude) != 0 ? _colorTable[32747] : _colorTable[15845];
+        color = critterGetRadiation(gDude) != 0 ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = critterGetRadiation(gDude) != 0 ? _colorTable[992] : _colorTable[1313];
+        color = critterGetRadiation(gDude) != 0 ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 313);
@@ -2964,9 +2964,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_EYE_DAMAGE) {
-        color = (conditions & DAM_BLIND) ? _colorTable[32747] : _colorTable[15845];
+        color = (conditions & DAM_BLIND) ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = (conditions & DAM_BLIND) ? _colorTable[992] : _colorTable[1313];
+        color = (conditions & DAM_BLIND) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 314);
@@ -2977,9 +2977,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_CRIPPLED_RIGHT_ARM) {
-        color = (conditions & DAM_CRIP_ARM_RIGHT) ? _colorTable[32747] : _colorTable[15845];
+        color = (conditions & DAM_CRIP_ARM_RIGHT) ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = (conditions & DAM_CRIP_ARM_RIGHT) ? _colorTable[992] : _colorTable[1313];
+        color = (conditions & DAM_CRIP_ARM_RIGHT) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 315);
@@ -2990,9 +2990,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_CRIPPLED_LEFT_ARM) {
-        color = (conditions & DAM_CRIP_ARM_LEFT) ? _colorTable[32747] : _colorTable[15845];
+        color = (conditions & DAM_CRIP_ARM_LEFT) ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = (conditions & DAM_CRIP_ARM_LEFT) ? _colorTable[992] : _colorTable[1313];
+        color = (conditions & DAM_CRIP_ARM_LEFT) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 316);
@@ -3003,9 +3003,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_CRIPPLED_RIGHT_LEG) {
-        color = (conditions & DAM_CRIP_LEG_RIGHT) ? _colorTable[32747] : _colorTable[15845];
+        color = (conditions & DAM_CRIP_LEG_RIGHT) ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = (conditions & DAM_CRIP_LEG_RIGHT) ? _colorTable[992] : _colorTable[1313];
+        color = (conditions & DAM_CRIP_LEG_RIGHT) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 317);
@@ -3016,9 +3016,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_CRIPPLED_LEFT_LEG) {
-        color = (conditions & DAM_CRIP_LEG_LEFT) ? _colorTable[32747] : _colorTable[15845];
+        color = (conditions & DAM_CRIP_LEG_LEFT) ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_MOSS];
     } else {
-        color = (conditions & DAM_CRIP_LEG_LEFT) ? _colorTable[992] : _colorTable[1313];
+        color = (conditions & DAM_CRIP_LEG_LEFT) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_VERY_DARK_FOREST];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 318);
@@ -3037,9 +3037,9 @@ static void characterEditorDrawDerivedStats()
 
     // Armor Class
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_ARMOR_CLASS) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 302);
@@ -3063,9 +3063,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_ACTION_POINTS) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 301);
@@ -3079,9 +3079,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_CARRY_WEIGHT) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 311);
@@ -3089,15 +3089,15 @@ static void characterEditorDrawDerivedStats()
     fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * y + gOffsets.derivedStatsBottomX, t, gOffsets.windowWidth, gOffsets.windowWidth, color);
 
     compat_itoa(critterGetStat(gDude, STAT_CARRY_WEIGHT), t, 10);
-    fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * y + gOffsets.derivedStatsValueX, t, gOffsets.windowWidth, gOffsets.windowWidth, critterIsEncumbered(gDude) ? _colorTable[31744] : color);
+    fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * y + gOffsets.derivedStatsValueX, t, gOffsets.windowWidth, gOffsets.windowWidth, critterIsEncumbered(gDude) ? _colorTable[COL_PURE_RED] : color);
 
     // Melee Damage
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_MELEE_DAMAGE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 304);
@@ -3117,9 +3117,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_DAMAGE_RESISTANCE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 305);
@@ -3133,9 +3133,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_POISON_RESISTANCE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 306);
@@ -3149,9 +3149,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_RADIATION_RESISTANCE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 307);
@@ -3165,9 +3165,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_SEQUENCE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 308);
@@ -3181,9 +3181,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_HEALING_RATE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 309);
@@ -3197,9 +3197,9 @@ static void characterEditorDrawDerivedStats()
     y += fontGetLineHeight() + 3;
 
     if (characterEditorSelectedItem == EDITOR_FIRST_DERIVED_STAT + EDITOR_DERIVED_STAT_CRITICAL_CHANCE) {
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
     } else {
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
     }
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 310);
@@ -3248,7 +3248,7 @@ static void characterEditorDrawSkills(int a1)
         str,
         gOffsets.windowWidth,
         gOffsets.windowWidth,
-        _colorTable[18979]);
+        _colorTable[COL_GREENISH_BROWN]);
 
     // Draw the right label - must appear before the list
     if (!gCharacterEditorIsCreationMode) {
@@ -3258,7 +3258,7 @@ static void characterEditorDrawSkills(int a1)
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
     } else {
         // TAG SKILLS using offsets
         str = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 138);
@@ -3266,7 +3266,7 @@ static void characterEditorDrawSkills(int a1)
             str,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[18979]);
+            _colorTable[COL_GREENISH_BROWN]);
     }
 
     skillsSetTagged(gCharacterEditorTempTaggedSkills, NUM_TAGGED_SKILLS);
@@ -3277,15 +3277,15 @@ static void characterEditorDrawSkills(int a1)
     for (i = 0; i < SKILL_COUNT; i++) {
         if (i == selectedSkill) {
             if (i != gCharacterEditorTempTaggedSkills[0] && i != gCharacterEditorTempTaggedSkills[1] && i != gCharacterEditorTempTaggedSkills[2] && i != gCharacterEditorTempTaggedSkills[3]) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[32767];
+                color = _colorTable[COL_WHITE];
             }
         } else {
             if (i != gCharacterEditorTempTaggedSkills[0] && i != gCharacterEditorTempTaggedSkills[1] && i != gCharacterEditorTempTaggedSkills[2] && i != gCharacterEditorTempTaggedSkills[3]) {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             } else {
-                color = _colorTable[21140];
+                color = _colorTable[COL_GUNMETAL];
             }
         }
 
@@ -3581,7 +3581,7 @@ static int characterEditorEditName()
     fontSetCurrent(103);
 
     text = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 100);
-    fontDrawText(windowBuf + windowWidth * 44 + 50, text, windowWidth, windowWidth, _colorTable[18979]);
+    fontDrawText(windowBuf + windowWidth * 44 + 50, text, windowWidth, windowWidth, _colorTable[COL_GREENISH_BROWN]);
 
     int doneBtn = buttonCreate(win,
         26,
@@ -3616,7 +3616,7 @@ static int characterEditorEditName()
     char nameCopy[64];
     strcpy(nameCopy, name);
 
-    if (_get_input_str(win, 500, nameCopy, 11, 23, 19, _colorTable[992], 100, 0) != -1) {
+    if (_get_input_str(win, 500, nameCopy, 11, 23, 19, _colorTable[COL_LIME_GREEN], 100, 0) != -1) {
         if (nameCopy[0] != '\0') {
             dudeSetName(nameCopy);
             characterEditorDrawName();
@@ -3664,7 +3664,7 @@ static void _PrintName(unsigned char* buf, int pitch)
         str,
         pitch,
         pitch,
-        _colorTable[992]);
+        _colorTable[COL_LIME_GREEN]);
 }
 
 // 0x436FEC
@@ -3720,7 +3720,7 @@ static int characterEditorEditAge()
     fontSetCurrent(103);
 
     messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 100);
-    fontDrawText(windowBuf + windowWidth * 44 + 50, messageListItemText, windowWidth, windowWidth, _colorTable[18979]);
+    fontDrawText(windowBuf + windowWidth * 44 + 50, messageListItemText, windowWidth, windowWidth, _colorTable[COL_GREENISH_BROWN]);
 
     age = critterGetStat(gDude, STAT_AGE);
     // Use offsets for age number position
@@ -3959,7 +3959,7 @@ static void characterEditorEditGender()
     fontSetCurrent(103);
 
     text = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 100);
-    fontDrawText(windowBuf + windowWidth * 48 + 52, text, windowWidth, windowWidth, _colorTable[18979]);
+    fontDrawText(windowBuf + windowWidth * 48 + 52, text, windowWidth, windowWidth, _colorTable[COL_GREENISH_BROWN]);
 
     int doneBtn = buttonCreate(win,
         28,
@@ -4230,8 +4230,8 @@ static int characterEditorShowOptions()
                 strcpy(string4, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 600 + index));
 
                 int offset = width * 7 + width / 2 - fontGetStringWidth(string4) / 2;
-                fontDrawText(up[index] + offset, string4, width, width, _colorTable[18979]);
-                fontDrawText(down[index] + offset, string4, width, width, _colorTable[14723]);
+                fontDrawText(up[index] + offset, string4, width, width, _colorTable[COL_GREENISH_BROWN]);
+                fontDrawText(down[index] + offset, string4, width, width, _colorTable[COL_DARK_OLIVE]);
 
                 int btn = buttonCreate(win, 13, y, width, height, -1, -1, -1, 500 + index, up[index], down[index], nullptr, BUTTON_FLAG_TRANSPARENT);
                 if (btn != -1) {
@@ -4278,7 +4278,7 @@ static int characterEditorShowOptions()
                 strcpy(string5, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 605));
                 strcpy(string2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 606));
 
-                if (showDialogBox(nullptr, dialogBody, 2, 169, 126, _colorTable[992], nullptr, _colorTable[992], DIALOG_BOX_YES_NO) != 0) {
+                if (showDialogBox(nullptr, dialogBody, 2, 169, 126, _colorTable[COL_LIME_GREEN], nullptr, _colorTable[COL_LIME_GREEN], DIALOG_BOX_YES_NO) != 0) {
                     _ResetPlayer();
                     skillsGetTagged(gCharacterEditorTempTaggedSkills, NUM_TAGGED_SKILLS);
 
@@ -4342,7 +4342,7 @@ static int characterEditorShowOptions()
 
                             strcpy(string5, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 610));
 
-                            if (showDialogBox(string4, dialogBody, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0x10) != 0) {
+                            if (showDialogBox(string4, dialogBody, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0x10) != 0) {
                                 rc = 1;
                             } else {
                                 rc = 0;
@@ -4360,7 +4360,7 @@ static int characterEditorShowOptions()
                                     "%s%s",
                                     compat_strupr(string1),
                                     getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 607));
-                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[992], nullptr, _colorTable[992], 0);
+                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_LIME_GREEN], nullptr, _colorTable[COL_LIME_GREEN], 0);
                             } else {
                                 soundPlayFile("iisxxxx1");
 
@@ -4369,7 +4369,7 @@ static int characterEditorShowOptions()
                                     getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 611),
                                     compat_strupr(string1),
                                     "!");
-                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[992], 0x01);
+                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_LIME_GREEN], 0x01);
                             }
                         }
                     }
@@ -4379,7 +4379,7 @@ static int characterEditorShowOptions()
                     soundPlayFile("iisxxxx1");
 
                     strcpy(string4, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 615));
-                    showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
 
                     rc = 0;
                 }
@@ -4460,7 +4460,7 @@ static int characterEditorShowOptions()
                             strcat(string4, string3);
                             strcat(string4, "!");
 
-                            showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                            showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                         }
 
                         characterEditorResetScreen();
@@ -4474,7 +4474,7 @@ static int characterEditorShowOptions()
                     strcpy(string4, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 615));
                     rc = 0;
 
-                    showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                 }
             } else if (keyCode == 500 || keyCode == KEY_UPPERCASE_S || keyCode == KEY_LOWERCASE_S) {
                 // SAVE
@@ -4502,7 +4502,7 @@ static int characterEditorShowOptions()
                                 getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 609));
                             strcpy(string5, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 610));
 
-                            if (showDialogBox(string4, dialogBody, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO) != 0) {
+                            if (showDialogBox(string4, dialogBody, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_YES_NO) != 0) {
                                 shouldSave = true;
                             } else {
                                 shouldSave = false;
@@ -4523,13 +4523,13 @@ static int characterEditorShowOptions()
                                 snprintf(string4, sizeof(string4), "%s%s!",
                                     compat_strupr(string1),
                                     getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 611));
-                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE);
                                 rc = 0;
                             } else {
                                 snprintf(string4, sizeof(string4), "%s%s",
                                     compat_strupr(string1),
                                     getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 607));
-                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[992], nullptr, _colorTable[992], DIALOG_BOX_LARGE);
+                                showDialogBox(string4, nullptr, 0, 169, 126, _colorTable[COL_LIME_GREEN], nullptr, _colorTable[COL_LIME_GREEN], DIALOG_BOX_LARGE);
                                 rc = 1;
                             }
                         }
@@ -4541,7 +4541,7 @@ static int characterEditorShowOptions()
 
                     // Error reading file list!
                     char* msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 615);
-                    showDialogBox(msg, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                    showDialogBox(msg, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
 
                     rc = 0;
                 }
@@ -4576,7 +4576,7 @@ static int characterEditorShowOptions()
 
         // Error reading file list!
         strcpy(pattern, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 615));
-        showDialogBox(pattern, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+        showDialogBox(pattern, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
         return 0;
     }
 
@@ -4604,7 +4604,7 @@ static int characterEditorShowOptions()
             strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 610));
 
             const char* lines[] = { line2 };
-            v42 = showDialogBox(title, lines, 1, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 0x10);
+            v42 = showDialogBox(title, lines, 1, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0x10);
             if (v42) {
                 v42 = 1;
             }
@@ -4624,7 +4624,7 @@ static int characterEditorShowOptions()
                     getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 611),
                     compat_strupr(fileName),
                     "!");
-                showDialogBox(title, nullptr, 0, 169, 126, _colorTable[32328], nullptr, _colorTable[32328], 1);
+                showDialogBox(title, nullptr, 0, 169, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 1);
             }
         }
     }
@@ -5399,7 +5399,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
         name,
         gOffsets.windowWidth,
         gOffsets.windowWidth,
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
 
     int nameFontLineHeight = fontGetLineHeight();
     if (attributes != nullptr) {
@@ -5411,7 +5411,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
             attributes,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[0]);
+            _colorTable[COL_BLACK]);
     }
 
     // Use offsets for divider line position
@@ -5421,13 +5421,13 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
         dividerY,
         gOffsets.cardDescriptionX + gOffsets.cardBackgroundWidth - 10,
         dividerY,
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
     windowDrawLine(gCharacterEditorWindow,
         gOffsets.cardDescriptionX,
         dividerY + 1,
         gOffsets.cardDescriptionX + gOffsets.cardBackgroundWidth - 10,
         dividerY + 1,
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
 
     fontSetCurrent(101);
     int descriptionFontLineHeight = fontGetLineHeight();
@@ -5449,7 +5449,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
             description + beginning,
             gOffsets.windowWidth,
             gOffsets.windowWidth,
-            _colorTable[0]);
+            _colorTable[COL_BLACK]);
         description[ending] = c;
         y += descriptionFontLineHeight;
     }
@@ -5677,7 +5677,7 @@ static void characterEditorHandleAdjustSkillButtonPressed(int keyCode)
                         strcpy(body1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 132));
                         // Unable to increment it.
                         strcpy(body2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 133));
-                        showDialogBox(title, body, 2, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                        showDialogBox(title, body, 2, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE);
                         rc = -1;
                     }
                 } else {
@@ -5685,7 +5685,7 @@ static void characterEditorHandleAdjustSkillButtonPressed(int keyCode)
 
                     // Not enough skill points available.
                     strcpy(title, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 136));
-                    showDialogBox(title, nullptr, 0, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                    showDialogBox(title, nullptr, 0, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE);
                     rc = -1;
                 }
             } else if (keyCode == 523) {
@@ -5705,7 +5705,7 @@ static void characterEditorHandleAdjustSkillButtonPressed(int keyCode)
                     strcpy(body1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 134));
                     // Unable to decrement it.
                     strcpy(body2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 135));
-                    showDialogBox(title, body, 2, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+                    showDialogBox(title, body, 2, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE);
                     rc = -1;
                 }
             }
@@ -5801,7 +5801,7 @@ static void characterEditorToggleTaggedSkill(int skill)
             strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 141));
 
             const char* lines[] = { line2 };
-            showDialogBox(line1, lines, 1, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+            showDialogBox(line1, lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
         }
     }
 
@@ -5862,9 +5862,9 @@ static void characterEditorDrawOptionalTraits()
     for (i = 0; i < 8; i++) {
         if (i == v0) {
             if (i != gCharacterEditorTempTraits[0] && i != gCharacterEditorTempTraits[1]) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[32767];
+                color = _colorTable[COL_WHITE];
             }
 
             gCharacterEditorFolderCardFrmId = traitGetFrmId(i);
@@ -5873,9 +5873,9 @@ static void characterEditorDrawOptionalTraits()
             gCharacterEditorFolderCardDescription = traitGetDescription(i);
         } else {
             if (i != gCharacterEditorTempTraits[0] && i != gCharacterEditorTempTraits[1]) {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             } else {
-                color = _colorTable[21140];
+                color = _colorTable[COL_GUNMETAL];
             }
         }
 
@@ -5893,9 +5893,9 @@ static void characterEditorDrawOptionalTraits()
     for (i = 8; i < 16; i++) {
         if (i == v0) {
             if (i != gCharacterEditorTempTraits[0] && i != gCharacterEditorTempTraits[1]) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[32767];
+                color = _colorTable[COL_WHITE];
             }
 
             gCharacterEditorFolderCardFrmId = traitGetFrmId(i);
@@ -5904,9 +5904,9 @@ static void characterEditorDrawOptionalTraits()
             gCharacterEditorFolderCardDescription = traitGetDescription(i);
         } else {
             if (i != gCharacterEditorTempTraits[0] && i != gCharacterEditorTempTraits[1]) {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             } else {
-                color = _colorTable[21140];
+                color = _colorTable[COL_GUNMETAL];
             }
         }
 
@@ -5942,7 +5942,7 @@ static void characterEditorToggleOptionalTrait(int trait)
             strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 149));
 
             const char* lines = { line2 };
-            showDialogBox(line1, &lines, 1, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], 0);
+            showDialogBox(line1, &lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
         } else {
             for (int index = 0; index < 2; index++) {
                 if (gCharacterEditorTempTraits[index] == -1) {
@@ -6385,15 +6385,15 @@ static int perkDialogShow()
 
     // PICK A NEW PERK
     msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 152);
-    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
     // DONE
     msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 100);
-    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 186 + 69, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 186 + 69, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
     // CANCEL
     msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 102);
-    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 186 + 171, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 186 + 171, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
     int count = perkDialogDrawPerks();
 
@@ -6781,9 +6781,9 @@ static int perkDialogDrawPerks()
     for (int index = gPerkDialogTopLine; index < v16; index++) {
         int color;
         if (index == gPerkDialogTopLine + gPerkDialogCurrentLine) {
-            color = _colorTable[32747];
+            color = _colorTable[COL_LIGHT_LEMON];
         } else {
-            color = _colorTable[992];
+            color = _colorTable[COL_LIME_GREEN];
         }
 
         fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 45, gPerkDialogOptionList[index].name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, color);
@@ -6852,7 +6852,7 @@ static bool perkDialogHandleMutatePerk()
 
         // LOSE A TRAIT
         char* msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 154);
-        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
         gPerkDialogOptionCount = 0;
         gPerkDialogCurrentLine = 0;
@@ -6898,7 +6898,7 @@ static bool perkDialogHandleMutatePerk()
 
         // PICK A NEW TRAIT
         char* msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 153);
-        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, msg, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
         gPerkDialogCurrentLine = 0;
         gPerkDialogTopLine = 0;
@@ -6967,7 +6967,7 @@ static bool perkDialogHandleTagPerk()
 
     // PICK A NEW TAG SKILL
     char* messageListItemText = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 155);
-    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, messageListItemText, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[18979]);
+    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 16 + 49, messageListItemText, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
     gPerkDialogCurrentLine = 0;
     gPerkDialogTopLine = 0;
@@ -7019,9 +7019,9 @@ static void perkDialogDrawSkills()
     for (int index = gPerkDialogTopLine; index < gPerkDialogTopLine + 11; index++) {
         int color;
         if (index == gPerkDialogCurrentLine + gPerkDialogTopLine) {
-            color = _colorTable[32747];
+            color = _colorTable[COL_LIGHT_LEMON];
         } else {
-            color = _colorTable[992];
+            color = _colorTable[COL_LIME_GREEN];
         }
 
         fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 45, gPerkDialogOptionList[index].name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, color);
@@ -7059,9 +7059,9 @@ static int perkDialogDrawTraits(int a1)
         for (int index = gPerkDialogTopLine; index < gPerkDialogTopLine + 11; index++) {
             int color;
             if (index == gPerkDialogCurrentLine + gPerkDialogTopLine) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             }
 
             fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 45, gPerkDialogOptionList[index].name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, color);
@@ -7081,9 +7081,9 @@ static int perkDialogDrawTraits(int a1)
         for (int index = 0; index < gCharacterEditorTempTraitCount; index++) {
             int color;
             if (index == gPerkDialogCurrentLine) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             }
 
             fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 45, gPerkDialogOptionList[index].name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, color);
@@ -7141,18 +7141,18 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
     fontSetCurrent(102);
     int nameHeight = fontGetLineHeight();
 
-    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 27 + 280, name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[0]);
+    fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * 27 + 280, name, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_BLACK]);
 
     if (rank != nullptr) {
         int rankX = fontGetStringWidth(name) + 280 + 8;
         fontSetCurrent(101);
 
         int rankHeight = fontGetLineHeight();
-        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * (23 + nameHeight - rankHeight) + rankX, rank, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[0]);
+        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * (23 + nameHeight - rankHeight) + rankX, rank, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_BLACK]);
     }
 
-    windowDrawLine(gPerkDialogWindow, 280, 27 + nameHeight, 545, 27 + nameHeight, _colorTable[0]);
-    windowDrawLine(gPerkDialogWindow, 280, 28 + nameHeight, 545, 28 + nameHeight, _colorTable[0]);
+    windowDrawLine(gPerkDialogWindow, 280, 27 + nameHeight, 545, 27 + nameHeight, _colorTable[COL_BLACK]);
+    windowDrawLine(gPerkDialogWindow, 280, 28 + nameHeight, 545, 28 + nameHeight, _colorTable[COL_BLACK]);
 
     fontSetCurrent(101);
 
@@ -7173,7 +7173,7 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
         char ch = *ending;
         *ending = '\0';
 
-        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 280, beginning, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[0]);
+        fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * y + 280, beginning, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_BLACK]);
 
         *ending = ch;
 
@@ -7400,14 +7400,14 @@ static int characterEditorFolderViewDrawHeading(const char* string)
                     string,
                     gOffsets.windowWidth,
                     gOffsets.windowWidth,
-                    _colorTable[992]);
+                    _colorTable[COL_LIME_GREEN]);
                 // Draw right segment of the divider line
                 windowDrawLine(gCharacterEditorWindow,
                     gOffsets.folderTextX + x + lineLen,
                     y,
                     gOffsets.folderTextX + gOffsets.folderBackgroundWidth,
                     y,
-                    _colorTable[992]);
+                    _colorTable[COL_LIME_GREEN]);
             }
             // Draw left segment of the divider line
             windowDrawLine(gCharacterEditorWindow,
@@ -7415,7 +7415,7 @@ static int characterEditorFolderViewDrawHeading(const char* string)
                 y,
                 gOffsets.folderTextX + x,
                 y,
-                _colorTable[992]);
+                _colorTable[COL_LIME_GREEN]);
             gCharacterEditorFolderViewNextY += gCharacterEditorFolderViewOffsetY;
         }
         gCharacterEditorFolderViewCurrentLine++;
@@ -7435,9 +7435,9 @@ static bool characterEditorFolderViewDrawString(const char* string)
         if (gCharacterEditorFolderViewCurrentLine >= gCharacterEditorFolderViewTopLine) {
             if (gCharacterEditorFolderViewCurrentLine - gCharacterEditorFolderViewTopLine == gCharacterEditorFolderViewHighlightedLine) {
                 success = true;
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
             } else {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             }
 
             // Use folder text X offset
@@ -7466,10 +7466,10 @@ static bool characterEditorFolderViewDrawKillsEntry(const char* name, int kills)
     if (gCharacterEditorFolderViewMaxLines + gCharacterEditorFolderViewTopLine > gCharacterEditorFolderViewCurrentLine) {
         if (gCharacterEditorFolderViewCurrentLine >= gCharacterEditorFolderViewTopLine) {
             if (gCharacterEditorFolderViewCurrentLine - gCharacterEditorFolderViewTopLine == gCharacterEditorFolderViewHighlightedLine) {
-                color = _colorTable[32747];
+                color = _colorTable[COL_LIGHT_LEMON];
                 success = true;
             } else {
-                color = _colorTable[992];
+                color = _colorTable[COL_LIME_GREEN];
             }
 
             compat_itoa(kills, killsString, 10);
