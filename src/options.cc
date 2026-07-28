@@ -269,8 +269,8 @@ static int optionsWindowInit()
             textX = 0;
         }
 
-        fontDrawText(_opbtns[index] + _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth() * textY + textX, text, _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _colorTable[18979]);
-        fontDrawText(_opbtns[index + 1] + _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth() * textY + textX, text, _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _colorTable[14723]);
+        fontDrawText(_opbtns[index] + _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth() * textY + textX, text, _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _colorTable[COL_GREENISH_BROWN]);
+        fontDrawText(_opbtns[index + 1] + _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth() * textY + textX, text, _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _optionsFrmImages[OPTIONS_WINDOW_FRM_BUTTON_ON].getWidth(), _colorTable[COL_DARK_OLIVE]);
 
         int btn = buttonCreate(gOptionsWindow,
             13,
@@ -411,7 +411,7 @@ int showPause(bool preserveWorldState)
         messageItemText,
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getWidth(),
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getWidth(),
-        _colorTable[18979]);
+        _colorTable[COL_GREENISH_BROWN]);
 
     fontSetCurrent(104);
 
@@ -423,7 +423,7 @@ int showPause(bool preserveWorldState)
         path,
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getWidth(),
         frmImages[PAUSE_WINDOW_FRM_BACKGROUND].getWidth(),
-        _colorTable[18979]);
+        _colorTable[COL_GREENISH_BROWN]);
 
     int doneBtn = buttonCreate(window,
         26,

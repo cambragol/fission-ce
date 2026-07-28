@@ -3120,8 +3120,8 @@ static void opFloatMessage(Program* program)
     }
     Object* obj = static_cast<Object*>(programStackPopPointer(program));
 
-    int color = _colorTable[32747];
-    int backgroundColor = _colorTable[0];
+    int color = _colorTable[COL_LIGHT_LEMON];
+    int backgroundColor = _colorTable[COL_BLACK];
     int font = 101;
 
     if (obj == nullptr) {
@@ -3149,43 +3149,43 @@ static void opFloatMessage(Program* program)
 
     switch (floatingMessageType) {
     case FLOATING_MESSAGE_TYPE_WARNING:
-        color = _colorTable[31744];
-        backgroundColor = _colorTable[0];
+        color = _colorTable[COL_PURE_RED];
+        backgroundColor = _colorTable[COL_BLACK];
         font = 103;
         tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW);
         break;
     case FLOATING_MESSAGE_TYPE_NORMAL:
     case FLOATING_MESSAGE_TYPE_YELLOW:
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
         break;
     case FLOATING_MESSAGE_TYPE_BLACK:
     case FLOATING_MESSAGE_TYPE_PURPLE:
     case FLOATING_MESSAGE_TYPE_GREY:
-        color = _colorTable[10570];
+        color = _colorTable[COL_VERY_DARK_GRAY];
         break;
     case FLOATING_MESSAGE_TYPE_RED:
-        color = _colorTable[31744];
+        color = _colorTable[COL_PURE_RED];
         break;
     case FLOATING_MESSAGE_TYPE_GREEN:
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
         break;
     case FLOATING_MESSAGE_TYPE_BLUE:
-        color = _colorTable[31];
+        color = _colorTable[COL_BRIGHT_BLUE];
         break;
     case FLOATING_MESSAGE_TYPE_NEAR_WHITE:
-        color = _colorTable[21140];
+        color = _colorTable[COL_GUNMETAL];
         break;
     case FLOATING_MESSAGE_TYPE_LIGHT_RED:
-        color = _colorTable[32074];
+        color = _colorTable[COL_BRIGHT_RED];
         break;
     case FLOATING_MESSAGE_TYPE_WHITE:
-        color = _colorTable[32767];
+        color = _colorTable[COL_WHITE];
         break;
     case FLOATING_MESSAGE_TYPE_DARK_GREY:
-        color = _colorTable[8456];
+        color = _colorTable[COL_DARK_SLATE];
         break;
     case FLOATING_MESSAGE_TYPE_LIGHT_GREY:
-        color = _colorTable[15855];
+        color = _colorTable[COL_GRAY_OLIVE];
         break;
     }
 
