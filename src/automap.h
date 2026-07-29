@@ -70,6 +70,9 @@ void automapClose();
 void automapNotifyCombatEnded();
 void automapUpdateButtonStates(bool playsound);
 
+// Recenter the main view to the tile at (relX, relY) on the minimap.
+int automapScreenToTile(int relX, int relY, int centerTile, int winWidth, int winHeight);
+
 // Renders a cropped portion of the minimap into a buffer for Multidex minimap.
 void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
     int destX, int destY,

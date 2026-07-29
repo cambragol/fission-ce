@@ -12,6 +12,12 @@ namespace fallout {
 #define INTERFACE_BAR_WIDTH 640
 #define INTERFACE_BAR_HEIGHT 99
 
+// Multidex map area (relative to the interface bar window origin)
+extern const int MULTIDEX_MAP_AREA_X;
+extern const int MULTIDEX_MAP_AREA_Y;
+extern const int MULTIDEX_MAP_AREA_WIDTH;
+extern const int MULTIDEX_MAP_AREA_HEIGHT;
+
 // Minimum radiation amount to display RADIATED indicator.
 #define RADATION_INDICATOR_THRESHOLD 65
 
@@ -76,6 +82,8 @@ bool interfaceIsSuperWide(void);
 void multidexTogglePanel(void);
 void multidexRefreshSkilldexAnimated(const int oldValues[8]);
 int multidexSkillSelectExact();
+bool interfaceIsSkilldexMode();
+int interfaceGetBarWindow();
 
 } // namespace fallout
 

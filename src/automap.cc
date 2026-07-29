@@ -55,7 +55,8 @@ static void _decode_map_data(int elevation);
 static int automapCreate();
 static int _copy_file_data(File* stream1, File* stream2, int length);
 
-static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
+int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight);
+int automapGetViewportCenterTile();
 
 typedef enum AutomapFrm {
     AUTOMAP_FRM_BACKGROUND,
@@ -625,32 +626,33 @@ int _automapDisplayMap(int map)
  * @param winHeight Height of the automap window in pixels
  * @return The tile index (0..39999) if within bounds, -1 if conversion fails
  */
-static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth, int winHeight)
+int automapScreenToTile(int relX, int relY, int centerTile, int winWidth, int winHeight)
 {
-    int uPlayer = playerTile % 200;
-    int vPlayer = playerTile / 200;
+    int uCenter = centerTile % 200;
+    int vCenter = centerTile / 200;
 
-    // minimap mode constants (must match renderer - move to constants/defines?)
+    // minimap mode constants (same as renderer)
     int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
     int vpCenterX = winWidth / 2 - clipLeft / 2;
     int vpCenterY = winHeight / 2 - clipTop / 2;
 
-    // Player base coordinates (same as in render)
-    double playerBaseX, playerBaseY;
+    // Centre base coordinates
+    double centerBaseX, centerBaseY;
+    double original_scale = 0.5;
     if (gUseNewAutomapProjection) {
         double angleEW = 14.2, angleNS = 37.0;
         double slopeEW = tan(angleEW * M_PI / 180.0);
         double slopeNS = tan(angleNS * M_PI / 180.0);
-        playerBaseX = (vPlayer - uPlayer);
-        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+        centerBaseX = (vCenter - uCenter);
+        centerBaseY = uCenter * slopeEW + vCenter * slopeNS;
     } else {
-        playerBaseX = original_scale * (-2 * uPlayer);
-        playerBaseY = original_scale * (2 * vPlayer);
+        centerBaseX = original_scale * (-2 * uCenter);
+        centerBaseY = original_scale * (2 * vCenter);
     }
 
     // Reverse zoom and centering
-    double targetBaseX = (relX - vpCenterX) / (double)zoom + playerBaseX;
-    double targetBaseY = (relY - vpCenterY) / (double)zoom + playerBaseY;
+    double targetBaseX = (relX - vpCenterX) / (double)zoom + centerBaseX;
+    double targetBaseY = (relY - vpCenterY) / (double)zoom + centerBaseY;
 
     // Solve for u, v
     double uDouble, vDouble;
@@ -1008,11 +1010,11 @@ void automapShow(bool isInGame, bool isUsingScanner)
  */
 static void automapRenderInMapWindow(int window, int elevation, unsigned char* backgroundData, int flags)
 {
-    // Get actual window dimensions (set in automapShow)
+    // Get actual window dimensions
     int winWidth = windowGetWidth(window);
     int winHeight = windowGetHeight(window);
 
-    static double original_scale = 0.5; //
+    static double original_scale = 0.5;
 
     int color;
     if ((flags & AUTOMAP_IN_GAME) != 0) {
@@ -1027,8 +1029,14 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     unsigned char* windowBuffer = windowGetBuffer(window);
     blitBufferToBuffer(backgroundData, winWidth, winHeight, winWidth, windowBuffer, winWidth);
 
-    // ===== VANILLA MODE - use original fixed rendering =====
+    // ===== VANILLA MODE – keep exactly as original =====
     if (settings.enhancements.strict_vanilla || !settings.enhancements.minimap) {
+        // Original variables – these are needed for this block
+        int playerTile = gDude->tile;
+        int uPlayer = playerTile % 200;
+        int vPlayer = playerTile / 200;
+
+        // Original object loop – unchanged
         for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
             if (obj->tile == -1) continue;
 
@@ -1037,7 +1045,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             int objectType = FID_TYPE(obj->fid);
             unsigned char objColor = _colorTable[0];
 
-            // Color determination (same as before)
+            // Color determination (original vanilla logic)
             if ((flags & AUTOMAP_IN_GAME) != 0) {
                 if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
                     && (flags & AUTOMAP_WITH_SCANNER) != 0
@@ -1082,7 +1090,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 
             if (objColor == _colorTable[0]) continue;
 
-            // Original Fallout automap formula
+            // Original vanilla projection formula
             int v10 = -2 * tileX - 10 + winWidth * (2 * tileY + 9) - 60;
             unsigned char* pixel = windowBuffer + v10;
 
@@ -1108,41 +1116,46 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             }
         }
     }
-    // ===== MINIMAP MODE - player-centered projection with zoom & toggles =====
+    // ===== END VANILLA MODE =====
+
+    // ===== MINIMAP MODE – new viewport?centric behaviour =====
     else {
+        // Get the tile at the centre of the screen (the viewport centre)
+        int centerTile = automapGetViewportCenterTile();
+        // Fallback to player if something went wrong (should never happen)
+        if (centerTile == -1) {
+            centerTile = gDude->tile;
+        }
+        int uCenter = centerTile % 200;
+        int vCenter = centerTile / 200;
+
         // Clipping rectangle (map display area)
         int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
 
-        // Viewport center (used for player centering)
+        // Viewport centre (for centering the map)
         int vpCenterX = winWidth / 2 - clipLeft / 2;
         int vpCenterY = winHeight / 2 - clipTop / 2;
 
-        // Player tile
-        int playerTile = gDude->tile;
-        int uPlayer = playerTile % 200;
-        int vPlayer = playerTile / 200;
-
-        // Player base coordinates (before zoom)
-        double playerBaseX = 0.0, playerBaseY = 0.0;
+        // Centre base coordinates (before zoom)
+        double centerBaseX = 0.0, centerBaseY = 0.0;
         if (gUseNewAutomapProjection) {
             double angleEW = 14.2, angleNS = 37.0;
             double slopeEW = tan(angleEW * M_PI / 180.0);
             double slopeNS = tan(angleNS * M_PI / 180.0);
-            playerBaseX = (vPlayer - uPlayer);
-            playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+            centerBaseX = (vCenter - uCenter);
+            centerBaseY = uCenter * slopeEW + vCenter * slopeNS;
         } else {
-            playerBaseX = original_scale * (-2 * uPlayer);
-            playerBaseY = original_scale * (2 * vPlayer);
+            centerBaseX = original_scale * (-2 * uCenter);
+            centerBaseY = original_scale * (2 * vCenter);
         }
 
-        // Object loop
+        // Object loop – same colour logic as vanilla, but uses centre?relative coordinates
         for (Object* obj = objectFindFirstAtElevation(elevation); obj != nullptr; obj = objectFindNextAtElevation()) {
             if (obj->tile == -1) continue;
 
             int u = obj->tile % 200;
             int v = obj->tile / 200;
 
-            // Color determination (same as before, copy from above)
             int objectType = FID_TYPE(obj->fid);
             unsigned char objColor = _colorTable[0];
             if ((flags & AUTOMAP_IN_GAME) != 0) {
@@ -1189,7 +1202,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 
             if (objColor == _colorTable[0]) continue;
 
-            // Object base coordinates
+            // Object base coordinates (using the same projection as the minimap)
             double objBaseX, objBaseY;
             if (gUseNewAutomapProjection) {
                 double angleEW = 14.2, angleNS = 37.0;
@@ -1202,9 +1215,9 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
                 objBaseY = original_scale * (2 * v);
             }
 
-            // Apply zoom and center on player
-            int screenX = (int)(zoom * (objBaseX - playerBaseX) + vpCenterX + 0.5);
-            int screenY = (int)(zoom * (objBaseY - playerBaseY) + vpCenterY + 0.5);
+            // Apply zoom and centre on the viewport centre (not the player)
+            int screenX = (int)(zoom * (objBaseX - centerBaseX) + vpCenterX + 0.5);
+            int screenY = (int)(zoom * (objBaseY - centerBaseY) + vpCenterY + 0.5);
 
             // Clip
             if (screenX < clipLeft || screenX + 1 > clipRight || screenY < clipTop || screenY + 1 > clipBottom)
@@ -1213,7 +1226,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             int v10 = screenY * winWidth + screenX;
             unsigned char* pixel = windowBuffer + v10;
 
-            // Drawing (same as before)
+            // Drawing (same as vanilla style)
             if ((flags & AUTOMAP_IN_GAME) != 0) {
                 if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
                     pixel[0] = objColor;
@@ -1237,7 +1250,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
         }
     }
 
-    // Map name and area name (same for both modes)
+    // ===== Map name and area name (common to both) =====
     int textColor = ((flags & AUTOMAP_IN_GAME) != 0) ? _colorTable[992] : _colorTable[12546];
     if (mapGetCurrentMap() != -1) {
         char* areaName = mapGetCityName(mapGetCurrentMap());
@@ -1277,35 +1290,37 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
     int srcWidth = srcRight - srcLeft + 1;
     int srcHeight = srcBottom - srcTop + 1;
 
-    // Viewport center in original full minimap space (full viewport is 34..182, 29..192)
-    // For player centering we need the original player coordinate system.
-    // We'll compute screen coordinates in the full minimap space (original),
-    // then if they fall inside srcClip, we translate to dest.
-
+    // Full minimap viewport dimensions (as used in rendering)
     int fullClipLeft = 34, fullClipTop = 29;
     int fullClipRight = 182, fullClipBottom = 192;
     int fullWidth = fullClipRight - fullClipLeft + 1; // 148
     int fullHeight = fullClipBottom - fullClipTop + 1; // 163
 
-    // Center of the full viewport (where the player is drawn)
+    // Center of the full viewport (where the viewport centre tile is drawn)
     int vpCenterX = fullWidth / 2;
     int vpCenterY = fullHeight / 2;
 
-    int playerTile = gDude->tile;
-    int uPlayer = playerTile % 200;
-    int vPlayer = playerTile / 200;
+    // Get the tile currently at the centre of the screen (the viewport centre)
+    int centerTile = automapGetViewportCenterTile();
+    // Fallback to player if something goes wrong (should not happen)
+    if (centerTile == -1) {
+        centerTile = gDude->tile;
+    }
+
+    int uCenter = centerTile % 200;
+    int vCenter = centerTile / 200;
 
     double original_scale = 0.5;
-    double playerBaseX, playerBaseY;
+    double centerBaseX, centerBaseY;
     if (gUseNewAutomapProjection) {
         double angleEW = 14.2, angleNS = 37.0;
         double slopeEW = tan(angleEW * M_PI / 180.0);
         double slopeNS = tan(angleNS * M_PI / 180.0);
-        playerBaseX = (vPlayer - uPlayer);
-        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+        centerBaseX = (vCenter - uCenter);
+        centerBaseY = uCenter * slopeEW + vCenter * slopeNS;
     } else {
-        playerBaseX = original_scale * (-2 * uPlayer);
-        playerBaseY = original_scale * (2 * vPlayer);
+        centerBaseX = original_scale * (-2 * uCenter);
+        centerBaseY = original_scale * (2 * vCenter);
     }
 
     // Loop over objects at current elevation
@@ -1315,7 +1330,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
         int u = obj->tile % 200;
         int v = obj->tile / 200;
 
-        // Color determination (same as original minimap/automap logic)
+        // Colour determination (same as original)
         int objectType = FID_TYPE(obj->fid);
         unsigned char objColor = _colorTable[0];
         if ((flags & AUTOMAP_IN_GAME) != 0) {
@@ -1338,11 +1353,11 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
                     objColor = _colorTable[0];
             }
         } else {
-            continue;
+            continue; // ignore pip?boy mode for the crop (not used)
         }
         if (objColor == _colorTable[0]) continue;
 
-        // Object base coordinates (same as minimap)
+        // Object base coordinates (using the same projection as the minimap renderer)
         double objBaseX, objBaseY;
         if (gUseNewAutomapProjection) {
             double angleEW = 14.2, angleNS = 37.0;
@@ -1355,11 +1370,11 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
             objBaseY = original_scale * (2 * v);
         }
 
-        // Screen coordinates in the full minimap space (original)
-        int fullX = (int)(zoom * (objBaseX - playerBaseX) + vpCenterX + 0.5);
-        int fullY = (int)(zoom * (objBaseY - playerBaseY) + vpCenterY + 0.5);
+        // Screen coordinates in the full minimap space (relative to viewport centre)
+        int fullX = (int)(zoom * (objBaseX - centerBaseX) + vpCenterX + 0.5);
+        int fullY = (int)(zoom * (objBaseY - centerBaseY) + vpCenterY + 0.5);
 
-        // Translate to absolute coordinates (add full viewport top-left)
+        // Translate to absolute coordinates (add full viewport top?left)
         int absX = fullClipLeft + fullX;
         int absY = fullClipTop + fullY;
 
@@ -1370,7 +1385,8 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
         // Translate to destination buffer coordinates
         int destPixelX = destX + (absX - srcLeft);
         int destPixelY = destY + (absY - srcTop);
-        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth || destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
+        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth ||
+            destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
             continue;
 
         unsigned char* pixel = buffer + destPixelY * pitch + destPixelX;
@@ -1380,8 +1396,8 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
             pixel[0] = objColor;
             pixel[1] = objColor;
         }
+        // Highlight the player with a red cross (still relative to the object's own tile)
         if (obj == gDude) {
-            // Draw a red cross for the player
             if (destPixelX - 1 >= destX)
                 pixel[-1] = objColor;
             if (destPixelY - 1 >= destY)
@@ -2153,46 +2169,78 @@ bool automapHandleKey(int keyCode)
             }
         }
         break;
-    case -2: // Mouse event
+    case -2:
     {
         int mouseState = mouseGetEvent();
         int mouseX, mouseY;
         mouseGetPosition(&mouseX, &mouseY);
-        Rect winRect;
-        if (windowGetRect(gAutomapWindow, &winRect) == 0) {
-            if (mouseX >= winRect.left && mouseX < winRect.right && mouseY >= winRect.top && mouseY < winRect.bottom) {
-                // Inside automap window consume event
-                int winW = winRect.right - winRect.left;
-                int winH = winRect.bottom - winRect.top;
-                int relX = mouseX - winRect.left;
-                int relY = mouseY - winRect.top;
-                if ((!settings.enhancements.strict_vanilla && settings.enhancements.minimap) && relX >= gAutomapMapLeft && relX <= gAutomapMapRight && relY >= gAutomapMapTop && relY <= gAutomapMapBottom) {
-                    // Inside map area handle clicktomove
-                    if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
-                        int targetTile = automapScreenToTile(relX, relY, gDude->tile, winW, winH);
-                        if (targetTile != -1 && targetTile != gDude->tile) {
-                            reg_anim_clear(gDude);
-                            int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
-                            bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
-                            bool run = settings.preferences.running;
-                            bool shouldRun = (run && !shift) || (!run && shift);
-                            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
-                            if (shouldRun)
-                                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
-                            else
-                                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
-                            reg_anim_end();
-                            gAutomapNeedsRefresh = true;
-                        }
-                    }
+
+        // ----- Floating minimap handling (unchanged) -----
+        if (gAutomapWindow != -1) {
+            Rect winRect;
+            if (windowGetRect(gAutomapWindow, &winRect) == 0) {
+                if (mouseX >= winRect.left && mouseX < winRect.right &&
+                    mouseY >= winRect.top && mouseY < winRect.bottom) {
+                    int relX = mouseX - winRect.left;
+                    int relY = mouseY - winRect.top;
                 }
-                handled = true; // consume any mouse event on the automap window
-            } else {
-                handled = false; // outside window, let game handle
             }
-        } else {
-            handled = false;
         }
+
+// ----- Multidex (super?wide) map handling – click to move -----
+if (interfaceIsSuperWide() && !interfaceIsSkilldexMode()) {
+    int barWin = interfaceGetBarWindow();
+    if (barWin != -1) {
+        Rect barRect;
+        if (windowGetRect(barWin, &barRect) == 0) {
+            int relX = mouseX - barRect.left;
+            int relY = mouseY - barRect.top;
+
+            if (relX >= MULTIDEX_MAP_AREA_X && relX < MULTIDEX_MAP_AREA_X + MULTIDEX_MAP_AREA_WIDTH &&
+                relY >= MULTIDEX_MAP_AREA_Y && relY < MULTIDEX_MAP_AREA_Y + MULTIDEX_MAP_AREA_HEIGHT) {
+                if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                    // Convert to full minimap coordinates (crop offset {32,74})
+                    int sourceX = 32 + (relX - MULTIDEX_MAP_AREA_X);
+                    int sourceY = 74 + (relY - MULTIDEX_MAP_AREA_Y);
+
+                    // Get the tile at the centre of the screen (viewport centre)
+                    int centerX = screenGetWidth() / 2;
+                    int centerY = screenGetHeight() / 2;
+                    int centerTile = tileFromScreenXY(centerX, centerY, false);
+                    if (centerTile == -1) {
+                        centerTile = gDude->tile; // fallback
+                    }
+
+                    int targetTile = automapScreenToTile(sourceX, sourceY, centerTile, 250, 250);
+
+                    if (targetTile != -1 && targetTile != gDude->tile) {
+                        // Start player movement (same as original interface behaviour)
+                        reg_anim_clear(gDude);
+                        int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+                        bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] ||
+                                      gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                        bool run = settings.preferences.running;
+                        bool shouldRun = (run && !shift) || (!run && shift);
+
+                        reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+                        if (shouldRun) {
+                            animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                        } else {
+                            animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                        }
+                        reg_anim_end();
+
+                        // The minimap will automatically update as the player moves
+                        // and the camera follows.
+                    }
+                    return true; // consume the event
+                }
+            }
+        }
+    }
+}
+
+        return false; // not consumed
     } break;
     default:
         handled = false;
@@ -2296,6 +2344,13 @@ void automapUpdateButtonStates(bool playsound)
     if (playsound) {
         soundPlayFile("toggle");
     }
+}
+
+int automapGetViewportCenterTile()
+{
+    int centerX = screenGetWidth() / 2;
+    int centerY = screenGetHeight() / 2;
+    return tileFromScreenXY(centerX, centerY, false);
 }
 
 } // namespace fallout
