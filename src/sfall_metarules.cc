@@ -694,8 +694,8 @@ void mf_message_box(Program* program, int args)
     }
 
     // note: most of the CE code uses colorTable indices, but this metarule expects palette values.
-    // Default: yellow (145) = _colorTable[32328]
-    int color1 = _colorTable[32328], color2 = _colorTable[32328];
+    // Default: yellow (145) = _colorTable[COL_ORANGE]
+    int color1 = _colorTable[COL_ORANGE], color2 = _colorTable[COL_ORANGE];
     if (args > 2) {
         color1 = programStackPopInteger(program);
     }

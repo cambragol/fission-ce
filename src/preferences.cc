@@ -831,14 +831,14 @@ static void _UpdateThing(int index)
             const char* s;
             if (*p != '\0') {
                 *p = '\0';
-                fontDrawText(gPreferencesWindowBuffer + pitch * y + x, copy, pitch, pitch, _colorTable[18979]);
+                fontDrawText(gPreferencesWindowBuffer + pitch * y + x, copy, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
                 s = p + 1;
                 y += fontGetLineHeight();
             } else {
                 s = copy;
             }
 
-            fontDrawText(gPreferencesWindowBuffer + pitch * y + x, s, pitch, pitch, _colorTable[18979]);
+            fontDrawText(gPreferencesWindowBuffer + pitch * y + x, s, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
         }
 
         int value = *(meta->valuePtr);
@@ -875,7 +875,7 @@ static void _UpdateThing(int index)
                 meta->minX = x;
             }
             // Use knobY from offsets instead of meta->knobY
-            fontDrawText(gPreferencesWindowBuffer + pitch * (knobY - 5) + x, text, pitch, pitch, _colorTable[18979]);
+            fontDrawText(gPreferencesWindowBuffer + pitch * (knobY - 5) + x, text, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
         }
 
         int value = *(meta->valuePtr);
@@ -953,7 +953,7 @@ static void _UpdateThing(int index)
                     copy,
                     pitch,
                     pitch,
-                    _colorTable[18979]);
+                    _colorTable[COL_GREENISH_BROWN]);
 
                 // Second line
                 const char* secondLine = p + 1;
@@ -966,7 +966,7 @@ static void _UpdateThing(int index)
                     secondLine,
                     pitch,
                     pitch,
-                    _colorTable[18979]);
+                    _colorTable[COL_GREENISH_BROWN]);
             } else {
                 // Single line text
                 int textWidth = fontGetStringWidth(copy);
@@ -977,7 +977,7 @@ static void _UpdateThing(int index)
                     copy,
                     pitch,
                     pitch,
-                    _colorTable[18979]);
+                    _colorTable[COL_GREENISH_BROWN]);
             }
         }
 
@@ -1047,14 +1047,14 @@ static void _UpdateThing(int index)
             const char* s;
             if (*p != '\0') {
                 *p = '\0';
-                fontDrawText(gPreferencesWindowBuffer + pitch * y + x, copy, pitch, pitch, _colorTable[18979]);
+                fontDrawText(gPreferencesWindowBuffer + pitch * y + x, copy, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
                 s = p + 1;
                 y += fontGetLineHeight();
             } else {
                 s = copy;
             }
 
-            fontDrawText(gPreferencesWindowBuffer + pitch * y + x, s, pitch, pitch, _colorTable[18979]);
+            fontDrawText(gPreferencesWindowBuffer + pitch * y + x, s, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
         }
 
         int value = *(meta->valuePtr);
@@ -1190,7 +1190,7 @@ static void _UpdateThing(int index)
                 break;
             }
             // Use knobY from offsets instead of meta->knobY
-            fontDrawText(gPreferencesWindowBuffer + pitch * (knobY - 12) + x, str, pitch, pitch, _colorTable[18979]);
+            fontDrawText(gPreferencesWindowBuffer + pitch * (knobY - 12) + x, str, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
         }
     } else {
         // return false;
@@ -1553,7 +1553,7 @@ static int preferencesWindowInit()
     fontSetCurrent(104);
 
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 100);
-    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.titleTextY + gOffsets.titleTextX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.titleTextY + gOffsets.titleTextX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     fontSetCurrent(103);
 
@@ -1587,13 +1587,13 @@ static int preferencesWindowInit()
     for (i = 0; i < PRIMARY_PREF_COUNT; i++) {
         int x = gOffsets.primLabelColX - fontGetStringWidth(primaryTitles[i]) / 2;
         fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row1Ytab[i] + x,
-            primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+            primaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
     }
 
     // Draw Secondary Prefs Main labels
     for (i = 0; i < SECONDARY_PREF_COUNT; i++) {
         fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2Ytab[i] + gOffsets.secLabelColX,
-            secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[18979]);
+            secondaryTitles[i], gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
     }
 
     if (gameIsWidescreen()) {
@@ -1603,32 +1603,32 @@ static int preferencesWindowInit()
             messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, messageItemIdNew++);
             x = gOffsets.terLabelColX - fontGetStringWidth(messageItemText) / 2;
             fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row2bYtab[i] + x,
-                messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+                messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
         }
 
         // Draw quaternary dial label
         /*messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemIdNew++);
         x = gOffsets.terLabelColX - fontGetStringWidth(messageItemText) / 2; // use terLabelColX because dial is in tertiary preferences column
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.rowdialYtab[0] + x, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);*/
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.rowdialYtab[0] + x, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);*/
     }
 
     // Range Prefs Main labels
     for (i = 0; i < RANGE_PREF_COUNT; i++) {
         messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row3Ytab[i] + gOffsets.rangLabelColX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row3Ytab[i] + gOffsets.rangLabelColX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
     }
 
     // DEFAULT
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 120);
-    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.defaultLabelY + gOffsets.defaultLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.defaultLabelY + gOffsets.defaultLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     // DONE
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 4);
-    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.doneLabelY + gOffsets.doneLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.doneLabelY + gOffsets.doneLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     // CANCEL
     messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 121);
-    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise
     fontSetCurrent(101);
@@ -1637,7 +1637,7 @@ static int preferencesWindowInit()
     } else {
         messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, 122);
     }
-    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.speedLabelX + gOffsets.speedLabelY, messageItemText, gOffsets.width, gOffsets.width, _colorTable[18979]);
+    fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.speedLabelX + gOffsets.speedLabelY, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     for (i = 0; i < PREF_COUNT; i++) {
         _UpdateThing(i);
@@ -1839,9 +1839,9 @@ static int showGraphicsConfirmationDialog(bool widescreenChanged, bool playAreaC
             bodyLines,
             2,
             192, 160,
-            _colorTable[32328],
+            _colorTable[COL_ORANGE],
             nullptr,
-            _colorTable[32328],
+            _colorTable[COL_ORANGE],
             DIALOG_BOX_YES_NO);
     } else {
         // Info dialog (OK)
@@ -1854,9 +1854,9 @@ static int showGraphicsConfirmationDialog(bool widescreenChanged, bool playAreaC
             bodyLines,
             1,
             192, 135,
-            _colorTable[32328],
+            _colorTable[COL_ORANGE],
             nullptr,
-            _colorTable[32328],
+            _colorTable[COL_ORANGE],
             1 // DIALOG_BOX_OK
         );
         return 1; // Always proceed after info dialog
@@ -2414,7 +2414,7 @@ static void _DoThing(int eventCode)
                         break;
                     }
                     fontDrawText(gPreferencesWindowBuffer + pitch * (pos.y - 12) + x,
-                        str, pitch, pitch, _colorTable[18979]);
+                        str, pitch, pitch, _colorTable[COL_GREENISH_BROWN]);
                 }
             } else {
                 // Non-volume sliders - restore only slider track

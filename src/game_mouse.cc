@@ -979,24 +979,24 @@ void gameMouseRefresh()
 
                         if (pointedObjectIsCritter) {
                             if (pointedObject->data.critter.combat.team != 0) {
-                                color = _colorTable[32767];
+                                color = _colorTable[COL_WHITE];
                             } else {
-                                color = _colorTable[32495];
+                                color = _colorTable[COL_LIGHT_APRICOT];
                             }
                         } else {
-                            color = _colorTable[17969];
+                            color = _colorTable[COL_WARM_GRAY_2];
                         }
                     } else {
                         snprintf(formattedAccuracy, sizeof(formattedAccuracy), " %c ", 'X');
 
                         if (pointedObjectIsCritter) {
                             if (pointedObject->data.critter.combat.team != 0) {
-                                color = _colorTable[31744];
+                                color = _colorTable[COL_PURE_RED];
                             } else {
-                                color = _colorTable[18161];
+                                color = _colorTable[COL_PALE_OLIVE_GRAY];
                             }
                         } else {
-                            color = _colorTable[32239];
+                            color = _colorTable[COL_SALMON];
                         }
                     }
 
@@ -1031,22 +1031,22 @@ void gameMouseRefresh()
         if (distance != 0) {
             if (!isInCombat()) {
                 formattedActionPoints[0] = '\0';
-                color = _colorTable[31744];
+                color = _colorTable[COL_PURE_RED];
             } else {
                 int actionPointsMax = critterGetMovementPointCostAdjustedForCrippledLegs(gDude, distance);
                 int actionPointsRequired = std::max(0, actionPointsMax - _combat_free_move);
 
                 if (actionPointsRequired <= gDude->data.critter.combat.ap) {
                     snprintf(formattedActionPoints, sizeof(formattedActionPoints), "%d", actionPointsRequired);
-                    color = _colorTable[32767];
+                    color = _colorTable[COL_WHITE];
                 } else {
                     snprintf(formattedActionPoints, sizeof(formattedActionPoints), "%c", 'X');
-                    color = _colorTable[31744];
+                    color = _colorTable[COL_PURE_RED];
                 }
             }
         } else {
             snprintf(formattedActionPoints, sizeof(formattedActionPoints), "%c", 'X');
-            color = _colorTable[31744];
+            color = _colorTable[COL_PURE_RED];
         }
 
         if (gameMouseRenderActionPoints(formattedActionPoints, color) == 0) {
@@ -1459,7 +1459,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             int rc = skilldexOpen();
                             switch (rc) {
                             case SKILLDEX_RC_SNEAK:
-                                skill = SKILL_SNEAK;
+                                _action_skill_use(SKILL_SNEAK);
                                 break;
                             case SKILLDEX_RC_LOCKPICK:
                                 skill = SKILL_LOCKPICK;
@@ -2250,7 +2250,7 @@ int gameMouseRenderAccuracy(const char* string, int color)
         gGameMouseActionHitFrmWidth - crosshairFrmWidth,
         gGameMouseActionHitFrmHeight,
         gGameMouseActionHitFrmWidth,
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
 
     fontSetCurrent(oldFont);
 
@@ -2274,7 +2274,7 @@ int gameMouseRenderActionPoints(const char* string, int color)
     int length = fontGetStringWidth(string);
     fontDrawText(gGameMouseHexCursorFrmData + gGameMouseHexCursorFrmWidth * (gGameMouseHexCursorHeight - fontGetLineHeight()) / 2 + (gGameMouseHexCursorFrmWidth - length) / 2, string, gGameMouseHexCursorFrmWidth, gGameMouseHexCursorFrmWidth, color);
 
-    bufferOutline(gGameMouseHexCursorFrmData, gGameMouseHexCursorFrmWidth, gGameMouseHexCursorHeight, gGameMouseHexCursorFrmWidth, _colorTable[0]);
+    bufferOutline(gGameMouseHexCursorFrmData, gGameMouseHexCursorFrmWidth, gGameMouseHexCursorHeight, gGameMouseHexCursorFrmWidth, _colorTable[COL_BLACK]);
 
     fontSetCurrent(oldFont);
 

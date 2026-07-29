@@ -345,7 +345,7 @@ static void interfaceFontDrawImpl(unsigned char* buf, const char* string, int le
         color &= ~FONT_SHADOW;
         // NOTE: Other font options preserved. This is different from text font
         // shadows.
-        interfaceFontDrawImpl(buf + pitch + 1, string, length, pitch, (color & ~0xFF) | _colorTable[0]);
+        interfaceFontDrawImpl(buf + pitch + 1, string, length, pitch, (color & ~0xFF) | _colorTable[COL_BLACK]);
     }
 
     unsigned char* palette = _getColorBlendTable(color & 0xFF);
