@@ -358,6 +358,12 @@ static void mainLoop()
 
         bool handled = automapHandleKey(keyCode);
         if (!handled) {
+            // Check if the click was on the multidex map
+            if (multidexHandleMouse()) {
+                handled = true;
+            }
+        }
+        if (!handled) {
             gameHandleKey(keyCode, false);
         }
 
