@@ -3772,13 +3772,12 @@ static bool multidexMapScreenToTile(int relX, int relY, int* tile)
     if (gMultidexSkilldexMode) return false;
 
     // The map display area within the interface window (must match multidexDrawMapToBuffer)
-    const int mapOffsetX = 800 + 85;   // extension X + destMapX
-    const int mapOffsetY = 17;         // destMapY
-    const Rect srcClip = {32, 74, 184, 144}; // the crop rectangle used by automapRenderMinimapCroppedToBuffer
+    const int mapOffsetX = 800 + 85; // extension X + destMapX
+    const int mapOffsetY = 17; // destMapY
+    const Rect srcClip = { 32, 74, 184, 144 }; // the crop rectangle used by automapRenderMinimapCroppedToBuffer
 
     // Check if the click is inside the displayed map area
-    if (relX < mapOffsetX || relX >= mapOffsetX + (srcClip.right - srcClip.left + 1) ||
-        relY < mapOffsetY || relY >= mapOffsetY + (srcClip.bottom - srcClip.top + 1)) {
+    if (relX < mapOffsetX || relX >= mapOffsetX + (srcClip.right - srcClip.left + 1) || relY < mapOffsetY || relY >= mapOffsetY + (srcClip.bottom - srcClip.top + 1)) {
         return false;
     }
 
@@ -3787,10 +3786,10 @@ static bool multidexMapScreenToTile(int relX, int relY, int* tile)
     const int fullClipTop = MINIMAP_CLIP_TOP;
     const int fullClipRight = MINIMAP_CLIP_RIGHT;
     const int fullClipBottom = MINIMAP_CLIP_BOTTOM;
-    const int fullWidth = fullClipRight - fullClipLeft + 1;   // 149
-    const int fullHeight = fullClipBottom - fullClipTop + 1;  // 164
-    const int vpCenterX = fullWidth / 2;   // 74
-    const int vpCenterY = fullHeight / 2;  // 82
+    const int fullWidth = fullClipRight - fullClipLeft + 1; // 149
+    const int fullHeight = fullClipBottom - fullClipTop + 1; // 164
+    const int vpCenterX = fullWidth / 2; // 74
+    const int vpCenterY = fullHeight / 2; // 82
 
     // Convert click coordinates to absolute coordinates within the full viewport
     int absX = (relX - mapOffsetX) + srcClip.left;
