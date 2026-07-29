@@ -68,10 +68,10 @@ namespace fallout {
 #define FIRE_FAST_CYCLE_INDEX 243
 
 // Multidex map area constants (visible to other modules)
-const int MULTIDEX_MAP_AREA_X = 800 + 85;   // 885
+const int MULTIDEX_MAP_AREA_X = 800 + 85; // 885
 const int MULTIDEX_MAP_AREA_Y = 17;
-const int MULTIDEX_MAP_AREA_WIDTH = 184 - 32 + 1;   // 153
-const int MULTIDEX_MAP_AREA_HEIGHT = 144 - 74 + 1;  // 71
+const int MULTIDEX_MAP_AREA_WIDTH = 184 - 32 + 1; // 153
+const int MULTIDEX_MAP_AREA_HEIGHT = 144 - 74 + 1; // 71
 
 // The values of it's members are offsets to beginning of numbers in
 // numbers.frm.

@@ -1385,8 +1385,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
         // Translate to destination buffer coordinates
         int destPixelX = destX + (absX - srcLeft);
         int destPixelY = destY + (absY - srcTop);
-        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth ||
-            destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
+        if (destPixelX < destX || destPixelX + 1 >= destX + srcWidth || destPixelY < destY || destPixelY + 1 >= destY + srcHeight)
             continue;
 
         unsigned char* pixel = buffer + destPixelY * pitch + destPixelX;
@@ -2169,8 +2168,7 @@ bool automapHandleKey(int keyCode)
             }
         }
         break;
-    case -2:
-    {
+    case -2: {
         int mouseState = mouseGetEvent();
         int mouseX, mouseY;
         mouseGetPosition(&mouseX, &mouseY);
@@ -2179,66 +2177,63 @@ bool automapHandleKey(int keyCode)
         if (gAutomapWindow != -1) {
             Rect winRect;
             if (windowGetRect(gAutomapWindow, &winRect) == 0) {
-                if (mouseX >= winRect.left && mouseX < winRect.right &&
-                    mouseY >= winRect.top && mouseY < winRect.bottom) {
+                if (mouseX >= winRect.left && mouseX < winRect.right && mouseY >= winRect.top && mouseY < winRect.bottom) {
                     int relX = mouseX - winRect.left;
                     int relY = mouseY - winRect.top;
                 }
             }
         }
 
-// ----- Multidex (super?wide) map handling – click to move -----
-if (interfaceIsSuperWide() && !interfaceIsSkilldexMode()) {
-    int barWin = interfaceGetBarWindow();
-    if (barWin != -1) {
-        Rect barRect;
-        if (windowGetRect(barWin, &barRect) == 0) {
-            int relX = mouseX - barRect.left;
-            int relY = mouseY - barRect.top;
+        // ----- Multidex (super?wide) map handling – click to move -----
+        if (interfaceIsSuperWide() && !interfaceIsSkilldexMode()) {
+            int barWin = interfaceGetBarWindow();
+            if (barWin != -1) {
+                Rect barRect;
+                if (windowGetRect(barWin, &barRect) == 0) {
+                    int relX = mouseX - barRect.left;
+                    int relY = mouseY - barRect.top;
 
-            if (relX >= MULTIDEX_MAP_AREA_X && relX < MULTIDEX_MAP_AREA_X + MULTIDEX_MAP_AREA_WIDTH &&
-                relY >= MULTIDEX_MAP_AREA_Y && relY < MULTIDEX_MAP_AREA_Y + MULTIDEX_MAP_AREA_HEIGHT) {
-                if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
-                    // Convert to full minimap coordinates (crop offset {32,74})
-                    int sourceX = 32 + (relX - MULTIDEX_MAP_AREA_X);
-                    int sourceY = 74 + (relY - MULTIDEX_MAP_AREA_Y);
+                    if (relX >= MULTIDEX_MAP_AREA_X && relX < MULTIDEX_MAP_AREA_X + MULTIDEX_MAP_AREA_WIDTH && relY >= MULTIDEX_MAP_AREA_Y && relY < MULTIDEX_MAP_AREA_Y + MULTIDEX_MAP_AREA_HEIGHT) {
+                        if (mouseState & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                            // Convert to full minimap coordinates (crop offset {32,74})
+                            int sourceX = 32 + (relX - MULTIDEX_MAP_AREA_X);
+                            int sourceY = 74 + (relY - MULTIDEX_MAP_AREA_Y);
 
-                    // Get the tile at the centre of the screen (viewport centre)
-                    int centerX = screenGetWidth() / 2;
-                    int centerY = screenGetHeight() / 2;
-                    int centerTile = tileFromScreenXY(centerX, centerY, false);
-                    if (centerTile == -1) {
-                        centerTile = gDude->tile; // fallback
-                    }
+                            // Get the tile at the centre of the screen (viewport centre)
+                            int centerX = screenGetWidth() / 2;
+                            int centerY = screenGetHeight() / 2;
+                            int centerTile = tileFromScreenXY(centerX, centerY, false);
+                            if (centerTile == -1) {
+                                centerTile = gDude->tile; // fallback
+                            }
 
-                    int targetTile = automapScreenToTile(sourceX, sourceY, centerTile, 250, 250);
+                            int targetTile = automapScreenToTile(sourceX, sourceY, centerTile, 250, 250);
 
-                    if (targetTile != -1 && targetTile != gDude->tile) {
-                        // Start player movement (same as original interface behaviour)
-                        reg_anim_clear(gDude);
-                        int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
-                        bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] ||
-                                      gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
-                        bool run = settings.preferences.running;
-                        bool shouldRun = (run && !shift) || (!run && shift);
+                            if (targetTile != -1 && targetTile != gDude->tile) {
+                                // Start player movement (same as original interface behaviour)
+                                reg_anim_clear(gDude);
+                                int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+                                bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+                                bool run = settings.preferences.running;
+                                bool shouldRun = (run && !shift) || (!run && shift);
 
-                        reg_anim_begin(ANIMATION_REQUEST_RESERVED);
-                        if (shouldRun) {
-                            animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
-                        } else {
-                            animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                                reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+                                if (shouldRun) {
+                                    animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                                } else {
+                                    animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+                                }
+                                reg_anim_end();
+
+                                // The minimap will automatically update as the player moves
+                                // and the camera follows.
+                            }
+                            return true; // consume the event
                         }
-                        reg_anim_end();
-
-                        // The minimap will automatically update as the player moves
-                        // and the camera follows.
                     }
-                    return true; // consume the event
                 }
             }
         }
-    }
-}
 
         return false; // not consumed
     } break;
