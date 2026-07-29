@@ -1182,7 +1182,7 @@ int wmWorldMap_init()
 
     wmGenData.viewportMaxX = WM_TILE_WIDTH * wmNumHorizontalTiles - gOffsets.viewWidth;
     wmGenData.viewportMaxY = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles) - gOffsets.viewHeight;
-    circleBlendTable = _getColorBlendTable(_colorTable[992]);
+    circleBlendTable = _getColorBlendTable(_colorTable[COL_LIME_GREEN]);
 
     wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
@@ -1361,7 +1361,7 @@ void wmWorldMap_exit()
     wmMaxMapNum = 0;
 
     if (circleBlendTable != nullptr) {
-        _freeColorBlendTable(_colorTable[992]);
+        _freeColorBlendTable(_colorTable[COL_LIME_GREEN]);
         circleBlendTable = nullptr;
     }
 
@@ -5725,7 +5725,7 @@ static int wmRndEncounterOccurred()
             msgId = table->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + table->localModIndex * 50 + wmGenData.encounterEntryId;
         }
         body = getmsg(&wmMsgFile, &messageListItem, msgId);
-        if (showDialogBox(title, &body, 1, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
+        if (showDialogBox(title, &body, 1, 169, 116, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
             wmGenData.encounterIconIsVisible = false;
             wmGenData.encounterMapId = -1;
             wmGenData.encounterTableId = -1;
@@ -6705,7 +6705,7 @@ static int wmInterfaceInit()
         0,
         windowGetWidth(gIsoWindow),
         windowGetHeight(gIsoWindow),
-        _colorTable[0]);
+        _colorTable[COL_BLACK]);
     windowRefresh(gIsoWindow);
 
     // CE: Stop all animations.
@@ -6713,7 +6713,7 @@ static int wmInterfaceInit()
 
     int worldmapWindowX = (screenGetWidth() - worldmapWindowWidth) / 2;
     int worldmapWindowY = (screenGetHeight() - worldmapWindowHeight) / 2;
-    wmBkWin = windowCreate(worldmapWindowX, worldmapWindowY, worldmapWindowWidth, worldmapWindowHeight, _colorTable[0], WINDOW_MOVE_ON_TOP);
+    wmBkWin = windowCreate(worldmapWindowX, worldmapWindowY, worldmapWindowWidth, worldmapWindowHeight, _colorTable[COL_BLACK], WINDOW_MOVE_ON_TOP);
     if (wmBkWin == -1) {
         return -1;
     }
@@ -7748,7 +7748,7 @@ static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription*
         fontDrawText(
             wmOverlayOffscreenBuf + textDrawAbsY * WM_OVERLAY_BUFFER_SIZE + textDrawAbsX,
             name, textWidth, WM_OVERLAY_BUFFER_SIZE,
-            _colorTable[992] | FONT_SHADOW);
+            _colorTable[COL_LIME_GREEN] | FONT_SHADOW);
     }
 
     // 5. Final Blit to Screen (dest buffer)
@@ -7817,7 +7817,7 @@ static int wmInterfaceDrawCircleOverlay(CityInfo* city, CitySizeDescription* cit
             name,
             width,
             gOffsets.windowWidth,
-            _colorTable[992] | FONT_SHADOW);
+            _colorTable[COL_LIME_GREEN] | FONT_SHADOW);
     }
 
     return 0;
@@ -7876,7 +7876,7 @@ static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, i
         unsigned char* dest = wmBkWinBuf + gOffsets.windowWidth * destY + destX;
         switch (subtileInfo->state) {
         case SUBTILE_STATE_UNKNOWN:
-            bufferFill(dest, width, height, gOffsets.windowWidth, _colorTable[0]);
+            bufferFill(dest, width, height, gOffsets.windowWidth, _colorTable[COL_BLACK]);
             break;
         case SUBTILE_STATE_KNOWN:
             wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth);
@@ -8494,7 +8494,7 @@ static int wmTownMapRefresh()
                 + gOffsets.townMapLabelXOffset - width / 2,
             wmGenData.hotspotNormalFrmImage.getHeight() + entrance->y
                 + gOffsets.townMapLabelYOffset,
-            _colorTable[992] | 0x2000000 | FONT_SHADOW);
+            _colorTable[COL_LIME_GREEN] | 0x2000000 | FONT_SHADOW);
     }
 
     windowRefresh(wmBkWin);

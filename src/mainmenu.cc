@@ -320,7 +320,7 @@ int mainMenuWindowInit()
     //        0x010000 - change the color for version string only
     //        0x020000 - underline text (only for the version string)
     //        0x040000 - monospace font (only for the version string)
-    int fontSettings = _colorTable[21091];
+    int fontSettings = _colorTable[COL_OLIVE_YELLOW];
     int fontSettingsSFall = settings.mod_settings.main_menu_font_color;
     if (fontSettingsSFall && !(fontSettingsSFall & 0x010000))
         fontSettings = fontSettingsSFall & 0xFF;
@@ -454,7 +454,7 @@ int mainMenuWindowInit()
     fontSetCurrent(104);
 
     // modConfig: Allow to change font color of buttons
-    fontSettings = _colorTable[21091];
+    fontSettings = _colorTable[COL_OLIVE_YELLOW];
     fontSettingsSFall = settings.mod_settings.main_menu_big_font_color;
     if (fontSettingsSFall) {
         fontSettings = fontSettingsSFall & 0xFF;
@@ -572,9 +572,9 @@ static int showFissionAbout()
         bodyLines,
         2,
         192, 135,
-        _colorTable[32328],
+        _colorTable[COL_ORANGE],
         nullptr,
-        _colorTable[32328],
+        _colorTable[COL_ORANGE],
         1 // DIALOG_BOX_OK
     );
     return 1;
@@ -873,13 +873,13 @@ static int showModList()
     // Button and window titles
     const char* mods = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 500);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 16 + 49,
-        mods, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        mods, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
     const char* done = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 501);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 69,
-        done, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        done, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
     const char* cancel = (const char*)getmsg(&gFissionMessageList, &gFissionMessageListItem, 502);
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * 186 + 171,
-        cancel, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[18979]);
+        cancel, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_GREENISH_BROWN]);
 
     // Draw the mod list
     int count = modListDrawList();
@@ -912,7 +912,7 @@ static int modListDrawList()
     if (gModListTempCount == 0) {
         fontSetCurrent(101);
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * (MOD_LIST_Y + 10) + (MOD_LIST_X + 10),
-            "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[992]);
+            "No mods loaded", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_LIME_GREEN]);
         return 0;
     }
 
@@ -934,7 +934,7 @@ static int modListDrawList()
             color = selected ? _colorTable[MOD_DISABLED_SELECTED_COLOR] : _colorTable[MOD_DISABLED_COLOR];
         } else {
             // Enabled mods: normal highlight or normal text
-            color = selected ? _colorTable[32747] : _colorTable[992];
+            color = selected ? _colorTable[COL_LIGHT_LEMON] : _colorTable[COL_LIME_GREEN];
         }
 
         // Truncate name to list width
@@ -945,7 +945,7 @@ static int modListDrawList()
         // In reorder mode, indent the currently selected line (overrides color)
         if (gModListReorderMode && selected) {
             x += 10; // indent
-            color = _colorTable[32767]; // bright white
+            color = _colorTable[COL_WHITE]; // bright white
         }
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
             truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, color);
@@ -1007,7 +1007,7 @@ static void modListDrawDetails(int selectedIndex)
     int nameWidth = fontGetStringWidth(truncatedName);
     int nameLineHeight = fontGetLineHeight();
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * MOD_NAME_Y + MOD_TEXT_X,
-        truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
 
     // Mod Author
     fontSetCurrent(101);
@@ -1019,7 +1019,7 @@ static void modListDrawDetails(int selectedIndex)
     int byWidth = fontGetStringWidth(by);
     // Draw the "by " prefix
     fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX,
-        by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+        by, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
 
     int gap = 5;
     int maxAuthorWidth = fullTextWidth - (nameWidth + 8 + byWidth + gap);
@@ -1027,15 +1027,15 @@ static void modListDrawDetails(int selectedIndex)
         char truncatedAuthor[MOD_INFO_MAX_AUTHOR + 32];
         truncateStringToWidth(info->author, truncatedAuthor, sizeof(truncatedAuthor), maxAuthorWidth, 101);
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * authorY + authorX + byWidth + gap,
-            truncatedAuthor, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+            truncatedAuthor, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
     }
 
     // Draw divider line below name/author
     int lineY = MOD_NAME_Y + nameLineHeight + 4; // gap below name line
     int lineStartX = MOD_TEXT_X;
     int lineEndX = MOD_TEXT_X + fullTextWidth;
-    windowDrawLine(gModListWindow, lineStartX, lineY, lineEndX, lineY, _colorTable[0]);
-    windowDrawLine(gModListWindow, lineStartX, lineY + 1, lineEndX, lineY + 1, _colorTable[0]);
+    windowDrawLine(gModListWindow, lineStartX, lineY, lineEndX, lineY, _colorTable[COL_BLACK]);
+    windowDrawLine(gModListWindow, lineStartX, lineY + 1, lineEndX, lineY + 1, _colorTable[COL_BLACK]);
 
     fontSetCurrent(101);
     int lineHeight = fontGetLineHeight() + 2;
@@ -1092,7 +1092,7 @@ static void modListDrawDetails(int selectedIndex)
             char savedChar = descBuffer[end];
             descBuffer[end] = '\0';
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
-                descBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                descBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
             descBuffer[end] = savedChar;
             yDesc += lineHeight;
             linesDrawn++;
@@ -1100,7 +1100,7 @@ static void modListDrawDetails(int selectedIndex)
         if (actualDescLines > maxDescLines - 1) {
             // Draw ellipsis on the next line
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDesc + MOD_TEXT_X,
-                "...", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                "...", MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
             linesDrawn++;
         }
     }
@@ -1114,7 +1114,7 @@ static void modListDrawDetails(int selectedIndex)
             char savedChar = depBuffer[end];
             depBuffer[end] = '\0';
             fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * yDep + MOD_TEXT_X,
-                depBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[0]);
+                depBuffer + start, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
             depBuffer[end] = savedChar;
             yDep += lineHeight;
         }
@@ -1135,7 +1135,7 @@ static void modListDrawDetails(int selectedIndex)
         int y = MOD_ICON_Y + (iconHeight - textHeight) / 2;
 
         fontDrawText(gModListWindowBuffer + MOD_WINDOW_WIDTH * y + x,
-            disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[32328]);
+            disabledText, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_ORANGE]);
     }
 
     // Restore original font
@@ -1237,9 +1237,9 @@ static int modListHandleInput(int count)
                     bodyLines,
                     1,
                     192, 135,
-                    _colorTable[32328],
+                    _colorTable[COL_ORANGE],
                     nullptr,
-                    _colorTable[32328],
+                    _colorTable[COL_ORANGE],
                     1 // DIALOG_BOX_OK
                 );
                 memcpy(gLoadedMods, gModListTempMods, gModListTempCount * sizeof(ModInfo));

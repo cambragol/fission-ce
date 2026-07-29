@@ -123,6 +123,7 @@ typedef struct Sound {
     SoundDeleteCallback* deleteCallback;
     struct Sound* next;
     struct Sound* prev;
+    bool isWav;
 } Sound;
 
 void soundSetMemoryProcs(MallocProc* mallocProc, ReallocProc* reallocProc, FreeProc* freeProc);
