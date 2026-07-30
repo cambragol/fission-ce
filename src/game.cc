@@ -783,15 +783,18 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
             }
         }
         break;
+    case KEY_UPPERCASE_H:
+    case KEY_LOWERCASE_H:
     case KEY_HOME:
         if (gDude->elevation != gElevation) {
             mapSetElevation(gDude->elevation);
         }
-
         if (gIsMapper) {
             tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW);
         } else {
+            tileScrollLimitingDisable();
             _tile_scroll_to(gDude->tile, 2);
+            tileScrollLimitingEnable();
         }
 
         break;
