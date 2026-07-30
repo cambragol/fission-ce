@@ -3712,7 +3712,7 @@ int multidexSkillSelectExact()
             nullptr, BUTTON_FLAG_TRANSPARENT);
         if (btn != -1) {
             gSkillButtonSkill[btn] = gMultidexSkillIds[i];
-            buttonSetCallbacks(btn, multidexSkillSelectButtonPress, nullptr);
+            buttonSetCallbacks(btn, nullptr, multidexSkillSelectButtonPress);
         }
     }
 
@@ -3764,6 +3764,123 @@ int multidexSkillSelectExact()
     }
 
     return selectedSkill;
+}
+
+static bool multidexMapScreenToTile(int relX, int relY, int* tile)
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return false;
+    if (gMultidexSkilldexMode) return false;
+
+    // The map display area within the interface window (must match multidexDrawMapToBuffer)
+    const int mapOffsetX = 800 + 85; // extension X + destMapX
+    const int mapOffsetY = 17; // destMapY
+    const Rect srcClip = { 32, 74, 184, 144 }; // the crop rectangle used by automapRenderMinimapCroppedToBuffer
+
+    // Check if the click is inside the displayed map area
+    if (relX < mapOffsetX || relX >= mapOffsetX + (srcClip.right - srcClip.left + 1) || relY < mapOffsetY || relY >= mapOffsetY + (srcClip.bottom - srcClip.top + 1)) {
+        return false;
+    }
+
+    // Full minimap viewport (as defined in minimap mode)
+    const int fullClipLeft = MINIMAP_CLIP_LEFT;
+    const int fullClipTop = MINIMAP_CLIP_TOP;
+    const int fullClipRight = MINIMAP_CLIP_RIGHT;
+    const int fullClipBottom = MINIMAP_CLIP_BOTTOM;
+    const int fullWidth = fullClipRight - fullClipLeft + 1; // 149
+    const int fullHeight = fullClipBottom - fullClipTop + 1; // 164
+    const int vpCenterX = fullWidth / 2; // 74
+    const int vpCenterY = fullHeight / 2; // 82
+
+    // Convert click coordinates to absolute coordinates within the full viewport
+    int absX = (relX - mapOffsetX) + srcClip.left;
+    int absY = (relY - mapOffsetY) + srcClip.top;
+
+    // Convert to offset from the full viewport origin (top-left of the minimap)
+    int fullX = absX - fullClipLeft;
+    int fullY = absY - fullClipTop;
+
+    // Player tile and base coordinates
+    int playerTile = gDude->tile;
+    int uPlayer = playerTile % 200;
+    int vPlayer = playerTile / 200;
+
+    const double original_scale = 0.5;
+    double playerBaseX, playerBaseY;
+    if (gUseNewAutomapProjection) {
+        const double angleEW = 14.2, angleNS = 37.0;
+        const double slopeEW = tan(angleEW * M_PI / 180.0);
+        const double slopeNS = tan(angleNS * M_PI / 180.0);
+        playerBaseX = (vPlayer - uPlayer);
+        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+    } else {
+        playerBaseX = original_scale * (-2 * uPlayer);
+        playerBaseY = original_scale * (2 * vPlayer);
+    }
+
+    // Reverse the zoom and centering transformation
+    double targetBaseX = (fullX - vpCenterX) / (double)zoom + playerBaseX;
+    double targetBaseY = (fullY - vpCenterY) / (double)zoom + playerBaseY;
+
+    // Convert base coordinates back to tile (u, v)
+    double uDouble, vDouble;
+    if (gUseNewAutomapProjection) {
+        const double angleEW = 14.2, angleNS = 37.0;
+        const double slopeEW = tan(angleEW * M_PI / 180.0);
+        const double slopeNS = tan(angleNS * M_PI / 180.0);
+        double denom = slopeEW + slopeNS;
+        if (fabs(denom) < 0.0001) return false;
+        uDouble = (targetBaseY - targetBaseX * slopeNS) / denom;
+        vDouble = targetBaseX + uDouble;
+    } else {
+        uDouble = -targetBaseX / (2.0 * original_scale);
+        vDouble = targetBaseY / (2.0 * original_scale);
+    }
+
+    int u = (int)round(uDouble);
+    int v = (int)round(vDouble);
+    if (u >= 0 && u < 200 && v >= 0 && v < 200) {
+        *tile = v * 200 + u;
+        return true;
+    }
+    return false;
+}
+
+bool multidexHandleMouse()
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return false;
+    if (gMultidexSkilldexMode) return false;
+    if (gMultidexSkillSelectActive) return false;
+    if (isInCombat()) return false;
+
+    int mouseEvent = mouseGetEvent();
+    if (!(mouseEvent & MOUSE_EVENT_LEFT_BUTTON_UP)) return false;
+
+    int mouseX, mouseY;
+    mouseGetPosition(&mouseX, &mouseY);
+    Rect ifaceRect;
+    windowGetRect(gInterfaceBarWindow, &ifaceRect);
+    int relX = mouseX - ifaceRect.left;
+    int relY = mouseY - ifaceRect.top;
+
+    int targetTile;
+    if (multidexMapScreenToTile(relX, relY, &targetTile)) {
+        if (targetTile != gDude->tile) {
+            reg_anim_clear(gDude);
+            int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+            bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+            bool run = settings.preferences.running;
+            bool shouldRun = (run && !shift) || (!run && shift);
+
+            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+            if (shouldRun)
+                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+            else
+                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+            reg_anim_end();
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace fallout

@@ -76,6 +76,7 @@ bool interfaceIsSuperWide(void);
 void multidexTogglePanel(void);
 void multidexRefreshSkilldexAnimated(const int oldValues[8]);
 int multidexSkillSelectExact();
+bool multidexHandleMouse();
 
 } // namespace fallout
 
