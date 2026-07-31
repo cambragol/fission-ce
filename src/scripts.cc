@@ -21,6 +21,7 @@
 #include "game_dialog.h"
 #include "game_mouse.h"
 #include "game_movie.h"
+#include "game_sound.h"
 #include "input.h"
 #include "memory.h"
 #include "message.h"
@@ -3192,9 +3193,15 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
         return nullptr;
     }
 
-    if (FID_TYPE(gGameDialogHeadFid) != OBJ_TYPE_HEAD) {
-        a3 = 0;
-    }
+    // CE FIX: This used to unconditionally force a3 (the "also play speech"
+    // flag) to 0 whenever gGameDialogHeadFid wasn't a head fid, which is the
+    // case for any message_str()/mstr() call outside of an active gdialog
+    // session (float_msg, combat, timed_event_p_proc, etc), even though
+    // gGameDialogHeadFid has nothing to do with whether the caller wants
+    // audio -- it only matters for whether we can lip-sync against a head on
+    // screen. That distinction is now handled below via _gdialogActive(), so
+    // non-dialog speech (e.g. voiced floats) is no longer silently dropped
+    // here.
 
     MessageListItem messageListItem;
     messageListItem.num = messageId;
@@ -3204,16 +3211,32 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
     }
 
     if (a3) {
-        if (_gdialogActive()) {
-            if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
-                if (messageListItem.flags & 0x01) {
+        if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
+            if (messageListItem.flags & 0x01) {
+                // Line text was badword-filtered: audio would not match what
+                // is displayed, so bleep instead of playing the real line,
+                // same as the in-dialog case below.
+                if (_gdialogActive()) {
                     gameDialogStartLips(nullptr);
                 } else {
-                    gameDialogStartLips(messageListItem.audio);
+                    soundPlayFile("censor");
                 }
+            } else if (_gdialogActive()) {
+                // In an active gdialog session there is a head on screen to
+                // lip-sync against.
+                gameDialogStartLips(messageListItem.audio);
             } else {
-                debugPrint("Missing speech name: %d\n", messageListItem.num);
+                // CE FIX: message_str()/mstr() is also called from outside
+                // gdialog (float_msg, combat, timed_event_p_proc, etc). There
+                // is no head window to lip-sync in that case, but the voice
+                // file still exists and should be heard. Previously this
+                // branch did nothing, so floats and other non-dialog lines
+                // always played silently even when a voice file was present.
+                // Play it as plain speech, no lip-sync.
+                speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
             }
+        } else {
+            debugPrint("Missing speech name: %d\n", messageListItem.num);
         }
     }
 
