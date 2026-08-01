@@ -67,6 +67,25 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                     remaining = sizeof(buffer);
                 }
 
+                // CE FIX: bounds-check *before* reading the next frame, not
+                // after. soundBuffer->size (derived from the decoded/loaded
+                // sound data) is not guaranteed to be an exact multiple of
+                // srcFrameSize -- confirmed via AddressSanitizer: a 2-byte
+                // (16-bit mono) frame read one byte past the end of a
+                // 72769-byte buffer (odd length) via SDL_AudioStreamPut,
+                // heap-buffer-overflow. The old code only checked
+                // soundBuffer->pos >= soundBuffer->size *after* already
+                // reading srcFrameSize bytes, so the last partial frame of
+                // any non-frame-aligned buffer could read past its end.
+                if (soundBuffer->pos + srcFrameSize > soundBuffer->size) {
+                    if (soundBuffer->looping) {
+                        soundBuffer->pos = 0;
+                    } else {
+                        soundBuffer->playing = false;
+                        break;
+                    }
+                }
+
                 // TODO: Make something better than frame-by-frame convertion.
                 SDL_AudioStreamPut(soundBuffer->stream, (unsigned char*)soundBuffer->data + soundBuffer->pos, srcFrameSize);
                 soundBuffer->pos += srcFrameSize;
@@ -77,15 +96,6 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                 }
 
                 SDL_MixAudioFormat(stream + pos, buffer, gAudioEngineSpec.format, bytesRead, soundBuffer->volume);
-
-                if (soundBuffer->pos >= soundBuffer->size) {
-                    if (soundBuffer->looping) {
-                        soundBuffer->pos %= soundBuffer->size;
-                    } else {
-                        soundBuffer->playing = false;
-                        break;
-                    }
-                }
 
                 pos += bytesRead;
             }
