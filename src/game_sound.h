@@ -75,6 +75,7 @@ bool backgoundSoundIsPlaying();
 int speechIsEnabled();
 void speechSetVolume(int value);
 int speechGetVolume();
+void speechSetFloatVolume(int value);
 void speechSetEndCallback(SoundEndCallback* callback);
 int speechGetDuration();
 int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
