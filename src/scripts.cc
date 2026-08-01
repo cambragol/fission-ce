@@ -3172,7 +3172,7 @@ char* _scr_get_msg_str(int messageListId, int messageId)
 
 // message_str
 // 0x4A6C5C
-char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
+char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, bool isDialogueOwner)
 {
     if (messageListId == 0 && messageId == 0) {
         return _blank_str;
@@ -3210,18 +3210,32 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
         return _err_str;
     }
 
+    // CE FIX: gameDialogWindowActive() only tells us *some* dialogue window
+    // is open right now -- it says nothing about whether *this* message
+    // belongs to that dialogue. A window can be open with NPC Y while an
+    // unrelated script (critter X's combat_p_proc, a timed_event_p_proc,
+    // etc) calls message_str()/mstr() for its own, unrelated line in the
+    // same tick. Without this check that unrelated line took the "always
+    // voice + lip-sync against gGameDialogHeadFid" branch below regardless
+    // of [sound] float_speech, and lip-synced the wrong head besides. Only
+    // the script that actually owns the open dialogue (gGameDialogSpeaker)
+    // should bypass the float_speech gate; every other caller -- including
+    // ones that happen to run while some other NPC's window is open -- is a
+    // float and must go through the gated branch like any other.
+    bool inOwnDialogue = gameDialogWindowActive() && isDialogueOwner;
+
     if (a3) {
         if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
             if (messageListItem.flags & 0x01) {
                 // Line text was badword-filtered: audio would not match what
                 // is displayed, so bleep instead of playing the real line,
                 // same as the in-dialog case below.
-                if (gameDialogWindowActive()) {
+                if (inOwnDialogue) {
                     gameDialogStartLips(nullptr);
                 } else {
                     soundPlayFile("censor");
                 }
-            } else if (gameDialogWindowActive()) {
+            } else if (inOwnDialogue) {
                 // CE FIX: this used to check _gdialogActive(), which is true
                 // for the whole duration of talk_p_proc even when the script
                 // never opens a real dialogue window (e.g. simple flavor
@@ -3238,8 +3252,10 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 gameDialogStartLips(messageListItem.audio);
             } else {
                 // CE FIX: message_str()/mstr() is also called from outside
-                // gdialog (float_msg, combat, timed_event_p_proc, etc). There
-                // is no head window to lip-sync in that case, but the voice
+                // gdialog (float_msg, combat, timed_event_p_proc, etc), or
+                // from a script that isn't the one whose window is currently
+                // open (see inOwnDialogue above). There is no head window to
+                // lip-sync in that case, but the voice
                 // file still exists and should be heard. Previously this
                 // branch did nothing, so floats and other non-dialog lines
                 // always played silently even when a voice file was present.
