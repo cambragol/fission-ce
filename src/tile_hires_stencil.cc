@@ -67,6 +67,9 @@ static_assert(screen_view_height % (2 * square_height) == 20);
 static bool gIsTileHiresStencilEnabled = true;
 static bool gMapIsSmall = false;
 
+// for tileUpdateSmoothScroll support
+static constexpr int VERTICAL_STENCIL_MARGIN = 6;   // squares (6 * 12 = 72 pixels)
+
 static void clean_cache()
 {
     memset(visited_tiles, 0, sizeof(visited_tiles));
@@ -194,9 +197,15 @@ static void mark_screen_tiles_around_as_visible(int center_tile, const Point& sc
         ? horizonal_end_full
         : horizonal_start_full + squares_per_horizontal_move;
 
-    int vertical_start_full = squareY - squares_screen_height_half;
-    int vertical_end_full = squareY + squares_screen_height_half;
+    // In mark_screen_tiles_around_as_visible, modify the vertical range:
+    int vertical_start_full = squareY - squares_screen_height_half - VERTICAL_STENCIL_MARGIN;
+    int vertical_end_full = squareY + squares_screen_height_half + VERTICAL_STENCIL_MARGIN;
 
+    // Clamp to valid range
+    if (vertical_start_full < 0) vertical_start_full = 0;
+    if (vertical_end_full >= square_grid_height) vertical_end_full = square_grid_height - 1;
+
+    // Then use these for both UP and DOWN parts
     int vertical_start = part != MarkOnlyPart::DOWN
         ? vertical_start_full
         : vertical_end_full - squares_per_vertical_move;
@@ -460,7 +469,9 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
     int right = left + screenWidth;
     int bottom = top + screenHeight;
 
-    const int safety_margin = 8;
+    // adjust to 72 for tileUpdateSmoothScroll support
+    const int safety_margin = 72;
+
     left -= safety_margin;
     top -= safety_margin;
     right += safety_margin;
