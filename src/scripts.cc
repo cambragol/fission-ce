@@ -3252,7 +3252,16 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 // talk_p_proc regardless of WAV vs ACM). Once confirmed clean
                 // here, the gate/volume wrapper will be reintroduced more
                 // carefully.
-                speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+                speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_NO_LOOP);
+                // CE DEBUG: GSOUND_STREAM forces SOUND_LOOPING on in _preloadBuffers()
+                // (sound.cc) for any streaming-type sound regardless of the requested
+                // loop mode, which soundPlay() then passes straight to the mixer as
+                // AUDIO_ENGINE_SOUND_BUFFER_PLAY_LOOPING -- likely the real cause of
+                // the static (a small buffer looping on itself with nothing refilling
+                // it, rather than one-shot playback). GSOUND_MEMORY never goes through
+                // that path. Retesting cleanly now that the UAF and mixer overflow are
+                // both actually fixed (the earlier GSOUND_MEMORY test predated the
+                // overflow fix, so it wasn't a clean comparison).
             }
         } else {
             debugPrint("Missing speech name: %d\n", messageListItem.num);
