@@ -226,7 +226,7 @@ void scriptsExecMapUpdateProc();
 void scriptsExecMapUpdateScripts(int a1);
 void scriptsExecMapExitProc();
 char* _scr_get_msg_str(int messageListId, int messageId);
-char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3);
+char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, bool isDialogueOwner = false);
 int scriptGetLocalVar(int sid, int var, ProgramValue& value);
 int scriptSetLocalVar(int sid, int var, ProgramValue& value);
 bool _scr_end_combat();

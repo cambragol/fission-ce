@@ -2992,7 +2992,13 @@ static void opGetMessageString(Program* program)
 
     char* string;
     if (messageIndex >= 0) {
-        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1);
+        // message_str()/mstr() is called by every script alike (dialogue
+        // nodes, combat_p_proc, critter_p_proc, timed_event_p_proc, ...). It
+        // should only be treated as the active dialogue's own line -- and so
+        // bypass the float_speech gate in _scr_get_msg_str_speech -- when the
+        // script actually calling it is the one whose window is open.
+        bool isDialogueOwner = scriptGetSelf(program) == gGameDialogSpeaker;
+        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1, isDialogueOwner);
         if (string == nullptr) {
             debugPrint("\nError: No message file EXISTS!: index %d, line %d", messageListIndex, messageIndex);
             string = errStr;
