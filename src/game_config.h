@@ -75,6 +75,8 @@ namespace fallout {
 #define GAME_CONFIG_MUSIC_VOLUME_KEY "music_volume"
 #define GAME_CONFIG_SNDFX_VOLUME_KEY "sndfx_volume"
 #define GAME_CONFIG_SPEECH_VOLUME_KEY "speech_volume"
+#define GAME_CONFIG_FLOAT_SPEECH_KEY "float_speech"
+#define GAME_CONFIG_FLOAT_SPEECH_VOLUME_KEY "float_speech_volume"
 #define GAME_CONFIG_CACHE_SIZE_KEY "cache_size"
 #define GAME_CONFIG_MUSIC_PATH1_KEY "music_path1"
 #define GAME_CONFIG_MUSIC_PATH2_KEY "music_path2"

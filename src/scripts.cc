@@ -3225,7 +3225,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 // In an active gdialog session there is a head on screen to
                 // lip-sync against.
                 gameDialogStartLips(messageListItem.audio);
-            } else {
+            } else if (settings.sound.float_speech) {
                 // CE FIX: message_str()/mstr() is also called from outside
                 // gdialog (float_msg, combat, timed_event_p_proc, etc). There
                 // is no head window to lip-sync in that case, but the voice
@@ -3233,7 +3233,15 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 // branch did nothing, so floats and other non-dialog lines
                 // always played silently even when a voice file was present.
                 // Play it as plain speech, no lip-sync.
+                //
+                // CE ADD: gated by its own [sound] float_speech toggle and
+                // played at its own float_speech_volume rather than the
+                // dialog speech_volume, since these lines can occur far more
+                // often (combat, ambient floats) than actual conversations.
+                int previousVolume = speechGetVolume();
+                speechSetVolume(settings.sound.float_speech_volume);
                 speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+                speechSetVolume(previousVolume);
             }
         } else {
             debugPrint("Missing speech name: %d\n", messageListItem.num);

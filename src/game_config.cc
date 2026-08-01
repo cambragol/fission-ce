@@ -122,6 +122,11 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_VOLUME_KEY, 22281);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, 22281);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, 22281);
+    // CE ADD: independent enable/disable + volume for voice audio played
+    // outside of an active gdialog session (float_msg, combat, etc). See
+    // _scr_get_msg_str_speech in scripts.cc.
+    configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_KEY, 1);
+    configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_VOLUME_KEY, 22281);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, 448);
     configSetString(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, "sound\\music\\");
     configSetString(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, "sound\\music\\");
