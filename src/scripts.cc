@@ -3195,13 +3195,13 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
 
     // CE FIX: This used to unconditionally force a3 (the "also play speech"
     // flag) to 0 whenever gGameDialogHeadFid wasn't a head fid, which is the
-    // case for any message_str()/mstr() call outside of an active gdialog
-    // session (float_msg, combat, timed_event_p_proc, etc), even though
-    // gGameDialogHeadFid has nothing to do with whether the caller wants
-    // audio -- it only matters for whether we can lip-sync against a head on
-    // screen. That distinction is now handled below via _gdialogActive(), so
-    // non-dialog speech (e.g. voiced floats) is no longer silently dropped
-    // here.
+    // case for any message_str()/mstr() call outside of a real dialogue
+    // window (float_msg, combat, timed_event_p_proc, talk_p_proc-only
+    // flavor NPCs, etc), even though gGameDialogHeadFid has nothing to do
+    // with whether the caller wants audio -- it only matters for whether we
+    // can lip-sync against a head on screen. That distinction is now
+    // handled below via gameDialogWindowActive(), so non-dialog speech (e.g.
+    // voiced floats) is no longer silently dropped here.
 
     MessageListItem messageListItem;
     messageListItem.num = messageId;
@@ -3216,14 +3216,25 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 // Line text was badword-filtered: audio would not match what
                 // is displayed, so bleep instead of playing the real line,
                 // same as the in-dialog case below.
-                if (_gdialogActive()) {
+                if (gameDialogWindowActive()) {
                     gameDialogStartLips(nullptr);
                 } else {
                     soundPlayFile("censor");
                 }
-            } else if (_gdialogActive()) {
-                // In an active gdialog session there is a head on screen to
-                // lip-sync against.
+            } else if (gameDialogWindowActive()) {
+                // CE FIX: this used to check _gdialogActive(), which is true
+                // for the whole duration of talk_p_proc even when the script
+                // never opens a real dialogue window (e.g. simple flavor
+                // NPCs whose talk_p_proc is just a float_msg()/message_str()
+                // and a return -- see aceric.ssl's Node001/Node002). In that
+                // case gGameDialogHeadFid is stale/invalid, so attempting
+                // gameDialogStartLips() below would try to lip-sync against
+                // a nonexistent head and fail (lipsLoad() finding no .LIP
+                // file and mishandling it as "out of memory"). Checking
+                // gameDialogWindowActive() instead (_gdialog_state ==
+                // GAME_DIALOG_ACTIVE) only takes this branch when
+                // start_gdialog() has actually created a window with a real
+                // head to lip-sync against.
                 gameDialogStartLips(messageListItem.audio);
             } else if (settings.sound.float_speech) {
                 // CE FIX: message_str()/mstr() is also called from outside
