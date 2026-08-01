@@ -994,6 +994,27 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         // No override needed.
     }
 
+    // CE FIX: speechCallback() (which sets gSpeechSound = nullptr on
+    // SOUND_CALLBACK_EVENT_DONE) was fully implemented but never actually
+    // registered here, unlike backgroundSoundLoad()'s equivalent
+    // soundSetCallback(gBackgroundSound, backgroundSoundCallback, ...) a few
+    // lines up. Without it, when a speech sound finishes naturally, the
+    // background tick (soundContinueAll() -> soundContinue()) frees the
+    // underlying Sound via soundDelete(), but gSpeechSound is never told and
+    // is left dangling. The next speechLoad() call's speechDelete() then
+    // calls soundDelete() on that already-freed pointer -- a heap
+    // use-after-free, confirmed via AddressSanitizer (soundDelete ->
+    // speechDelete -> speechLoad, freed by a prior soundContinueAll() background
+    // tick). Registering the callback here lets gSpeechSound get nulled out
+    // the same way gBackgroundSound already does, so speechDelete() sees a
+    // clean nullptr instead of a dangling pointer once playback has ended.
+    rc = soundSetCallback(gSpeechSound, speechCallback, nullptr);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundSetCallback failed for speech sound\n");
+        }
+    }
+
     // Set read limit (if requested)
     if (readLimitMode == GSOUND_LIMIT_BEFORE) {
         rc = soundSetReadLimit(gSpeechSound, 0x40000);
