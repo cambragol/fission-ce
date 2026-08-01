@@ -38,6 +38,7 @@
 #include "sfall_global_scripts.h"
 #include "svga.h"
 #include "text_font.h"
+#include "tile.h"
 #include "window.h"
 #include "window_manager.h"
 #include "window_manager_private.h"
@@ -385,6 +386,7 @@ static void mainLoop()
             automapUpdate();
         }
 
+        tileUpdateSmoothScroll();
         // Update Multidex minimap if interface is superwide
         multidexUpdate();
 
