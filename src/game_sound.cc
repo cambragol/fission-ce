@@ -904,6 +904,34 @@ int speechGetVolume()
     return gSpeechVolume;
 }
 
+// CE FIX: applies a volume to the currently-loaded speech sound directly,
+// without touching gSpeechVolume. speechSetVolume() (above) is the shared
+// in-dialog speech volume -- lipsStart() reads it via speechGetVolume() for
+// every lip-synced line, so repurposing it for non-dialog floats would mean
+// a float's volume setting silently changes the dialog volume too (and vice
+// versa the next time a dialog line plays). This keeps the [sound]
+// float_speech_volume setting (see scripts.cc's non-dialog speech branch)
+// fully independent of the dialog speech slider.
+void speechSetFloatVolume(int volume)
+{
+    if (!gGameSoundInitialized) {
+        return;
+    }
+
+    if (volume < VOLUME_MIN || volume > VOLUME_MAX) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("Requested float speech volume out of range.\n");
+        }
+        return;
+    }
+
+    if (gSpeechEnabled) {
+        if (gSpeechSound != nullptr) {
+            soundSetVolume(gSpeechSound, (int)(volume * 0.69));
+        }
+    }
+}
+
 // 0x450C64
 int _gsound_speech_volume_get_set(int volume)
 {
