@@ -590,11 +590,6 @@ int _preloadBuffers(Sound* sound)
         }
     }
 
-    // CE DEBUG: dump the exact parameters used to create the audio-engine
-    // buffer, to compare a working case (SFX/music) against speech directly.
-    debugPrint("CE DEBUG _preloadBuffers: rate=%d bits=%d channels=%d size=%d bytes_read=%d isWav=%d\n",
-        sound->rate, sound->bitsPerSample, sound->channels, size, bytes_read, sound->isWav);
-
     result = _soundSetData(sound, buf, size);
     gSoundFreeProc(buf);
 
