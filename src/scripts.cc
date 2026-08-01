@@ -3252,12 +3252,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
                 // talk_p_proc regardless of WAV vs ACM). Once confirmed clean
                 // here, the gate/volume wrapper will be reintroduced more
                 // carefully.
-                speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_NO_LOOP);
-                // CE DEBUG: switched from GSOUND_STREAM to GSOUND_MEMORY -- the only
-                // other confirmed-good speechLoad() call site (preferences.cc's
-                // narrator\\options test button) uses GSOUND_MEMORY; our lines are
-                // short floats, so loading them fully up front is fine, and this
-                // isolates whether streamed ACM/WAV decode is producing static.
+                speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
             }
         } else {
             debugPrint("Missing speech name: %d\n", messageListItem.num);
