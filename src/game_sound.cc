@@ -1014,12 +1014,33 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         // Mark as WAV so soundLoad can extract parameters
         gSpeechSound->isWav = true;
     } else {
-        // ACM - keep the default I/O (already set by allocation)
+        // ACM - explicitly set decompressing I/O.
+        //
+        // CE FIX: gameSoundInit() installs the plain, non-decompressing
+        // gameSoundFileOpen/Read/GetSize as the *global default* sound I/O
+        // (see the soundSetDefaultFileIO call after audioInit() runs) -- that
+        // default is deliberately dumb, and every caller that needs ACM
+        // decompression is expected to opt back into audioOpen/audioRead via
+        // soundSetFileIO, exactly like backgroundSoundLoad ("Using ACM I/O")
+        // and soundEffectLoad already do. Upstream fallout2-ce's speechLoad
+        // did this unconditionally too. This branch used to just keep
+        // whatever I/O soundAllocate() copied from the global default,
+        // assuming it was audioOpen -- it isn't, so ACM speech was read as
+        // raw compressed bytes straight into the playback buffer (audible as
+        // white noise) instead of being decoded through the SoundDecoder.
         if (gGameSoundDebugEnabled) {
             debugPrint("speechLoad: Found ACM file: %s\n", path);
         }
-        // The I/O was set by _gsound_background_allocate (which uses audioOpen)
-        // No override needed.
+        rc = soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+        if (rc != 0) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("speechLoad: Failed to set ACM I/O (rc=%d)\n", rc);
+            }
+            soundDelete(gSpeechSound);
+            gSpeechSound = nullptr;
+            return -1;
+        }
     }
 
     // CE FIX: speechCallback() (which sets gSpeechSound = nullptr on
