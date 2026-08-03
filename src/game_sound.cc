@@ -1,5 +1,6 @@
 #include "game_sound.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -83,6 +84,21 @@ static SoundEndCallback* gBackgroundSoundEndCallback = nullptr;
 // 0x518E5C
 static SoundEndCallback* gSpeechEndCallback = nullptr;
 
+// Independent pool for non-dialog floating speech, separate from the single
+// gSpeechSound slot dialogue uses. Dialogue genuinely is single-voice (only
+// one NPC's window can be open at a time), but floats from different NPCs
+// (combat barks, ambient chatter, etc) should be able to overlap instead of
+// each new one cutting off whatever float is already playing.
+#define FLOAT_SPEECH_MAX_COUNT (4)
+
+typedef struct FloatSpeechSlot {
+    Sound* sound;
+    unsigned int allocSeq;
+} FloatSpeechSlot;
+
+static FloatSpeechSlot gFloatSpeechSlots[FLOAT_SPEECH_MAX_COUNT];
+static unsigned int gFloatSpeechAllocSeq = 0;
+
 // 0x518E60
 static char _snd_lookup_weapon_type[WEAPON_SOUND_EFFECT_COUNT] = {
     'R', // Ready
@@ -148,7 +164,6 @@ static char gBackgroundSoundFileName[270];
 static void soundEffectsEnable();
 static void soundEffectsDisable();
 static int soundEffectsIsEnabled();
-static int soundEffectsGetVolume();
 static void backgroundSoundDisable();
 static void backgroundSoundEnable();
 static int backgroundSoundGetDuration();
@@ -169,6 +184,7 @@ static long gameSoundFileTell(int handle);
 static long gameSoundFileGetSize(int handle);
 static bool gameSoundIsCompressed(char* filePath);
 static void speechCallback(void* userData, int event);
+static void floatSpeechCallback(void* userData, int event);
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
@@ -904,34 +920,6 @@ int speechGetVolume()
     return gSpeechVolume;
 }
 
-// CE FIX: applies a volume to the currently-loaded speech sound directly,
-// without touching gSpeechVolume. speechSetVolume() (above) is the shared
-// in-dialog speech volume -- lipsStart() reads it via speechGetVolume() for
-// every lip-synced line, so repurposing it for non-dialog floats would mean
-// a float's volume setting silently changes the dialog volume too (and vice
-// versa the next time a dialog line plays). This keeps the [sound]
-// float_speech_volume setting (see scripts.cc's non-dialog speech branch)
-// fully independent of the dialog speech slider.
-void speechSetFloatVolume(int volume)
-{
-    if (!gGameSoundInitialized) {
-        return;
-    }
-
-    if (volume < VOLUME_MIN || volume > VOLUME_MAX) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("Requested float speech volume out of range.\n");
-        }
-        return;
-    }
-
-    if (gSpeechEnabled) {
-        if (gSpeechSound != nullptr) {
-            soundSetVolume(gSpeechSound, (int)(volume * 0.69));
-        }
-    }
-}
-
 // 0x450C64
 int _gsound_speech_volume_get_set(int volume)
 {
@@ -1161,6 +1149,138 @@ void speechDelete()
             gSpeechSound = nullptr;
         }
     }
+}
+
+void floatSpeechCallback(void* userData, int event)
+{
+    if (event == SOUND_CALLBACK_EVENT_DONE) {
+        int slotIndex = (int)(uintptr_t)userData;
+        gFloatSpeechSlots[slotIndex].sound = nullptr;
+    }
+}
+
+// Loads and immediately plays a float from its own pool slot, independent of
+// gSpeechSound. Mirrors speechLoad()'s ACM/WAV I/O setup (see the CE FIX
+// comment in speechLoad() above for why the explicit audioOpen override is
+// required) but never touches the dialogue's single speech slot, so a new
+// float doesn't cut off one that's already playing.
+bool speechLoadFloat(const char* fileName, int volume)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    int rc;
+    bool foundWav;
+
+    if (!gGameSoundInitialized || !gSpeechEnabled) {
+        return false;
+    }
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("Loading float speech sound file %s%s...", fileName, ".ACM");
+    }
+
+    // Find a free slot, or fall back to stealing the oldest occupied one so
+    // a burst of floats never gets silently dropped once the pool is full.
+    int slotIndex = -1;
+    int oldestIndex = 0;
+    unsigned int oldestSeq = UINT_MAX;
+    for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
+        if (gFloatSpeechSlots[i].sound == nullptr) {
+            slotIndex = i;
+            break;
+        }
+
+        if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
+            oldestSeq = gFloatSpeechSlots[i].allocSeq;
+            oldestIndex = i;
+        }
+    }
+
+    if (slotIndex == -1) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("float speech pool full, dropping oldest slot %d\n", oldestIndex);
+        }
+        soundDelete(gFloatSpeechSlots[oldestIndex].sound);
+        gFloatSpeechSlots[oldestIndex].sound = nullptr;
+        slotIndex = oldestIndex;
+    }
+
+    Sound* sound;
+    if (_gsound_background_allocate(&sound, GSOUND_MEMORY, GSOUND_NO_LOOP)) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because sound could not be allocated.\n");
+        }
+        return false;
+    }
+
+    if (gameSoundFindSpeechSoundPath(path, fileName) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because the file could not be found.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    foundWav = isWavFile(path);
+    if (foundWav) {
+        rc = soundSetFileIO(sound, wavOpen, wavClose, wavRead, nullptr,
+            wavSeek, wavTell, wavGetSize);
+        if (rc == 0) {
+            sound->isWav = true;
+        }
+    } else {
+        rc = soundSetFileIO(sound, audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+    }
+
+    if (rc != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed to set float speech I/O (rc=%d)\n", rc);
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    rc = soundSetCallback(sound, floatSpeechCallback, (void*)(uintptr_t)slotIndex);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundSetCallback failed for float speech sound\n");
+        }
+    }
+
+    rc = soundLoad(sound, path);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed on call to soundLoad.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    soundSetReadLimit(sound, 0x40000);
+
+    if (volume < VOLUME_MIN) {
+        volume = VOLUME_MIN;
+    } else if (volume > VOLUME_MAX) {
+        volume = VOLUME_MAX;
+    }
+    soundSetVolume(sound, (int)(volume * 0.69));
+
+    if (soundPlay(sound) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed starting to play.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    gFloatSpeechSlots[slotIndex].sound = sound;
+    gFloatSpeechSlots[slotIndex].allocSeq = ++gFloatSpeechAllocSeq;
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("succeeded.\n");
+    }
+
+    return true;
 }
 
 // 0x451054

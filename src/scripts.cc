@@ -3170,10 +3170,54 @@ char* _scr_get_msg_str(int messageListId, int messageId)
     return _scr_get_msg_str_speech(messageListId, messageId, 0);
 }
 
+// Scales baseVolume down linearly with tile distance between the speaking
+// object and the player, reaching silence at the player's audible range --
+// STAT_PERCEPTION * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION tiles, mirroring
+// how _gsound_compute_relative_volume() (game_sound.cc) scales ambient SFX
+// off Perception, though that one floors rather than fully muting. At the
+// default Perception of 10 this is 20 tiles. Elevation is checked
+// separately since tile distance alone can't tell floors apart.
+//
+// Computed once, at the moment the float is triggered -- not continuously
+// as the player moves, so a line started up close stays at that volume for
+// its whole playback even if you walk away mid-line.
+#define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
+
+static int _scr_calc_float_volume(Object* speaker, int baseVolume)
+{
+    if (speaker == nullptr || gDude == nullptr) {
+        return baseVolume;
+    }
+
+    if (speaker->elevation != gDude->elevation) {
+        return VOLUME_MIN;
+    }
+
+    int maxDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
+    if (maxDistance < 1) {
+        maxDistance = 1;
+    }
+
+    int distance = objectGetDistanceBetween(speaker, gDude);
+    if (distance >= maxDistance) {
+        return VOLUME_MIN;
+    }
+
+    int volume = baseVolume * (maxDistance - distance) / maxDistance;
+    if (volume < VOLUME_MIN) {
+        volume = VOLUME_MIN;
+    } else if (volume > VOLUME_MAX) {
+        volume = VOLUME_MAX;
+    }
+
+    return volume;
+}
+
 // message_str
 // 0x4A6C5C
-char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, bool isDialogueOwner)
+char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* speaker)
 {
+    bool isDialogueOwner = speaker != nullptr && speaker == gGameDialogSpeaker;
     if (messageListId == 0 && messageId == 0) {
         return _blank_str;
     }
@@ -3260,21 +3304,21 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, bool isD
                 // branch did nothing, so floats and other non-dialog lines
                 // always played silently even when a voice file was present.
                 // Play it as plain speech, no lip-sync, gated by [sound]
-                // float_speech and using its own float_speech_volume rather
-                // than the dialog speech slider (see speechSetFloatVolume()
-                // in game_sound.cc for why these are kept independent).
+                // float_speech. Volume is tied to the Sound Effects Volume
+                // Preferences slider (soundEffectsGetVolume()) rather than
+                // the dialog speech slider or [sound] float_speech_volume --
+                // float_speech_volume has no Preferences UI of its own
+                // (config-file-only), so it's left in settings.h/fission.cfg
+                // unused for now, reserved for a possible future dedicated
+                // float-volume slider rather than removed outright.
                 //
-                // GSOUND_MEMORY is used here rather than GSOUND_STREAM; that
-                // choice was checked against the separate ACM static/noise
-                // bug (unrelated pre-existing engine issue, reproducible on
-                // stock builds and even the Preferences speech-volume test
-                // button) and made no difference either way, so it's kept as
-                // GSOUND_MEMORY for consistency with one-shot, fully-buffered
-                // playback rather than a streaming buffer that's never
-                // refilled.
+                // CE FIX: speechLoadFloat() plays from its own pool of slots
+                // instead of the single gSpeechSound dialogue uses (see
+                // speechLoadFloat()'s comment in game_sound.cc), so floats
+                // from different NPCs -- e.g. combat barks from two critters
+                // at once -- no longer cut each other off.
                 if (settings.sound.float_speech) {
-                    speechLoad(messageListItem.audio, GSOUND_LIMIT_AFTER, GSOUND_MEMORY, GSOUND_NO_LOOP);
-                    speechSetFloatVolume(settings.sound.float_speech_volume);
+                    speechLoadFloat(messageListItem.audio, _scr_calc_float_volume(speaker, soundEffectsGetVolume()));
                 }
             }
         } else {

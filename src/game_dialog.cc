@@ -2575,7 +2575,7 @@ void _gdProcessUpdate()
         // This is the active dialogue's own reply line, rendered by the
         // dialogue engine itself -- always the true owner of the open
         // window, regardless of which script last ran.
-        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1, true);
+        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1, gGameDialogSpeaker);
         if (s == nullptr) {
             showMesageBox("\n'GDialog::Error Grabbing text message!");
             exit(1);
