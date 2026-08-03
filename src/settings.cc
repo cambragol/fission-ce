@@ -98,7 +98,6 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, settings.sound.sndfx_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, settings.sound.speech_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_KEY, settings.sound.float_speech);
-    settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_VOLUME_KEY, settings.sound.float_speech_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, settings.sound.cache_size);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, settings.sound.music_path1);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, settings.sound.music_path2);
@@ -290,7 +289,6 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, settings.sound.sndfx_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, settings.sound.speech_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_KEY, settings.sound.float_speech);
-    settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_VOLUME_KEY, settings.sound.float_speech_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, settings.sound.cache_size);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, settings.sound.music_path1);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, settings.sound.music_path2);

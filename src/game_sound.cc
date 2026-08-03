@@ -9,6 +9,7 @@
 #include "audio.h"
 #include "audio_file.h"
 #include "combat.h"
+#include "critter.h"
 #include "debug.h"
 #include "game.h"
 #include "game_config.h"
@@ -27,6 +28,7 @@
 #include "sound_effects_cache.h"
 #include "stat.h"
 #include "svga.h"
+#include "text_object.h"
 #include "wav_io.h"
 #include "window_manager.h"
 #include "worldmap.h"
@@ -93,6 +95,7 @@ static SoundEndCallback* gSpeechEndCallback = nullptr;
 
 typedef struct FloatSpeechSlot {
     Sound* sound;
+    Object* speaker;
     unsigned int allocSeq;
 } FloatSpeechSlot;
 
@@ -185,6 +188,7 @@ static long gameSoundFileGetSize(int handle);
 static bool gameSoundIsCompressed(char* filePath);
 static void speechCallback(void* userData, int event);
 static void floatSpeechCallback(void* userData, int event);
+static int _gsound_calc_float_volume(Object* speaker);
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
@@ -1156,6 +1160,93 @@ void floatSpeechCallback(void* userData, int event)
     if (event == SOUND_CALLBACK_EVENT_DONE) {
         int slotIndex = (int)(uintptr_t)userData;
         gFloatSpeechSlots[slotIndex].sound = nullptr;
+        gFloatSpeechSlots[slotIndex].speaker = nullptr;
+    }
+}
+
+// Scales soundEffectsGetVolume() down linearly with tile distance between
+// the speaking object and the player, reaching silence at the player's
+// audible range -- STAT_PERCEPTION * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION
+// tiles, mirroring how _gsound_compute_relative_volume() above scales
+// ambient SFX off Perception (though that one floors rather than fully
+// muting). At the default Perception of 10 this is 20 tiles. Elevation is
+// checked separately since tile distance alone can't tell floors apart.
+// Volume is tied to the Sound Effects Volume Preferences slider rather
+// than the dialog speech slider -- there's no dedicated float-volume
+// setting; a config-only float_speech_volume existed briefly but was
+// removed since it had no Preferences UI and just confused users.
+#define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
+
+static int _gsound_calc_float_volume(Object* speaker)
+{
+    int baseVolume = soundEffectsGetVolume();
+
+    if (speaker == nullptr || gDude == nullptr) {
+        return baseVolume;
+    }
+
+    if (speaker->elevation != gDude->elevation) {
+        return VOLUME_MIN;
+    }
+
+    int maxDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
+    if (maxDistance < 1) {
+        maxDistance = 1;
+    }
+
+    int distance = objectGetDistanceBetween(speaker, gDude);
+    if (distance >= maxDistance) {
+        return VOLUME_MIN;
+    }
+
+    int volume = baseVolume * (maxDistance - distance) / maxDistance;
+    if (volume < VOLUME_MIN) {
+        volume = VOLUME_MIN;
+    } else if (volume > VOLUME_MAX) {
+        volume = VOLUME_MAX;
+    }
+
+    return volume;
+}
+
+// Re-evaluates and re-applies every active float's volume from its
+// speaker's *current* distance to the player. Called every tick (see
+// _gsound_bkg_proc()) so a float's loudness tracks the player moving
+// closer or farther away while it's still playing, instead of being fixed
+// at whatever distance it happened to start at. Also cuts a float off
+// outright the tick its speaker dies -- a corpse shouldn't keep talking
+// through the rest of its line, and shouldn't keep its floating text on
+// screen either (the text object's own lifetime is unrelated to audio
+// playback, so killing the sound alone doesn't touch it -- confirmed via
+// testing: text stayed up after audio cut off before this was added).
+// critterIsDead() safely returns false for null/non-critter objects, so
+// this doesn't need its own null check.
+static void floatSpeechUpdateVolumes()
+{
+    for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
+        if (gFloatSpeechSlots[i].sound != nullptr) {
+            if (critterIsDead(gFloatSpeechSlots[i].speaker)) {
+                // CE FIX: soundDelete() synchronously invokes the sound's
+                // callback (floatSpeechCallback) with
+                // SOUND_CALLBACK_EVENT_DONE, which nulls this same slot's
+                // sound/speaker fields immediately -- confirmed via
+                // debugPrint tracing (the float's text wasn't clearing on
+                // death: textObjectsRemoveByOwner() was being called with
+                // gFloatSpeechSlots[i].speaker already nulled out from
+                // under it, i.e. owner=nullptr, so it never matched
+                // anything). Capture speaker locally first so it's still
+                // valid by the time textObjectsRemoveByOwner() runs.
+                Object* speaker = gFloatSpeechSlots[i].speaker;
+                soundDelete(gFloatSpeechSlots[i].sound);
+                textObjectsRemoveByOwner(speaker);
+                gFloatSpeechSlots[i].sound = nullptr;
+                gFloatSpeechSlots[i].speaker = nullptr;
+                continue;
+            }
+
+            int volume = _gsound_calc_float_volume(gFloatSpeechSlots[i].speaker);
+            soundSetVolume(gFloatSpeechSlots[i].sound, (int)(volume * 0.69));
+        }
     }
 }
 
@@ -1164,7 +1255,7 @@ void floatSpeechCallback(void* userData, int event)
 // comment in speechLoad() above for why the explicit audioOpen override is
 // required) but never touches the dialogue's single speech slot, so a new
 // float doesn't cut off one that's already playing.
-bool speechLoadFloat(const char* fileName, int volume)
+bool speechLoadFloat(const char* fileName, Object* speaker)
 {
     char path[COMPAT_MAX_PATH + 1];
     int rc;
@@ -1178,30 +1269,53 @@ bool speechLoadFloat(const char* fileName, int volume)
         debugPrint("Loading float speech sound file %s%s...", fileName, ".ACM");
     }
 
-    // Find a free slot, or fall back to stealing the oldest occupied one so
-    // a burst of floats never gets silently dropped once the pool is full.
+    // CE FIX: if this speaker already has an active slot, replace it
+    // instead of allocating a new one. The pool exists so *different* NPCs
+    // can overlap without cutting each other off, but nothing stopped a
+    // single NPC from ending up in multiple slots talking over itself
+    // (confirmed via testing: clicking one NPC repeatedly played several
+    // of its own lines concurrently). A speaker should still only ever
+    // have one line playing at a time.
     int slotIndex = -1;
-    int oldestIndex = 0;
-    unsigned int oldestSeq = UINT_MAX;
-    for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
-        if (gFloatSpeechSlots[i].sound == nullptr) {
-            slotIndex = i;
-            break;
-        }
-
-        if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
-            oldestSeq = gFloatSpeechSlots[i].allocSeq;
-            oldestIndex = i;
+    if (speaker != nullptr) {
+        for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
+            if (gFloatSpeechSlots[i].sound != nullptr && gFloatSpeechSlots[i].speaker == speaker) {
+                slotIndex = i;
+                break;
+            }
         }
     }
 
-    if (slotIndex == -1) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("float speech pool full, dropping oldest slot %d\n", oldestIndex);
+    if (slotIndex != -1) {
+        soundDelete(gFloatSpeechSlots[slotIndex].sound);
+        gFloatSpeechSlots[slotIndex].sound = nullptr;
+        gFloatSpeechSlots[slotIndex].speaker = nullptr;
+    } else {
+        // Find a free slot, or fall back to stealing the oldest occupied
+        // one so a burst of floats never gets silently dropped once the
+        // pool is full.
+        int oldestIndex = 0;
+        unsigned int oldestSeq = UINT_MAX;
+        for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
+            if (gFloatSpeechSlots[i].sound == nullptr) {
+                slotIndex = i;
+                break;
+            }
+
+            if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
+                oldestSeq = gFloatSpeechSlots[i].allocSeq;
+                oldestIndex = i;
+            }
         }
-        soundDelete(gFloatSpeechSlots[oldestIndex].sound);
-        gFloatSpeechSlots[oldestIndex].sound = nullptr;
-        slotIndex = oldestIndex;
+
+        if (slotIndex == -1) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("float speech pool full, dropping oldest slot %d\n", oldestIndex);
+            }
+            soundDelete(gFloatSpeechSlots[oldestIndex].sound);
+            gFloatSpeechSlots[oldestIndex].sound = nullptr;
+            slotIndex = oldestIndex;
+        }
     }
 
     Sound* sound;
@@ -1258,11 +1372,7 @@ bool speechLoadFloat(const char* fileName, int volume)
 
     soundSetReadLimit(sound, 0x40000);
 
-    if (volume < VOLUME_MIN) {
-        volume = VOLUME_MIN;
-    } else if (volume > VOLUME_MAX) {
-        volume = VOLUME_MAX;
-    }
+    int volume = _gsound_calc_float_volume(speaker);
     soundSetVolume(sound, (int)(volume * 0.69));
 
     if (soundPlay(sound) != 0) {
@@ -1274,6 +1384,7 @@ bool speechLoadFloat(const char* fileName, int volume)
     }
 
     gFloatSpeechSlots[slotIndex].sound = sound;
+    gFloatSpeechSlots[slotIndex].speaker = speaker;
     gFloatSpeechSlots[slotIndex].allocSeq = ++gFloatSpeechAllocSeq;
 
     if (gGameSoundDebugEnabled) {
@@ -1760,6 +1871,10 @@ int soundPlayFile(const char* name)
 void _gsound_bkg_proc()
 {
     soundContinueAll();
+
+    // CE ADD: keep floats' volume tracking the player's live distance from
+    // their speaker instead of freezing it at trigger time.
+    floatSpeechUpdateVolumes();
 }
 
 // 0x451A08

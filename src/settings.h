@@ -66,7 +66,6 @@ struct SoundSettings {
     int sndfx_volume = 22281;
     int speech_volume = 22281;
     bool float_speech = true;
-    int float_speech_volume = 22281;
     int cache_size = 448;
     std::string music_path1 = "sound\\music\\";
     std::string music_path2 = "sound\\music\\";
