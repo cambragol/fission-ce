@@ -3170,49 +3170,6 @@ char* _scr_get_msg_str(int messageListId, int messageId)
     return _scr_get_msg_str_speech(messageListId, messageId, 0);
 }
 
-// Scales baseVolume down linearly with tile distance between the speaking
-// object and the player, reaching silence at the player's audible range --
-// STAT_PERCEPTION * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION tiles, mirroring
-// how _gsound_compute_relative_volume() (game_sound.cc) scales ambient SFX
-// off Perception, though that one floors rather than fully muting. At the
-// default Perception of 10 this is 20 tiles. Elevation is checked
-// separately since tile distance alone can't tell floors apart.
-//
-// Computed once, at the moment the float is triggered -- not continuously
-// as the player moves, so a line started up close stays at that volume for
-// its whole playback even if you walk away mid-line.
-#define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
-
-static int _scr_calc_float_volume(Object* speaker, int baseVolume)
-{
-    if (speaker == nullptr || gDude == nullptr) {
-        return baseVolume;
-    }
-
-    if (speaker->elevation != gDude->elevation) {
-        return VOLUME_MIN;
-    }
-
-    int maxDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
-    if (maxDistance < 1) {
-        maxDistance = 1;
-    }
-
-    int distance = objectGetDistanceBetween(speaker, gDude);
-    if (distance >= maxDistance) {
-        return VOLUME_MIN;
-    }
-
-    int volume = baseVolume * (maxDistance - distance) / maxDistance;
-    if (volume < VOLUME_MIN) {
-        volume = VOLUME_MIN;
-    } else if (volume > VOLUME_MAX) {
-        volume = VOLUME_MAX;
-    }
-
-    return volume;
-}
-
 // message_str
 // 0x4A6C5C
 char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* speaker)
@@ -3304,13 +3261,11 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // branch did nothing, so floats and other non-dialog lines
                 // always played silently even when a voice file was present.
                 // Play it as plain speech, no lip-sync, gated by [sound]
-                // float_speech. Volume is tied to the Sound Effects Volume
-                // Preferences slider (soundEffectsGetVolume()) rather than
-                // the dialog speech slider or [sound] float_speech_volume --
-                // float_speech_volume has no Preferences UI of its own
-                // (config-file-only), so it's left in settings.h/fission.cfg
-                // unused for now, reserved for a possible future dedicated
-                // float-volume slider rather than removed outright.
+                // float_speech. Volume (tied to the Sound Effects Volume
+                // Preferences slider, scaled by distance/Perception, and
+                // kept live-updated as the player moves) is computed inside
+                // speechLoadFloat() -- see its comment and
+                // _gsound_calc_float_volume() in game_sound.cc.
                 //
                 // CE FIX: speechLoadFloat() plays from its own pool of slots
                 // instead of the single gSpeechSound dialogue uses (see
@@ -3318,7 +3273,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // from different NPCs -- e.g. combat barks from two critters
                 // at once -- no longer cut each other off.
                 if (settings.sound.float_speech) {
-                    speechLoadFloat(messageListItem.audio, _scr_calc_float_volume(speaker, soundEffectsGetVolume()));
+                    speechLoadFloat(messageListItem.audio, speaker);
                 }
             }
         } else {
