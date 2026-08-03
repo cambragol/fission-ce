@@ -8,7 +8,11 @@
 
 namespace fallout {
 
-#define AUDIO_ENGINE_SOUND_BUFFERS 8
+// CE FIX: raised from 8 to make room for the float-speech pool
+// (FLOAT_SPEECH_MAX_COUNT in game_sound.cc) on top of existing worst-case
+// concurrent use: background music (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) +
+// dialogue speech (1) = 6, leaving only 2 free of the old ceiling.
+#define AUDIO_ENGINE_SOUND_BUFFERS 12
 
 struct AudioEngineSoundBuffer {
     bool active;
