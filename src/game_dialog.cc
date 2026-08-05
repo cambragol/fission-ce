@@ -722,7 +722,7 @@ bool _gdialogActive()
     return _dialog_state_fix != 0;
 }
 
-// CE ADD: _gdialogActive() (_dialog_state_fix) is true for the *entire*
+// FISSION-VOCK ADD: _gdialogActive() (_dialog_state_fix) is true for the *entire*
 // duration of talk_p_proc, not just when a real dialogue window with a head
 // is on screen -- gameDialogEnter() sets _dialog_state_fix = 1 before
 // calling talk_p_proc, and only clears it afterwards if the script never

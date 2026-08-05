@@ -8,7 +8,7 @@
 
 namespace fallout {
 
-// CE FIX: raised from 8 to make room for the float-speech pool
+// FISSION-VOCK FIX: raised from 8 to make room for the float-speech pool
 // (FLOAT_SPEECH_MAX_COUNT in game_sound.cc) on top of existing worst-case
 // concurrent use: background music (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) +
 // dialogue speech (1) = 6, leaving only 2 free of the old ceiling.
@@ -71,7 +71,7 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                     remaining = sizeof(buffer);
                 }
 
-                // CE FIX: bounds-check *before* reading the next frame, not
+                // FISSION-VOCK FIX: bounds-check *before* reading the next frame, not
                 // after. soundBuffer->size (derived from the decoded/loaded
                 // sound data) is not guaranteed to be an exact multiple of
                 // srcFrameSize -- confirmed via AddressSanitizer: a 2-byte

@@ -122,12 +122,6 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_VOLUME_KEY, 22281);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, 22281);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, 22281);
-    // CE ADD: independent enable/disable for voice audio played outside of
-    // an active gdialog session (float_msg, combat, etc). Volume for this
-    // is tied to [sound] sndfx_volume rather than its own setting -- see
-    // _scr_get_msg_str_speech()/speechLoadFloat() in scripts.cc/
-    // game_sound.cc.
-    configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_FLOAT_SPEECH_KEY, 1);
     configSetInt(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, 448);
     configSetString(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, "sound\\music\\");
     configSetString(&gGameConfig, GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, "sound\\music\\");
@@ -167,6 +161,12 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, false);
     configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, 1);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, false);
+    // FISSION-VOCK ADD: independent enable/disable for voice audio played outside of
+    // an active gdialog session (float_msg, combat, etc). Volume for this
+    // is tied to [sound] sndfx_volume rather than its own setting -- see
+    // _scr_get_msg_str_speech()/speechLoadFloat() in scripts.cc/
+    // game_sound.cc.
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOICED_FLOATS_KEY, true);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");

@@ -3194,7 +3194,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
         return nullptr;
     }
 
-    // CE FIX: This used to unconditionally force a3 (the "also play speech"
+    // FISSION-VOCK FIX: This used to unconditionally force a3 (the "also play speech"
     // flag) to 0 whenever gGameDialogHeadFid wasn't a head fid, which is the
     // case for any message_str()/mstr() call outside of a real dialogue
     // window (float_msg, combat, timed_event_p_proc, talk_p_proc-only
@@ -3211,16 +3211,16 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
         return _err_str;
     }
 
-    // CE FIX: gameDialogWindowActive() only tells us *some* dialogue window
+    // FISSION-VOCK FIX: gameDialogWindowActive() only tells us *some* dialogue window
     // is open right now -- it says nothing about whether *this* message
     // belongs to that dialogue. A window can be open with NPC Y while an
     // unrelated script (critter X's combat_p_proc, a timed_event_p_proc,
     // etc) calls message_str()/mstr() for its own, unrelated line in the
     // same tick. Without this check that unrelated line took the "always
     // voice + lip-sync against gGameDialogHeadFid" branch below regardless
-    // of [sound] float_speech, and lip-synced the wrong head besides. Only
+    // of [enhancements] voiced_floats, and lip-synced the wrong head besides. Only
     // the script that actually owns the open dialogue (gGameDialogSpeaker)
-    // should bypass the float_speech gate; every other caller -- including
+    // should bypass the voiced_floats gate; every other caller -- including
     // ones that happen to run while some other NPC's window is open -- is a
     // float and must go through the gated branch like any other.
     bool inOwnDialogue = gameDialogWindowActive() && isDialogueOwner;
@@ -3237,7 +3237,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                     soundPlayFile("censor");
                 }
             } else if (inOwnDialogue) {
-                // CE FIX: this used to check _gdialogActive(), which is true
+                // FISSION-VOCK FIX: this used to check _gdialogActive(), which is true
                 // for the whole duration of talk_p_proc even when the script
                 // never opens a real dialogue window (e.g. simple flavor
                 // NPCs whose talk_p_proc is just a float_msg()/message_str()
@@ -3252,7 +3252,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // head to lip-sync against.
                 gameDialogStartLips(messageListItem.audio);
             } else {
-                // CE FIX: message_str()/mstr() is also called from outside
+                // FISSION-VOCK FIX: message_str()/mstr() is also called from outside
                 // gdialog (float_msg, combat, timed_event_p_proc, etc), or
                 // from a script that isn't the one whose window is currently
                 // open (see inOwnDialogue above). There is no head window to
@@ -3260,19 +3260,20 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // file still exists and should be heard. Previously this
                 // branch did nothing, so floats and other non-dialog lines
                 // always played silently even when a voice file was present.
-                // Play it as plain speech, no lip-sync, gated by [sound]
-                // float_speech. Volume (tied to the Sound Effects Volume
-                // Preferences slider, scaled by distance/Perception, and
-                // kept live-updated as the player moves) is computed inside
-                // speechLoadFloat() -- see its comment and
-                // _gsound_calc_float_volume() in game_sound.cc.
+                // Play it as plain speech, no lip-sync, gated by
+                // [enhancements] voiced_floats and disabled under
+                // strict_vanilla like any other enhancement. Volume (tied to
+                // the Sound Effects Volume Preferences slider, scaled by
+                // distance/Perception, and kept live-updated as the player
+                // moves) is computed inside speechLoadFloat() -- see its
+                // comment and _gsound_calc_float_volume() in game_sound.cc.
                 //
-                // CE FIX: speechLoadFloat() plays from its own pool of slots
+                // FISSION-VOCK FIX: speechLoadFloat() plays from its own pool of slots
                 // instead of the single gSpeechSound dialogue uses (see
                 // speechLoadFloat()'s comment in game_sound.cc), so floats
                 // from different NPCs -- e.g. combat barks from two critters
                 // at once -- no longer cut each other off.
-                if (settings.sound.float_speech) {
+                if (settings.enhancements.voiced_floats && !settings.enhancements.strict_vanilla) {
                     speechLoadFloat(messageListItem.audio, speaker);
                 }
             }
