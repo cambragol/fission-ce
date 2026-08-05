@@ -65,7 +65,6 @@ struct SoundSettings {
     int music_volume = 22281;
     int sndfx_volume = 22281;
     int speech_volume = 22281;
-    bool float_speech = true;
     int cache_size = 448;
     std::string music_path1 = "sound\\music\\";
     std::string music_path2 = "sound\\music\\";
@@ -127,6 +126,7 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
+    bool voiced_floats = true;
 };
 
 struct ModSettings {

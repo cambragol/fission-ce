@@ -1008,7 +1008,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
     } else {
         // ACM - explicitly set decompressing I/O.
         //
-        // CE FIX: gameSoundInit() installs the plain, non-decompressing
+        // FISSION-VOCK FIX: gameSoundInit() installs the plain, non-decompressing
         // gameSoundFileOpen/Read/GetSize as the *global default* sound I/O
         // (see the soundSetDefaultFileIO call after audioInit() runs) -- that
         // default is deliberately dumb, and every caller that needs ACM
@@ -1035,7 +1035,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         }
     }
 
-    // CE FIX: speechCallback() (which sets gSpeechSound = nullptr on
+    // FISSION-VOCK FIX: speechCallback() (which sets gSpeechSound = nullptr on
     // SOUND_CALLBACK_EVENT_DONE) was fully implemented but never actually
     // registered here, unlike backgroundSoundLoad()'s equivalent
     // soundSetCallback(gBackgroundSound, backgroundSoundCallback, ...) a few
@@ -1226,7 +1226,7 @@ static void floatSpeechUpdateVolumes()
     for (int i = 0; i < FLOAT_SPEECH_MAX_COUNT; i++) {
         if (gFloatSpeechSlots[i].sound != nullptr) {
             if (critterIsDead(gFloatSpeechSlots[i].speaker)) {
-                // CE FIX: soundDelete() synchronously invokes the sound's
+                // FISSION-VOCK FIX: soundDelete() synchronously invokes the sound's
                 // callback (floatSpeechCallback) with
                 // SOUND_CALLBACK_EVENT_DONE, which nulls this same slot's
                 // sound/speaker fields immediately -- confirmed via
@@ -1251,7 +1251,7 @@ static void floatSpeechUpdateVolumes()
 }
 
 // Loads and immediately plays a float from its own pool slot, independent of
-// gSpeechSound. Mirrors speechLoad()'s ACM/WAV I/O setup (see the CE FIX
+// gSpeechSound. Mirrors speechLoad()'s ACM/WAV I/O setup (see the FISSION-VOCK FIX
 // comment in speechLoad() above for why the explicit audioOpen override is
 // required) but never touches the dialogue's single speech slot, so a new
 // float doesn't cut off one that's already playing.
@@ -1269,7 +1269,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
         debugPrint("Loading float speech sound file %s%s...", fileName, ".ACM");
     }
 
-    // CE FIX: if this speaker already has an active slot, replace it
+    // FISSION-VOCK FIX: if this speaker already has an active slot, replace it
     // instead of allocating a new one. The pool exists so *different* NPCs
     // can overlap without cutting each other off, but nothing stopped a
     // single NPC from ending up in multiple slots talking over itself
@@ -1872,7 +1872,7 @@ void _gsound_bkg_proc()
 {
     soundContinueAll();
 
-    // CE ADD: keep floats' volume tracking the player's live distance from
+    // FISSION-VOCK ADD: keep floats' volume tracking the player's live distance from
     // their speaker instead of freezing it at trigger time.
     floatSpeechUpdateVolumes();
 }

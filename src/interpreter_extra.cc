@@ -2996,7 +2996,7 @@ static void opGetMessageString(Program* program)
         // nodes, combat_p_proc, critter_p_proc, timed_event_p_proc, ...).
         // Passing the calling script's own object lets
         // _scr_get_msg_str_speech() both (a) tell whether this is the active
-        // dialogue's own line -- and so should bypass the float_speech gate
+        // dialogue's own line -- and so should bypass the voiced_floats gate
         // -- by comparing against gGameDialogSpeaker, and (b) scale a float's
         // volume by distance from the player.
         string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1, scriptGetSelf(program));
