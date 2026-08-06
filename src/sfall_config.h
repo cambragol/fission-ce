@@ -61,6 +61,12 @@ namespace fallout {
 #define MOD_CONFIG_GAME_DIALOG_FIX_KEY "DialogueFix"
 #define MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY "BonusHtHDamageFix"
 
+// Own section: number of NPC floats that can play voiced audio at once. See
+// AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which reserves this many
+// mixer buffer slots in addition to its fixed music/SFX/dialogue budget.
+#define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
+#define MOD_CONFIG_FLOAT_MAX_COUNT_KEY "MaxCount"
+
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
 #define MOD_CONFIG_GLOBAL_SCRIPT_PATHS "GlobalScriptPaths" // requires parsing/modification
@@ -115,6 +121,9 @@ namespace fallout {
 
 // Game fixes
 #define MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE 5
+
+// vock-floats
+#define MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT 4
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""
