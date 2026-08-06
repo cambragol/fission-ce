@@ -206,6 +206,7 @@ void settingsFromModConfig()
     // mod_settings, so modders can find/tune it without wading through
     // everything else in game.cfg.
     modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_MAX_COUNT_KEY, settings.mod_settings.float_max_count);
+    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_LOGARITHMIC_FALLOFF_KEY, settings.mod_settings.float_logarithmic_falloff);
 
     // Game Fixes
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);

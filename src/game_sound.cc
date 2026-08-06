@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <cmath>
 #include <vector>
 
 #include "animation.h"
@@ -1178,17 +1179,29 @@ void floatSpeechCallback(void* userData, int event)
     }
 }
 
-// Scales soundEffectsGetVolume() down linearly with tile distance between
-// the speaking object and the player, reaching silence at the player's
-// audible range -- STAT_PERCEPTION * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION
-// tiles, mirroring how _gsound_compute_relative_volume() above scales
-// ambient SFX off Perception (though that one floors rather than fully
-// muting). At the default Perception of 10 this is 20 tiles. Elevation is
-// checked separately since tile distance alone can't tell floors apart.
-// Volume is tied to the Sound Effects Volume Preferences slider rather
-// than the dialog speech slider -- there's no dedicated float-volume
-// setting; a config-only float_speech_volume existed briefly but was
-// removed since it had no Preferences UI and just confused users.
+// Scales soundEffectsGetVolume() by distance between the speaking object
+// and the player. Elevation is always checked first and short-circuits to
+// silence, regardless of which curve below applies -- tile distance alone
+// can't tell floors apart. Volume is tied to the Sound Effects Volume
+// Preferences slider rather than the dialog speech slider -- there's no
+// dedicated float-volume setting; a config-only float_speech_volume existed
+// briefly but was removed since it had no Preferences UI and just confused
+// users.
+//
+// Default: reuses _gsound_compute_relative_volume() below verbatim -- the
+// same distance/Perception attenuation vanilla already applies to ambient
+// SFX (full volume while on screen, otherwise a linear fade between
+// Perception and 2x Perception tiles down to a fixed 1/3 floor, never
+// fully silent). Keeps floats consistent with how every other ambient
+// sound already behaves by default, per cambragol's review on PR #134.
+//
+// Opt-in: [vock-floats] LogarithmicFalloff in game.cfg
+// (settings.mod_settings.float_logarithmic_falloff) swaps in a logarithmic
+// curve instead -- steep drop-off close to the speaker, leveling off with
+// distance (closer to how human loudness perception actually works than a
+// flat linear ramp), fading fully to silence at STAT_PERCEPTION *
+// FLOAT_SPEECH_DISTANCE_PER_PERCEPTION tiles (20 at the default Perception
+// of 10) rather than vanilla's 1/3 floor.
 #define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
 
 static int _gsound_calc_float_volume(Object* speaker)
@@ -1203,6 +1216,10 @@ static int _gsound_calc_float_volume(Object* speaker)
         return VOLUME_MIN;
     }
 
+    if (!settings.mod_settings.float_logarithmic_falloff) {
+        return (_gsound_compute_relative_volume(speaker) * baseVolume) / VOLUME_MAX;
+    }
+
     int maxDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
     if (maxDistance < 1) {
         maxDistance = 1;
@@ -1213,7 +1230,12 @@ static int _gsound_calc_float_volume(Object* speaker)
         return VOLUME_MIN;
     }
 
-    int volume = baseVolume * (maxDistance - distance) / maxDistance;
+    // log1p(x) = log(1+x): steep near the speaker, leveling off with
+    // distance, normalized so the factor is 1 at distance 0 and 0 at
+    // maxDistance.
+    double factor = 1.0 - std::log1p((double)distance) / std::log1p((double)maxDistance);
+
+    int volume = (int)(baseVolume * factor);
     if (volume < VOLUME_MIN) {
         volume = VOLUME_MIN;
     } else if (volume > VOLUME_MAX) {

@@ -66,6 +66,11 @@ namespace fallout {
 // mixer buffer slots in addition to its fixed music/SFX/dialogue budget.
 #define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
 #define MOD_CONFIG_FLOAT_MAX_COUNT_KEY "MaxCount"
+// Off by default: floats fall off with distance exactly like vanilla
+// ambient SFX (_gsound_compute_relative_volume() in game_sound.cc). On:
+// swaps in a logarithmic curve weighted by Perception instead -- see
+// _gsound_calc_float_volume() in game_sound.cc.
+#define MOD_CONFIG_FLOAT_LOGARITHMIC_FALLOFF_KEY "LogarithmicFalloff"
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
@@ -124,6 +129,7 @@ namespace fallout {
 
 // vock-floats
 #define MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT 4
+#define MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF 0
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""
