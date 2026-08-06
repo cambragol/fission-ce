@@ -202,6 +202,11 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
 
+    // FISSION-VOCK ADD: [vock-floats] is its own section rather than
+    // mod_settings, so modders can find/tune it without wading through
+    // everything else in game.cfg.
+    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_MAX_COUNT_KEY, settings.mod_settings.float_max_count);
+
     // Game Fixes
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, settings.mod_settings.town_map_hotkeys_fix);

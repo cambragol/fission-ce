@@ -3,29 +3,34 @@
 #include <string.h>
 
 #include <mutex>
+#include <vector>
 
 #include <SDL.h>
 
+#include "settings.h"
+#include "sound_effects_cache.h"
+
 namespace fallout {
 
-// FISSION-VOCK FIX: raised from 8 to make room for the float-speech pool
-// (FLOAT_SPEECH_MAX_COUNT in game_sound.cc) on top of existing worst-case
-// concurrent use: background music (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) +
-// dialogue speech (1) = 6, leaving only 2 free of the old ceiling.
-#define AUDIO_ENGINE_SOUND_BUFFERS 12
+// Background music and dialogue speech are each a single scalar Sound*
+// global (gBackgroundSound/gSpeechSound in game_sound.cc), not pools -- there
+// is no allocation loop to raise, so unlike SFX and floats these aren't
+// runtime-configurable.
+#define BACKGROUND_MUSIC_MAX_COUNT (1)
+#define DIALOGUE_SPEECH_MAX_COUNT (1)
 
 struct AudioEngineSoundBuffer {
-    bool active;
-    unsigned int size;
-    int bitsPerSample;
-    int channels;
-    int rate;
-    void* data;
-    int volume;
-    bool playing;
-    bool looping;
-    unsigned int pos;
-    SDL_AudioStream* stream;
+    bool active = false;
+    unsigned int size = 0;
+    int bitsPerSample = 0;
+    int channels = 0;
+    int rate = 0;
+    void* data = nullptr;
+    int volume = 0;
+    bool playing = false;
+    bool looping = false;
+    unsigned int pos = 0;
+    SDL_AudioStream* stream = nullptr;
     std::recursive_mutex mutex;
 };
 
@@ -36,7 +41,28 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length);
 
 static SDL_AudioSpec gAudioEngineSpec;
 static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
-static AudioEngineSoundBuffer gAudioEngineSoundBuffers[AUDIO_ENGINE_SOUND_BUFFERS];
+
+// FISSION-VOCK FIX: was a flat #define (12, raised from 8 to fit the new
+// float-speech pool on top of the old worst-case budget of background music
+// (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) + dialogue speech (1) = 6, plus 2
+// spare). Now derived from every category's actual budget instead of a
+// hand-maintained number, so it can't silently drift out of sync with them.
+// Floats are the only category configurable at runtime (see [vock-floats]
+// MaxCount in game.cfg / settings.mod_settings.float_max_count), so this is
+// computed once in audioEngineInit(), before the SDL device is opened and
+// the mixer callback thread starts -- gAudioEngineSoundBuffers is never
+// resized after that.
+static int audioEngineSoundBufferCount()
+{
+    int floatMaxCount = settings.mod_settings.float_max_count;
+    if (floatMaxCount < 1) {
+        floatMaxCount = 1;
+    }
+
+    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatMaxCount;
+}
+
+static std::vector<AudioEngineSoundBuffer> gAudioEngineSoundBuffers;
 
 static bool audioEngineIsInitialized()
 {
@@ -45,7 +71,7 @@ static bool audioEngineIsInitialized()
 
 static bool soundBufferIsValid(int soundBufferIndex)
 {
-    return soundBufferIndex >= 0 && soundBufferIndex < AUDIO_ENGINE_SOUND_BUFFERS;
+    return soundBufferIndex >= 0 && soundBufferIndex < (int)gAudioEngineSoundBuffers.size();
 }
 
 static void audioEngineMixin(void* userData, Uint8* stream, int length)
@@ -56,7 +82,7 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
         return;
     }
 
-    for (int index = 0; index < AUDIO_ENGINE_SOUND_BUFFERS; index++) {
+    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
         std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
 
@@ -109,6 +135,11 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
 
 bool audioEngineInit()
 {
+    // FISSION-VOCK ADD: sized once, here, before SDL_OpenAudioDevice() below
+    // starts the mixer callback thread that iterates this vector -- never
+    // resized afterward.
+    gAudioEngineSoundBuffers = std::vector<AudioEngineSoundBuffer>(audioEngineSoundBufferCount());
+
     SDL_AudioSpec desiredSpec;
     desiredSpec.freq = 22050;
     desiredSpec.format = AUDIO_S16;
@@ -155,7 +186,7 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
         return -1;
     }
 
-    for (int index = 0; index < AUDIO_ENGINE_SOUND_BUFFERS; index++) {
+    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
         std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
 
