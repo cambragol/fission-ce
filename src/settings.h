@@ -193,6 +193,7 @@ struct ModSettings {
     bool iface_bar_sides_ori = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI;
     int worldmap_trail_markers = MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS;
     int float_max_count = MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT;
+    bool float_logarithmic_falloff = MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF;
 };
 
 struct ModScriptsSettings {
