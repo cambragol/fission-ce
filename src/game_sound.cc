@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <cmath>
 #include <vector>
 
 #include "animation.h"
@@ -1196,12 +1195,16 @@ void floatSpeechCallback(void* userData, int event)
 // sound already behaves by default, per cambragol's review on PR #134.
 //
 // Opt-in: [vock-floats] LogarithmicFalloff in game.cfg
-// (settings.mod_settings.float_logarithmic_falloff) swaps in a logarithmic
-// curve instead -- steep drop-off close to the speaker, leveling off with
-// distance (closer to how human loudness perception actually works than a
-// flat linear ramp), fading fully to silence at STAT_PERCEPTION *
-// FLOAT_SPEECH_DISTANCE_PER_PERCEPTION tiles (20 at the default Perception
-// of 10) rather than vanilla's 1/3 floor.
+// (settings.mod_settings.float_logarithmic_falloff) swaps in an
+// inverse-distance curve instead -- steep drop-off close to the speaker,
+// leveling off with distance (closer to how human loudness perception
+// actually works than a flat linear ramp). Perception sets refDistance,
+// the distance at which volume has faded to half rather than a hard
+// audible range -- the curve has no cutoff and never mathematically
+// reaches zero, so unlike a curve normalized to hit exactly zero at some
+// fixed range, there's no last-tile cliff that gets worse the lower
+// Perception is. It still fades out for real in practice once the integer
+// volume below rounds down to 0.
 #define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
 
 static int _gsound_calc_float_volume(Object* speaker)
@@ -1220,29 +1223,15 @@ static int _gsound_calc_float_volume(Object* speaker)
         return (_gsound_compute_relative_volume(speaker) * baseVolume) / VOLUME_MAX;
     }
 
-    int maxDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
-    if (maxDistance < 1) {
-        maxDistance = 1;
+    int refDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
+    if (refDistance < 1) {
+        refDistance = 1;
     }
 
     int distance = objectGetDistanceBetween(speaker, gDude);
-    if (distance >= maxDistance) {
-        return VOLUME_MIN;
-    }
+    double factor = (double)refDistance / (double)(refDistance + distance);
 
-    // log1p(x) = log(1+x): steep near the speaker, leveling off with
-    // distance, normalized so the factor is 1 at distance 0 and 0 at
-    // maxDistance.
-    double factor = 1.0 - std::log1p((double)distance) / std::log1p((double)maxDistance);
-
-    int volume = (int)(baseVolume * factor);
-    if (volume < VOLUME_MIN) {
-        volume = VOLUME_MIN;
-    } else if (volume > VOLUME_MAX) {
-        volume = VOLUME_MAX;
-    }
-
-    return volume;
+    return (int)(baseVolume * factor);
 }
 
 // Re-evaluates and re-applies every active float's volume from its
@@ -1327,30 +1316,71 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
         gFloatSpeechSlots[slotIndex].sound = nullptr;
         gFloatSpeechSlots[slotIndex].speaker = nullptr;
     } else {
-        // Find a free slot, or fall back to stealing the oldest occupied
-        // one so a burst of floats never gets silently dropped once the
-        // pool is full.
-        int oldestIndex = 0;
-        unsigned int oldestSeq = UINT_MAX;
         for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
             if (gFloatSpeechSlots[i].sound == nullptr) {
                 slotIndex = i;
                 break;
             }
-
-            if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
-                oldestSeq = gFloatSpeechSlots[i].allocSeq;
-                oldestIndex = i;
-            }
         }
 
         if (slotIndex == -1) {
-            if (gGameSoundDebugEnabled) {
-                debugPrint("float speech pool full, dropping oldest slot %d\n", oldestIndex);
+            // Pool is full. What happens next depends on [vock-floats]
+            // EvictionPolicy in game.cfg
+            // (settings.mod_settings.float_eviction_policy):
+            int evictIndex = -1;
+
+            switch (settings.mod_settings.float_eviction_policy) {
+            case FLOAT_SPEECH_EVICTION_POLICY_OLDEST: {
+                // Steal the slot with the smallest allocSeq, so a burst of
+                // floats never gets silently dropped once the pool is full.
+                unsigned int oldestSeq = UINT_MAX;
+                for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                    if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
+                        oldestSeq = gFloatSpeechSlots[i].allocSeq;
+                        evictIndex = i;
+                    }
+                }
+                break;
             }
-            soundDelete(gFloatSpeechSlots[oldestIndex].sound);
-            gFloatSpeechSlots[oldestIndex].sound = nullptr;
-            slotIndex = oldestIndex;
+            case FLOAT_SPEECH_EVICTION_POLICY_FURTHEST: {
+                // Steal whichever occupied slot's speaker is currently
+                // farthest from the player -- but only if the new float's
+                // speaker is closer than that, so eviction never makes the
+                // pool's overall audibility worse. If the new float is the
+                // farthest of all of them (or has no speaker to measure
+                // from), it's dropped instead, same as Vanilla below.
+                if (speaker != nullptr && gDude != nullptr) {
+                    int furthestDistance = objectGetDistanceBetween(speaker, gDude);
+                    for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                        int distance = objectGetDistanceBetween(gFloatSpeechSlots[i].speaker, gDude);
+                        if (distance > furthestDistance) {
+                            furthestDistance = distance;
+                            evictIndex = i;
+                        }
+                    }
+                }
+                break;
+            }
+            default:
+                // Vanilla: no eviction, matching how ambient SFX behaves
+                // when its own pool is full (soundEffectLoad() above) --
+                // leave evictIndex at -1, dropping the new float below.
+                break;
+            }
+
+            if (evictIndex == -1) {
+                if (gGameSoundDebugEnabled) {
+                    debugPrint("float speech pool full, dropping new float\n");
+                }
+                return false;
+            }
+
+            if (gGameSoundDebugEnabled) {
+                debugPrint("float speech pool full, evicting slot %d\n", evictIndex);
+            }
+            soundDelete(gFloatSpeechSlots[evictIndex].sound);
+            gFloatSpeechSlots[evictIndex].sound = nullptr;
+            slotIndex = evictIndex;
         }
     }
 
