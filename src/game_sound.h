@@ -80,6 +80,7 @@ void speechSetEndCallback(SoundEndCallback* callback);
 int speechGetDuration();
 int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
 bool speechLoadFloat(const char* fileName, Object* speaker);
+double gameSoundCalcFloatClarity(Object* speaker);
 int _gsound_speech_play_preloaded();
 void speechDelete();
 int _gsound_play_sfx_file_volume(const char* name, int volume);

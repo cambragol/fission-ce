@@ -195,6 +195,7 @@ struct ModSettings {
     int float_max_count = MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT;
     bool float_logarithmic_falloff = MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF;
     int float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
+    bool float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
 };
 
 struct ModScriptsSettings {

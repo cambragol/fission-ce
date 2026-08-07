@@ -1207,20 +1207,24 @@ void floatSpeechCallback(void* userData, int event)
 // volume below rounds down to 0.
 #define FLOAT_SPEECH_DISTANCE_PER_PERCEPTION (2)
 
-static int _gsound_calc_float_volume(Object* speaker)
+// Pure distance-based clarity factor in [0.0, 1.0] -- 1.0 is fully clear,
+// 0.0 is elevation-mismatched/inaudible. Deliberately independent of
+// soundEffectsGetVolume(), so it can drive non-audio features (see
+// gameSoundCalcFloatClarity() below, used by the opt-in float text
+// scrambling in scripts.cc) as well as the volume calculation here,
+// keeping both in lockstep without duplicating the curve logic.
+static double _gsound_calc_float_distance_factor(Object* speaker)
 {
-    int baseVolume = soundEffectsGetVolume();
-
     if (speaker == nullptr || gDude == nullptr) {
-        return baseVolume;
+        return 1.0;
     }
 
     if (speaker->elevation != gDude->elevation) {
-        return VOLUME_MIN;
+        return 0.0;
     }
 
     if (!settings.mod_settings.float_logarithmic_falloff) {
-        return (_gsound_compute_relative_volume(speaker) * baseVolume) / VOLUME_MAX;
+        return (double)_gsound_compute_relative_volume(speaker) / (double)VOLUME_MAX;
     }
 
     int refDistance = critterGetStat(gDude, STAT_PERCEPTION) * FLOAT_SPEECH_DISTANCE_PER_PERCEPTION;
@@ -1229,9 +1233,18 @@ static int _gsound_calc_float_volume(Object* speaker)
     }
 
     int distance = objectGetDistanceBetween(speaker, gDude);
-    double factor = (double)refDistance / (double)(refDistance + distance);
+    return (double)refDistance / (double)(refDistance + distance);
+}
 
-    return (int)(baseVolume * factor);
+static int _gsound_calc_float_volume(Object* speaker)
+{
+    int baseVolume = soundEffectsGetVolume();
+    return (int)(baseVolume * _gsound_calc_float_distance_factor(speaker));
+}
+
+double gameSoundCalcFloatClarity(Object* speaker)
+{
+    return _gsound_calc_float_distance_factor(speaker);
 }
 
 // Re-evaluates and re-applies every active float's volume from its
