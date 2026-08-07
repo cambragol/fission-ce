@@ -3274,7 +3274,15 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // same as the in-dialog case below.
                 if (inOwnDialogue) {
                     gameDialogStartLips(nullptr);
-                } else {
+                } else if (settings.enhancements.voiced_floats && !settings.enhancements.strict_vanilla) {
+                    // FISSION-VOCK FIX: this branch used to run unconditionally,
+                    // unlike its sibling below (the real-audio non-dialogue
+                    // case), which meant a badword-filtered float still
+                    // produced a censor bleep even under strict_vanilla --
+                    // the only float audio that leaked through when voiced
+                    // floats are supposed to be entirely off. Gated the same
+                    // way as the real-audio branch so strict_vanilla means
+                    // zero new float audio, with no exceptions.
                     soundPlayFile("censor");
                 }
             } else if (inOwnDialogue) {
