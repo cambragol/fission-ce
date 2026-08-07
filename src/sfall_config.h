@@ -71,6 +71,12 @@ namespace fallout {
 // swaps in a logarithmic curve weighted by Perception instead -- see
 // _gsound_calc_float_volume() in game_sound.cc.
 #define MOD_CONFIG_FLOAT_LOGARITHMIC_FALLOFF_KEY "LogarithmicFalloff"
+// What happens when a float triggers with every pool slot already busy --
+// see speechLoadFloat() in game_sound.cc for the 3 policy values.
+#define MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY "EvictionPolicy"
+#define FLOAT_SPEECH_EVICTION_POLICY_VANILLA (0)
+#define FLOAT_SPEECH_EVICTION_POLICY_OLDEST (1)
+#define FLOAT_SPEECH_EVICTION_POLICY_FURTHEST (2)
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
@@ -130,6 +136,7 @@ namespace fallout {
 // vock-floats
 #define MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT 4
 #define MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF 0
+#define MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY FLOAT_SPEECH_EVICTION_POLICY_VANILLA
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""
