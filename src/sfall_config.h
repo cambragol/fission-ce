@@ -77,6 +77,12 @@ namespace fallout {
 #define FLOAT_SPEECH_EVICTION_POLICY_VANILLA (0)
 #define FLOAT_SPEECH_EVICTION_POLICY_OLDEST (1)
 #define FLOAT_SPEECH_EVICTION_POLICY_FURTHEST (2)
+// Off by default (non-vanilla): garbles a float's on-screen text by the
+// same distance-based clarity that already governs its audio (see
+// gameSoundCalcFloatClarity() in game_sound.cc), so a wide screen showing a
+// far-off NPC's line can't just be read clearly when it wouldn't be heard
+// clearly.
+#define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY "TextScramble"
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
@@ -137,6 +143,7 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT 4
 #define MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF 0
 #define MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY FLOAT_SPEECH_EVICTION_POLICY_VANILLA
+#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE 0
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""

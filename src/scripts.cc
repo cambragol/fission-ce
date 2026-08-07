@@ -1,6 +1,7 @@
 #include "scripts.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +32,7 @@
 #include "proto.h"
 #include "proto_instance.h"
 #include "queue.h"
+#include "random.h"
 #include "scan_unimplemented.h"
 #include "settings.h"
 #include "sfall_arrays.h"
@@ -3170,6 +3172,45 @@ char* _scr_get_msg_str(int messageListId, int messageId)
     return _scr_get_msg_str_speech(messageListId, messageId, 0);
 }
 
+// FISSION-VOCK ADD: [vock-floats] TextScramble opt-in (see
+// _scr_get_msg_str_speech() below) -- replaces roughly (1.0 - clarity) of
+// the alphabetic characters in a voiced float's text with noise, leaving
+// spacing/punctuation untouched so word boundaries stay visible even when
+// heavily garbled. clarity comes from gameSoundCalcFloatClarity(), the same
+// distance curve driving that float's audio.
+//
+// Writes into a static scratch buffer rather than mutating
+// messageListItem.text in place, since that pointer is shared, cached
+// storage inside the message list itself (see MessageListItem::text /
+// messageListGetItem() in message.cc) -- every other reader of the same
+// message ID needs the original text back, unlike this one scrambled-for-
+// display copy.
+static char* _scr_scramble_float_text(const char* text, double clarity)
+{
+    static char scrambled[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+    static const char* noise = "#%&*~^";
+    int noiseLength = (int)strlen(noise);
+
+    int garbleChance = (int)((1.0 - clarity) * 100.0);
+
+    size_t length = strlen(text);
+    if (length >= sizeof(scrambled)) {
+        length = sizeof(scrambled) - 1;
+    }
+
+    for (size_t i = 0; i < length; i++) {
+        char c = text[i];
+        if (isalpha((unsigned char)c) && randomBetween(1, 100) <= garbleChance) {
+            scrambled[i] = noise[randomBetween(0, noiseLength - 1)];
+        } else {
+            scrambled[i] = c;
+        }
+    }
+    scrambled[length] = '\0';
+
+    return scrambled;
+}
+
 // message_str
 // 0x4A6C5C
 char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* speaker)
@@ -3275,6 +3316,17 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // at once -- no longer cut each other off.
                 if (settings.enhancements.voiced_floats && !settings.enhancements.strict_vanilla) {
                     speechLoadFloat(messageListItem.audio, speaker);
+
+                    // FISSION-VOCK ADD: [vock-floats] TextScramble in
+                    // game.cfg (non-vanilla, off by default) -- garbles the
+                    // on-screen text by the same distance-based clarity
+                    // already governing this float's audio, so a wide
+                    // screen showing a far-off NPC's line can't just be
+                    // read clearly when it wouldn't be heard clearly.
+                    if (settings.mod_settings.float_text_scramble) {
+                        double clarity = gameSoundCalcFloatClarity(speaker);
+                        messageListItem.text = _scr_scramble_float_text(messageListItem.text, clarity);
+                    }
                 }
             }
         } else {
