@@ -3724,12 +3724,11 @@ static void pipboyHandleAlarmClock(int eventCode)
             // appropriate handler (not the alarm clock).
             gPipboyTab = gPipboyPrevTab;
         }
-    } else if (eventCode >= 4 && eventCode <= 17) {
+    } else if (eventCode >= 1 && eventCode <= gPipboyRestOptionsCount) {
+        pipboyWindowRenderRestOptions(eventCode);          // highlight the clicked option (1?based)
+        int duration = eventCode - 1;                      // 0?based index into the duration list
         soundPlayFile("ib1p1xx1");
-
-        pipboyWindowRenderRestOptions(eventCode - 3);
-
-        int duration = eventCode - 4;
+            
         int minutes = 0;
         int hours = 0;
 
