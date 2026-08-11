@@ -718,8 +718,7 @@ void renderPresent()
             scaledW,
             scaledH
         };
-    }
-    else if (gPreserveAspect || !gStretchEnabled) {
+    } else if (gPreserveAspect || !gStretchEnabled) {
         // Aspect-preserving (fractional scaling allowed)
         float aspect = (float)srcRect.w / srcRect.h;
         float renderAspect = (float)renderW / renderH;
