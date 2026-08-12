@@ -2439,10 +2439,10 @@ bool _obj_occupied(int tile, int elevation)
 static bool critterHasWalkAnimation(Object* critter)
 {
     int walkFid = buildFid(FID_TYPE(critter->fid),
-                           artGetIndex(critter->fid),
-                           ANIM_WALK,
-                           0,
-                           critter->rotation + 1);
+        artGetIndex(critter->fid),
+        ANIM_WALK,
+        0,
+        critter->rotation + 1);
     return artExists(walkFid);
 }
 
