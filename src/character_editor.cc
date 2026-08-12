@@ -4017,7 +4017,6 @@ static void characterEditorEditGender()
         buttonSetCallbacks(btns[1], _gsound_toggle_butt_press_, nullptr);
     }
 
-
     int savedGender = critterGetStat(gDude, STAT_GENDER);
     _win_set_button_rest_state(btns[savedGender], 1, 0);
 
