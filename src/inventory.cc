@@ -137,9 +137,10 @@ namespace fallout {
 #define INVENTORY_LOOT_LEFT_BODY_VIEW_X 44
 #define INVENTORY_LOOT_LEFT_BODY_VIEW_Y 35
 
-#define INVENTORY_SUMMARY_X 297
+#define INVENTORY_SUMMARY_X 296
 #define INVENTORY_SUMMARY_Y 44
-#define INVENTORY_SUMMARY_MAX_X 440
+#define INVENTORY_SUMMARY_WIDTH 154
+#define INVENTORY_SUMMARY_HEIGHT 188
 
 #define INVENTORY_WINDOW_WIDTH 499
 #define INVENTORY_USE_ON_WINDOW_WIDTH 292
@@ -176,9 +177,6 @@ namespace fallout {
 
 #define INVENTORY_SLOT_WIDTH_PAD (INVENTORY_SLOT_WIDTH - INVENTORY_SLOT_PADDING * 2)
 #define INVENTORY_SLOT_HEIGHT_PAD (INVENTORY_SLOT_HEIGHT - INVENTORY_SLOT_PADDING * 2)
-
-#define INVENTORY_DESCRIPTION_AREA_WIDTH 155
-#define INVENTORY_DESCRIPTION_AREA_HEIGHT 188
 
 #define INVENTORY_NORMAL_WINDOW_PC_ROTATION_DELAY (1000U / ROTATION_COUNT)
 #define INVENTORY_FRM_COUNT 16
@@ -3420,7 +3418,7 @@ static void inventoryRenderSummary()
         // Source X: original summary X + shift (so we take a right-shifted region)
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
         unsigned char* dest = windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX;
-        blitBufferToBuffer(src, INVENTORY_DESCRIPTION_AREA_WIDTH, INVENTORY_DESCRIPTION_AREA_HEIGHT, srcPitch, dest, gLayout.windowWidth);
+        blitBufferToBuffer(src, INVENTORY_SUMMARY_WIDTH, INVENTORY_SUMMARY_HEIGHT, srcPitch, dest, gLayout.windowWidth);
     }
 
     // Render character name.
@@ -4179,7 +4177,7 @@ static void inventoryExamineItem(Object* critter, Object* item)
         int shift = (gInventoryColumns - 1) * gLayout.slotWidth;
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
         unsigned char* dest = windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX;
-        blitBufferToBuffer(src, INVENTORY_DESCRIPTION_AREA_WIDTH, INVENTORY_DESCRIPTION_AREA_HEIGHT, srcPitch, dest, gLayout.windowWidth);
+        blitBufferToBuffer(src, INVENTORY_SUMMARY_WIDTH, INVENTORY_SUMMARY_HEIGHT, srcPitch, dest, gLayout.windowWidth);
     }
 
     // Reset item description lines counter.
