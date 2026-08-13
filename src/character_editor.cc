@@ -1845,13 +1845,12 @@ static int characterEditorWindowInit()
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
                 -1, -1,
-                eventCode,      // keyCode = eventCode
-                eventCode,      // eventCode = same value
+                eventCode, // keyCode = eventCode
+                eventCode, // eventCode = same value
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE
-            );
+                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
             buttonSetCallbacks(gCharacterEditorTagSkillBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight();
         }
@@ -1871,8 +1870,7 @@ static int characterEditorWindowInit()
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE
-            );
+                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
         }
@@ -1892,8 +1890,7 @@ static int characterEditorWindowInit()
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE
-            );
+                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
         }
@@ -5761,13 +5758,10 @@ static void characterEditorHandleAdjustSkillButtonPressed(int keyCode)
 // 0x43B67C
 static void characterEditorToggleTaggedSkill(int skill)
 {
-    static int lastFailedSkill = -1;   // track which skill caused the popup
+    static int lastFailedSkill = -1; // track which skill caused the popup
 
     // Check if skill is already tagged
-    bool alreadyTagged = (skill == gCharacterEditorTempTaggedSkills[0] ||
-                          skill == gCharacterEditorTempTaggedSkills[1] ||
-                          skill == gCharacterEditorTempTaggedSkills[2] ||
-                          skill == gCharacterEditorTempTaggedSkills[3]);
+    bool alreadyTagged = (skill == gCharacterEditorTempTaggedSkills[0] || skill == gCharacterEditorTempTaggedSkills[1] || skill == gCharacterEditorTempTaggedSkills[2] || skill == gCharacterEditorTempTaggedSkills[3]);
 
     if (alreadyTagged) {
         // Remove the skill (successful toggle)
@@ -5781,7 +5775,7 @@ static void characterEditorToggleTaggedSkill(int skill)
         } else {
             gCharacterEditorTempTaggedSkills[2] = -1;
         }
-        lastFailedSkill = -1;   // success, clear the guard
+        lastFailedSkill = -1; // success, clear the guard
     } else {
         // Try to add the skill
         int count = 0;
@@ -5796,7 +5790,7 @@ static void characterEditorToggleTaggedSkill(int skill)
                     break;
                 }
             }
-            lastFailedSkill = -1;   // success, clear the guard
+            lastFailedSkill = -1; // success, clear the guard
         } else {
             // Too many – show popup only if this is a different skill
             if (skill != lastFailedSkill) {
@@ -5807,7 +5801,7 @@ static void characterEditorToggleTaggedSkill(int skill)
                 strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 141));
                 const char* lines[] = { line2 };
                 showDialogBox(line1, lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
-                lastFailedSkill = skill;   // remember which skill caused the popup
+                lastFailedSkill = skill; // remember which skill caused the popup
             }
             // Fall through – sync loop will revert the button
         }
@@ -5822,10 +5816,7 @@ static void characterEditorToggleTaggedSkill(int skill)
 
     // Sync all buttons (alwauys run)
     for (int idx = 0; idx < SKILL_COUNT; idx++) {
-        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] ||
-                        idx == gCharacterEditorTempTaggedSkills[1] ||
-                        idx == gCharacterEditorTempTaggedSkills[2] ||
-                        idx == gCharacterEditorTempTaggedSkills[3]);
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] || idx == gCharacterEditorTempTaggedSkills[1] || idx == gCharacterEditorTempTaggedSkills[2] || idx == gCharacterEditorTempTaggedSkills[3]);
         _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 1);
     }
 
@@ -5938,8 +5929,7 @@ static void characterEditorToggleOptionalTrait(int trait)
     static int lastFailedTrait = -1;
 
     // Check if trait is already selected
-    bool alreadySelected = (trait == gCharacterEditorTempTraits[0] ||
-                            trait == gCharacterEditorTempTraits[1]);
+    bool alreadySelected = (trait == gCharacterEditorTempTraits[0] || trait == gCharacterEditorTempTraits[1]);
 
     if (alreadySelected) {
         // Remove the trait (successful toggle)
