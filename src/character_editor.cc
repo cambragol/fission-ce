@@ -5761,10 +5761,7 @@ static void characterEditorToggleTaggedSkill(int skill)
     static int lastFailedSkill = -1; // track which skill caused the popup
 
     // Check if skill is already tagged
-    bool alreadyTagged = (skill == gCharacterEditorTempTaggedSkills[0] ||
-                          skill == gCharacterEditorTempTaggedSkills[1] ||
-                          skill == gCharacterEditorTempTaggedSkills[2] ||
-                          skill == gCharacterEditorTempTaggedSkills[3]);
+    bool alreadyTagged = (skill == gCharacterEditorTempTaggedSkills[0] || skill == gCharacterEditorTempTaggedSkills[1] || skill == gCharacterEditorTempTaggedSkills[2] || skill == gCharacterEditorTempTaggedSkills[3]);
 
     if (alreadyTagged) {
         // Remove the skill (successful toggle)
@@ -5824,10 +5821,7 @@ static void characterEditorToggleTaggedSkill(int skill)
 
     // Sync all buttons (always run)
     for (int idx = 0; idx < SKILL_COUNT; idx++) {
-        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] ||
-                        idx == gCharacterEditorTempTaggedSkills[1] ||
-                        idx == gCharacterEditorTempTaggedSkills[2] ||
-                        idx == gCharacterEditorTempTaggedSkills[3]);
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] || idx == gCharacterEditorTempTaggedSkills[1] || idx == gCharacterEditorTempTaggedSkills[2] || idx == gCharacterEditorTempTaggedSkills[3]);
         _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 1);
     }
 
