@@ -921,10 +921,7 @@ static void characterEditorSyncButtonStates()
 
     // Tag Skills
     for (int idx = 0; idx < SKILL_COUNT; idx++) {
-        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] ||
-                        idx == gCharacterEditorTempTaggedSkills[1] ||
-                        idx == gCharacterEditorTempTaggedSkills[2] ||
-                        idx == gCharacterEditorTempTaggedSkills[3]);
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] || idx == gCharacterEditorTempTaggedSkills[1] || idx == gCharacterEditorTempTaggedSkills[2] || idx == gCharacterEditorTempTaggedSkills[3]);
         _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 0); // flags=0: no event
     }
 
