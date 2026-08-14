@@ -137,9 +137,10 @@ namespace fallout {
 #define INVENTORY_LOOT_LEFT_BODY_VIEW_X 44
 #define INVENTORY_LOOT_LEFT_BODY_VIEW_Y 35
 
-#define INVENTORY_SUMMARY_X 297
-#define INVENTORY_SUMMARY_Y 44
-#define INVENTORY_SUMMARY_MAX_X 440
+#define INVENTORY_SUMMARY_X 296
+#define INVENTORY_SUMMARY_Y 45
+#define INVENTORY_SUMMARY_WIDTH 154
+#define INVENTORY_SUMMARY_HEIGHT 188
 
 #define INVENTORY_WINDOW_WIDTH 499
 #define INVENTORY_USE_ON_WINDOW_WIDTH 292
@@ -3417,7 +3418,7 @@ static void inventoryRenderSummary()
         // Source X: original summary X + shift (so we take a right-shifted region)
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
         unsigned char* dest = windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX;
-        blitBufferToBuffer(src, 152, 188, srcPitch, dest, gLayout.windowWidth);
+        blitBufferToBuffer(src, INVENTORY_SUMMARY_WIDTH, INVENTORY_SUMMARY_HEIGHT, srcPitch, dest, gLayout.windowWidth);
     }
 
     // Render character name.
@@ -4176,7 +4177,7 @@ static void inventoryExamineItem(Object* critter, Object* item)
         int shift = (gInventoryColumns - 1) * gLayout.slotWidth;
         unsigned char* src = backgroundFrmImage.getData() + srcPitch * gLayout.summaryY + (INVENTORY_SUMMARY_X + shift);
         unsigned char* dest = windowBuffer + gLayout.windowWidth * gLayout.summaryY + gLayout.summaryX;
-        blitBufferToBuffer(src, 152, 188, srcPitch, dest, gLayout.windowWidth);
+        blitBufferToBuffer(src, INVENTORY_SUMMARY_WIDTH, INVENTORY_SUMMARY_HEIGHT, srcPitch, dest, gLayout.windowWidth);
     }
 
     // Reset item description lines counter.

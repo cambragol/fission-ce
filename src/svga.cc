@@ -664,125 +664,81 @@ void resizeContent(int width, int height, bool preserveAspect)
 
 void renderPresent()
 {
-    // Get physical pixel size of the window (DPI-aware)
+    // Get physical pixel size of the renderer (the actual screen pixels)
     int renderW, renderH;
     SDL_GetRendererOutputSize(gSdlRenderer, &renderW, &renderH);
 
-    // Get logical window size
-    int windowW, windowH;
-    SDL_GetWindowSize(gSdlWindow, &windowW, &windowH);
+    // Texture surface dimensions
+    int srcW = gSdlTextureSurface->w;
+    int srcH = gSdlTextureSurface->h;
 
-    // Calculate scale factors for DPI
-    float scaleX = (float)renderW / windowW;
-    float scaleY = (float)renderH / windowH;
-    float dpiScale = (scaleX < scaleY) ? scaleX : scaleY; // Use min scale for consistency
+    SDL_Rect srcRect;
+    SDL_Rect destRect;
 
-    // Get logical rendering size fallback
-    int logicalW, logicalH;
-    SDL_RenderGetLogicalSize(gSdlRenderer, &logicalW, &logicalH);
-    if (logicalW == 0)
-        logicalW = gContentWidth;
-    if (logicalH == 0)
-        logicalH = gContentHeight;
-
-    SDL_Rect srcRect, destRect;
-
+    // Update texture from surface
     if (gStretchEnabled) {
-        int contentOffsetX = (gSdlTextureSurface->w - gContentWidth) / 2;
-        int contentOffsetY = (gSdlTextureSurface->h - gContentHeight) / 2;
+        int contentOffsetX = (srcW - gContentWidth) / 2;
+        int contentOffsetY = (srcH - gContentHeight) / 2;
+        if (contentOffsetX < 0) contentOffsetX = 0;
+        if (contentOffsetY < 0) contentOffsetY = 0;
+        int copyW = gContentWidth;
+        int copyH = gContentHeight;
+        if (copyW > srcW) copyW = srcW;
+        if (copyH > srcH) copyH = srcH;
 
-        srcRect = {
-            contentOffsetX,
-            contentOffsetY,
-            gContentWidth,
-            gContentHeight
-        };
-
-        // INTEGER SCALING MODE (with retina support)
-        if (gSquarePixels) {
-            // Use float for scale to support fractional values
-            float scale;
-
-            if (dpiScale > 1.0f) {
-                // High DPI: fractional scaling
-                float maxScaleX = (float)renderW / gContentWidth;
-                float maxScaleY = (float)renderH / gContentHeight;
-                scale = (maxScaleX < maxScaleY) ? maxScaleX : maxScaleY;
-
-                // Snap to 0.5 increments for better quality
-                scale = floorf(scale * 2.0f) / 2.0f;
-                // Ensure minimum scale of 0.5
-                if (scale < 0.5f)
-                    scale = 0.5f;
-            } else {
-                // Standard display: integer scaling
-                int maxScaleX = renderW / gContentWidth;
-                int maxScaleY = renderH / gContentHeight;
-                scale = (maxScaleX < maxScaleY) ? maxScaleX : maxScaleY;
-                // Ensure minimum scale of 1
-                if (scale < 1)
-                    scale = 1;
-            }
-
-            // Calculate scaled dimensions
-            int scaledWidth = static_cast<int>(gContentWidth * scale);
-            int scaledHeight = static_cast<int>(gContentHeight * scale);
-
-            // Center the scaled content
-            destRect = {
-                (renderW - scaledWidth) / 2,
-                (renderH - scaledHeight) / 2,
-                scaledWidth,
-                scaledHeight
-            };
-        }
-        // ASPECT-RATIO PRESERVED MODE
-        else if (gPreserveAspect) {
-            float contentAspect = (float)gContentWidth / gContentHeight;
-            float windowAspect = (float)renderW / renderH;
-
-            if (windowAspect > contentAspect) {
-                destRect.h = renderH;
-                destRect.w = (int)(renderH * contentAspect);
-                destRect.x = (renderW - destRect.w) / 2;
-                destRect.y = 0;
-            } else {
-                destRect.w = renderW;
-                destRect.h = (int)(renderW / contentAspect);
-                destRect.x = 0;
-                destRect.y = (renderH - destRect.h) / 2;
-            }
-        }
-        // STRETCH TO FILL MODE
-        else {
-            // Stretch to fill entire window
-            destRect = { 0, 0, renderW, renderH };
-        }
-
+        srcRect = { contentOffsetX, contentOffsetY, copyW, copyH };
         SDL_UpdateTexture(gSdlTexture, &srcRect,
             (uint8_t*)gSdlTextureSurface->pixels + contentOffsetY * gSdlTextureSurface->pitch + contentOffsetX * 4,
             gSdlTextureSurface->pitch);
-
     } else {
-        // Stretching disabled — display original size scaled for DPI, centered
-        srcRect = { 0, 0, gSdlTextureSurface->w, gSdlTextureSurface->h };
-
-        destRect = {
-            (renderW - (int)(gSdlTextureSurface->w * scaleX)) / 2,
-            (renderH - (int)(gSdlTextureSurface->h * scaleY)) / 2,
-            (int)(gSdlTextureSurface->w * scaleX),
-            (int)(gSdlTextureSurface->h * scaleY)
-        };
-
+        srcRect = { 0, 0, srcW, srcH };
         SDL_UpdateTexture(gSdlTexture, nullptr,
             gSdlTextureSurface->pixels,
             gSdlTextureSurface->pitch);
     }
 
-    // Background color for tracking screen stretching issues
-    // SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 0, 255);
-    SDL_RenderClear(gSdlRenderer);
+    // Square pixels: use physical dimensions for integer scaling
+    if (gSquarePixels) {
+        // We use the actual content dimensions (srcRect.w/h) as the source aspect.
+        float contentW = (float)srcRect.w;
+        float contentH = (float)srcRect.h;
 
+        // Maximum uniform integer scale that fits in the physical output
+        int maxScaleX = renderW / (int)contentW;
+        int maxScaleY = renderH / (int)contentH;
+        int scale = (maxScaleX < maxScaleY) ? maxScaleX : maxScaleY;
+        if (scale < 1) scale = 1; // fallback
+
+        int scaledW = (int)(contentW * scale);
+        int scaledH = (int)(contentH * scale);
+
+        destRect = {
+            (renderW - scaledW) / 2,
+            (renderH - scaledH) / 2,
+            scaledW,
+            scaledH
+        };
+    } else if (gPreserveAspect || !gStretchEnabled) {
+        // Aspect-preserving (fractional scaling allowed)
+        float aspect = (float)srcRect.w / srcRect.h;
+        float renderAspect = (float)renderW / renderH;
+        if (renderAspect > aspect) {
+            destRect.h = renderH;
+            destRect.w = (int)(renderH * aspect);
+            destRect.x = (renderW - destRect.w) / 2;
+            destRect.y = 0;
+        } else {
+            destRect.w = renderW;
+            destRect.h = (int)(renderW / aspect);
+            destRect.x = 0;
+            destRect.y = (renderH - destRect.h) / 2;
+        }
+    } else {
+        // Stretch to fill (no aspect preservation)
+        destRect = { 0, 0, renderW, renderH };
+    }
+
+    SDL_RenderClear(gSdlRenderer);
     SDL_RenderCopy(gSdlRenderer, gSdlTexture, &srcRect, &destRect);
     SDL_RenderPresent(gSdlRenderer);
 }
