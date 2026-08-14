@@ -1002,6 +1002,7 @@ int pipboyOpen(int intent)
         sharedFpsLimiter.mark();
 
         int keyCode = inputGetInput();
+        convertMouseWheelToArrowKey(&keyCode);
 
         if (intent == PIPBOY_OPEN_INTENT_REST) {
             keyCode = 505;
@@ -1864,8 +1865,8 @@ static void pipboyWindowHandleStatus(int userInput)
                     }
                 }
             }
+            return;
         }
-        return;
     }
 
     // Down arrow - selection down, wrap to next page (go to top of next page)
@@ -1929,8 +1930,8 @@ static void pipboyWindowHandleStatus(int userInput)
                     }
                 }
             }
+            return;
         }
-        return;
     }
 
     // Left arrow - switch column OR go to previous page (preserve relative position)
@@ -2308,6 +2309,32 @@ static void pipboyWindowHandleStatus(int userInput)
 
     // Subpage navigation (holodisk text)
     if (_stat_flag == 0 && _holo_flag == 1) {
+        // Arrow keys for page navigation
+        if (userInput == PIPBOY_KEY_UP) {
+            if (_view_page > 0) {
+                _view_page--;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+            return;
+        }
+
+        if (userInput == PIPBOY_KEY_DOWN) {
+            if (_view_page < gPipboyHolodiskLastPage) {
+                _view_page++;
+                pipboyWindowDestroyButtons();
+                soundPlayFile("ib1p1xx1");
+                pipboyRenderHolodiskText();
+                pipboyWindowCreateButtons(0, 0, true);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+            return;
+        }
+
+        // Bottom navigation) handler
         if (userInput == 1025) {
             if (gPipboyMouseX > 395 && gPipboyMouseX < 459 && gPipboyHolodiskLastPage != 0) {
                 return;
@@ -2324,6 +2351,7 @@ static void pipboyWindowHandleStatus(int userInput)
                     pipboyWindowCreateButtons(0, 0, true);
                     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
                 });
+            return;
         }
         return;
     }
@@ -3724,12 +3752,11 @@ static void pipboyHandleAlarmClock(int eventCode)
             // appropriate handler (not the alarm clock).
             gPipboyTab = gPipboyPrevTab;
         }
-    } else if (eventCode >= 4 && eventCode <= 17) {
+    } else if (eventCode >= 1 && eventCode <= gPipboyRestOptionsCount) {
+        pipboyWindowRenderRestOptions(eventCode); // highlight the clicked option (1-based)
+        int duration = eventCode - 1; // 0-based index into the duration list
         soundPlayFile("ib1p1xx1");
 
-        pipboyWindowRenderRestOptions(eventCode - 3);
-
-        int duration = eventCode - 4;
         int minutes = 0;
         int hours = 0;
 
@@ -5794,6 +5821,27 @@ static void pipboyHandleClues(int userInput)
 
     // Article View Mode
     if (gCluesInArticle) {
+        // Mouse wheel / Up arrow: previous page
+        if (userInput == PIPBOY_KEY_UP) {
+            if (gCluesArticlePage > 0) {
+                soundPlayFile("ib1p1xx1");
+                gCluesArticlePage--;
+                cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+            return;
+        }
+
+        // Mouse wheel / Down arrow: next page
+        if (userInput == PIPBOY_KEY_DOWN) {
+            if (gCluesArticlePage < gCluesArticleTotalPages - 1) {
+                soundPlayFile("ib1p1xx1");
+                gCluesArticlePage++;
+                cluesRenderArticle(gCluesCurrentArticleIndex, gCluesArticlePage);
+                windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);
+            }
+            return;
+        }
         // Handle bottom button (Back/More)
         if (userInput == 1025) {
             int mouseX = gPipboyMouseX;
