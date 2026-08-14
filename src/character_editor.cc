@@ -1890,6 +1890,9 @@ static int characterEditorWindowInit()
                 BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
+            if (i == TRAIT_COUNT / 2 - 3) {
+                y += 2; // lowers bottom 2 traits 2-pixel
+            }
         }
 
         y = gOffsets.optionalTraitsButtonY;
@@ -1910,6 +1913,9 @@ static int characterEditorWindowInit()
                 BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
+            if (i == TRAIT_COUNT - 3) {
+                y += 2; // lowers bottom 2 traits 2-pixels
+            }
         }
 
         characterEditorDrawOptionalTraits();
