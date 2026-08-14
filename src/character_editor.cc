@@ -915,6 +915,26 @@ struct CustomKarmaFolderDescription {
 static std::vector<CustomKarmaFolderDescription> gCustomKarmaFolderDescriptions;
 static std::vector<TownReputationEntry> gCustomTownReputationEntries;
 
+static void characterEditorSyncButtonStates()
+{
+    if (!gCharacterEditorIsCreationMode) return;
+
+    // Tag Skills
+    for (int idx = 0; idx < SKILL_COUNT; idx++) {
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] ||
+                        idx == gCharacterEditorTempTaggedSkills[1] ||
+                        idx == gCharacterEditorTempTaggedSkills[2] ||
+                        idx == gCharacterEditorTempTaggedSkills[3]);
+        _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 0); // flags=0: no event
+    }
+
+    // Optional Traits
+    for (int idx = 0; idx < TRAIT_COUNT; idx++) {
+        int isSelected = (idx == gCharacterEditorTempTraits[0] || idx == gCharacterEditorTempTraits[1]);
+        _win_set_button_rest_state(gCharacterEditorOptionalTraitBtns[idx], isSelected ? 1 : 0, 0);
+    }
+}
+
 // 0x431DF8
 int characterEditorShow(bool isCreationMode)
 {
@@ -2035,6 +2055,7 @@ static int characterEditorWindowInit()
         buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
+    characterEditorSyncButtonStates();
     windowRefresh(gCharacterEditorWindow);
     indicatorBarHide();
 
@@ -4312,6 +4333,7 @@ static int characterEditorShowOptions()
 
                     gCharacterEditorTempTraitCount = traitCount;
                     critterUpdateDerivedStats(gDude);
+                    characterEditorSyncButtonStates();
                     characterEditorResetScreen();
                 }
             } else if (keyCode == 502 || keyCode == KEY_UPPERCASE_P || keyCode == KEY_LOWERCASE_P) {
@@ -4450,8 +4472,8 @@ static int characterEditorShowOptions()
                             gCharacterEditorTempTraitCount = traitCount;
 
                             critterUpdateDerivedStats(gDude);
-
                             critterAdjustHitPoints(gDude, 1000);
+                            characterEditorSyncButtonStates();
 
                             rc = 1;
                         } else {
