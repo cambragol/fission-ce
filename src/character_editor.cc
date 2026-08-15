@@ -1852,9 +1852,15 @@ static int characterEditorWindowInit()
         }
 
         y = gOffsets.tagSkillsButtonY;
+        int buttonFlags = BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE;
         // Tag Skills
         for (i = 0; i < SKILL_COUNT; i++) {
             int eventCode = TAG_SKILLS_BUTTON_CODE + i; // 536..553
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla){
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorTagSkillBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.tagSkillsButtonX,
@@ -1862,12 +1868,12 @@ static int characterEditorWindowInit()
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
                 -1, -1,
-                eventCode, // keyCode = eventCode
+                keyCode, // keyCode = eventCode
                 eventCode, // eventCode = same value
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorTagSkillBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight();
         }
@@ -1876,18 +1882,23 @@ static int characterEditorWindowInit()
         // Optional Traits (left column)
         for (i = 0; i < TRAIT_COUNT / 2; i++) {
             int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 555..562
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla){
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorOptionalTraitBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.optionalTraitsLeftButtonX,
                 y,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
-                -1, -1, eventCode,
+                -1, -1, keyCode,
                 eventCode,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
             if (i == TRAIT_COUNT / 2 - 3) {
@@ -1899,18 +1910,23 @@ static int characterEditorWindowInit()
         // Optional Traits (right column)
         for (i = TRAIT_COUNT / 2; i < TRAIT_COUNT; i++) {
             int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 563..570
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla){
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorOptionalTraitBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.optionalTraitsRightButtonX,
                 y,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
-                -1, -1, eventCode,
+                -1, -1, keyCode,
                 eventCode,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
             if (i == TRAIT_COUNT - 3) {
@@ -5818,7 +5834,7 @@ static void characterEditorToggleTaggedSkill(int skill)
             lastFailedSkill = -1; // success, clear the guard
         } else {
             // Too many – show popup only if this is a different skill
-            if (skill != lastFailedSkill) {
+            if (skill != lastFailedSkill || settings.enhancements.strict_vanilla) {
                 soundPlayFile("iisxxxx1");
                 char line1[128];
                 strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 140));
@@ -5987,7 +6003,7 @@ static void characterEditorToggleOptionalTrait(int trait)
             lastFailedTrait = -1;
         } else {
             // Too many – show popup only if this is a different trait
-            if (trait != lastFailedTrait) {
+            if (trait != lastFailedTrait || settings.enhancements.strict_vanilla) {
                 soundPlayFile("iisxxxx1");
                 char line1[128];
                 strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 148));
