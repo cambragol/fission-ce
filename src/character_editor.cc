@@ -1857,7 +1857,7 @@ static int characterEditorWindowInit()
         for (i = 0; i < SKILL_COUNT; i++) {
             int eventCode = TAG_SKILLS_BUTTON_CODE + i; // 536..553
             int keyCode = eventCode;
-            if (settings.enhancements.strict_vanilla){
+            if (settings.enhancements.strict_vanilla) {
                 buttonFlags = 32;
                 keyCode = -1;
             }
@@ -1883,7 +1883,7 @@ static int characterEditorWindowInit()
         for (i = 0; i < TRAIT_COUNT / 2; i++) {
             int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 555..562
             int keyCode = eventCode;
-            if (settings.enhancements.strict_vanilla){
+            if (settings.enhancements.strict_vanilla) {
                 buttonFlags = 32;
                 keyCode = -1;
             }
@@ -1911,7 +1911,7 @@ static int characterEditorWindowInit()
         for (i = TRAIT_COUNT / 2; i < TRAIT_COUNT; i++) {
             int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 563..570
             int keyCode = eventCode;
-            if (settings.enhancements.strict_vanilla){
+            if (settings.enhancements.strict_vanilla) {
                 buttonFlags = 32;
                 keyCode = -1;
             }
