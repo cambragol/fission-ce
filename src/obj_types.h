@@ -46,7 +46,7 @@ typedef enum OutlineType {
 } OutlineType;
 
 typedef enum ObjectFlags {
-    
+
     OBJECT_NONE = 0x00,
     OBJECT_HIDDEN = 0x01,
 
