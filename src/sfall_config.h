@@ -54,6 +54,7 @@ namespace fallout {
 #define MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY "FemaleStartModel"
 #define MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY "DialogGenderWords"
 #define MOD_CONFIG_WORLDMAP_TRAIL_MARKERS "WorldMapTravelMarkers"
+#define MOD_CONFIG_FOG_LEVEL "FogLevel"
 
 // game fixes - hide, but turn off with strictVanilla?
 #define MOD_CONFIG_USE_WALK_DISTANCE "UseWalkDistance"
@@ -112,6 +113,7 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_Y 0
 #define MOD_CONFIG_DEFAULT_VERSION_STRING ""
 #define MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS 0
+#define MOD_CONFIG_DEFAULT_FOG_LEVEL 0
 
 // Game fixes
 #define MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE 5
