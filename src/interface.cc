@@ -352,6 +352,10 @@ static FrmImage gRedButtonDownFrmImage; // ID 7803
 static unsigned char* gMultidexInnardsBuffer = nullptr;
 static bool gMultidexAnimating = false;
 
+bool gMultidexSkillSelectActive = false;
+int gMultidexSelectedSkill = -1;
+bool gMultidexSelectionDone = false;
+
 static int gInterfaceSidePanelsLeadingWindow = -1;
 static int gInterfaceSidePanelsTrailingWindow = -1;
 
@@ -3632,6 +3636,251 @@ static void multidexDestroySkillButtons(void)
     }
     gSkillButtonsCreated = false;
     memset(gSkillButtonSkill, 0, sizeof(gSkillButtonSkill));
+}
+
+static void multidexSkillSelectButtonPress(int btn, int event)
+{
+    int skill = gSkillButtonSkill[btn];
+    if (skill != -1) {
+        gMultidexSelectedSkill = skill;
+        gMultidexSelectionDone = true;
+        soundPlayFile("ib1p1xx1");
+    }
+}
+
+int multidexSkillSelectExact()
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) {
+        return -1;
+    }
+
+    // Switch to skilldex panel if needed.
+    bool wasSkilldexMode = gMultidexSkilldexMode;
+    bool switched = false;
+    if (!wasSkilldexMode) {
+        multidexTogglePanel();
+        switched = true;
+    }
+
+    // Hide any custom mouse objects (action menu icons).
+    gameMouseObjectsHide();
+    // Set the cursor to the small arrow.
+    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+    // Disable iso so game world doesn't respond.
+    bool isoWasEnabled = isoDisable();
+
+    gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+    // Get interface bar position.
+    Rect ifaceRect;
+    windowGetRect(gInterfaceBarWindow, &ifaceRect);
+
+    // Multidex skilldex area is 262x99 at (800,0) within interface bar.
+    int skillAreaX = ifaceRect.left + 800;
+    int skillAreaY = ifaceRect.top;
+    int skillAreaW = 262;
+    int skillAreaH = 99;
+
+    // Create a modal window covering exactly that area.
+    int modalWin = windowCreate(skillAreaX, skillAreaY, skillAreaW, skillAreaH,
+        0, WINDOW_MODAL | WINDOW_TRANSPARENT | WINDOW_DONT_MOVE_TOP);
+    if (modalWin == -1) {
+        // Restore state on failure.
+        if (isoWasEnabled) isoEnable();
+        gameMouseObjectsShow();
+        if (switched) multidexTogglePanel();
+        return -1;
+    }
+
+    // Button layout (same as multidexCreateSkillButtons).
+    const int leftColX = 15;
+    const int rightColX = 137;
+    const int startY = 12;
+    const int spacingY = 21;
+    const int btnW = gRedButtonUpFrmImage.getWidth();
+    const int btnH = gRedButtonUpFrmImage.getHeight();
+
+    // Create 8 skill buttons, key codes 501..508.
+    for (int i = 0; i < 8; i++) {
+        int x = (i < 4) ? leftColX : rightColX;
+        int y = startY + (i % 4) * spacingY;
+        int btn = buttonCreate(modalWin, x, y, btnW, btnH,
+            -1, -1, -1, 501 + i,
+            gRedButtonUpFrmImage.getData(),
+            gRedButtonDownFrmImage.getData(),
+            nullptr, BUTTON_FLAG_TRANSPARENT);
+        if (btn != -1) {
+            gSkillButtonSkill[btn] = gMultidexSkillIds[i];
+            buttonSetCallbacks(btn, nullptr, multidexSkillSelectButtonPress);
+        }
+    }
+
+    // Enter selection mode.
+    gMultidexSkillSelectActive = true;
+    gMultidexSelectedSkill = -1;
+    gMultidexSelectionDone = false;
+
+    // Modal loop (identical to skilldexOpen).
+    while (!gMultidexSelectionDone) {
+        sharedFpsLimiter.mark();
+
+        int keyCode = inputGetInput();
+        if (keyCode == KEY_ESCAPE || _game_user_wants_to_quit != 0) {
+            gMultidexSelectedSkill = -1;
+            gMultidexSelectionDone = true;
+            break;
+        }
+
+        // Right-click cancellation.
+        int mouseEvent = mouseGetEvent();
+        if (mouseEvent & MOUSE_EVENT_RIGHT_BUTTON_UP) {
+            gMultidexSelectedSkill = -1;
+            gMultidexSelectionDone = true;
+            break;
+        }
+
+        // Keep cursor as arrow (modal window prevents most changes, but just in case).
+        gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+
+    // Cleanup
+    windowDestroy(modalWin);
+    gMultidexSkillSelectActive = false;
+
+    // Restore iso and mouse
+    if (isoWasEnabled) isoEnable();
+    gameMouseObjectsShow();
+    gameMouseRefresh();
+
+    int selectedSkill = gMultidexSelectedSkill;
+
+    // Restore panel mode if switched.
+    if (switched) {
+        multidexTogglePanel();
+    }
+
+    return selectedSkill;
+}
+
+static bool multidexMapScreenToTile(int relX, int relY, int* tile)
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return false;
+    if (gMultidexSkilldexMode) return false;
+
+    // The map display area within the interface window (must match multidexDrawMapToBuffer)
+    const int mapOffsetX = 800 + 85; // extension X + destMapX
+    const int mapOffsetY = 17; // destMapY
+    const Rect srcClip = { 32, 74, 184, 144 }; // the crop rectangle used by automapRenderMinimapCroppedToBuffer
+
+    // Check if the click is inside the displayed map area
+    if (relX < mapOffsetX || relX >= mapOffsetX + (srcClip.right - srcClip.left + 1) || relY < mapOffsetY || relY >= mapOffsetY + (srcClip.bottom - srcClip.top + 1)) {
+        return false;
+    }
+
+    // Full minimap viewport (as defined in minimap mode)
+    const int fullClipLeft = MINIMAP_CLIP_LEFT;
+    const int fullClipTop = MINIMAP_CLIP_TOP;
+    const int fullClipRight = MINIMAP_CLIP_RIGHT;
+    const int fullClipBottom = MINIMAP_CLIP_BOTTOM;
+    const int fullWidth = fullClipRight - fullClipLeft + 1; // 149
+    const int fullHeight = fullClipBottom - fullClipTop + 1; // 164
+    const int vpCenterX = fullWidth / 2; // 74
+    const int vpCenterY = fullHeight / 2; // 82
+
+    // Convert click coordinates to absolute coordinates within the full viewport
+    int absX = (relX - mapOffsetX) + srcClip.left;
+    int absY = (relY - mapOffsetY) + srcClip.top;
+
+    // Convert to offset from the full viewport origin (top-left of the minimap)
+    int fullX = absX - fullClipLeft;
+    int fullY = absY - fullClipTop;
+
+    // Player tile and base coordinates
+    int playerTile = gDude->tile;
+    int uPlayer = playerTile % 200;
+    int vPlayer = playerTile / 200;
+
+    const double original_scale = 0.5;
+    double playerBaseX, playerBaseY;
+    if (gUseNewAutomapProjection) {
+        const double angleEW = 14.2, angleNS = 37.0;
+        const double slopeEW = tan(angleEW * M_PI / 180.0);
+        const double slopeNS = tan(angleNS * M_PI / 180.0);
+        playerBaseX = (vPlayer - uPlayer);
+        playerBaseY = uPlayer * slopeEW + vPlayer * slopeNS;
+    } else {
+        playerBaseX = original_scale * (-2 * uPlayer);
+        playerBaseY = original_scale * (2 * vPlayer);
+    }
+
+    // Reverse the zoom and centering transformation
+    double targetBaseX = (fullX - vpCenterX) / (double)zoom + playerBaseX;
+    double targetBaseY = (fullY - vpCenterY) / (double)zoom + playerBaseY;
+
+    // Convert base coordinates back to tile (u, v)
+    double uDouble, vDouble;
+    if (gUseNewAutomapProjection) {
+        const double angleEW = 14.2, angleNS = 37.0;
+        const double slopeEW = tan(angleEW * M_PI / 180.0);
+        const double slopeNS = tan(angleNS * M_PI / 180.0);
+        double denom = slopeEW + slopeNS;
+        if (fabs(denom) < 0.0001) return false;
+        uDouble = (targetBaseY - targetBaseX * slopeNS) / denom;
+        vDouble = targetBaseX + uDouble;
+    } else {
+        uDouble = -targetBaseX / (2.0 * original_scale);
+        vDouble = targetBaseY / (2.0 * original_scale);
+    }
+
+    int u = (int)round(uDouble);
+    int v = (int)round(vDouble);
+    if (u >= 0 && u < 200 && v >= 0 && v < 200) {
+        *tile = v * 200 + u;
+        return true;
+    }
+    return false;
+}
+
+bool multidexHandleMouse()
+{
+    if (!gInterfaceBarSuperWide || gInterfaceBarWindow == -1) return false;
+    if (gMultidexSkilldexMode) return false;
+    if (gMultidexSkillSelectActive) return false;
+    if (isInCombat()) return false;
+
+    int mouseEvent = mouseGetEvent();
+    if (!(mouseEvent & MOUSE_EVENT_LEFT_BUTTON_UP)) return false;
+
+    int mouseX, mouseY;
+    mouseGetPosition(&mouseX, &mouseY);
+    Rect ifaceRect;
+    windowGetRect(gInterfaceBarWindow, &ifaceRect);
+    int relX = mouseX - ifaceRect.left;
+    int relY = mouseY - ifaceRect.top;
+
+    int targetTile;
+    if (multidexMapScreenToTile(relX, relY, &targetTile)) {
+        if (targetTile != gDude->tile) {
+            reg_anim_clear(gDude);
+            int ap = isInCombat() ? _combat_free_move + gDude->data.critter.combat.ap : -1;
+            bool shift = (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT]);
+            bool run = settings.preferences.running;
+            bool shouldRun = (run && !shift) || (!run && shift);
+
+            reg_anim_begin(ANIMATION_REQUEST_RESERVED);
+            if (shouldRun)
+                animationRegisterRunToTile(gDude, targetTile, gDude->elevation, ap, 0);
+            else
+                animationRegisterMoveToTile(gDude, targetTile, gDude->elevation, ap, 0);
+            reg_anim_end();
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace fallout

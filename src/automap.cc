@@ -631,7 +631,7 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
     int vPlayer = playerTile / 200;
 
     // minimap mode constants (must match renderer - move to constants/defines?)
-    int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
+    int clipLeft = MINIMAP_CLIP_LEFT, clipTop = MINIMAP_CLIP_TOP, clipRight = MINIMAP_CLIP_RIGHT, clipBottom = MINIMAP_CLIP_BOTTOM;
     int vpCenterX = winWidth / 2 - clipLeft / 2;
     int vpCenterY = winHeight / 2 - clipTop / 2;
 
