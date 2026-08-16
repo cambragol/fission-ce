@@ -596,7 +596,6 @@ bool modConfigInit(int argc, char** argv)
     configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_FOG_LEVEL, MOD_CONFIG_DEFAULT_FOG_LEVEL);
 
-
     // Scan mods folder
     char folderMods[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];
     int folderCount = scanModsFolder(folderMods, MAX_LOADED_MODS);
