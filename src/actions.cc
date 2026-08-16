@@ -1227,7 +1227,7 @@ int actionPickUp(Object* critter, Object* item)
         int actionFrame;
         CacheEntry* cacheEntry;
         Art* art = artLock(fid, &cacheEntry);
-        if (art == nullptr) {
+        if (art != nullptr) {
             actionFrame = artGetActionFrame(art);
             artUnlock(cacheEntry);
         } else {
@@ -1964,7 +1964,7 @@ int _report_dmg(Attack* attack, Object* _)
 // 0x413660
 int _compute_dmg_damage(int min, int max, Object* obj, int* knockbackDistancePtr, int damageType)
 {
-    if (!critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
+    if (critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
         knockbackDistancePtr = nullptr;
     }
 
