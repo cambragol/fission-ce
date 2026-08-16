@@ -1673,6 +1673,10 @@ static int partyFixMultipleMembers()
     int critterCount = 0;
     Object* obj = objectFindFirst();
     while (obj != nullptr) {
+        if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
+            critterCount++;
+        }
+
         bool isPartyMember = false;
         for (int index = 1; index < gPartyMemberDescriptionsLength; index++) {
             if (obj->pid == gPartyMemberPids[index]) {
