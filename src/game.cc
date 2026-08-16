@@ -176,6 +176,9 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     messageListRepositoryInit();
 
     programWindowSetTitle(windowTitle);
+    if (!settings.mod_settings.version_string.empty()) {
+        programWindowSetTitle(settings.mod_settings.version_string.c_str());
+    }
     scriptWindowInit(1, flags);
     paletteInit();
 
