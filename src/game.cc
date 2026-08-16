@@ -175,10 +175,11 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     // it should be initialized early in the process.
     messageListRepositoryInit();
 
-    programWindowSetTitle(windowTitle);
-    if (!settings.mod_settings.version_string.empty()) {
-        programWindowSetTitle(settings.mod_settings.version_string.c_str());
-    }
+    // Set game name and version
+    char version[VERSION_MAX];
+    versionGetVersion(version, sizeof(version));
+    programWindowSetTitle(version);
+
     scriptWindowInit(1, flags);
     paletteInit();
 
