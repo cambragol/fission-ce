@@ -915,6 +915,23 @@ struct CustomKarmaFolderDescription {
 static std::vector<CustomKarmaFolderDescription> gCustomKarmaFolderDescriptions;
 static std::vector<TownReputationEntry> gCustomTownReputationEntries;
 
+static void characterEditorSyncButtonStates()
+{
+    if (!gCharacterEditorIsCreationMode) return;
+
+    // Tag Skills
+    for (int idx = 0; idx < SKILL_COUNT; idx++) {
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] || idx == gCharacterEditorTempTaggedSkills[1] || idx == gCharacterEditorTempTaggedSkills[2] || idx == gCharacterEditorTempTaggedSkills[3]);
+        _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 0); // flags=0: no event
+    }
+
+    // Optional Traits
+    for (int idx = 0; idx < TRAIT_COUNT; idx++) {
+        int isSelected = (idx == gCharacterEditorTempTraits[0] || idx == gCharacterEditorTempTraits[1]);
+        _win_set_button_rest_state(gCharacterEditorOptionalTraitBtns[idx], isSelected ? 1 : 0, 0);
+    }
+}
+
 // 0x431DF8
 int characterEditorShow(bool isCreationMode)
 {
@@ -1835,63 +1852,86 @@ static int characterEditorWindowInit()
         }
 
         y = gOffsets.tagSkillsButtonY;
+        int buttonFlags = BUTTON_FLAG_TRANSPARENT | BUTTON_FLAG_CHECKABLE;
+        // Tag Skills
         for (i = 0; i < SKILL_COUNT; i++) {
+            int eventCode = TAG_SKILLS_BUTTON_CODE + i; // 536..553
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla) {
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorTagSkillBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.tagSkillsButtonX,
                 y,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
-                -1,
-                -1,
-                -1,
-                TAG_SKILLS_BUTTON_CODE + i,
+                -1, -1,
+                keyCode, // keyCode = eventCode
+                eventCode, // eventCode = same value
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                32);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorTagSkillBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight();
         }
 
         y = gOffsets.optionalTraitsButtonY;
+        // Optional Traits (left column)
         for (i = 0; i < TRAIT_COUNT / 2; i++) {
+            int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 555..562
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla) {
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorOptionalTraitBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.optionalTraitsLeftButtonX,
                 y,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
-                -1,
-                -1,
-                -1,
-                OPTIONAL_TRAITS_BTN_CODE + i,
+                -1, -1, keyCode,
+                eventCode,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                32);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
+            if (i == TRAIT_COUNT / 2 - 3) {
+                y += 2; // lowers bottom 2 traits 2-pixel
+            }
         }
 
         y = gOffsets.optionalTraitsButtonY;
+        // Optional Traits (right column)
         for (i = TRAIT_COUNT / 2; i < TRAIT_COUNT; i++) {
+            int eventCode = OPTIONAL_TRAITS_BTN_CODE + i; // 563..570
+            int keyCode = eventCode;
+            if (settings.enhancements.strict_vanilla) {
+                buttonFlags = 32;
+                keyCode = -1;
+            }
             gCharacterEditorOptionalTraitBtns[i] = buttonCreate(
                 gCharacterEditorWindow,
                 gOffsets.optionalTraitsRightButtonX,
                 y,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getWidth(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight(),
-                -1,
-                -1,
-                -1,
-                OPTIONAL_TRAITS_BTN_CODE + i,
+                -1, -1, keyCode,
+                eventCode,
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_OFF].getData(),
                 _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getData(),
                 nullptr,
-                32);
+                buttonFlags);
             buttonSetCallbacks(gCharacterEditorOptionalTraitBtns[i], _gsound_red_butt_press, nullptr);
             y += _editorFrmImages[EDITOR_GRAPHIC_TAG_SKILL_BUTTON_ON].getHeight() + OPTIONAL_TRAITS_BTN_SPACE;
+            if (i == TRAIT_COUNT - 3) {
+                y += 2; // lowers bottom 2 traits 2-pixels
+            }
         }
 
         characterEditorDrawOptionalTraits();
@@ -2034,6 +2074,7 @@ static int characterEditorWindowInit()
         buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
 
+    characterEditorSyncButtonStates();
     windowRefresh(gCharacterEditorWindow);
     indicatorBarHide();
 
@@ -4311,6 +4352,7 @@ static int characterEditorShowOptions()
 
                     gCharacterEditorTempTraitCount = traitCount;
                     critterUpdateDerivedStats(gDude);
+                    characterEditorSyncButtonStates();
                     characterEditorResetScreen();
                 }
             } else if (keyCode == 502 || keyCode == KEY_UPPERCASE_P || keyCode == KEY_LOWERCASE_P) {
@@ -4449,8 +4491,8 @@ static int characterEditorShowOptions()
                             gCharacterEditorTempTraitCount = traitCount;
 
                             critterUpdateDerivedStats(gDude);
-
                             critterAdjustHitPoints(gDude, 1000);
+                            characterEditorSyncButtonStates();
 
                             rc = 1;
                         } else {
@@ -5757,23 +5799,13 @@ static void characterEditorHandleAdjustSkillButtonPressed(int keyCode)
 // 0x43B67C
 static void characterEditorToggleTaggedSkill(int skill)
 {
-    int insertionIndex;
+    static int lastFailedSkill = -1; // track which skill caused the popup
 
-    insertionIndex = 0;
-    for (int index = 3; index >= 0; index--) {
-        if (gCharacterEditorTempTaggedSkills[index] != -1) {
-            break;
-        }
-        insertionIndex++;
-    }
+    // Check if skill is already tagged
+    bool alreadyTagged = (skill == gCharacterEditorTempTaggedSkills[0] || skill == gCharacterEditorTempTaggedSkills[1] || skill == gCharacterEditorTempTaggedSkills[2] || skill == gCharacterEditorTempTaggedSkills[3]);
 
-    if (gCharacterEditorIsCreationMode) {
-        insertionIndex -= 1;
-    }
-
-    gCharacterEditorOldTaggedSkillCount = insertionIndex;
-
-    if (skill == gCharacterEditorTempTaggedSkills[0] || skill == gCharacterEditorTempTaggedSkills[1] || skill == gCharacterEditorTempTaggedSkills[2] || skill == gCharacterEditorTempTaggedSkills[3]) {
+    if (alreadyTagged) {
+        // Remove the skill (successful toggle)
         if (skill == gCharacterEditorTempTaggedSkills[0]) {
             gCharacterEditorTempTaggedSkills[0] = gCharacterEditorTempTaggedSkills[1];
             gCharacterEditorTempTaggedSkills[1] = gCharacterEditorTempTaggedSkills[2];
@@ -5784,44 +5816,57 @@ static void characterEditorToggleTaggedSkill(int skill)
         } else {
             gCharacterEditorTempTaggedSkills[2] = -1;
         }
+        lastFailedSkill = -1; // success, clear the guard
     } else {
-        if (gCharacterEditorTaggedSkillCount > 0) {
-            insertionIndex = 0;
-            for (int index = 0; index < 3; index++) {
-                if (gCharacterEditorTempTaggedSkills[index] == -1) {
+        // Try to add the skill
+        int count = 0;
+        for (int i = 0; i < 3; i++) {
+            if (gCharacterEditorTempTaggedSkills[i] != -1) count++;
+        }
+        if (count < 3) {
+            // Add skill (successful toggle)
+            for (int i = 0; i < 3; i++) {
+                if (gCharacterEditorTempTaggedSkills[i] == -1) {
+                    gCharacterEditorTempTaggedSkills[i] = skill;
                     break;
                 }
-                insertionIndex++;
             }
-            gCharacterEditorTempTaggedSkills[insertionIndex] = skill;
+            lastFailedSkill = -1; // success, clear the guard
         } else {
-            soundPlayFile("iisxxxx1");
-
-            char line1[128];
-            strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 140));
-
-            char line2[128];
-            strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 141));
-
-            const char* lines[] = { line2 };
-            showDialogBox(line1, lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
+            // Too many – show popup only if this is a different skill
+            if (skill != lastFailedSkill || settings.enhancements.strict_vanilla) {
+                soundPlayFile("iisxxxx1");
+                char line1[128];
+                strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 140));
+                char line2[128];
+                strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 141));
+                const char* lines[] = { line2 };
+                showDialogBox(line1, lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
+                lastFailedSkill = skill; // remember which skill caused the popup
+            }
+            // Fall through – sync loop will revert the button
         }
     }
 
-    insertionIndex = 0;
-    for (int index = 3; index >= 0; index--) {
-        if (gCharacterEditorTempTaggedSkills[index] != -1) {
-            break;
-        }
-        insertionIndex++;
+    // Recalculate selected count
+    int selectedCount = 0;
+    for (int i = 0; i < 3; i++) {
+        if (gCharacterEditorTempTaggedSkills[i] != -1) selectedCount++;
     }
-
+    // Set remaining count (creation mode only)
     if (gCharacterEditorIsCreationMode) {
-        insertionIndex -= 1;
+        gCharacterEditorTaggedSkillCount = 3 - selectedCount;
+    } else {
+        gCharacterEditorTaggedSkillCount = selectedCount; // fallback
     }
 
-    gCharacterEditorTaggedSkillCount = insertionIndex;
+    // Sync all buttons (always run)
+    for (int idx = 0; idx < SKILL_COUNT; idx++) {
+        int isTagged = (idx == gCharacterEditorTempTaggedSkills[0] || idx == gCharacterEditorTempTaggedSkills[1] || idx == gCharacterEditorTempTaggedSkills[2] || idx == gCharacterEditorTempTaggedSkills[3]);
+        _win_set_button_rest_state(gCharacterEditorTagSkillBtns[idx], isTagged ? 1 : 0, 1);
+    }
 
+    // Redraw
     characterEditorSelectedItem = skill + 61;
     characterEditorDrawPrimaryStat(RENDER_ALL_STATS, 0, 0);
     characterEditorDrawDerivedStats();
@@ -5927,55 +5972,71 @@ static void characterEditorDrawOptionalTraits()
 // 0x43BB0C
 static void characterEditorToggleOptionalTrait(int trait)
 {
-    if (trait == gCharacterEditorTempTraits[0] || trait == gCharacterEditorTempTraits[1]) {
+    static int lastFailedTrait = -1;
+
+    // Check if trait is already selected
+    bool alreadySelected = (trait == gCharacterEditorTempTraits[0] || trait == gCharacterEditorTempTraits[1]);
+
+    if (alreadySelected) {
+        // Remove the trait (successful toggle)
         if (trait == gCharacterEditorTempTraits[0]) {
             gCharacterEditorTempTraits[0] = gCharacterEditorTempTraits[1];
             gCharacterEditorTempTraits[1] = -1;
         } else {
             gCharacterEditorTempTraits[1] = -1;
         }
+        lastFailedTrait = -1;
     } else {
-        if (gCharacterEditorTempTraitCount == 0) {
-            soundPlayFile("iisxxxx1");
-
-            char line1[128];
-            strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 148));
-
-            char line2[128];
-            strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 149));
-
-            const char* lines = { line2 };
-            showDialogBox(line1, &lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
-        } else {
-            for (int index = 0; index < 2; index++) {
-                if (gCharacterEditorTempTraits[index] == -1) {
-                    gCharacterEditorTempTraits[index] = trait;
+        // Try to add the trait
+        int count = 0;
+        for (int i = 0; i < 2; i++) {
+            if (gCharacterEditorTempTraits[i] != -1) count++;
+        }
+        if (count < 2) {
+            // Add trait (successful toggle)
+            for (int i = 0; i < 2; i++) {
+                if (gCharacterEditorTempTraits[i] == -1) {
+                    gCharacterEditorTempTraits[i] = trait;
                     break;
                 }
             }
+            lastFailedTrait = -1;
+        } else {
+            // Too many – show popup only if this is a different trait
+            if (trait != lastFailedTrait || settings.enhancements.strict_vanilla) {
+                soundPlayFile("iisxxxx1");
+                char line1[128];
+                strcpy(line1, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 148));
+                char line2[128];
+                strcpy(line2, getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 149));
+                const char* lines[] = { line2 };
+                showDialogBox(line1, lines, 1, 192, 126, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
+                lastFailedTrait = trait;
+            }
+            // Fall through – sync loop will revert the button
         }
     }
 
-    gCharacterEditorTempTraitCount = 0;
-    for (int index = 1; index != 0; index--) {
-        if (gCharacterEditorTempTraits[index] != -1) {
-            break;
-        }
-        gCharacterEditorTempTraitCount++;
+    // Recalculate count
+    int newCount = 0;
+    for (int i = 0; i < 2; i++) {
+        if (gCharacterEditorTempTraits[i] != -1) newCount++;
+    }
+    gCharacterEditorTempTraitCount = newCount;
+
+    // Sync all buttons (always run)
+    for (int idx = 0; idx < TRAIT_COUNT; idx++) {
+        int isSelected = (idx == gCharacterEditorTempTraits[0] || idx == gCharacterEditorTempTraits[1]);
+        _win_set_button_rest_state(gCharacterEditorOptionalTraitBtns[idx], isSelected ? 1 : 0, 1);
     }
 
+    // Redraw
     characterEditorSelectedItem = trait + EDITOR_FIRST_TRAIT;
-
     characterEditorDrawOptionalTraits();
     characterEditorDrawSkills(0);
     critterUpdateDerivedStats(gDude);
-    // Use offsets for character points value position
-    characterEditorDrawBigNumber(gOffsets.charPointsAdjustX,
-        gOffsets.charPointsAdjustY,
-        0,
-        gCharacterEditorRemainingCharacterPoints,
-        0,
-        gCharacterEditorWindow);
+    characterEditorDrawBigNumber(gOffsets.charPointsAdjustX, gOffsets.charPointsAdjustY, 0,
+        gCharacterEditorRemainingCharacterPoints, 0, gCharacterEditorWindow);
     characterEditorDrawPrimaryStat(RENDER_ALL_STATS, false, 0);
     characterEditorDrawDerivedStats();
     characterEditorDrawCard();
