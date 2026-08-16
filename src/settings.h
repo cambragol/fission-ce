@@ -126,7 +126,6 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
-    int map_fog = 0;
 };
 
 struct ModSettings {
@@ -192,6 +191,7 @@ struct ModSettings {
     int iface_bar_side_art = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART;
     bool iface_bar_sides_ori = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI;
     int worldmap_trail_markers = MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS;
+    int fog_level = MOD_CONFIG_DEFAULT_FOG_LEVEL;
 };
 
 struct ModScriptsSettings {

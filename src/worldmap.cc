@@ -7901,10 +7901,10 @@ static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, i
         unsigned char* dest = wmBkWinBuf + gOffsets.windowWidth * destY + destX;
         switch (subtileInfo->state) {
         case SUBTILE_STATE_UNKNOWN:
-            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, settings.enhancements.map_fog);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, settings.mod_settings.fog_level);
             break;
         case SUBTILE_STATE_KNOWN:
-            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, 75 + (std::clamp(settings.enhancements.map_fog, 0, 100) * 25) / 100);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, 75 + (std::clamp(settings.mod_settings.fog_level, 0, 100) * 25) / 100);
             break;
         }
     }
