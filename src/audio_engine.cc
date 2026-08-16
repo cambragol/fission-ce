@@ -101,8 +101,9 @@ bool audioEngineInit()
     desiredSpec.channels = 2;
     desiredSpec.samples = 1024;
     desiredSpec.callback = audioEngineMixin;
-
-    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    const char* driver = SDL_GetCurrentAudioDriver();
+    // Prevent overriding channels, as some audio drivers (WASAPI) don't handle > 2 correctly in this context and play no sound.
+    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
     if (gAudioEngineDeviceId == -1) {
         return false;
     }

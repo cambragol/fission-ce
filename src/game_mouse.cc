@@ -1449,10 +1449,13 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             break;
                         }
                         break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_USE_SKILL:
-                        if (1) {
-                            int skill = -1;
-
+                    case GAME_MOUSE_ACTION_MENU_ITEM_USE_SKILL: {
+                        int skill = -1;
+                        if (interfaceIsSuperWide()) {
+                            // use multidex in superwide mode
+                            skill = multidexSkillSelectExact();
+                        } else {
+                            // use regular skilldex otherwise
                             int rc = skilldexOpen();
                             switch (rc) {
                             case SKILLDEX_RC_SNEAK:
@@ -1479,13 +1482,15 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             case SKILLDEX_RC_REPAIR:
                                 skill = SKILL_REPAIR;
                                 break;
-                            }
-
-                            if (skill != -1) {
-                                actionUseSkill(gDude, targetObj, skill);
+                            default:
+                                skill = -1;
+                                break;
                             }
                         }
-                        break;
+                        if (skill != -1) {
+                            actionUseSkill(gDude, targetObj, skill);
+                        }
+                    } break;
                     case GAME_MOUSE_ACTION_MENU_ITEM_PUSH:
                         actionPush(gDude, targetObj);
                         break;
