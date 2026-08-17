@@ -1,5 +1,6 @@
 #include "draw.h"
 
+#include <climits>
 #include <string.h>
 
 #include "color.h"
@@ -175,31 +176,85 @@ void blitBufferToBufferStretch(unsigned char* src, int srcWidth, int srcHeight, 
     }
 }
 
-// 0x4D3560
-void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch, unsigned char* dest, int destWidth, int destHeight, int destPitch)
+void blitBufferToBufferStretchTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
+    unsigned char* dest, int destWidth, int destHeight, int destPitch)
 {
-    int stepX = (destWidth << 16) / srcWidth;
-    int stepY = (destHeight << 16) / srcHeight;
+    // Calculate source rectangle size for each destination pixel (box filter)
+    int stepX = (srcWidth << 16) / destWidth;
+    int stepY = (srcHeight << 16) / destHeight;
 
-    for (int srcY = 0; srcY < srcHeight; srcY += 1) {
-        int startDestY = (srcY * stepY) >> 16;
-        int endDestY = ((srcY + 1) * stepY) >> 16;
+    extern unsigned char _cmap[768];
 
-        unsigned char* currSrc = src + srcPitch * srcY;
-        for (int srcX = 0; srcX < srcWidth; srcX += 1) {
-            int startDestX = (srcX * stepX) >> 16;
-            int endDestX = ((srcX + 1) * stepX) >> 16;
+    for (int dy = 0; dy < destHeight; ++dy) {
+        int sy_start = (dy * stepY) >> 16;
+        int sy_end = ((dy + 1) * stepY) >> 16;
+        if (sy_end >= srcHeight) sy_end = srcHeight;
+        if (sy_start >= sy_end) continue;
 
-            if (*currSrc != 0) {
-                for (int destY = startDestY; destY < endDestY; destY += 1) {
-                    unsigned char* currDest = dest + destPitch * destY + startDestX;
-                    for (int destX = startDestX; destX < endDestX; destX += 1) {
-                        *currDest++ = *currSrc;
+        for (int dx = 0; dx < destWidth; ++dx) {
+            int sx_start = (dx * stepX) >> 16;
+            int sx_end = ((dx + 1) * stepX) >> 16;
+            if (sx_end >= srcWidth) sx_end = srcWidth;
+            if (sx_start >= sx_end) continue;
+
+            // Accumulate RGB from all opaque source pixels in the box
+            long long totalR = 0, totalG = 0, totalB = 0;
+            int opaqueCount = 0;
+
+            for (int sy = sy_start; sy < sy_end; ++sy) {
+                unsigned char* row = src + sy * srcPitch;
+                for (int sx = sx_start; sx < sx_end; ++sx) {
+                    int idx = row[sx];
+                    if (idx != 0) {
+                        totalR += _cmap[idx * 3] * 4;
+                        totalG += _cmap[idx * 3 + 1] * 4;
+                        totalB += _cmap[idx * 3 + 2] * 4;
+                        opaqueCount++;
                     }
                 }
             }
 
-            currSrc++;
+            if (opaqueCount == 0) {
+                continue; // fully transparent block – leave destination unchanged
+            }
+
+            int r = (int)(totalR / opaqueCount);
+            int g = (int)(totalG / opaqueCount);
+            int b = (int)(totalB / opaqueCount);
+
+            // Clamp (values are already 0?252, but safe)
+            if (r < 0)
+                r = 0;
+            else if (r > 255)
+                r = 255;
+            if (g < 0)
+                g = 0;
+            else if (g > 255)
+                g = 255;
+            if (b < 0)
+                b = 0;
+            else if (b > 255)
+                b = 255;
+
+            // Find nearest palette colour
+            int bestIdx = 0;
+            int bestDist = INT_MAX;
+            for (int i = 0; i < 256; ++i) {
+                int pr = _cmap[i * 3] * 4;
+                int pg = _cmap[i * 3 + 1] * 4;
+                int pb = _cmap[i * 3 + 2] * 4;
+                int dr = r - pr;
+                int dg = g - pg;
+                int db = b - pb;
+                int dist = dr * dr + dg * dg + db * db;
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIdx = i;
+                    if (dist == 0) break;
+                }
+            }
+
+            dest[dy * destPitch + dx] = (unsigned char)bestIdx;
         }
     }
 }
