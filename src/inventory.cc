@@ -63,7 +63,7 @@ namespace fallout {
 #define INVENTORY_LARGE_SLOT_HEIGHT 61
 
 #define INVENTORY_SLOT_WIDTH 64
-#define INVENTORY_SLOT_HEIGHT 48
+#define INVENTORY_SLOT_HEIGHT 46
 
 #define INVENTORY_LEFT_HAND_SLOT_X 154
 #define INVENTORY_LEFT_HAND_SLOT_Y 286
@@ -637,6 +637,123 @@ static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
 static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
+static int gFilterCategory = -1;   // -1 = no filter, 0-4 for Weapons, Ammo, Drugs, Misc, Keys
+static int gFilteredIndices[256];
+static int gFilteredCount = 0;
+
+static int itemGetCategory(Object* item) {
+    int type = itemGetType(item);
+    switch (type) {
+        case ITEM_TYPE_WEAPON:  return 0;   // Weapons
+        case ITEM_TYPE_AMMO:    return 1;   // Ammo
+        case ITEM_TYPE_DRUG:    return 2;   // Drugs
+        case ITEM_TYPE_ARMOR:   return 3;   // Armor
+        case ITEM_TYPE_MISC:
+        case ITEM_TYPE_KEY:
+        case ITEM_TYPE_CONTAINER: return 4; // Misc
+        default: return -1;                 // unknown – hidden
+    }
+}
+
+// Builds a list of indices into 'inventory' that match the current filter.
+// Stores them in gFilteredIndices (reversed, so top of screen = last item).
+// Returns the number of filtered items.
+static int buildFilteredIndices(Inventory* inventory) {
+    int count = 0;
+    if (gFilterCategory == -1) {
+        // No filter: all items, reversed order
+        for (int i = inventory->length - 1; i >= 0; i--) {
+            gFilteredIndices[count++] = i;
+        }
+    } else {
+        // Filter by category
+        for (int i = inventory->length - 1; i >= 0; i--) {
+            Object* item = inventory->items[i].item;
+            if (itemGetCategory(item) == gFilterCategory) {
+                gFilteredIndices[count++] = i;
+            }
+        }
+    }
+    return count;
+}
+
+static void drawFilterBar(unsigned char* dest, int destPitch,
+                          int x, int y, int width,
+                          int /* bgFrmId */, int /* srcX */, int /* srcY */)
+{
+    int oldFont = fontGetCurrent();
+    fontSetCurrent(101);
+
+    const char* fullNames[] = { "Weapons", "Ammo", "Drugs", "Armor", "Misc" };
+    const int numCategories = 5;
+    const int spacing = 6;          // gap between labels
+    int available = width - (numCategories - 1) * spacing;
+    if (available <= 0) {
+        fontSetCurrent(oldFont);
+        return;
+    }
+    int perCategory = available / numCategories;
+
+    int startX = x;
+    for (int i = 0; i < numCategories; i++) {
+        const char* base = fullNames[i];
+        const char* label = base;
+        char buffer[32];
+
+        // 1. Try with brackets
+        strcpy(buffer, "[");
+        strcat(buffer, base);
+        strcat(buffer, "]");
+        if (fontGetStringWidth(buffer) <= perCategory) {
+            label = buffer;
+        }
+        // 2. Try without brackets
+        else if (fontGetStringWidth(base) <= perCategory) {
+            label = base;
+        }
+        // 3. Shorten progressively
+        else {
+            int len = strlen(base);
+            while (len > 0) {
+                strncpy(buffer, base, len);
+                buffer[len] = '\0';
+                if (fontGetStringWidth(buffer) <= perCategory) {
+                    label = buffer;
+                    break;
+                }
+                len--;
+            }
+            // 4. If even one char doesn't fit, use first letter
+            if (len == 0) {
+                buffer[0] = base[0];
+                buffer[1] = '\0';
+                if (fontGetStringWidth(buffer) <= perCategory) {
+                    label = buffer;
+                } else {
+                    label = "?";
+                }
+            }
+        }
+
+        int finalWidth = fontGetStringWidth(label);
+        int offset = (perCategory - finalWidth) / 2;
+        int drawX = startX + i * (perCategory + spacing) + offset;
+
+        int color;
+        if (gFilterCategory == i) {
+            color = _colorTable[COL_LIGHT_LEMON];      // active filter
+        } else if (gFilterCategory != -1) {
+            color = _colorTable[COL_GRAY_OLIVE];        // other categories dimmed
+        } else {
+            color = _colorTable[COL_LIME_GREEN];  // normal
+        }
+        fontDrawText(dest + destPitch * y + drawX, label, finalWidth,
+                     destPitch, color);
+    }
+
+    fontSetCurrent(oldFont);
+}
+
 // Computes layout based on number of columns and sets common elements
 static void inventoryUpdateLayout()
 {
@@ -869,6 +986,16 @@ void inventoryOpen()
                 // Not arrow mode - original behavior (exit container)
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
             }
+        } else if (keyCode >= 8000 && keyCode <= 8004) {
+            int category = keyCode - 8000;
+            if (gFilterCategory == category) {
+                gFilterCategory = -1;      // toggle off if already active
+            } else {
+                gFilterCategory = category;
+            }
+            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+            inventoryRenderSummary();
+            windowRefresh(gInventoryWindow);
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
@@ -935,6 +1062,8 @@ void inventoryOpen()
         multidexRefreshSkilldexAnimated(oldSkillValues);
     }
 
+    gFilterCategory = -1;
+
     _exit_inventory(isoWasEnabled);
 
     // NOTE: Uninline.
@@ -951,7 +1080,11 @@ static bool _setup_inventory(int inventoryWindowType)
     _dropped_explosive = 0;
     _curr_stack = 0;
     _stack_offset[0] = 0;
-    gInventorySlotsCount = 6;
+    gInventorySlotsCount = 6;  // original (for loot/trade/use-on)
+
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+        gInventorySlotsCount = gInventoryRows * gInventoryColumns;  // total visible slots
+    }
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
     int fid;
@@ -1200,6 +1333,67 @@ static bool _setup_inventory(int inventoryWindowType)
                 }
             }
         }
+        // Create filter category buttons
+        int oldFont = fontGetCurrent();
+        fontSetCurrent(101);
+
+        const char* fullNames[] = { "Weapons", "Ammo", "Drugs", "Armor", "Misc" };
+        const int numCategories = 5;
+        const int spacing = 6;
+        int available = gLayout.scrollerWidth - (numCategories - 1) * spacing;
+        if (available > 0) {
+            int perCategory = available / numCategories;
+            int startX = gLayout.scrollerX;
+            int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
+            int lineHeight = fontGetLineHeight();
+
+            for (int i = 0; i < numCategories; i++) {
+                const char* base = fullNames[i];
+                char buffer[32];
+                const char* label = base;
+
+                // Copy shortening logic from drawFilterBar
+                strcpy(buffer, "[");
+                strcat(buffer, base);
+                strcat(buffer, "]");
+                if (fontGetStringWidth(buffer) <= perCategory) {
+                    label = buffer;
+                } else if (fontGetStringWidth(base) <= perCategory) {
+                    label = base;
+                } else {
+                    int len = strlen(base);
+                    while (len > 0) {
+                        strncpy(buffer, base, len);
+                        buffer[len] = '\0';
+                        if (fontGetStringWidth(buffer) <= perCategory) {
+                            label = buffer;
+                            break;
+                        }
+                        len--;
+                    }
+                    if (len == 0) {
+                        buffer[0] = base[0];
+                        buffer[1] = '\0';
+                        label = buffer;
+                    }
+                }
+
+                int labelWidth = fontGetStringWidth(label);
+                int offset = (perCategory - labelWidth) / 2;
+                int drawX = startX + i * (perCategory + spacing) + offset;
+
+                // Create transparent button covering the label
+                int btn = buttonCreate(gInventoryWindow,
+                    drawX, barY,
+                    labelWidth, lineHeight,
+                    -1, -1, 8000 + i, -1,
+                    nullptr, nullptr, nullptr,
+                    BUTTON_FLAG_TRANSPARENT);
+                // No extra callbacks needed; keyCode handling will catch the ID
+            }
+        }
+
+        fontSetCurrent(oldFont);
     } else {
         // For use-on (INVENTORY_WINDOW_TYPE_USE_ITEM_ON) and any other, use original single column
         for (int index = 0; index < gInventorySlotsCount; index++) {
@@ -2012,19 +2206,39 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         assert(false && "Should be unreachable");
     }
 
+    // --- Test filter bar (single label) ---
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+        int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
+        int barWidth = gLayout.scrollerWidth;
+        drawFilterBar(windowBuffer, pitch,
+                      gLayout.scrollerX, barY, barWidth,
+                      0, 0, 0);
+    }
+
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+
+        // --- Build filtered index list using helper ---
+        gFilteredCount = buildFilteredIndices(_pud);
+
+        // --- Clamp stackOffset to valid range ---
+        if (stackOffset >= gFilteredCount) {
+            stackOffset = 0;
+            _stack_offset[_curr_stack] = 0;
+        }
+
+        // --- Now draw the grid using gFilteredIndices ---
         int totalVisible = gInventoryRows * gInventoryColumns;
         for (int row = 0; row < gInventoryRows; ++row) {
             for (int col = 0; col < gInventoryColumns; ++col) {
                 int slotIndex = row * gInventoryColumns + col;
-                int itemIndex = stackOffset + slotIndex;
-                if (itemIndex >= _pud->length) {
+                int filteredIndex = stackOffset + slotIndex;
+                if (filteredIndex >= gFilteredCount) {
                     row = gInventoryRows; // break outer loop
                     break;
                 }
-                int actualItemIndex = _pud->length - (itemIndex + 1);
-                InventoryItem* inventoryItem = &(_pud->items[actualItemIndex]);
+                int originalIndex = gFilteredIndices[filteredIndex];
+                InventoryItem* inventoryItem = &(_pud->items[originalIndex]);
 
                 int destOffset = pitch * (gLayout.scrollerY + row * gLayout.slotHeight + gLayout.slotPadding)
                     + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
@@ -2084,7 +2298,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
             int totalVisible = (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL)
                 ? gInventoryRows * gInventoryColumns
                 : gInventorySlotsCount; // For other modes, it's a single column
-            if (_pud->length - stackOffset <= totalVisible) {
+            if (gFilteredCount - stackOffset <= totalVisible) {
                 buttonDisable(gInventoryScrollDownButton);
             } else {
                 buttonEnable(gInventoryScrollDownButton);
@@ -4008,7 +4222,17 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         item = nullptr;
 
         InventoryItem* inventoryItem;
-        if (keyCode < 2000) {
+        if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
+            int slotIndex = keyCode - 1000;
+            int filteredIndex = _stack_offset[_curr_stack] + slotIndex;
+            if (filteredIndex < gFilteredCount) {
+                int originalIndex = gFilteredIndices[filteredIndex];
+                inventoryItem = &(_pud->items[originalIndex]);
+                item = inventoryItem->item;
+                owner = _stack[_curr_stack];
+                quantity = inventoryItem->quantity;
+            }
+        } else if (keyCode < 2000) {
             int index = _stack_offset[_curr_stack] + keyCode - 1000;
             if (index >= _pud->length) {
                 break;
