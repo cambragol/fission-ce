@@ -639,8 +639,8 @@ static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
 static void applyGreenFilterToBuffer(const unsigned char* src, int srcPitch,
-                                     unsigned char* dest, int destPitch,
-                                     int width, int height)
+    unsigned char* dest, int destPitch,
+    int width, int height)
 {
     // First pass: luminance min/max
     int minLum = 255, maxLum = 0;
@@ -662,20 +662,20 @@ static void applyGreenFilterToBuffer(const unsigned char* src, int srcPitch,
 
     // Color palates for green-monochrome screen effects
     int greenPalette[] = {
-            _colorTable[COL_BLACKISH_TEAL],
-            _colorTable[COL_DARK_FOREST],
-            _colorTable[COL_FOREST_GREEN_2],
-            _colorTable[COL_GREEN_LIME],
-            _colorTable[COL_BRIGHT_LIME],
-            _colorTable[COL_LIME_GREEN],
-            _colorTable[COL_LIGHT_LEMON],
-            _colorTable[COL_LIGHT_SPRING_GREEN]
-        };
+        _colorTable[COL_BLACKISH_TEAL],
+        _colorTable[COL_DARK_FOREST],
+        _colorTable[COL_FOREST_GREEN_2],
+        _colorTable[COL_GREEN_LIME],
+        _colorTable[COL_BRIGHT_LIME],
+        _colorTable[COL_LIME_GREEN],
+        _colorTable[COL_LIGHT_LEMON],
+        _colorTable[COL_LIGHT_SPRING_GREEN]
+    };
     int numGreenShades = sizeof(greenPalette) / sizeof(greenPalette[0]);
 
     // Darkening parameters (adjustable)
-    float darkMultiplier = 0.6f;          // luminance multiplier for dark lines
-    int darkThreshold = 40;               // if darkened luminance below this, skip pixel
+    float darkMultiplier = 0.6f; // luminance multiplier for dark lines
+    int darkThreshold = 40; // if darkened luminance below this, skip pixel
     bool scanlines = true;
     bool darkenEvenRows = true;
 
@@ -746,7 +746,7 @@ static void artRenderGreen(int fid, unsigned char* dest, int width, int height, 
 }
 
 static void blitBufferToBufferGreenTrans(const unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
-                                         unsigned char* dest, int destPitch)
+    unsigned char* dest, int destPitch)
 {
     applyGreenFilterToBuffer(src, srcPitch, dest, destPitch, srcWidth, srcHeight);
 }
@@ -2143,7 +2143,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 int destOffset = pitch * (gLayout.scrollerY + row * gLayout.slotHeight + gLayout.slotPadding)
                     + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
                 artRenderGreen(itemGetInventoryFid(inventoryItem->item), windowBuffer + destOffset,
-                   gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
+                    gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
                 _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
             }
         }
