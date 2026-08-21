@@ -29,6 +29,7 @@
 #include "kb.h"
 #include "light.h"
 #include "map.h"
+#include "memory.h"
 #include "message.h"
 #include "mouse.h"
 #include "object.h"
@@ -682,9 +683,9 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
                           int /* bgFrmId */, int /* srcX */, int /* srcY */)
 {
     int oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(100);
 
-    const char* fullNames[] = { "Weapons", "Ammo", "Drugs", "Armor", "Misc" };
+    const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const int numCategories = 5;
     const int spacing = 6;          // gap between labels
     int available = width - (numCategories - 1) * spacing;
@@ -743,7 +744,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         if (gFilterCategory == i) {
             color = _colorTable[COL_LIGHT_LEMON];      // active filter
         } else if (gFilterCategory != -1) {
-            color = _colorTable[COL_GRAY_OLIVE];        // other categories dimmed
+            color = _colorTable[COL_DARK_FOREST];        // other categories dimmed
         } else {
             color = _colorTable[COL_LIME_GREEN];  // normal
         }
@@ -752,6 +753,127 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     }
 
     fontSetCurrent(oldFont);
+}
+
+static void applyGreenFilterToBuffer(const unsigned char* src, int srcPitch,
+    unsigned char* dest, int destPitch,
+    int width, int height)
+{
+    // First pass: luminance min/max
+    int minLum = 255, maxLum = 0;
+    bool hasPixels = false;
+    for (int row = 0; row < height; row++) {
+        const unsigned char* srcRow = src + row * srcPitch;
+        for (int col = 0; col < width; col++) {
+            unsigned char idx = srcRow[col];
+            if (idx == 0) continue;
+            unsigned char* pal = &_cmap[idx * 3];
+            int lum = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
+            hasPixels = true;
+        }
+    }
+    if (!hasPixels) return;
+    if (minLum == maxLum) maxLum = minLum + 1;
+
+    // Color palates for green-monochrome screen effects
+    int greenPalette[] = {
+        _colorTable[COL_BLACKISH_TEAL],
+        _colorTable[COL_DARK_FOREST],
+        _colorTable[COL_FOREST_GREEN_2],
+        _colorTable[COL_GREEN_LIME],
+        _colorTable[COL_BRIGHT_LIME],
+        _colorTable[COL_LIME_GREEN],
+        _colorTable[COL_LIGHT_LEMON],
+        _colorTable[COL_LIGHT_SPRING_GREEN]
+    };
+    int numGreenShades = sizeof(greenPalette) / sizeof(greenPalette[0]);
+
+    // Darkening parameters (adjustable)
+    float darkMultiplier = 0.6f; // luminance multiplier for dark lines
+    int darkThreshold = 40; // if darkened luminance below this, skip pixel
+    bool scanlines = true;
+    bool darkenEvenRows = true;
+
+    // Second pass: draw with green and scanline effect
+    for (int row = 0; row < height; row++) {
+        bool isEven = (row % 2 == 0);
+        bool drawRow = true;
+
+        if (scanlines && isEven) {
+            if (!darkenEvenRows) {
+                drawRow = false; // skip row entirely
+            } else {
+                // We'll draw but with reduced luminance; we may skip individual pixels
+                drawRow = true;
+            }
+        }
+
+        const unsigned char* srcRow = src + row * srcPitch;
+        unsigned char* destRow = dest + row * destPitch;
+
+        for (int col = 0; col < width; col++) {
+            unsigned char idx = srcRow[col];
+            if (idx == 0) continue;
+
+            unsigned char* pal = &_cmap[idx * 3];
+            int lum = (pal[0] * 30 + pal[1] * 59 + pal[2] * 11) / 100;
+            if (lum < 0) lum = 0;
+            if (lum > 255) lum = 255;
+
+            int stretched = (lum - minLum) * 255 / (maxLum - minLum);
+            if (stretched < 0) stretched = 0;
+            if (stretched > 255) stretched = 255;
+
+            // If this is an even row and we are darkening, reduce luminance
+            bool skipPixel = false;
+            if (scanlines && isEven && darkenEvenRows) {
+                int darkened = (int)(stretched * darkMultiplier);
+                if (darkened < darkThreshold) {
+                    skipPixel = true; // too dark – skip to show background
+                } else {
+                    stretched = darkened;
+                }
+            }
+
+            if (!drawRow || skipPixel) {
+                continue; // do not write pixel
+            }
+
+            int shadeIdx = (stretched * (numGreenShades - 1) + 127) / 255;
+            if (shadeIdx < 0) shadeIdx = 0;
+            if (shadeIdx >= numGreenShades) shadeIdx = numGreenShades - 1;
+
+            destRow[col] = (unsigned char)greenPalette[shadeIdx];
+        }
+    }
+}
+
+static void artRenderGreen(int fid, unsigned char* dest, int width, int height, int pitch)
+{
+    if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+        artRender(fid, dest, width, height, pitch);
+    } else {
+        unsigned char* temp = (unsigned char*)internal_malloc(width * height);
+        if (temp == nullptr) return;
+        memset(temp, 0, width * height);
+        artRender(fid, temp, width, height, width);
+
+        applyGreenFilterToBuffer(temp, width, dest, pitch, width, height);
+
+        internal_free(temp);
+    }
+}
+
+void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
+    unsigned char* dest, int destPitch)
+{
+    if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+        blitBufferToBufferTrans(src, srcWidth, srcHeight, srcPitch, dest, destPitch);
+    } else {
+        applyGreenFilterToBuffer(src, srcPitch, dest, destPitch, srcWidth, srcHeight);
+    }
 }
 
 // Computes layout based on number of columns and sets common elements
@@ -1236,9 +1358,9 @@ static bool _setup_inventory(int inventoryWindowType)
         // Create filter buttons for left panel
         if (!settings.enhancements.strict_vanilla) {
             int oldFont = fontGetCurrent();
-            fontSetCurrent(101);
+            fontSetCurrent(100);
 
-            const char* fullNames[] = { "Weapons", "Ammo", "Drugs", "Armor", "Misc" };
+            const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
             const int numCategories = 5;
             const int spacing = 6;
             int available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
@@ -1441,9 +1563,9 @@ static bool _setup_inventory(int inventoryWindowType)
         }
         // Create filter category buttons
         int oldFont = fontGetCurrent();
-        fontSetCurrent(101);
+        fontSetCurrent(100);
 
-        const char* fullNames[] = { "Weapons", "Ammo", "Drugs", "Armor", "Misc" };
+        const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
         const int numCategories = 5;
         const int spacing = 6;
         int available = gLayout.scrollerWidth - (numCategories - 1) * spacing;
@@ -2328,7 +2450,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
 
             int offset = pitch * (y + INVENTORY_LOOT_LEFT_SCROLLER_Y_PAD) + INVENTORY_LOOT_LEFT_SCROLLER_X_PAD;
             int inventoryFid = itemGetInventoryFid(inventoryItem->item);
-            artRender(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
+            artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
             _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
             y += INVENTORY_SLOT_HEIGHT;
         }
@@ -2386,7 +2508,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
 
                 int destOffset = pitch * (gLayout.scrollerY + row * gLayout.slotHeight + gLayout.slotPadding)
                     + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
-                artRender(itemGetInventoryFid(inventoryItem->item), windowBuffer + destOffset, gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
+                artRenderGreen(itemGetInventoryFid(inventoryItem->item), windowBuffer + destOffset,
+                    gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
                 _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
             }
         }
@@ -2412,7 +2535,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 InventoryItem* inventoryItem = &(_pud->items[_pud->length - itemIndex]);
 
                 int inventoryFid = itemGetInventoryFid(inventoryItem->item);
-                artRender(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
+                artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
 
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     offset = pitch * (y + INVENTORY_LOOT_LEFT_SCROLLER_Y_PAD) + INVENTORY_LOOT_LEFT_SCROLLER_X_PAD;
@@ -2566,7 +2689,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
 
             int offset = pitch * (y + INVENTORY_LOOT_RIGHT_SCROLLER_Y_PAD) + INVENTORY_LOOT_RIGHT_SCROLLER_X_PAD;
             int inventoryFid = itemGetInventoryFid(inventoryItem->item);
-            artRender(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
+            artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
             _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
             y += INVENTORY_SLOT_HEIGHT;
         }
@@ -2606,7 +2729,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
 
             InventoryItem* inventoryItem = &(inventory->items[inventory->length - (itemIndex + 1)]);
             int inventoryFid = itemGetInventoryFid(inventoryItem->item);
-            artRender(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
+            artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
             _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
 
             y += INVENTORY_SLOT_HEIGHT;
@@ -2730,7 +2853,11 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
     }
 
     if (draw) {
-        fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
+        if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+            fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
+        } else {
+            fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_LIME_GREEN]);
+        }
     }
 
     fontSetCurrent(oldFont);
@@ -2828,7 +2955,7 @@ static void _display_body(int fid, int inventoryWindowType)
                     windowPitch);
             }
 
-            blitBufferToBufferTrans(frameData, frameWidth, frameHeight, framePitch,
+            blitBufferToBufferGreenTrans(frameData, frameWidth, frameHeight, framePitch,
                 windowBuffer + windowPitch * (rect.top + (INVENTORY_BODY_VIEW_HEIGHT - frameHeight) / 2) + (INVENTORY_BODY_VIEW_WIDTH - frameWidth) / 2 + rect.left,
                 windowPitch);
 
@@ -2887,7 +3014,7 @@ static void _display_body(int fid, int inventoryWindowType)
                     windowPitch);
             }
 
-            blitBufferToBufferTrans(frameData, frameWidth, frameHeight, framePitch,
+            blitBufferToBufferGreenTrans(frameData, frameWidth, frameHeight, framePitch,
                 windowBuffer + windowPitch * (rect.top + (INVENTORY_BODY_VIEW_HEIGHT - frameHeight) / 2) + (INVENTORY_BODY_VIEW_WIDTH - frameWidth) / 2 + rect.left,
                 windowPitch);
 
@@ -8534,7 +8661,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
     }
 
     int inventoryFid = itemGetInventoryFid(item);
-    artRender(inventoryFid, windowBuffer + windowDescription->width * 46 + 16, INVENTORY_LARGE_SLOT_WIDTH, INVENTORY_LARGE_SLOT_HEIGHT, windowDescription->width);
+    artRenderGreen(inventoryFid, windowBuffer + windowDescription->width * 46 + 16, INVENTORY_LARGE_SLOT_WIDTH, INVENTORY_LARGE_SLOT_HEIGHT, windowDescription->width);
 
     int x;
     int y;
