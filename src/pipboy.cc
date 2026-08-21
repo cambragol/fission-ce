@@ -5550,15 +5550,15 @@ static void cluesRenderImage(const char* filename, int* currentLine)
 
     // Color palates for green-monochrome screen effects
     int greenPalette[] = {
-            _colorTable[COL_BLACKISH_TEAL],
-            _colorTable[COL_DARK_FOREST],
-            _colorTable[COL_FOREST_GREEN_2],
-            _colorTable[COL_GREEN_LIME],
-            _colorTable[COL_BRIGHT_LIME],
-            _colorTable[COL_LIME_GREEN],
-            _colorTable[COL_LIGHT_LEMON],
-            _colorTable[COL_LIGHT_SPRING_GREEN]
-        };
+        _colorTable[COL_BLACKISH_TEAL],
+        _colorTable[COL_DARK_FOREST],
+        _colorTable[COL_FOREST_GREEN_2],
+        _colorTable[COL_GREEN_LIME],
+        _colorTable[COL_BRIGHT_LIME],
+        _colorTable[COL_LIME_GREEN],
+        _colorTable[COL_LIGHT_LEMON],
+        _colorTable[COL_LIGHT_SPRING_GREEN]
+    };
     int numGreenShades = sizeof(greenPalette) / sizeof(greenPalette[0]);
 
     // Second pass - draw with contrast stretching
