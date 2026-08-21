@@ -557,7 +557,7 @@ static void wmInterfaceRefreshDate(bool shouldRefreshWindow);
 static int wmMatchWorldPosToArea(int x, int y, int* areaIdxPtr);
 static int wmInterfaceDrawCircleOverlay(CityInfo* cityInfo, CitySizeDescription* citySizeInfo, unsigned char* buffer, int x, int y);
 static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription* citySizeDescription, unsigned char* dest, int x, int y);
-static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch);
+static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch, int fogLevel);
 static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, int x, int y, int a6);
 static int wmDrawCursorStopped();
 static bool wmCursorIsVisible();
@@ -1163,6 +1163,18 @@ int wmWorldMap_init()
         return -1;
     }
 
+    // Read the starting map x/y from CITY.txt (map 0)
+    int startingAreaIdx;
+    if (wmMatchAreaContainingMapIdx(0, &startingAreaIdx) == 0) {
+        CityInfo* city = &(wmAreaInfoList[startingAreaIdx]);
+        wmGenData.worldPosX = city->x;
+        wmGenData.worldPosY = city->y;
+    } else {
+        // Fallback to hardcoded original (Arroyo) defaults if no area found
+        wmGenData.worldPosX = 173;
+        wmGenData.worldPosY = 122;
+    }
+
     if (!messageListInit(&wmMsgFile)) {
         return -1;
     }
@@ -1184,7 +1196,6 @@ int wmWorldMap_init()
     wmGenData.viewportMaxY = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles) - gOffsets.viewHeight;
     circleBlendTable = _getColorBlendTable(_colorTable[COL_LIME_GREEN]);
 
-    wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
 
     // CE: City size fids should be initialized during startup. They are used
@@ -1206,8 +1217,6 @@ static int wmGenDataInit()
 {
     wmGenData.didMeetFrankHorrigan = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
     wmGenData.currentSubtile = nullptr;
     wmGenData.dword_672E18 = 0;
     wmGenData.isWalking = false;
@@ -1272,8 +1281,6 @@ static int wmGenDataReset()
     wmGenData.encounterIconIsVisible = false;
     wmGenData.mousePressed = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
     wmGenData.walkDestinationX = -1;
     wmGenData.walkDestinationY = -1;
     wmGenData.encounterMapId = -1;
@@ -7467,7 +7474,23 @@ static int wmInterfaceRefresh()
     // Render cities.
     for (int index = 0; index < wmMaxAreaNum; index++) {
         CityInfo* cityInfo = &(wmAreaInfoList[index]);
-        if (cityInfo->state != CITY_STATE_UNKNOWN) {
+        if (cityInfo->state == CITY_STATE_UNKNOWN)
+            continue; // skip if state unknown
+
+        int x = cityInfo->x;
+        int y = cityInfo->y;
+        int tileIdx = y / WM_TILE_HEIGHT * wmNumHorizontalTiles + x / WM_TILE_WIDTH;
+        if (tileIdx < 0 || tileIdx >= wmMaxTileNum) continue;
+
+        int subX = (x % WM_TILE_WIDTH) / WM_SUBTILE_SIZE;
+        int subY = (y % WM_TILE_HEIGHT) / WM_SUBTILE_SIZE;
+        if (subX < 0 || subX >= SUBTILE_GRID_WIDTH || subY < 0 || subY >= SUBTILE_GRID_HEIGHT)
+            continue;
+
+        SubtileInfo* subtile = &(wmTileInfoList[tileIdx].subtiles[subY][subX]);
+
+        // Only draw if the subtile is known or visited (i.e., fog has been lifted)
+        if (subtile->state != SUBTILE_STATE_UNKNOWN) {
             CitySizeDescription* citySizeDescription = &(wmSphereData[cityInfo->size]);
             int cityX = cityInfo->x - wmWorldOffsetX;
             int cityY = cityInfo->y - wmWorldOffsetY;
@@ -7827,14 +7850,16 @@ static int wmInterfaceDrawCircleOverlay(CityInfo* city, CitySizeDescription* cit
 // slightly darken subtile which is known, but not visited.
 //
 // 0x4C40A8
-static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch)
+static void wmInterfaceDrawSubTileRectFogged(unsigned char* dest, int width, int height, int pitch, int fogLevel)
 {
+    fogLevel = std::clamp(fogLevel, 0, 100);
+
     int skipY = pitch - width;
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            unsigned char color = *dest;
-            *dest++ = intensityColorTable[color][75];
+            *dest = intensityColorTable[*dest][fogLevel];
+            dest++;
         }
         dest += skipY;
     }
@@ -7876,10 +7901,10 @@ static int wmInterfaceDrawSubTileList(TileInfo* tileInfo, int column, int row, i
         unsigned char* dest = wmBkWinBuf + gOffsets.windowWidth * destY + destX;
         switch (subtileInfo->state) {
         case SUBTILE_STATE_UNKNOWN:
-            bufferFill(dest, width, height, gOffsets.windowWidth, _colorTable[COL_BLACK]);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, settings.mod_settings.fog_level);
             break;
         case SUBTILE_STATE_KNOWN:
-            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth);
+            wmInterfaceDrawSubTileRectFogged(dest, width, height, gOffsets.windowWidth, 75 + (std::clamp(settings.mod_settings.fog_level, 0, 100) * 25) / 100);
             break;
         }
     }
@@ -8141,8 +8166,12 @@ bool wmAreaMarkVisitedState(int areaIdx, int state)
 
     CityInfo* city = &(wmAreaInfoList[areaIdx]);
     int oldVisitedState = city->visitedState;
-    if (city->state == CITY_STATE_KNOWN && state != 0) {
+    if (state != 0) {
         wmMarkSubTileRadiusVisited(city->x, city->y);
+        // Also ensure city becomes KNOWN (since it's now visited)
+        if (city->state == CITY_STATE_UNKNOWN) {
+            city->state = CITY_STATE_KNOWN;
+        }
     }
 
     city->visitedState = state;
@@ -8170,6 +8199,10 @@ bool wmAreaSetVisibleState(int areaIdx, int state, bool force)
 
     CityInfo* city = &(wmAreaInfoList[areaIdx]);
     if (city->lockState != LOCK_STATE_LOCKED || force) {
+        // If the city is going from UNKNOWN to KNOWN (or VISITED), clear the fog
+        if (state != CITY_STATE_UNKNOWN && city->state == CITY_STATE_UNKNOWN) {
+            wmMarkSubTileRadiusVisited(city->x, city->y);
+        }
         city->state = state;
         return true;
     }
