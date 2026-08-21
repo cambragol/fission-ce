@@ -638,28 +638,36 @@ static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
 static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
 static FrmImage _moveFrmImages[8];
 
-static int gFilterCategory = -1;   // -1 = no filter, 0-4 for Weapons, Ammo, Drugs, Misc, Keys
+static int gFilterCategory = -1; // -1 = no filter, 0-4 for Weapons, Ammo, Drugs, Misc, Keys
 static int gFilteredIndices[256];
 static int gFilteredCount = 0;
 
-static int itemGetCategory(Object* item) {
+static int itemGetCategory(Object* item)
+{
     int type = itemGetType(item);
     switch (type) {
-        case ITEM_TYPE_WEAPON:  return 0;   // Weapons
-        case ITEM_TYPE_AMMO:    return 1;   // Ammo
-        case ITEM_TYPE_DRUG:    return 2;   // Drugs
-        case ITEM_TYPE_ARMOR:   return 3;   // Armor
-        case ITEM_TYPE_MISC:
-        case ITEM_TYPE_KEY:
-        case ITEM_TYPE_CONTAINER: return 4; // Misc
-        default: return -1;                 // unknown – hidden
+    case ITEM_TYPE_WEAPON:
+        return 0; // Weapons
+    case ITEM_TYPE_AMMO:
+        return 1; // Ammo
+    case ITEM_TYPE_DRUG:
+        return 2; // Drugs
+    case ITEM_TYPE_ARMOR:
+        return 3; // Armor
+    case ITEM_TYPE_MISC:
+    case ITEM_TYPE_KEY:
+    case ITEM_TYPE_CONTAINER:
+        return 4; // Misc
+    default:
+        return -1; // unknown – hidden
     }
 }
 
 // Builds a list of indices into 'inventory' that match the current filter.
 // Stores them in gFilteredIndices (reversed, so top of screen = last item).
 // Returns the number of filtered items.
-static int buildFilteredIndices(Inventory* inventory) {
+static int buildFilteredIndices(Inventory* inventory)
+{
     int count = 0;
     if (gFilterCategory == -1) {
         // No filter: all items, reversed order
@@ -679,15 +687,15 @@ static int buildFilteredIndices(Inventory* inventory) {
 }
 
 static void drawFilterBar(unsigned char* dest, int destPitch,
-                          int x, int y, int width,
-                          int /* bgFrmId */, int /* srcX */, int /* srcY */)
+    int x, int y, int width,
+    int /* bgFrmId */, int /* srcX */, int /* srcY */)
 {
     int oldFont = fontGetCurrent();
     fontSetCurrent(100);
 
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const int numCategories = 5;
-    const int spacing = 6;          // gap between labels
+    const int spacing = 6; // gap between labels
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
         fontSetCurrent(oldFont);
@@ -742,14 +750,14 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
         int color;
         if (gFilterCategory == i) {
-            color = _colorTable[COL_LIGHT_LEMON];      // active filter
+            color = _colorTable[COL_LIGHT_LEMON]; // active filter
         } else if (gFilterCategory != -1) {
-            color = _colorTable[COL_DARK_FOREST];        // other categories dimmed
+            color = _colorTable[COL_DARK_FOREST]; // other categories dimmed
         } else {
-            color = _colorTable[COL_LIME_GREEN];  // normal
+            color = _colorTable[COL_LIME_GREEN]; // normal
         }
         fontDrawText(dest + destPitch * y + drawX, label, finalWidth,
-                     destPitch, color);
+            destPitch, color);
     }
 
     fontSetCurrent(oldFont);
@@ -1111,7 +1119,7 @@ void inventoryOpen()
         } else if (keyCode >= 8000 && keyCode <= 8004) {
             int category = keyCode - 8000;
             if (gFilterCategory == category) {
-                gFilterCategory = -1;      // toggle off if already active
+                gFilterCategory = -1; // toggle off if already active
             } else {
                 gFilterCategory = category;
             }
@@ -1202,10 +1210,10 @@ static bool _setup_inventory(int inventoryWindowType)
     _dropped_explosive = 0;
     _curr_stack = 0;
     _stack_offset[0] = 0;
-    gInventorySlotsCount = 6;  // original (for loot/trade/use-on)
+    gInventorySlotsCount = 6; // original (for loot/trade/use-on)
 
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-        gInventorySlotsCount = gInventoryRows * gInventoryColumns;  // total visible slots
+        gInventorySlotsCount = gInventoryRows * gInventoryColumns; // total visible slots
     }
     _pud = &(_inven_dude->data.inventory);
     _stack[0] = _inven_dude;
@@ -1447,7 +1455,8 @@ static bool _setup_inventory(int inventoryWindowType)
                             buffer[1] = '\0';
                             label = buffer;
                         }
-                    }                    int labelWidth = fontGetStringWidth(label);
+                    }
+                    int labelWidth = fontGetStringWidth(label);
                     int offset = (perCategory - labelWidth) / 2;
                     int drawX = startX + i * (perCategory + spacing) + offset;
                     int btn = buttonCreate(gInventoryWindow,
@@ -2459,8 +2468,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         if (!settings.enhancements.strict_vanilla) {
             int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
             drawFilterBar(windowBuffer, pitch,
-                        INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
-                        0, 0, 0);
+                INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
+                0, 0, 0);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
@@ -2477,8 +2486,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
         int barWidth = gLayout.scrollerWidth;
         drawFilterBar(windowBuffer, pitch,
-                      gLayout.scrollerX, barY, barWidth,
-                      0, 0, 0);
+            gLayout.scrollerX, barY, barWidth,
+            0, 0, 0);
     }
 
     // Draw items in grid (only for normal inventory)
@@ -2698,8 +2707,8 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         if (!settings.enhancements.strict_vanilla) {
             int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
             drawFilterBar(windowBuffer, pitch,
-                        INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
-                        0, 0, 0);
+                INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
+                0, 0, 0);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
@@ -6899,7 +6908,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
             }
-                } else if (keyCode == KEY_ARROW_UP) {
+        } else if (keyCode == KEY_ARROW_UP) {
             if (_stack_offset[_curr_stack] > 0) {
                 _stack_offset[_curr_stack] -= 1;
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
@@ -7005,7 +7014,8 @@ int inventoryOpenLooting(Object* looter, Object* target)
                             InventoryItem* inventoryItem = &(_pud->items[originalIndex]);
                             _gStealCount += 1;
                             _gStealSize += itemGetSize(_stack[_curr_stack]);
-                            InventoryMoveResult rc = _move_inventory(inventoryItem->item, slotIndex, _target_stack[_target_curr_stack], true, inventoryItem->quantity);                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
+                            InventoryMoveResult rc = _move_inventory(inventoryItem->item, slotIndex, _target_stack[_target_curr_stack], true, inventoryItem->quantity);
+                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
                                 isCaughtStealing = true;
                             } else if (rc == INVENTORY_MOVE_RESULT_SUCCESS) {
                                 stealingXp += stealingXpBonus;
@@ -7029,7 +7039,8 @@ int inventoryOpenLooting(Object* looter, Object* target)
                             InventoryItem* inventoryItem = &(_target_pud->items[originalIndex]);
                             _gStealCount += 1;
                             _gStealSize += itemGetSize(_stack[_curr_stack]);
-                            InventoryMoveResult rc = _move_inventory(inventoryItem->item, slotIndex, _target_stack[_target_curr_stack], false, inventoryItem->quantity);                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
+                            InventoryMoveResult rc = _move_inventory(inventoryItem->item, slotIndex, _target_stack[_target_curr_stack], false, inventoryItem->quantity);
+                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
                                 isCaughtStealing = true;
                             } else if (rc == INVENTORY_MOVE_RESULT_SUCCESS) {
                                 stealingXp += stealingXpBonus;

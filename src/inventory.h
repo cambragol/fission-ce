@@ -42,7 +42,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
 int inventorySetTimer(Object* item);
 Object* inventoryGetTargetObject();
 void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
-                                         unsigned char* dest, int destPitch);
+    unsigned char* dest, int destPitch);
 
 } // namespace fallout
 
