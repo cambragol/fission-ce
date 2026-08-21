@@ -735,20 +735,28 @@ static void applyGreenFilterToBuffer(const unsigned char* src, int srcPitch,
 
 static void artRenderGreen(int fid, unsigned char* dest, int width, int height, int pitch)
 {
-    unsigned char* temp = (unsigned char*)internal_malloc(width * height);
-    if (temp == nullptr) return;
-    memset(temp, 0, width * height);
-    artRender(fid, temp, width, height, width);
+    if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+        artRender(fid, dest, width, height, pitch);
+    } else {
+        unsigned char* temp = (unsigned char*)internal_malloc(width * height);
+        if (temp == nullptr) return;
+        memset(temp, 0, width * height);
+        artRender(fid, temp, width, height, width);
 
-    applyGreenFilterToBuffer(temp, width, dest, pitch, width, height);
+        applyGreenFilterToBuffer(temp, width, dest, pitch, width, height);
 
-    internal_free(temp);
+        internal_free(temp);
+    }
 }
 
-static void blitBufferToBufferGreenTrans(const unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
-    unsigned char* dest, int destPitch)
+static void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
+                                         unsigned char* dest, int destPitch)
 {
-    applyGreenFilterToBuffer(src, srcPitch, dest, destPitch, srcWidth, srcHeight);
+    if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+        blitBufferToBufferTrans(src, srcWidth, srcHeight, srcPitch, dest, destPitch);
+    } else {
+        applyGreenFilterToBuffer(src, srcPitch, dest, destPitch, srcWidth, srcHeight);
+    }
 }
 
 // Computes layout based on number of columns and sets common elements
@@ -2444,7 +2452,11 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
     }
 
     if (draw) {
-        fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
+        if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+            fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
+        } else {
+            fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_LIME_GREEN]);
+        }
     }
 
     fontSetCurrent(oldFont);
