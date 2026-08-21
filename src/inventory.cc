@@ -695,7 +695,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const int numCategories = 5;
-    const int spacing = 5;          // gap between labels
+    const int spacing = 5; // gap between labels
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
         fontSetCurrent(oldFont);
@@ -777,7 +777,7 @@ static void createFilterButtons(int win, int x, int y, int width, int baseKeyCod
         int drawX = x + i * (perCategory + spacing);
         int btn = buttonCreate(win,
             drawX, y,
-            perCategory, buttonHeight,   // covers the entire column
+            perCategory, buttonHeight, // covers the entire column
             -1, -1, baseKeyCode + i, -1,
             nullptr, nullptr, nullptr,
             BUTTON_FLAG_TRANSPARENT);
