@@ -695,7 +695,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const int numCategories = 5;
-    const int spacing = 6; // gap between labels
+    const int spacing = 5;          // gap between labels
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
         fontSetCurrent(oldFont);
@@ -736,11 +736,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
             if (len == 0) {
                 buffer[0] = base[0];
                 buffer[1] = '\0';
-                if (fontGetStringWidth(buffer) <= perCategory) {
-                    label = buffer;
-                } else {
-                    label = "?";
-                }
+                label = buffer;
             }
         }
 
@@ -761,6 +757,32 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     }
 
     fontSetCurrent(oldFont);
+}
+
+static void createFilterButtons(int win, int x, int y, int width, int baseKeyCode)
+{
+    if (settings.enhancements.strict_vanilla)
+        return;
+
+    const int numCategories = 5;
+    const int spacing = 6;
+    int available = width - (numCategories - 1) * spacing;
+    if (available <= 0)
+        return;
+
+    int perCategory = available / numCategories;
+    int buttonHeight = fontGetLineHeight(); // or a fixed value like 14
+
+    for (int i = 0; i < numCategories; i++) {
+        int drawX = x + i * (perCategory + spacing);
+        int btn = buttonCreate(win,
+            drawX, y,
+            perCategory, buttonHeight,   // covers the entire column
+            -1, -1, baseKeyCode + i, -1,
+            nullptr, nullptr, nullptr,
+            BUTTON_FLAG_TRANSPARENT);
+        (void)btn;
+    }
 }
 
 static void applyGreenFilterToBuffer(const unsigned char* src, int srcPitch,
@@ -1373,99 +1395,21 @@ static bool _setup_inventory(int inventoryWindowType)
             const int spacing = 6;
             int available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
             if (available > 0) {
-                int perCategory = available / numCategories;
-                int startX = INVENTORY_LOOT_LEFT_SCROLLER_X;
-                int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
-                int lineHeight = fontGetLineHeight();
-
-                for (int i = 0; i < numCategories; i++) {
-                    const char* base = fullNames[i];
-                    char buffer[32];
-                    const char* label = base;
-                    // Shorten logic (copy from normal inventory)
-                    strcpy(buffer, "[");
-                    strcat(buffer, base);
-                    strcat(buffer, "]");
-                    if (fontGetStringWidth(buffer) <= perCategory) {
-                        label = buffer;
-                    } else if (fontGetStringWidth(base) <= perCategory) {
-                        label = base;
-                    } else {
-                        int len = strlen(base);
-                        while (len > 0) {
-                            strncpy(buffer, base, len);
-                            buffer[len] = '\0';
-                            if (fontGetStringWidth(buffer) <= perCategory) {
-                                label = buffer;
-                                break;
-                            }
-                            len--;
-                        }
-                        if (len == 0) {
-                            buffer[0] = base[0];
-                            buffer[1] = '\0';
-                            label = buffer;
-                        }
-                    }
-                    int labelWidth = fontGetStringWidth(label);
-                    int offset = (perCategory - labelWidth) / 2;
-                    int drawX = startX + i * (perCategory + spacing) + offset;
-                    int btn = buttonCreate(gInventoryWindow,
-                        drawX, barY,
-                        labelWidth, lineHeight,
-                        -1, -1, 8000 + i, -1,
-                        nullptr, nullptr, nullptr,
-                        BUTTON_FLAG_TRANSPARENT);
-                }
+                createFilterButtons(gInventoryWindow,
+                    INVENTORY_LOOT_LEFT_SCROLLER_X,
+                    INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2,
+                    INVENTORY_SLOT_WIDTH,
+                    8000);
             }
 
             // Repeat for right panel
             available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
             if (available > 0) {
-                int perCategory = available / numCategories;
-                int startX = INVENTORY_LOOT_RIGHT_SCROLLER_X;
-                int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
-                int lineHeight = fontGetLineHeight();
-
-                for (int i = 0; i < numCategories; i++) {
-                    const char* base = fullNames[i];
-                    char buffer[32];
-                    const char* label = base;
-                    // Shorten logic (copy from normal inventory)
-                    strcpy(buffer, "[");
-                    strcat(buffer, base);
-                    strcat(buffer, "]");
-                    if (fontGetStringWidth(buffer) <= perCategory) {
-                        label = buffer;
-                    } else if (fontGetStringWidth(base) <= perCategory) {
-                        label = base;
-                    } else {
-                        int len = strlen(base);
-                        while (len > 0) {
-                            strncpy(buffer, base, len);
-                            buffer[len] = '\0';
-                            if (fontGetStringWidth(buffer) <= perCategory) {
-                                label = buffer;
-                                break;
-                            }
-                            len--;
-                        }
-                        if (len == 0) {
-                            buffer[0] = base[0];
-                            buffer[1] = '\0';
-                            label = buffer;
-                        }
-                    }
-                    int labelWidth = fontGetStringWidth(label);
-                    int offset = (perCategory - labelWidth) / 2;
-                    int drawX = startX + i * (perCategory + spacing) + offset;
-                    int btn = buttonCreate(gInventoryWindow,
-                        drawX, barY,
-                        labelWidth, lineHeight,
-                        -1, -1, 8000 + i, -1,
-                        nullptr, nullptr, nullptr,
-                        BUTTON_FLAG_TRANSPARENT);
-                }
+                createFilterButtons(gInventoryWindow,
+                    INVENTORY_LOOT_RIGHT_SCROLLER_X,
+                    INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2,
+                    INVENTORY_SLOT_WIDTH,
+                    8000);
             }
 
             fontSetCurrent(oldFont);
@@ -1573,63 +1517,11 @@ static bool _setup_inventory(int inventoryWindowType)
         // Create filter category buttons
         int oldFont = fontGetCurrent();
         fontSetCurrent(100);
-
-        const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
-        const int numCategories = 5;
-        const int spacing = 6;
-        int available = gLayout.scrollerWidth - (numCategories - 1) * spacing;
-        if (available > 0) {
-            int perCategory = available / numCategories;
-            int startX = gLayout.scrollerX;
-            int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
-            int lineHeight = fontGetLineHeight();
-
-            for (int i = 0; i < numCategories; i++) {
-                const char* base = fullNames[i];
-                char buffer[32];
-                const char* label = base;
-
-                // Copy shortening logic from drawFilterBar
-                strcpy(buffer, "[");
-                strcat(buffer, base);
-                strcat(buffer, "]");
-                if (fontGetStringWidth(buffer) <= perCategory) {
-                    label = buffer;
-                } else if (fontGetStringWidth(base) <= perCategory) {
-                    label = base;
-                } else {
-                    int len = strlen(base);
-                    while (len > 0) {
-                        strncpy(buffer, base, len);
-                        buffer[len] = '\0';
-                        if (fontGetStringWidth(buffer) <= perCategory) {
-                            label = buffer;
-                            break;
-                        }
-                        len--;
-                    }
-                    if (len == 0) {
-                        buffer[0] = base[0];
-                        buffer[1] = '\0';
-                        label = buffer;
-                    }
-                }
-
-                int labelWidth = fontGetStringWidth(label);
-                int offset = (perCategory - labelWidth) / 2;
-                int drawX = startX + i * (perCategory + spacing) + offset;
-
-                // Create transparent button covering the label
-                int btn = buttonCreate(gInventoryWindow,
-                    drawX, barY,
-                    labelWidth, lineHeight,
-                    -1, -1, 8000 + i, -1,
-                    nullptr, nullptr, nullptr,
-                    BUTTON_FLAG_TRANSPARENT);
-                // No extra callbacks needed; keyCode handling will catch the ID
-            }
-        }
-
+        createFilterButtons(gInventoryWindow,
+            gLayout.scrollerX,
+            gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2,
+            gLayout.scrollerWidth,
+            8000);
         fontSetCurrent(oldFont);
     } else {
         // For use-on (INVENTORY_WINDOW_TYPE_USE_ITEM_ON) and any other, use original single column
