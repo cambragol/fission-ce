@@ -14,6 +14,48 @@ defaults:
     shell: bash
 
 jobs:
+  get-version:
+    name: Get Next Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Calculate next version
+        id: version
+        run: |
+          # Get the latest beta tag
+          LATEST=$(git tag -l "beta-*" | sort -V | tail -1)
+          echo "Latest tag: $LATEST"
+
+          if [ -z "$LATEST" ]; then
+            # No existing tags - start at beta-0.9.6.1
+            NEXT="0.9.6.1"
+          else
+            # Strip the "beta-" prefix
+            VERSION="${LATEST#beta-}"
+            
+            # Split into parts
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3)
+            BUILD=$(echo "$VERSION" | cut -d. -f4)
+            
+            # Increment the last digit
+            BUILD=$((BUILD + 1))
+            NEXT="${MAJOR}.${MINOR}.${PATCH}.${BUILD}"
+          fi
+
+          echo "Next version: $NEXT"
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "tag=beta-$NEXT" >> $GITHUB_OUTPUT
+
   static-analysis:
     name: Static analysis
     runs-on: ubuntu-latest
@@ -81,7 +123,6 @@ jobs:
           echo "Applying clang-format..."
           find src -type f \( -name "*.cc" -o -name "*.h" \) -print0 | xargs -0 clang-format-18 -i
           
-          # Check if there are changes after formatting
           if ! git diff --quiet; then
             echo "Committing formatting changes..."
             git config user.name "github-actions[bot]"
@@ -93,12 +134,11 @@ jobs:
           else
             echo "No formatting changes after auto-format"
           fi
-          
+
   android:
     name: Android
-
+    needs: get-version
     runs-on: ubuntu-latest
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -138,15 +178,11 @@ jobs:
       - name: Package Android with fission.dat
         run: |
           mkdir -p packaged
-          # Copy APK
           cp os/android/app/build/outputs/apk/debug/fallout-fission.apk packaged/
-          # Copy fission.dat
           cp os/macos/fission.dat packaged/
-          # Create zip
           cd packaged
           zip fallout-fission-android.zip fallout-fission.apk fission.dat
           cd ..
-          # Also copy zip to a common directory for the combined package job
           mkdir -p packages
           cp packaged/fallout-fission-android.zip packages/
 
@@ -159,9 +195,8 @@ jobs:
 
   ios:
     name: iOS
-
+    needs: get-version
     runs-on: macos-14
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -189,21 +224,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission.ipa
-          path:  out/build/ios/fallout-fission.ipa
+          path: out/build/ios/fallout-fission.ipa
           retention-days: 7
 
   linux:
     name: Linux (${{ matrix.arch }})
-
+    needs: get-version
     runs-on: ubuntu-22.04
-
     strategy:
       fail-fast: false
       matrix:
         arch:
           - x86
           - x64
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -242,15 +275,11 @@ jobs:
       - name: Package Linux ${{ matrix.arch }} with fission.dat
         run: |
           mkdir -p packaged
-          # Copy binary
           cp out/build/linux-${{ matrix.arch }}-debug/fallout-fission-linux-${{ matrix.arch }} packaged/
-          # Copy fission.dat
           cp os/macos/fission.dat packaged/
-          # Create zip
           cd packaged
           zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
           cd ..
-          # Also copy zip to a common directory for the combined package job
           mkdir -p packages
           cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
 
@@ -263,16 +292,14 @@ jobs:
 
   linux-arm:
     name: Linux (${{ matrix.arch }})
-
+    needs: get-version
     runs-on: ubuntu-22.04-arm
-
     strategy:
       fail-fast: false
       matrix:
         arch:
           - armhf
           - arm64
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -316,15 +343,11 @@ jobs:
       - name: Package Linux ${{ matrix.arch }} with fission.dat
         run: |
           mkdir -p packaged
-          # Copy binary
           cp build/fallout-fission-linux-${{ matrix.arch }} packaged/
-          # Copy fission.dat
           cp os/macos/fission.dat packaged/
-          # Create zip
           cd packaged
           zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
           cd ..
-          # Also copy zip to a common directory for the combined package job
           mkdir -p packages
           cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
 
@@ -337,9 +360,8 @@ jobs:
 
   macos:
     name: macOS
-
+    needs: get-version
     runs-on: macos-14
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -368,7 +390,6 @@ jobs:
 
       - name: Find the built app
         run: |
-          # Try the Debug location first, then the CPack location
           if [ -d "out/build/macos/Debug/Fallout-Fission.app" ]; then
             APP_PATH="out/build/macos/Debug/Fallout-Fission.app"
           elif [ -d "out/build/macos/_CPack_Packages/Darwin/DragNDrop/Fallout-Fission/Fallout-Fission.app" ]; then
@@ -399,14 +420,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fallout-fission-macos.dmg
-          path: dmg_output/fallout-fission-macos.dmg  # New create-dmg DMG
+          path: dmg_output/fallout-fission-macos.dmg
           retention-days: 7
 
   windows:
     name: Windows (${{ matrix.arch }})
-
+    needs: get-version
     runs-on: windows-2025
-
     strategy:
       fail-fast: false
       matrix:
@@ -415,7 +435,6 @@ jobs:
             generator-platform: Win32
           - arch: x64
             generator-platform: x64
-
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -471,33 +490,25 @@ jobs:
   package-combined:
     name: Package Combined Archive
     runs-on: ubuntu-latest
-    needs: [android, linux, linux-arm, windows]  # Exclude ios and macos
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    
+    needs: [get-version, android, linux, linux-arm, windows]
+    if: ${{ always() }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Download packaged artifacts (excluding macOS and iOS)
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-          
+
       - name: Create combined directory structure
         run: |
-          # Create main directory
           mkdir -p fallout-fission-combined
-          
-          # Copy fission.dat file 
           cp os/macos/fission.dat fallout-fission-combined/
-          
-          # Process downloaded artifacts and extract them to combined directory
           cd artifacts
-          
           for artifact_dir in *; do
             if [ -d "$artifact_dir" ]; then
               cd "$artifact_dir"
-              # Extract each zip to the combined directory
               for zipfile in *.zip; do
                 if [ -f "$zipfile" ]; then
                   echo "Extracting $zipfile"
@@ -508,16 +519,14 @@ jobs:
             fi
           done
           cd ..
-          
-          # List contents for verification
           echo "Combined package contents:"
           ls -la fallout-fission-combined/
-          
+
       - name: Create combined zip archive
         run: |
           zip -r fallout-fission-combined.zip fallout-fission-combined/
           ls -la *.zip
-          
+
       - name: Upload combined archive as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -528,30 +537,25 @@ jobs:
   release:
     name: Release Beta build
     runs-on: ubuntu-latest
-    needs: [android, ios, linux, linux-arm, macos, windows, package-combined]
+    needs: [get-version, android, ios, linux, linux-arm, macos, windows, package-combined]
     permissions: write-all
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    
+    if: ${{ always() }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Fetch artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
 
-      - name: Remove old release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        with:
-          delete_release: true
-          tag_name: beta
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Process artifacts for release
         run: |
-          # Create release directory
           mkdir -p release-files
-          
-          # Move all packaged zips to release files
           cd artifacts
           for artifact_dir in *; do
             if [ -d "$artifact_dir" ]; then
@@ -566,21 +570,29 @@ jobs:
             fi
           done
           cd ..
-          
-          # List release files
           echo "Release files:"
           ls -la release-files/
 
-      - name: Allow GitHub to process removed release for few seconds
+      - name: Create and push tag
         run: |
-          sleep 20s
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+          echo "Creating tag $TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
 
-      - name: Upload new release
+      - name: Create release
         uses: softprops/action-gh-release@v0.1.15
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: release-files/*
-          tag_name: beta
+          tag_name: ${{ needs.get-version.outputs.tag }}
           draft: false
           prerelease: true
-          name: Fallout Fission Beta Build
+          name: Fallout Fission Beta ${{ needs.get-version.outputs.version }}
+          body: |
+            Automated beta build ${{ needs.get-version.outputs.version }}
+            
+            Built from ${{ github.ref_name }} — ${{ github.sha }}
