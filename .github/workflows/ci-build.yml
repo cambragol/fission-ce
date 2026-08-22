@@ -491,7 +491,7 @@ jobs:
     name: Package Combined Archive
     runs-on: ubuntu-latest
     needs: [get-version, android, linux, linux-arm, windows]
-    if: ${{ always() }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -539,7 +539,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [get-version, android, ios, linux, linux-arm, macos, windows, package-combined]
     permissions: write-all
-    if: ${{ always() }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
