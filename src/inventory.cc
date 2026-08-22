@@ -2374,16 +2374,16 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
 
-        // --- Build filtered index list using helper ---
+        // Build filtered index list using helper
         gFilteredCount = buildFilteredIndices(_pud);
 
-        // --- Clamp stackOffset to valid range ---
+        // Clamp stackOffset to valid range
         if (stackOffset >= gFilteredCount) {
             stackOffset = 0;
             _stack_offset[_curr_stack] = 0;
         }
 
-        // --- Now draw the grid using gFilteredIndices ---
+        // Draw the grid using gFilteredIndices
         int totalVisible = gInventoryRows * gInventoryColumns;
         for (int row = 0; row < gInventoryRows; ++row) {
             for (int col = 0; col < gInventoryColumns; ++col) {
@@ -2403,7 +2403,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
             }
         }
-        // --- Draw Filter Bar at bottom ---
+        // Draw Filter Bar at bottom
         int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
         int barWidth = gLayout.scrollerWidth;
         drawFilterBar(windowBuffer, pitch,
