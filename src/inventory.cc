@@ -687,15 +687,14 @@ static int buildFilteredIndices(Inventory* inventory)
 }
 
 static void drawFilterBar(unsigned char* dest, int destPitch,
-    int x, int y, int width,
-    int /* bgFrmId */, int /* srcX */, int /* srcY */)
+    int x, int y, int width)
 {
     int oldFont = fontGetCurrent();
-    fontSetCurrent(100);
+    fontSetCurrent(101);
 
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const int numCategories = 5;
-    const int spacing = 5; // gap between labels
+    const int spacing = 6; // gap between labels
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
         fontSetCurrent(oldFont);
@@ -750,7 +749,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         } else if (gFilterCategory != -1) {
             color = _colorTable[COL_DARK_FOREST]; // other categories dimmed
         } else {
-            color = _colorTable[COL_LIME_GREEN]; // normal
+            color = _colorTable[COL_DARK_FOREST]; // normal
         }
         fontDrawText(dest + destPitch * y + drawX, label, finalWidth,
             destPitch, color);
@@ -2360,8 +2359,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         if (!settings.enhancements.strict_vanilla) {
             int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
             drawFilterBar(windowBuffer, pitch,
-                INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
-                0, 0, 0);
+                INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
@@ -2378,8 +2376,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
         int barWidth = gLayout.scrollerWidth;
         drawFilterBar(windowBuffer, pitch,
-            gLayout.scrollerX, barY, barWidth,
-            0, 0, 0);
+            gLayout.scrollerX, barY, barWidth);
     }
 
     // Draw items in grid (only for normal inventory)
@@ -2599,8 +2596,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         if (!settings.enhancements.strict_vanilla) {
             int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
             drawFilterBar(windowBuffer, pitch,
-                INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH,
-                0, 0, 0);
+                INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
