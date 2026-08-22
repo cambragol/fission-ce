@@ -2371,14 +2371,6 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         assert(false && "Should be unreachable");
     }
 
-    // --- Test filter bar (single label) ---
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-        int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
-        int barWidth = gLayout.scrollerWidth;
-        drawFilterBar(windowBuffer, pitch,
-            gLayout.scrollerX, barY, barWidth);
-    }
-
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
 
@@ -2411,6 +2403,11 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
             }
         }
+        // --- Draw Filter Bar at bottom ---
+        int barY = gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2;
+        int barWidth = gLayout.scrollerWidth;
+        drawFilterBar(windowBuffer, pitch,
+            gLayout.scrollerX, barY, barWidth);
     } else {
         // Original drawing for other inventory types
         // Only run for windows that don't already have their own filtered loop
