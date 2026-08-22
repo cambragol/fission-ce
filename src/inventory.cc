@@ -749,7 +749,7 @@ static void artRenderGreen(int fid, unsigned char* dest, int width, int height, 
     }
 }
 
-static void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
+void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
     unsigned char* dest, int destPitch)
 {
     if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
