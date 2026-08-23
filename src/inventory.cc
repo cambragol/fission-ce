@@ -690,11 +690,11 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     int x, int y, int width)
 {
     int oldFont = fontGetCurrent();
-    fontSetCurrent(101);
 
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
+    const char categoryIcons[] = { 'A', 'B', 'C', 'D', 'E' };
     const int numCategories = 5;
-    const int spacing = 6; // gap between labels
+    const int spacing = 6;
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
         fontSetCurrent(oldFont);
@@ -707,36 +707,55 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         const char* base = fullNames[i];
         const char* label = base;
         char buffer[32];
+        bool useIcon = false;   // flag to select font 106
 
-        // 1. Try with brackets
+        // All width calculations use the normal text font (101)
+        fontSetCurrent(101);
+
+        // Try with brackets
         strcpy(buffer, "[");
         strcat(buffer, base);
         strcat(buffer, "]");
         if (fontGetStringWidth(buffer) <= perCategory) {
             label = buffer;
         }
-        // 2. Try without brackets
+        // Try without brackets
         else if (fontGetStringWidth(base) <= perCategory) {
             label = base;
         }
-        // 3. Shorten progressively
+        // Shorten progressively
         else {
             int len = strlen(base);
+            strcpy(buffer, base);
             while (len > 0) {
-                strncpy(buffer, base, len);
                 buffer[len] = '\0';
                 if (fontGetStringWidth(buffer) <= perCategory) {
                     label = buffer;
+                    // If we reduced to a single character, we want the icon
+                    if (len == 1) {
+                        useIcon = true;
+                        buffer[0] = categoryIcons[i];
+                        buffer[1] = '\0';
+                        label = buffer;
+                    }
                     break;
                 }
                 len--;
             }
-            // 4. If even one char doesn't fit, use first letter
+            // If even one character doesn't fit, force the icon
             if (len == 0) {
-                buffer[0] = base[0];
+                useIcon = true;
+                buffer[0] = categoryIcons[i];
                 buffer[1] = '\0';
                 label = buffer;
             }
+        }
+
+        // Set the correct font for drawing
+        if (useIcon) {
+            fontSetCurrent(106);   // icon font
+        } else {
+            fontSetCurrent(101);   // normal text font
         }
 
         int finalWidth = fontGetStringWidth(label);
