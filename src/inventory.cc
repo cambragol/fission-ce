@@ -707,7 +707,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         const char* base = fullNames[i];
         const char* label = base;
         char buffer[32];
-        bool useIcon = false;   // flag to select font 106
+        bool useIcon = false; // flag to select font 106
 
         // All width calculations use the normal text font (101)
         fontSetCurrent(101);
@@ -753,9 +753,9 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
         // Set the correct font for drawing
         if (useIcon) {
-            fontSetCurrent(106);   // icon font
+            fontSetCurrent(106); // icon font
         } else {
-            fontSetCurrent(101);   // normal text font
+            fontSetCurrent(101); // normal text font
         }
 
         int finalWidth = fontGetStringWidth(label);
