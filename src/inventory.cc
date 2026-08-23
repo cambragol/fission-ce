@@ -64,7 +64,8 @@ namespace fallout {
 #define INVENTORY_LARGE_SLOT_HEIGHT 61
 
 #define INVENTORY_SLOT_WIDTH 64
-#define INVENTORY_SLOT_HEIGHT 46
+// Need to handle this per inventory window to keep consistant space
+#define INVENTORY_SLOT_HEIGHT 47
 
 #define INVENTORY_SLOT_PADDING 4
 
@@ -626,6 +627,8 @@ static int _barter_back_win;
 
 static bool _inven_redrawing_after_sort_menu = false;
 
+static int gCurrentInvWindowType = -1;
+
 // Tracks insult-based price increases
 static int gBarterInsultIncrease = 0;
 
@@ -689,8 +692,73 @@ static int buildFilteredIndices(Inventory* inventory)
 static void drawFilterBar(unsigned char* dest, int destPitch,
     int x, int y, int width)
 {
+    // Clear the filter bar rectangle using the correct background
     int oldFont = fontGetCurrent();
 
+    // Determine bar height (max line height of the two fonts + padding)
+    fontSetCurrent(101);
+    int h101 = fontGetLineHeight();
+    fontSetCurrent(106);
+    int h106 = fontGetLineHeight();
+    fontSetCurrent(oldFont);
+    int barHeight = (h101 > h106 ? h101 : h106) + 4; // +4 for safety
+
+    // Clear based on the current window type
+    switch (gCurrentInvWindowType) {
+        case INVENTORY_WINDOW_TYPE_NORMAL: {
+            FrmImage bg;
+            int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+            if (bg.lock(bgFid)) {
+                int bgPitch = bg.getWidth();
+                int shift = (gInventoryColumns - 1) * INVENTORY_SLOT_WIDTH;
+                unsigned char* src = bg.getData() + bgPitch * y + (x + shift);
+                blitBufferToBuffer(src, width, barHeight, bgPitch,
+                                   dest + destPitch * y + x, destPitch);
+                bg.unlock();
+            }
+            break;
+        }
+        case INVENTORY_WINDOW_TYPE_LOOT: {
+            FrmImage bg;
+            int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
+            if (bg.lock(bgFid)) {
+                int bgPitch = bg.getWidth();
+                unsigned char* src = bg.getData() + bgPitch * y + x;
+                blitBufferToBuffer(src, width, barHeight, bgPitch,
+                                   dest + destPitch * y + x, destPitch);
+                bg.unlock();
+            }
+            break;
+        }
+        case INVENTORY_WINDOW_TYPE_USE_ITEM_ON: {
+            FrmImage bg;
+            int bgFid = buildFid(OBJ_TYPE_INTERFACE, 113, 0, 0, 0);
+            if (bg.lock(bgFid)) {
+                int bgPitch = bg.getWidth();
+                unsigned char* src = bg.getData() + bgPitch * y + x;
+                blitBufferToBuffer(src, width, barHeight, bgPitch,
+                                   dest + destPitch * y + x, destPitch);
+                bg.unlock();
+            }
+            break;
+        }
+        case INVENTORY_WINDOW_TYPE_TRADE: {
+            // Trade background is the main dialog window (_barter_back_win)
+            unsigned char* srcWin = windowGetBuffer(_barter_back_win);
+            int srcPitch = windowGetWidth(_barter_back_win);
+            // The trade window is a sub-window; its background is offset by INVENTORY_TRADE_WINDOW_OFFSET (80)
+            // x,y are relative to the trade sub-window.
+            unsigned char* src = srcWin + srcPitch * y + (x + INVENTORY_TRADE_WINDOW_OFFSET);
+            blitBufferToBuffer(src, width, barHeight, srcPitch,
+                               dest + destPitch * y + x, destPitch);
+            break;
+        }
+        default:
+            // Should not happen
+            break;
+    }
+
+    // Draw the filter bar
     const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
     const char categoryIcons[] = { 'A', 'B', 'C', 'D', 'E' };
     const int numCategories = 5;
@@ -702,17 +770,17 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     }
     int perCategory = available / numCategories;
 
-    int startX = x;
+    int startX = x + 2; // make this dynamic later to center menu in every inventory?
     for (int i = 0; i < numCategories; i++) {
         const char* base = fullNames[i];
         const char* label = base;
         char buffer[32];
         bool useIcon = false; // flag to select font 106
 
-        // All width calculations use the normal text font (101)
+        // All measurements use font 101
         fontSetCurrent(101);
 
-        // Try with brackets
+        // Try brackets
         strcpy(buffer, "[");
         strcat(buffer, base);
         strcat(buffer, "]");
@@ -731,7 +799,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
                 buffer[len] = '\0';
                 if (fontGetStringWidth(buffer) <= perCategory) {
                     label = buffer;
-                    // If we reduced to a single character, we want the icon
+                    // If we reduced to a single character, use the icon
                     if (len == 1) {
                         useIcon = true;
                         buffer[0] = categoryIcons[i];
@@ -742,7 +810,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
                 }
                 len--;
             }
-            // If even one character doesn't fit, force the icon
+            // If even one character doesn't fit, force icon
             if (len == 0) {
                 useIcon = true;
                 buffer[0] = categoryIcons[i];
@@ -1251,6 +1319,7 @@ static bool _setup_inventory(int inventoryWindowType)
     _curr_stack = 0;
     _stack_offset[0] = 0;
     gInventorySlotsCount = 6; // original (for loot/trade/use-on)
+    gCurrentInvWindowType = inventoryWindowType;
 
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
         gInventorySlotsCount = gInventoryRows * gInventoryColumns; // total visible slots
