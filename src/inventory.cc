@@ -705,55 +705,55 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
     // Clear based on the current window type
     switch (gCurrentInvWindowType) {
-        case INVENTORY_WINDOW_TYPE_NORMAL: {
-            FrmImage bg;
-            int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
-            if (bg.lock(bgFid)) {
-                int bgPitch = bg.getWidth();
-                // No shift: background and window share the same coordinate system
-                unsigned char* src = bg.getData() + bgPitch * y + x;
-                blitBufferToBuffer(src, width, barHeight, bgPitch,
-                                dest + destPitch * y + x, destPitch);
-                bg.unlock();
-            }
-            break;
+    case INVENTORY_WINDOW_TYPE_NORMAL: {
+        FrmImage bg;
+        int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        if (bg.lock(bgFid)) {
+            int bgPitch = bg.getWidth();
+            // No shift: background and window share the same coordinate system
+            unsigned char* src = bg.getData() + bgPitch * y + x;
+            blitBufferToBuffer(src, width, barHeight, bgPitch,
+                dest + destPitch * y + x, destPitch);
+            bg.unlock();
         }
-        case INVENTORY_WINDOW_TYPE_LOOT: {
-            FrmImage bg;
-            int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
-            if (bg.lock(bgFid)) {
-                int bgPitch = bg.getWidth();
-                unsigned char* src = bg.getData() + bgPitch * y + x;
-                blitBufferToBuffer(src, width, barHeight, bgPitch,
-                                dest + destPitch * y + x, destPitch);
-                bg.unlock();
-            }
-            break;
+        break;
+    }
+    case INVENTORY_WINDOW_TYPE_LOOT: {
+        FrmImage bg;
+        int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
+        if (bg.lock(bgFid)) {
+            int bgPitch = bg.getWidth();
+            unsigned char* src = bg.getData() + bgPitch * y + x;
+            blitBufferToBuffer(src, width, barHeight, bgPitch,
+                dest + destPitch * y + x, destPitch);
+            bg.unlock();
         }
-        case INVENTORY_WINDOW_TYPE_USE_ITEM_ON: {
-            FrmImage bg;
-            int bgFid = buildFid(OBJ_TYPE_INTERFACE, 113, 0, 0, 0);
-            if (bg.lock(bgFid)) {
-                int bgPitch = bg.getWidth();
-                unsigned char* src = bg.getData() + bgPitch * y + x;
-                blitBufferToBuffer(src, width, barHeight, bgPitch,
-                                dest + destPitch * y + x, destPitch);
-                bg.unlock();
-            }
-            break;
+        break;
+    }
+    case INVENTORY_WINDOW_TYPE_USE_ITEM_ON: {
+        FrmImage bg;
+        int bgFid = buildFid(OBJ_TYPE_INTERFACE, 113, 0, 0, 0);
+        if (bg.lock(bgFid)) {
+            int bgPitch = bg.getWidth();
+            unsigned char* src = bg.getData() + bgPitch * y + x;
+            blitBufferToBuffer(src, width, barHeight, bgPitch,
+                dest + destPitch * y + x, destPitch);
+            bg.unlock();
         }
-        case INVENTORY_WINDOW_TYPE_TRADE: {
-            // Trade background is the main dialog window (_barter_back_win)
-            unsigned char* srcWin = windowGetBuffer(_barter_back_win);
-            int srcPitch = windowGetWidth(_barter_back_win);
-            // The trade window is a sub-window; its background is offset by INVENTORY_TRADE_WINDOW_OFFSET (80)
-            unsigned char* src = srcWin + srcPitch * y + (x + INVENTORY_TRADE_WINDOW_OFFSET);
-            blitBufferToBuffer(src, width, barHeight, srcPitch,
-                            dest + destPitch * y + x, destPitch);
-            break;
-        }
-        default:
-            break;
+        break;
+    }
+    case INVENTORY_WINDOW_TYPE_TRADE: {
+        // Trade background is the main dialog window (_barter_back_win)
+        unsigned char* srcWin = windowGetBuffer(_barter_back_win);
+        int srcPitch = windowGetWidth(_barter_back_win);
+        // The trade window is a sub-window; its background is offset by INVENTORY_TRADE_WINDOW_OFFSET (80)
+        unsigned char* src = srcWin + srcPitch * y + (x + INVENTORY_TRADE_WINDOW_OFFSET);
+        blitBufferToBuffer(src, width, barHeight, srcPitch,
+            dest + destPitch * y + x, destPitch);
+        break;
+    }
+    default:
+        break;
     }
 
     // Draw the filter bar
