@@ -465,7 +465,7 @@ static int _lips_make_speech()
     bool isWav = isWavFile(path);
     if (isWav) {
         if (soundSetFileIO(gLipsData.sound, wavOpen, wavClose, wavRead, nullptr,
-                           wavSeek, wavTell, wavGetSize)) {
+                wavSeek, wavTell, wavGetSize)) {
             debugPrint("Failed to set WAV I/O in lips_make_speech\n");
             soundDelete(gLipsData.sound);
             gLipsData.sound = nullptr;
@@ -474,7 +474,7 @@ static int _lips_make_speech()
         gLipsData.sound->isWav = true;
     } else {
         if (soundSetFileIO(gLipsData.sound, audioOpen, audioClose, audioRead, nullptr,
-                           audioSeek, nullptr, audioGetSize)) {
+                audioSeek, nullptr, audioGetSize)) {
             debugPrint("Failed to set ACM I/O in lips_make_speech\n");
             soundDelete(gLipsData.sound);
             gLipsData.sound = nullptr;
@@ -496,7 +496,7 @@ static int _lips_make_speech()
         float scale = (float)gLipsData.sound->rate / 22050.0f;
         if (scale != 1.0f) {
             debugPrint("lips_make_speech: scaling markers by %.2f (rate=%d)\n",
-                       scale, gLipsData.sound->rate);
+                scale, gLipsData.sound->rate);
             for (int i = 0; i < gLipsData.field_2C; i++) {
                 gLipsData.markers[i].position = (int)(gLipsData.markers[i].position * scale);
             }

@@ -965,7 +965,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
             debugPrint("speechLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(gSpeechSound, wavOpen, wavClose, wavRead, nullptr,
-                            wavSeek, wavTell, wavGetSize);
+            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("speechLoad: Failed to set WAV I/O (rc=%d)\n", rc);
@@ -979,7 +979,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
     } else {
         // Ensure ACM I/O (already set by _gsound_background_allocate, but set explicitly for safety)
         if (soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr,
-                           audioSeek, gameSoundFileTellNotImplemented, audioGetSize)) {
+                audioSeek, gameSoundFileTellNotImplemented, audioGetSize)) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("failed because file IO could not be set for compression.\n");
             }
