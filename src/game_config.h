@@ -116,7 +116,7 @@ namespace fallout {
 #define GAME_CONFIG_MINIMAP "Minimap"
 #define GAME_CONFIG_MULTI_COLUMN_INVENTORY "InventoryColumns"
 #define GAME_CONFIG_NPC_ARMOR "NpcArmor"
-#define GAME_CONFIG_VOICED_FLOATS_KEY "VoicedFloats"
+#define GAME_CONFIG_VOCK_FLOATS_KEY "VockFloats"
 
 #define ENGLISH "english"
 #define FRENCH "french"

@@ -48,18 +48,18 @@ static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
 // spare). Now derived from every category's actual budget instead of a
 // hand-maintained number, so it can't silently drift out of sync with them.
 // Floats are the only category configurable at runtime (see [vock-floats]
-// MaxCount in game.cfg / settings.mod_settings.float_max_count), so this is
-// computed once in audioEngineInit(), before the SDL device is opened and
-// the mixer callback thread starts -- gAudioEngineSoundBuffers is never
-// resized after that.
+// FloatAudioChannels in game.cfg / settings.mod_settings.float_audio_channels),
+// so this is computed once in audioEngineInit(), before the SDL device is
+// opened and the mixer callback thread starts -- gAudioEngineSoundBuffers is
+// never resized after that.
 static int audioEngineSoundBufferCount()
 {
-    int floatMaxCount = settings.mod_settings.float_max_count;
-    if (floatMaxCount < 1) {
-        floatMaxCount = 1;
+    int floatAudioChannels = settings.mod_settings.float_audio_channels;
+    if (floatAudioChannels < 1) {
+        floatAudioChannels = 1;
     }
 
-    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatMaxCount;
+    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatAudioChannels;
 }
 
 static std::vector<AudioEngineSoundBuffer> gAudioEngineSoundBuffers;
