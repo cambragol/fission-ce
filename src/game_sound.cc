@@ -173,7 +173,6 @@ static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
 static int gameSoundFindBackgroundSoundPath(char* dest, const char* src);
-static int gameSoundFindSpeechSoundPath(char* dest, const char* src);
 static int gameSoundFindWavEffectPath(char* dest, const char* src);
 static int backgroundSoundPlay();
 static int speechPlay();
@@ -182,7 +181,7 @@ static Sound* _gsound_get_sound_ready_for_effect();
 static bool _gsound_file_exists_f(const char* fname);
 static int _gsound_setup_paths();
 
-static bool isWavFile(const char* path)
+bool isWavFile(const char* path)
 {
     const char* ext = strrchr(path, '.');
     if (!ext) return false;
@@ -929,13 +928,8 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
 {
     char path[COMPAT_MAX_PATH + 1];
     int rc;
-    bool foundWav;
 
-    if (!gGameSoundInitialized) {
-        return -1;
-    }
-
-    if (!gSpeechEnabled) {
+    if (!gGameSoundInitialized || !gSpeechEnabled) {
         return -1;
     }
 
@@ -943,7 +937,6 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         debugPrint("Loading speech sound file %s%s...", fileName, ".ACM");
     }
 
-    // Delete any existing speech sound
     speechDelete();
 
     // Allocate sound (default I/O is ACM)
@@ -965,16 +958,14 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         return -1;
     }
 
-    // Determine if WAV or ACM
-    foundWav = isWavFile(path);
-
-    if (foundWav) {
-        // Override I/O with WAV callbacks
+    // Determine if it's a WAV file and override I/O if needed
+    bool isWav = isWavFile(path);
+    if (isWav) {
         if (gGameSoundDebugEnabled) {
             debugPrint("speechLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(gSpeechSound, wavOpen, wavClose, wavRead, nullptr,
-            wavSeek, wavTell, wavGetSize);
+                            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("speechLoad: Failed to set WAV I/O (rc=%d)\n", rc);
@@ -986,27 +977,46 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         // Mark as WAV so soundLoad can extract parameters
         gSpeechSound->isWav = true;
     } else {
-        // ACM - keep the default I/O (already set by allocation)
-        if (gGameSoundDebugEnabled) {
-            debugPrint("speechLoad: Found ACM file: %s\n", path);
+        // Ensure ACM I/O (already set by _gsound_background_allocate, but set explicitly for safety)
+        if (soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr,
+                           audioSeek, gameSoundFileTellNotImplemented, audioGetSize)) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("failed because file IO could not be set for compression.\n");
+            }
+            soundDelete(gSpeechSound);
+            gSpeechSound = nullptr;
+            return -1;
         }
-        // The I/O was set by _gsound_background_allocate (which uses audioOpen)
-        // No override needed.
+        gSpeechSound->isWav = false;
     }
 
-    // Set read limit (if requested)
+    // Continue with original loading logic
+    if (loopingMode == GSOUND_LOOP) {
+        if (soundSetLooping(gSpeechSound, 0xFFFF)) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("failed because looping could not be set.\n");
+            }
+            soundDelete(gSpeechSound);
+            gSpeechSound = nullptr;
+            return -1;
+        }
+    }
+
+    if (soundSetCallback(gSpeechSound, speechCallback, nullptr)) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundSetCallback failed for speech sound\n");
+        }
+    }
+
     if (readLimitMode == GSOUND_LIMIT_BEFORE) {
-        rc = soundSetReadLimit(gSpeechSound, 0x40000);
-        if (rc != SOUND_NO_ERROR) {
+        if (soundSetReadLimit(gSpeechSound, 0x40000)) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("unable to set read limit ");
             }
         }
     }
 
-    // Load the sound
-    rc = soundLoad(gSpeechSound, path);
-    if (rc != SOUND_NO_ERROR) {
+    if (soundLoad(gSpeechSound, path)) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed on call to soundLoad.\n");
         }
@@ -1016,8 +1026,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
     }
 
     if (readLimitMode != GSOUND_LIMIT_BEFORE) {
-        rc = soundSetReadLimit(gSpeechSound, 0x40000);
-        if (rc != 0) {
+        if (soundSetReadLimit(gSpeechSound, 0x40000)) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("unable to set read limit ");
             }
@@ -1028,8 +1037,7 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         return 0;
     }
 
-    // Play the speech
-    if (speechPlay() != 0) {
+    if (speechPlay()) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed starting to play.\n");
         }
@@ -1788,7 +1796,7 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
 }
 
 // 0x451F94
-static int gameSoundFindSpeechSoundPath(char* dest, const char* src)
+int gameSoundFindSpeechSoundPath(char* dest, const char* src)
 {
     char path[COMPAT_MAX_PATH + 1];
     char upperSrc[COMPAT_MAX_PATH + 1];
