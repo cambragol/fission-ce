@@ -12,6 +12,7 @@
 #include "platform_compat.h"
 #include "sound.h"
 #include "svga.h"
+#include "wav_io.h"
 
 namespace fallout {
 
@@ -441,9 +442,9 @@ static int _lips_make_speech()
         gLipsData.field_14 = nullptr;
     }
 
-    char path[COMPAT_MAX_PATH];
     char* v1 = lips_fix_string(gLipsData.file_name, sizeof(gLipsData.file_name));
-    snprintf(path, sizeof(path), "%s%s\\%s.%s", "SOUND\\SPEECH\\", _lips_subdir_name, v1, "ACM");
+    char relPath[COMPAT_MAX_PATH];
+    snprintf(relPath, sizeof(relPath), "%s/%s", _lips_subdir_name, v1);
 
     if (gLipsData.sound != nullptr) {
         soundDelete(gLipsData.sound);
@@ -452,22 +453,54 @@ static int _lips_make_speech()
 
     gLipsData.sound = soundAllocate(SOUND_TYPE_MEMORY, SOUND_16BIT);
     if (gLipsData.sound == nullptr) {
-        debugPrint("\nsoundAllocate falied in lips_make_speech!");
+        debugPrint("\nsoundAllocate failed in lips_make_speech!");
         return -1;
     }
 
-    if (soundSetFileIO(gLipsData.sound, audioOpen, audioClose, audioRead, nullptr, audioSeek, nullptr, audioGetSize)) {
-        debugPrint("Ack!");
-        debugPrint("Error!");
+    char path[COMPAT_MAX_PATH + 1];
+    if (gameSoundFindSpeechSoundPath(path, relPath) != 0) {
+        snprintf(path, sizeof(path), "%s%s\\%s.%s", "SOUND\\SPEECH\\", _lips_subdir_name, v1, "ACM");
+    }
+
+    bool isWav = isWavFile(path);
+    if (isWav) {
+        if (soundSetFileIO(gLipsData.sound, wavOpen, wavClose, wavRead, nullptr,
+                           wavSeek, wavTell, wavGetSize)) {
+            debugPrint("Failed to set WAV I/O in lips_make_speech\n");
+            soundDelete(gLipsData.sound);
+            gLipsData.sound = nullptr;
+            return -1;
+        }
+        gLipsData.sound->isWav = true;
+    } else {
+        if (soundSetFileIO(gLipsData.sound, audioOpen, audioClose, audioRead, nullptr,
+                           audioSeek, nullptr, audioGetSize)) {
+            debugPrint("Failed to set ACM I/O in lips_make_speech\n");
+            soundDelete(gLipsData.sound);
+            gLipsData.sound = nullptr;
+            return -1;
+        }
+        gLipsData.sound->isWav = false;
     }
 
     if (soundLoad(gLipsData.sound, path)) {
         soundDelete(gLipsData.sound);
         gLipsData.sound = nullptr;
-
         debugPrint("lips_make_speech: soundLoad failed with path ");
         debugPrint("%s -- file probably doesn't exist.\n", path);
         return -1;
+    }
+
+    // Scale markers if WAV has different sample rate
+    if (gLipsData.sound->isWav && gLipsData.markers != nullptr) {
+        float scale = (float)gLipsData.sound->rate / 22050.0f;
+        if (scale != 1.0f) {
+            debugPrint("lips_make_speech: scaling markers by %.2f (rate=%d)\n",
+                       scale, gLipsData.sound->rate);
+            for (int i = 0; i < gLipsData.field_2C; i++) {
+                gLipsData.markers[i].position = (int)(gLipsData.markers[i].position * scale);
+            }
+        }
     }
 
     gLipsData.field_34 = 8 * (gLipsData.field_1C / gLipsData.field_2C);

@@ -103,6 +103,8 @@ void _gsound_lrg_butt_release(int btn, int keyCode);
 int soundPlayFile(const char* name);
 int _gsound_sfx_q_start();
 int ambientSoundEffectEventProcess(Object* object, void* data);
+int gameSoundFindSpeechSoundPath(char* dest, const char* src);
+bool isWavFile(const char* path);
 
 } // namespace fallout
 
