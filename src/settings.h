@@ -126,7 +126,7 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
-    bool voiced_floats = true;
+    bool vock_floats = true;
 };
 
 struct ModSettings {
@@ -192,10 +192,15 @@ struct ModSettings {
     int iface_bar_side_art = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART;
     bool iface_bar_sides_ori = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI;
     int worldmap_trail_markers = MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS;
-    int float_max_count = MOD_CONFIG_DEFAULT_FLOAT_MAX_COUNT;
-    bool float_logarithmic_falloff = MOD_CONFIG_DEFAULT_FLOAT_LOGARITHMIC_FALLOFF;
+    int float_audio_channels = MOD_CONFIG_DEFAULT_FLOAT_AUDIO_CHANNELS;
+    int float_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION;
+    int float_obstruction_dampening = MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING;
     int float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
     bool float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
+    std::string float_text_scramble_chars = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
+    bool voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
+    bool float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
+    int float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
 };
 
 struct ModScriptsSettings {
