@@ -1179,7 +1179,7 @@ Sound* soundEffectLoad(const char* name, Object* object)
             debugPrint("soundEffectLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(sound, wavOpen, wavClose, wavRead, nullptr,
-                            wavSeek, wavTell, wavGetSize);
+            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("soundEffectLoad: Failed to set WAV I/O (rc=%d)\n", rc);
