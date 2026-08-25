@@ -66,22 +66,24 @@ namespace fallout {
 // mixer buffer slots in addition to its fixed music/SFX/dialogue budget.
 #define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
 #define MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY "FloatAudioChannels"
-// Float volume (and text-scramble clarity) falls off linearly with
-// distance: gain = max(0, 1 - distance/refDistance), where refDistance is
-// DistancePerPerception x Perception -- full volume at the speaker's own
-// tile, a straight ramp down to an exact 0.0 at refDistance, silent beyond
-// it. See _gsound_calc_float_distance_factor() in game_sound.cc. The
-// formula the float-speech pool originally shipped with (see commit
-// fef10eb); a config-selectable choice of curve-shaped alternatives
-// (vanilla-ambient-SFX-mirroring, inverse-distance, sigmoid, log) was
-// explored after that and removed again in favor of always using this one,
-// simpler formula -- see git history around
+// Float volume stays full out to half of refDistance, then ramps linearly
+// down to an exact 0.0 at refDistance itself, silent beyond it: gain =
+// clamp(2 * (1 - distance/refDistance), 0, 1), where refDistance is
+// DistancePerPerception x Perception. See _gsound_calc_float_gain() in
+// game_sound.cc -- text-scramble clarity below shares this exact formula
+// (own refDistance, see TextScrambleDistancePerPerception), not just a
+// similar one. Originally a plain ramp from the speaker's own tile with no
+// plateau (see commit fef10eb); the plateau was added once clarity (using
+// the same formula) turned out to garble text immediately at almost any
+// distance without one. A config-selectable choice of curve-shaped
+// alternatives (vanilla-ambient-SFX-mirroring, inverse-distance, sigmoid,
+// log) was also explored, separately, and removed again in favor of
+// always using one shared formula -- see git history around
 // FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/SIGMOID/LOG and the
 // DistanceFormula game.cfg key if reviving any of that is ever useful.
 //
 // refDistance = Perception x DistancePerPerception. Was a hardcoded #define
-// (FLOAT_SPEECH_DISTANCE_PER_PERCEPTION) until this key was added; default
-// (2) reproduces that original value exactly.
+// (FLOAT_SPEECH_DISTANCE_PER_PERCEPTION) until this key was added.
 #define MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY "DistancePerPerception"
 // 0-100, default 0 (off): how much a solid obstacle between the speaker and
 // the player dims a float, applied as a percentage multiplier on top of
@@ -92,8 +94,8 @@ namespace fallout {
 // opcode (_make_straight_path() in animation.cc/.h), so it costs one more
 // tile walk per float, same as combat already pays per shot fired. Affects
 // text-scramble clarity too, since gameSoundCalcFloatClarity() shares this
-// same curve -- an obstructed line reads harder to make out, same as it
-// sounds harder to make out.
+// same obstruction handling -- an obstructed line reads harder to make out,
+// same as it sounds harder to make out.
 #define MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY "ObstructionDampening"
 // What happens when a float triggers with every pool slot already busy --
 // see speechLoadFloat() in game_sound.cc for the 3 policy values.
@@ -101,15 +103,27 @@ namespace fallout {
 #define FLOAT_SPEECH_EVICTION_POLICY_VANILLA (0)
 #define FLOAT_SPEECH_EVICTION_POLICY_OLDEST (1)
 #define FLOAT_SPEECH_EVICTION_POLICY_FURTHEST (2)
-// Off by default (non-vanilla): garbles a float's on-screen text by the
-// same distance-based clarity that already governs its audio (see
-// gameSoundCalcFloatClarity() in game_sound.cc), so a wide screen showing a
-// far-off NPC's line can't just be read clearly when it wouldn't be heard
-// clearly. Applies to every float's text regardless of whether that line
-// has an audio file or was badword-filtered -- the scramble only ever
-// touches alphabetic characters, so it can't disturb the symbols the
-// badword filter already substituted in.
+// Off by default (non-vanilla): garbles a float's on-screen text based on
+// distance/obstruction to the speaker (see gameSoundCalcFloatClarity() in
+// game_sound.cc), so a wide screen showing a far-off NPC's line can't just
+// be read clearly when it wouldn't be heard clearly. Applies to every
+// float's text regardless of whether that line has an audio file or was
+// badword-filtered -- the scramble only ever touches alphabetic characters,
+// so it can't disturb the symbols the badword filter already substituted
+// in.
 #define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY "TextScramble"
+// Text clarity has its own DistancePerPerception-style range, independent
+// of the audio one above -- same refDistance = Perception x <this value>
+// formula, same _gsound_calc_float_gain() (plateau, ramp, and obstruction
+// all included), just its own refDistance so clarity can stay legible
+// farther out than volume stays audible without needing to touch
+// DistancePerPerception itself. Default (4) is exactly double
+// DistancePerPerception's default (2): audio's own plateau ends at
+// 1 x Perception and it's fully silent by 2 x Perception, while text's
+// plateau ends at 2 x Perception -- i.e. text stays perfectly clean for
+// as long as the line is at least partially audible at all -- and doesn't
+// finish scrambling until 4 x Perception, twice audio's silent distance.
+#define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY "TextScrambleDistancePerPerception"
 // Character pool TextScramble draws its noise glyphs from -- see
 // _scr_scramble_float_text() in scripts.cc. Any characters are accepted;
 // falls back to the default pool below if left empty in game.cfg.
@@ -192,6 +206,7 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING 50
 #define MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY FLOAT_SPEECH_EVICTION_POLICY_VANILLA
 #define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE 0
+#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION 4
 #define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS "#%&*~^"
 #define MOD_CONFIG_DEFAULT_VOICED_FLOATS 1
 #define MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP 1
