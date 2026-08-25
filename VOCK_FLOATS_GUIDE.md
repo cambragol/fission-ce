@@ -19,31 +19,32 @@ for lines you can barely hear.
 ```ini
 [enhancements]
 StrictVanilla=0
-VockFloats=1
+VockFloats=0
 ```
 
-`VockFloats=1` turns the whole thing on. `VockFloats=0` turns it all off. If `StrictVanilla=1`
-is set, that overrides `VockFloats` off no matter what it's set to.
+`VockFloats` is **off by default** — `VockFloats=1` turns the whole thing on, `VockFloats=0`
+turns it all off. If `StrictVanilla=1` is set, that overrides `VockFloats` off no matter what
+it's set to.
 
 **`data/game.cfg`**, under `[vock-floats]` — the individual settings:
 
 ```ini
 [vock-floats]
-FloatAudioChannels=4
+FloatAudioChannels=8
 DistancePerPerception=2
-ObstructionDampening=0
+ObstructionDampening=50
 EvictionPolicy=0
 VoicedFloats=1
 CensorBleep=1
 TextScramble=0
 TextScrambleChars=#%&*~^
-Volume=22281
+Volume=32767
 ```
 
 ## Each setting
 
 ### FloatAudioChannels
-**Default: `4`**
+**Default: `8`**
 
 How many floats can have voice audio playing at the same time. Each NPC only ever takes up
 one channel no matter how many lines it fires — a new line from an NPC that's already
@@ -61,7 +62,7 @@ right next to the speaker, quieter as you move away, silent at the max range.
 Raise this to hear floats from farther away. Lower it to make the game quieter/closer-range.
 
 ### ObstructionDampening
-**Default: `0` (off) — range `0`–`100`**
+**Default: `50` — range `0`–`100`**
 
 How much a solid wall or piece of scenery between you and the speaker muffles a float, as a
 percentage. `0` = walls don't matter, a float sounds the same whether it's blocked or not.
@@ -107,8 +108,8 @@ audio above. Close and clear = text reads fine. Far away or blocked = text degra
 noise characters — a float you can barely hear also gets hard to read, instead of being
 perfectly legible from anywhere on screen.
 
-With the default `DistancePerPerception=2`: text reads perfectly clean out to 1× your
-Perception in tiles, then progressively garbles more the farther you get, until it's fully
+With the default `DistancePerPerception=2`: text reads perfectly clean out to 1.5× your
+Perception in tiles, then progressively garbles more over the last stretch, until it's fully
 scrambled by 2× Perception (the same range where the audio itself goes silent).
 
 Only letters get replaced — spaces and punctuation are left alone, so you can still tell
@@ -122,7 +123,7 @@ you want the garble to look like, e.g. `TextScrambleChars=*$%^`. If you leave th
 falls back to the default set above.
 
 ### Volume
-**Default: `22281`** (out of a max of `32767`, i.e. about 68%)
+**Default: `32767`** (max, i.e. 100% — no reduction on top of your SFX slider)
 
 A volume multiplier applied on top of your normal Sound Effects volume slider. This can't
 make floats louder than your SFX volume allows, and if you mute SFX entirely, floats go

@@ -1296,13 +1296,14 @@ static int _gsound_calc_float_volume(Object* speaker)
 // exact 0.0 at refDistance by construction (see the linear falloff above),
 // so pinning FLOOR there means clarity's own thresholds land on fractions
 // of refDistance regardless of DistancePerPerception: full clarity out to
-// half of refDistance (gain >= CEILING = 0.5), fully scrambled at
-// refDistance itself and beyond, ramping in between. A positive FLOOR used
-// to be needed to stay above the old vanilla-mirroring curve's 1/3 gain
-// floor (see git history); with that curve gone, nothing stops FLOOR from
-// sitting exactly at zero.
+// 3/4 of refDistance (gain >= CEILING = 0.25), fully scrambled at
+// refDistance itself and beyond, ramping in the last quarter. CEILING was
+// 0.5 (ramp starting at half of refDistance) originally, but that made
+// still-clearly-audible floats (e.g. 40% volume) already read as
+// significantly garbled -- lowered to 0.25 so garbling only kicks in once
+// a float has faded most of the way out.
 #define FLOAT_SPEECH_CLARITY_GAIN_FLOOR (0.0)
-#define FLOAT_SPEECH_CLARITY_GAIN_CEILING (0.5)
+#define FLOAT_SPEECH_CLARITY_GAIN_CEILING (0.25)
 
 double gameSoundCalcFloatClarity(Object* speaker)
 {
