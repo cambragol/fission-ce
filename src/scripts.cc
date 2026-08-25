@@ -1354,6 +1354,10 @@ int scriptExecProc(int sid, int proc)
     }
 
     if (procedureIndex == -1) {
+        // **FIX: Only set source to nullptr if the script still exists**
+        if (scriptGetScript(sid, &script) != -1) {
+            script->source = nullptr;
+        }
         return -1;
     }
 
@@ -1361,7 +1365,11 @@ int scriptExecProc(int sid, int proc)
 
     programExecuteProcedure(program, procedureIndex);
 
-    script->source = nullptr;
+    // **FIX: After execution, re-fetch the script pointer.**
+    // If it was removed during execution, skip writing to it.
+    if (scriptGetScript(sid, &script) != -1) {
+        script->source = nullptr;
+    }
 
     return 0;
 }
