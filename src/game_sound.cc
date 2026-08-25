@@ -1190,19 +1190,24 @@ void floatSpeechCallback(void* userData, int event)
 // exactly) rather than a replacement for it, so it can't be used to make
 // floats louder than SFX or to silence SFX without also silencing floats.
 //
-// Distance falloff: gain = max(0, 1 - distance/refDistance), where
-// refDistance = Perception x [vock-floats] DistancePerPerception
-// (settings.mod_settings.float_distance_per_perception, default 2 -- was a
-// hardcoded #define until this key was added, so the default reproduces
-// the original value exactly). Full volume at the speaker's own tile, a
-// straight ramp down to an exact 0.0 at refDistance, silent beyond it --
-// the formula this pool originally shipped with (see commit fef10eb). A
-// config-selectable choice of curve-shaped alternatives
-// (vanilla-ambient-SFX-mirroring via _gsound_compute_relative_volume()
-// below, inverse-distance, sigmoid, logarithmic) was explored after that
-// and removed again in favor of always using this one, simpler formula --
-// see git history around FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/
-// SIGMOID/LOG and the DistanceFormula game.cfg key for that detour.
+// Distance falloff: full gain out to half of refDistance, then a straight
+// ramp down to an exact 0.0 at refDistance itself, silent beyond it --
+// gain = clamp(2 * (1 - distance/refDistance), 0, 1), where refDistance =
+// Perception x [vock-floats] DistancePerPerception
+// (settings.mod_settings.float_distance_per_perception, default 2). Started
+// as a pure ramp from distance 0 (see commit fef10eb) with no plateau; the
+// plateau was added after text-scramble clarity (which shares this same
+// formula, see gameSoundCalcFloatClarity() below) turned out to garble text
+// immediately at almost any distance without one -- see git history around
+// FLOAT_SPEECH_CLARITY_GAIN_FLOOR/CEILING for that detour, which is now
+// folded directly into this shared formula instead of being a
+// clarity-only remap. A config-selectable choice of curve-shaped
+// alternatives (vanilla-ambient-SFX-mirroring via
+// _gsound_compute_relative_volume() below, inverse-distance, sigmoid,
+// logarithmic) was explored even earlier and removed again in favor of
+// always using one shared formula -- see git history around
+// FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/SIGMOID/LOG and the
+// DistanceFormula game.cfg key for that detour.
 
 // Returns true if a solid obstacle sits between speaker and gDude, using
 // the same straight-line raycast the obj_can_see_obj sfall opcode uses (see
@@ -1224,12 +1229,22 @@ static bool _gsound_float_is_obstructed(Object* speaker)
 }
 
 // Pure distance-based gain factor in [0.0, 1.0] -- 1.0 is full volume, 0.0
-// is elevation-mismatched/inaudible. Deliberately independent of
-// soundEffectsGetVolume(), so the same number can drive both the volume
-// calculation below and, via gameSoundCalcFloatClarity()'s threshold remap
-// further down, the opt-in float text scrambling in scripts.cc -- without
-// duplicating the distance/obstruction curve logic in two places.
-static double _gsound_calc_float_distance_factor(Object* speaker)
+// is elevation-mismatched/inaudible/out of range. Takes distancePerPerception
+// as a parameter (rather than reading a single fixed setting) so volume and
+// text-scramble clarity can each define their own effective range while
+// sharing the same falloff shape and obstruction handling, without
+// duplicating this logic in two places.
+//
+// Shape: full gain (1.0) out to half of refDistance, then a straight linear
+// ramp down to an exact 0.0 at refDistance itself. Not a plain ramp from
+// distance 0 -- ramping from the speaker's own tile made text-scramble
+// clarity (the other caller of this function) garble text a little at
+// almost any distance, reading as "scrambling starts right next to the
+// speaker" instead of "stays clear, then fades out near the edge of
+// range." Volume gets the same plateau for consistency -- both callers
+// share one formula and one obstruction handling, only refDistance differs
+// between them.
+static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception)
 {
     if (speaker == nullptr || gDude == nullptr) {
         return 1.0;
@@ -1239,28 +1254,36 @@ static double _gsound_calc_float_distance_factor(Object* speaker)
         return 0.0;
     }
 
-    int refDistance = critterGetStat(gDude, STAT_PERCEPTION) * settings.mod_settings.float_distance_per_perception;
+    int refDistance = critterGetStat(gDude, STAT_PERCEPTION) * distancePerPerception;
     if (refDistance < 1) {
         refDistance = 1;
     }
 
     int distance = objectGetDistanceBetween(speaker, gDude);
 
-    double gain = 1.0 - (double)distance / (double)refDistance;
-    if (gain < 0.0) {
-        gain = 0.0;
-    }
+    // Equivalent to remapping the plain ramp (1 - distance/refDistance)
+    // through a [0.0, 0.5] floor/ceiling: doubling it means gain is already
+    // >= 1.0 (clamped) for any distance <= refDistance/2, and only actually
+    // ramps down over the second half of refDistance.
+    double gain = std::clamp(2.0 * (1.0 - (double)distance / (double)refDistance), 0.0, 1.0);
 
     // [vock-floats] ObstructionDampening in game.cfg -- 0 (default) skips the
     // raycast entirely, so players who don't opt in pay nothing extra here.
-    // Applied on top of the falloff above, the same way the elevation check
-    // above already gates it.
+    // Applied *after* the falloff above (including its plateau), not
+    // folded into the ramp -- an obstructed line inside the plateau still
+    // needs to be dampened by the full percentage, not partially absorbed
+    // by the plateau flattening it back out to 1.0.
     int obstructionDampening = std::clamp(settings.mod_settings.float_obstruction_dampening, 0, 100);
     if (obstructionDampening > 0 && _gsound_float_is_obstructed(speaker)) {
         gain *= 1.0 - ((double)obstructionDampening / 100.0);
     }
 
     return gain;
+}
+
+static double _gsound_calc_float_distance_factor(Object* speaker)
+{
+    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_distance_per_perception);
 }
 
 // Linear [vock-floats] Volume curve -- gain = Volume / VOLUME_MAX, same
@@ -1280,34 +1303,15 @@ static int _gsound_calc_float_volume(Object* speaker)
     return (int)(baseVolume * gain);
 }
 
-// Text clarity isn't the raw distance/obstruction gain -- it's a threshold
-// remap of it, so volume and legibility stay related (same underlying
-// signal) without being identical. Above FLOAT_SPEECH_CLARITY_GAIN_CEILING
-// ("things you hear") text is untouched; below FLOAT_SPEECH_CLARITY_GAIN_FLOOR
-// ("everything else") it's fully scrambled; between the two ("things you
-// hear very low") it ramps linearly. Since gain already folds in
-// ObstructionDampening, it carries through here automatically -- an
-// obstructed line reads harder to make out, same as it sounds harder to
-// make out, with no extra plumbing needed.
-//
-// FLOOR is 0.0, not some positive cutoff short of silence -- gain hits an
-// exact 0.0 at refDistance by construction (see the linear falloff above),
-// so pinning FLOOR there means clarity's own thresholds land on fractions
-// of refDistance regardless of DistancePerPerception: full clarity out to
-// 3/4 of refDistance (gain >= CEILING = 0.25), fully scrambled at
-// refDistance itself and beyond, ramping in the last quarter. CEILING was
-// 0.5 (ramp starting at half of refDistance) originally, but that made
-// still-clearly-audible floats (e.g. 40% volume) already read as
-// significantly garbled -- lowered to 0.25 so garbling only kicks in once
-// a float has faded most of the way out.
-#define FLOAT_SPEECH_CLARITY_GAIN_FLOOR (0.0)
-#define FLOAT_SPEECH_CLARITY_GAIN_CEILING (0.25)
-
+// Text clarity is exactly _gsound_calc_float_gain() -- same plateau/ramp
+// shape and obstruction handling as volume above -- computed against its
+// own independent range: [vock-floats] TextScrambleDistancePerPerception in
+// game.cfg, rather than reusing DistancePerPerception. gain and clarity are
+// the same [0.0, 1.0] scale by construction, so no separate remap is
+// needed here; only the refDistance passed in differs from volume's call.
 double gameSoundCalcFloatClarity(Object* speaker)
 {
-    double gain = _gsound_calc_float_distance_factor(speaker);
-    double clarity = (gain - FLOAT_SPEECH_CLARITY_GAIN_FLOOR) / (FLOAT_SPEECH_CLARITY_GAIN_CEILING - FLOAT_SPEECH_CLARITY_GAIN_FLOOR);
-    return std::clamp(clarity, 0.0, 1.0);
+    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_text_scramble_distance_per_perception);
 }
 
 // Re-evaluates and re-applies every active float's volume from its

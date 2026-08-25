@@ -37,6 +37,7 @@ EvictionPolicy=0
 VoicedFloats=1
 CensorBleep=1
 TextScramble=0
+TextScrambleDistancePerPerception=4
 TextScrambleChars=#%&*~^
 Volume=32767
 ```
@@ -55,9 +56,10 @@ scenes with lots of talking NPCs at once.
 **Default: `2`**
 
 Controls how far a float's voice carries before it's silent. The actual range is
-**your Perception stat × this number**, in tiles. With the default of `2`: a float fades out
-completely by 2× your Perception in tiles. The fade is a straight linear ramp — full volume
-right next to the speaker, quieter as you move away, silent at the max range.
+**your Perception stat × this number**, in tiles. Volume stays at **100% for the first half**
+of that range, then fades in a straight line over the second half until it's silent at the
+full range. With the default of `2`: full volume out to 1× your Perception, fading out from
+there, silent by 2× your Perception.
 
 Raise this to hear floats from farther away. Lower it to make the game quieter/closer-range.
 
@@ -71,7 +73,7 @@ proportionally. Only walls/scenery block sound this way — other NPCs standing 
 the speaker don't count.
 
 This also affects `TextScramble` below — a blocked line reads harder to make out too, same as
-it's harder to hear.
+it's harder to hear (both use the same obstruction check, just with their own separate ranges).
 
 ### EvictionPolicy
 **Default: `0` (Vanilla/no eviction)**
@@ -103,17 +105,31 @@ this is set to. This only decides what happens *instead*: `1` = you hear a short
 ### TextScramble
 **Default: `0` (off)**
 
-Garbles the floating text on screen based on the same distance/obstruction math driving the
-audio above. Close and clear = text reads fine. Far away or blocked = text degrades into
-noise characters — a float you can barely hear also gets hard to read, instead of being
-perfectly legible from anywhere on screen.
-
-With the default `DistancePerPerception=2`: text reads perfectly clean out to 1.5× your
-Perception in tiles, then progressively garbles more over the last stretch, until it's fully
-scrambled by 2× Perception (the same range where the audio itself goes silent).
+Garbles the floating text on screen based on distance/obstruction to the speaker — the same
+shape of falloff driving the audio above, but its own range (see `TextScrambleDistancePerPerception`
+below). Close and clear = text reads fine. Far away or blocked = text degrades into noise
+characters — a float you can barely hear also gets hard to read, instead of being perfectly
+legible from anywhere on screen.
 
 Only letters get replaced — spaces and punctuation are left alone, so you can still tell
 where words start and end even when heavily garbled.
+
+### TextScrambleDistancePerPerception
+**Default: `4`**
+
+Same idea as `DistancePerPerception` above, but for text clarity instead of audio — the range
+is **your Perception stat × this number**, in tiles, using the exact same shape: perfectly
+clean for the first half of the range, then fading over the second half until fully scrambled
+at the full range. It's independent of `DistancePerPerception`: it doesn't have to move when
+you change the audio range, and vice versa.
+
+With the default (`4`): text stays perfectly clean out to 2× Perception, then ramps to fully
+scrambled by 4× Perception. Compare to `DistancePerPerception`'s default (`2`): audio itself
+stays at full volume only out to 1× Perception and is fully silent by 2× Perception — so text
+stays perfectly clean for as long as the line is audible at all, and doesn't finish garbling
+until twice the distance where audio goes silent. Raise `TextScrambleDistancePerPerception`
+further to push the clean zone out even more; lower it toward `DistancePerPerception`'s value
+to have scramble track volume more tightly (setting them equal makes the two ramps identical).
 
 ### TextScrambleChars
 **Default: `#%&*~^`**

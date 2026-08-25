@@ -3184,8 +3184,9 @@ char* _scr_get_msg_str(int messageListId, int messageId)
 // (1.0 - clarity) of the alphabetic characters in a float's text with
 // noise, leaving spacing/punctuation untouched so word boundaries stay
 // visible even when heavily garbled. clarity comes from
-// gameSoundCalcFloatClarity(), the same distance curve driving that
-// float's audio.
+// gameSoundCalcFloatClarity(), which shares its falloff/obstruction shape
+// with the float's audio but ramps over its own independent range (see
+// TextScrambleDistancePerPerception in sfall_config.h).
 //
 // Called from opFloatMessage() (interpreter_extra.cc) -- the float_msg
 // opcode -- not from _scr_get_msg_str_speech()/message_str() below.

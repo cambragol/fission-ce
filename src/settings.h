@@ -197,6 +197,7 @@ struct ModSettings {
     int float_obstruction_dampening = MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING;
     int float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
     bool float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
+    int float_text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
     std::string float_text_scramble_chars = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
     bool voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
     bool float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
