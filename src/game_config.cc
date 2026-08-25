@@ -167,7 +167,7 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     // voiced floats is tied to [sound] sndfx_volume rather than its own
     // setting -- see _scr_get_msg_str_speech()/speechLoadFloat() in
     // scripts.cc/game_sound.cc.
-    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, true);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, false);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");

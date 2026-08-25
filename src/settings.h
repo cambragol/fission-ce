@@ -126,7 +126,7 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
-    bool vock_floats = true;
+    bool vock_floats = false;
 };
 
 struct ModSettings {
