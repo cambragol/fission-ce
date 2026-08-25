@@ -5463,7 +5463,7 @@ static int wmWorldMapFunc(int a1)
                            gOffsets.scrollAreaY + 178)) // Height remains constant)
             {
                 if (wheelY != 0) {
-                    wmInterfaceScrollTabsStart(wheelY > 0 ? 27 : -27);
+                    wmInterfaceScrollTabsStart(wheelY > 0 ? -27 : 27);
                 }
             }
         }
