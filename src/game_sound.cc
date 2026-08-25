@@ -1146,6 +1146,7 @@ Sound* soundEffectLoad(const char* name, Object* object)
     char path[COMPAT_MAX_PATH + 1];
     Sound* sound;
     int rc;
+    bool found = false;
 
     if (!gGameSoundInitialized || !gSoundEffectsEnabled) {
         return nullptr;
@@ -1171,16 +1172,14 @@ Sound* soundEffectLoad(const char* name, Object* object)
 
     ++_gsound_active_effect_counter;
 
-    // Check if a WAV file exists
-    bool foundWav = (gameSoundFindWavEffectPath(path, name) == 0);
-
-    if (foundWav) {
-        // Override I/O with WAV callbacks
+    // Try WAV (using the WAV-only finder)
+    if (gameSoundFindWavEffectPath(path, name) == 0) {
+        found = true;
         if (gGameSoundDebugEnabled) {
             debugPrint("soundEffectLoad: Found WAV file: %s\n", path);
         }
         rc = soundSetFileIO(sound, wavOpen, wavClose, wavRead, nullptr,
-            wavSeek, wavTell, wavGetSize);
+                            wavSeek, wavTell, wavGetSize);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("soundEffectLoad: Failed to set WAV I/O (rc=%d)\n", rc);
@@ -1190,25 +1189,106 @@ Sound* soundEffectLoad(const char* name, Object* object)
             return nullptr;
         }
         sound->isWav = true;
-    } else {
-        // No WAV found: use original ACM path
-        if (gGameSoundDebugEnabled) {
-            debugPrint("soundEffectLoad: No WAV found, using ACM path\n");
-        }
-        // Default I/O is already set by _gsound_get_sound_ready_for_effect
-        // Build the ACM path using the original method
-        snprintf(path, sizeof(path), "%s%s%s", _sound_sfx_path, name, ".ACM");
+        goto load;
     }
 
-    // Load the sound (WAV or ACM)
+    // Try primary ACM path
+    snprintf(path, sizeof(path), "%s%s%s", _sound_sfx_path, name, ".ACM");
+    if (gGameSoundDebugEnabled) {
+        debugPrint("soundEffectLoad: Trying ACM path: %s\n", path);
+    }
     rc = soundLoad(sound, path);
-    if (rc != 0) {
+    if (rc == 0) {
+        found = true;
+        sound->isWav = false;
+        goto load;
+    }
+
+    // Alias handling (original logic)
+    if (object != nullptr) {
+        if (FID_TYPE(object->fid) == OBJ_TYPE_CRITTER && (name[0] == 'H' || name[0] == 'N')) {
+            char v9 = name[1];
+            if (v9 == 'A' || v9 == 'F' || v9 == 'M') {
+                if (v9 == 'A') {
+                    if (critterGetStat(object, STAT_GENDER)) {
+                        v9 = 'F';
+                    } else {
+                        v9 = 'M';
+                    }
+                }
+            }
+
+            // Try H%cXXXX%s.ACM
+            char aliasPath[COMPAT_MAX_PATH + 1];
+            snprintf(aliasPath, sizeof(aliasPath), "%sH%cXXXX%s%s", _sound_sfx_path, v9, name + 6, ".ACM");
+            if (gGameSoundDebugEnabled) {
+                debugPrint("soundEffectLoad: Trying alias: %s\n", aliasPath + strlen(_sound_sfx_path));
+            }
+            rc = soundLoad(sound, aliasPath);
+            if (rc == 0) {
+                strcpy(path, aliasPath);
+                found = true;
+                sound->isWav = false;
+                goto load;
+            }
+
+            // If female and failed, try male alias
+            if (v9 == 'F') {
+                snprintf(aliasPath, sizeof(aliasPath), "%sHMXXXX%s%s", _sound_sfx_path, name + 6, ".ACM");
+                if (gGameSoundDebugEnabled) {
+                    debugPrint("soundEffectLoad: Trying male alias: %s\n", aliasPath + strlen(_sound_sfx_path));
+                }
+                rc = soundLoad(sound, aliasPath);
+                if (rc == 0) {
+                    strcpy(path, aliasPath);
+                    found = true;
+                    sound->isWav = false;
+                    goto load;
+                }
+            }
+        }
+    }
+
+    // MAMTNT alias
+    if (strncmp(name, "MALIEU", 6) == 0 || strncmp(name, "MAMTN2", 6) == 0) {
+        char aliasPath[COMPAT_MAX_PATH + 1];
+        snprintf(aliasPath, sizeof(aliasPath), "%sMAMTNT%s%s", _sound_sfx_path, name + 6, ".ACM");
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundEffectLoad: soundLoad failed with rc=%d\n", rc);
+            debugPrint("soundEffectLoad: Trying MAMTNT alias: %s\n", aliasPath + strlen(_sound_sfx_path));
+        }
+        rc = soundLoad(sound, aliasPath);
+        if (rc == 0) {
+            strcpy(path, aliasPath);
+            found = true;
+            sound->isWav = false;
+            goto load;
+        }
+    }
+
+    // All attempts failed
+    if (!found) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundEffectLoad: All attempts failed.\n");
         }
         --_gsound_active_effect_counter;
         soundDelete(sound);
         return nullptr;
+    }
+
+load:
+    // ----- Final load (only if we set I/O for WAV; for ACM we already loaded) -----
+    // For ACM, we already called soundLoad above, so we should not call it again.
+    // But for WAV, we need to load after setting I/O.
+    if (found && sound->isWav) {
+        rc = soundLoad(sound, path);
+        if (rc != 0) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("soundEffectLoad: WAV soundLoad failed with rc=%d\n", rc);
+            }
+            --_gsound_active_effect_counter;
+            soundDelete(sound);
+            return nullptr;
+        }
     }
 
     if (gGameSoundDebugEnabled) debugPrint("succeeded.\n");
