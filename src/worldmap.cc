@@ -7185,16 +7185,24 @@ static void wmMouseBkProc()
 
     if (dx != 0 || dy != 0) {
         if (dx > 0) {
-            if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_SE;
-            else if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_NE;
-            else newMouseCursor = MOUSE_CURSOR_SCROLL_E;
+            if (dy > 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_SE;
+            else if (dy < 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_NE;
+            else
+                newMouseCursor = MOUSE_CURSOR_SCROLL_E;
         } else if (dx < 0) {
-            if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_SW;
-            else if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_NW;
-            else newMouseCursor = MOUSE_CURSOR_SCROLL_W;
+            if (dy > 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_SW;
+            else if (dy < 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_NW;
+            else
+                newMouseCursor = MOUSE_CURSOR_SCROLL_W;
         } else {
-            if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_N;
-            else if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_S;
+            if (dy < 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_N;
+            else if (dy > 0)
+                newMouseCursor = MOUSE_CURSOR_SCROLL_S;
         }
 
         unsigned int tick = _get_bk_time();
