@@ -1565,6 +1565,43 @@ Create message files in language folders:
 -   Recommended range: 900-999 for small mods, higher for larger mods
 -   Set GVAR to 1 to give holodisk, 0 to remove (though typically not removed)
 
+#### 11.5.5 Voiced Narration (Audio)
+
+Holodisks share the same message-list loading path as everything else in FISSION
+(`getmsg()`/`MessageListItem`), and that path already carries a per-line audio field --
+the middle slot of the standard `{num}{audio}{text}` `.msg` triple. Holodisk rendering
+now reads that field: put an audio filename on a page's *first* line and it plays as
+voiced narration while that page is on screen.
+
+```
+{0}{}{Important Data Disk}
+{1}{holodisk\myquest_intro}{This holodisk contains critical information}
+{2}{}{about the secret facility.}
+{3}{}{**END-PAR**}
+{4}{}{The entrance is hidden behind the waterfall.}
+{5}{}{**END-DISK**}
+```
+
+Rules:
+
+-   Only the audio field on a page's first line is used -- one clip per page, not per
+    line. Lines after the first ignore their own audio field.
+-   The filename resolves exactly like any other speech line: `sound/speech/<name>.wav`
+    or `.acm` (searched in that order). Subfolders are fine (`holodisk\myquest_intro`
+    above resolves to `sound/speech/holodisk/myquest_intro.*`).
+-   Leave the audio field empty (`{}`) for a silent page. Silence is explicit --
+    it stops whatever the previous page was playing rather than leaving it running
+    under new text.
+-   Turning a page, opening a different holodisk, or leaving the Pip-Boy all stop the
+    current clip; nothing needs manual cleanup from script or data.
+-   Gated by the same switches as every other VockFloats feature: `[enhancements]
+    VockFloats=1` in `fission.cfg`, `VoicedFloats=1` in `game.cfg`'s `[vock-floats]`
+    section, and off entirely under `StrictVanilla=1`. With `VockFloats` off, holodisks
+    behave exactly as before -- text only.
+-   Applies identically to vanilla holodisks (`data/holodisk.txt` +
+    `text/english/game/PIPBOY.msg`) and mod holodisks (`holodisk_<ModName>_<BlockKey>.msg`,
+    see 11.3) -- both load through the same message-list parser.
+
 ### 11.6 Complete Example Mod
 
 File: `data/holodisk_myquest.txt`
