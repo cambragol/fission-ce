@@ -657,7 +657,7 @@ int perkGetSkillModifier(Object* critter, int skill)
     case SKILL_SNEAK:
         if (perkHasRank(critter, PERK_GHOST)) {
             int lightIntensity = objectGetLightIntensity(gDude);
-            if (lightIntensity > 45875) {
+            if (lightIntensity <= 45875) {
                 modifier += 20;
             }
         }

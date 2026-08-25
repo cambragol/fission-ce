@@ -1851,7 +1851,7 @@ static void opAttackComplex(Program* program)
     }
 
     if (_gdialogActive()) {
-        // TODO: Might be an error, program flag is not removed.
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
@@ -2310,6 +2310,7 @@ static void opKillCritter(Program* program)
 
     if (_isLoadingGame()) {
         debugPrint("\nError: attempt to destroy critter in load/save-game: %s!", program->name);
+        return;
     }
 
     program->flags |= PROGRAM_FLAG_CHILD_CALL;
@@ -2478,12 +2479,14 @@ static void opCritterDamage(Program* program)
 
     if (object == nullptr) {
         scriptPredefinedError(program, "critter_damage", SCRIPT_ERROR_OBJECT_IS_NULL);
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
     if (PID_TYPE(object->pid) != OBJ_TYPE_CRITTER) {
         scriptPredefinedError(program, "critter_damage", SCRIPT_ERROR_FOLLOWS);
         debugPrint(" Can't call on non-critters!");
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
@@ -2935,7 +2938,7 @@ static void opCritterRemoveTrait(Program* program)
 
     if (object == nullptr) {
         scriptError("\nScript Error %s: op_critter_rm_trait: perk_sub failed", program->name);
-        // FIXME: Ruins stack.
+        programStackPushInteger(program, -1);
         return;
     }
 
@@ -3018,7 +3021,7 @@ static void opCritterGetInventoryObject(Program* program)
     int type = programStackPopInteger(program);
     Object* critter = static_cast<Object*>(programStackPopPointer(program));
 
-    if (PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER) {
+    if (critter != nullptr && PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER) {
         switch (type) {
         case INVEN_TYPE_WORN:
             programStackPushPointer(program, critterGetArmor(critter));
