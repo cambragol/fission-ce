@@ -4007,7 +4007,7 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         owner = nullptr;
         item = nullptr;
 
-        InventoryItem* inventoryItem;
+        InventoryItem* inventoryItem = nullptr;
         if (keyCode < 2000) {
             int index = _stack_offset[_curr_stack] + keyCode - 1000;
             if (index >= _pud->length) {
@@ -4046,7 +4046,9 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             owner = _btable;
         }
 
-        quantity = inventoryItem->quantity;
+        if (inventoryItem != nullptr) {
+            quantity = inventoryItem->quantity;
+        }
     }
 
     if (outItemSlot != nullptr) {
@@ -6411,7 +6413,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 1000 && keyCode <= 1000 + gInventorySlotsCount) {
+                if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
@@ -6435,7 +6437,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
                         keyCode = -1;
                     }
-                } else if (keyCode >= 2000 && keyCode <= 2000 + gInventorySlotsCount) {
+                } else if (keyCode >= 2000 && keyCode < 2000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
@@ -7888,11 +7890,11 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
                     if (keyCode != 500) {
                         soundPlayFile("ib1p1xx1");
                     }
+                    break;
                 }
-            } else {
-                soundPlayFile("iisxxxx1");
             }
-            break;
+
+            soundPlayFile("iisxxxx1");
 
         } else if (keyCode == 5000 || keyCode == KEY_LOWERCASE_A) {
             if (keyCode == KEY_LOWERCASE_A) {

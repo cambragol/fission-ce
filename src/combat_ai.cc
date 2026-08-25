@@ -1665,7 +1665,7 @@ static void _ai_run_away(Object* a1, Object* a2)
 
     AiPacket* ai = aiGetPacket(a1);
     int distance = objectGetDistanceBetween(a1, a2);
-    if (distance < ai->max_dist) {
+    if (distance <= ai->max_dist) {
         combatData->maneuver |= CRITTER_MANUEVER_FLEEING;
 
         int rotation = tileGetRotationTo(a2->tile, a1->tile);
@@ -3479,7 +3479,7 @@ int _cai_perform_distance_prefs(Object* a1, Object* a2)
     int distance = aiGetPacket(a1)->distance;
 
     if (a2 != nullptr) {
-        if ((a2->data.critter.combat.ap & DAM_DEAD) != 0) {
+        if ((a2->data.critter.combat.results & DAM_DEAD) != 0) {
             a2 = nullptr;
         }
     }
