@@ -7158,25 +7158,23 @@ static int wmInterfaceScrollPixel(int stepX, int stepY, int dx, int dy, bool* su
 // 0x4C32EC
 static void wmMouseBkProc()
 {
-    // 0x51DEB0
     static unsigned int lastTime = 0;
-
-    // 0x51DEB4
     static bool couldScroll = true;
 
-    int x;
-    int y;
-    mouseGetPosition(&x, &y);
+    int x, y;
+    mouseGetPositionInWindow(wmBkWin, &x, &y);
+    int winWidth = windowGetWidth(wmBkWin);
+    int winHeight = windowGetHeight(wmBkWin);
 
     int dx = 0;
-    if (x == screenGetWidth() - 1) {
+    if (x == winWidth - 1) {
         dx = 1;
     } else if (x == 0) {
         dx = -1;
     }
 
     int dy = 0;
-    if (y == screenGetHeight() - 1) {
+    if (y == winHeight - 1) {
         dy = 1;
     } else if (y == 0) {
         dy = -1;
@@ -7187,36 +7185,23 @@ static void wmMouseBkProc()
 
     if (dx != 0 || dy != 0) {
         if (dx > 0) {
-            if (dy > 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_SE;
-            } else if (dy < 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_NE;
-            } else {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_E;
-            }
+            if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_SE;
+            else if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_NE;
+            else newMouseCursor = MOUSE_CURSOR_SCROLL_E;
         } else if (dx < 0) {
-            if (dy > 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_SW;
-            } else if (dy < 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_NW;
-            } else {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_W;
-            }
+            if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_SW;
+            else if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_NW;
+            else newMouseCursor = MOUSE_CURSOR_SCROLL_W;
         } else {
-            if (dy < 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_N;
-            } else if (dy > 0) {
-                newMouseCursor = MOUSE_CURSOR_SCROLL_S;
-            }
+            if (dy < 0) newMouseCursor = MOUSE_CURSOR_SCROLL_N;
+            else if (dy > 0) newMouseCursor = MOUSE_CURSOR_SCROLL_S;
         }
 
         unsigned int tick = _get_bk_time();
         if (getTicksBetween(tick, lastTime) > 50) {
             lastTime = _get_bk_time();
-            // NOTE: Uninline.
             wmInterfaceScroll(dx, dy, &couldScroll);
         }
-
         if (!couldScroll) {
             newMouseCursor += 8;
         }
