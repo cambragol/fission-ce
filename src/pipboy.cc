@@ -267,6 +267,7 @@ static void pipboyWindowHandleStatus(int userInput);
 static void pipboyWindowRenderQuestLocationList(int a1);
 static void pipboyWindowQuestList(int a1);
 static void pipboyRenderHolodiskText();
+static void pipboyHolodiskUpdatePageAudio(const char* audio);
 static int pipboyWindowRenderHolodiskList(int a1);
 static int _qscmp(const void* a1, const void* a2);
 static void pipboyWindowHandleAutomaps(int a1);
@@ -1696,6 +1697,10 @@ static void pipboyWindowHandleStatus(int userInput)
 
         _holo_flag = 0;
         _holodisk = -1;
+        // Leaving the holodisk detail view for the status list -- stop any
+        // page narration rather than leaving it playing under a screen it no
+        // longer belongs to.
+        speechDelete();
         gPipboyWindowHolodisksCount = 0;
         _view_page_quest = 0;
         _view_page_holodisk = 0;
@@ -2680,6 +2685,37 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 }
 
 // 0x4988A0
+// Starts or stops the voiced-holodisk speech for the page currently being
+// rendered. `audio` is the raw audio field of the page's first message line
+// (same `{num}{audio}{text}` field VockFloats already reads for dialogue),
+// resolved through speechLoad() exactly like any other speech file under
+// sound/speech/. Gated behind the same VockFloats master switch and
+// VoicedFloats toggle dialogue floats use, so it inherits StrictVanilla and
+// the mod's opt-out without a separate setting.
+//
+// speechLoad() already tears down whatever was previously loaded into
+// gSpeechSound before loading the new file (see its "Delete any existing
+// speech sound" step), so switching pages or holodisks always replaces
+// rather than layers audio. A page with no audio field explicitly calls
+// speechDelete() so a previous page's narration doesn't keep playing under
+// silent text.
+static void pipboyHolodiskUpdatePageAudio(const char* audio)
+{
+    bool voicedHolodisksEnabled = settings.enhancements.vock_floats
+        && !settings.enhancements.strict_vanilla
+        && settings.mod_settings.voiced_floats;
+
+    if (!voicedHolodisksEnabled) {
+        return;
+    }
+
+    if (audio != nullptr && audio[0] != '\0') {
+        speechLoad(audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+    } else {
+        speechDelete();
+    }
+}
+
 static void pipboyRenderHolodiskText()
 {
     blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData() + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
@@ -2773,6 +2809,13 @@ static void pipboyRenderHolodiskText()
         const char* text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, holodiskTextId);
         if (strcmp(text, "**END-DISK**") == 0) {
             break;
+        }
+
+        if (line == 0) {
+            // Page-start line carries the page's audio field, if any. Must
+            // read it before any later getmsg() call in this loop overwrites
+            // gPipboyMessageListItem.
+            pipboyHolodiskUpdatePageAudio(gPipboyMessageListItem.audio);
         }
 
         if (strcmp(text, "**END-PAR**") == 0) {
@@ -4828,7 +4871,10 @@ static void generateHolodiskListReport()
         "   Format: {0}{}{Title}, {1}{}{line1}, ... {99}{}{**END-DISK**}\n"
         "3. BlockKey is a unique identifier for the holodisk within the mod.\n"
         "4. IDs are stable: same ModName + BlockKey gives same base ID.\n"
-        "5. In scripts, set GVAR to non-zero to make holodisk appear.\n");
+        "5. In scripts, set GVAR to non-zero to make holodisk appear.\n"
+        "6. Optional voiced narration: put a filename in a page's first line's\n"
+        "   audio field, e.g. {1}{holodisk\\myquest_intro}{line1}. Resolves via\n"
+        "   sound/speech/, same as other speech. Requires VockFloats+VoicedFloats.\n");
 
     fclose(reportFile);
 }
@@ -4972,6 +5018,11 @@ static int holodiskInit()
 // 0x49A968
 static void holodiskFree()
 {
+    // Safety net for pipboyWindowFree(): stop any holodisk page narration
+    // still playing when the whole Pip-Boy window closes, not just when
+    // backing out to the status list.
+    speechDelete();
+
     if (gHolodiskDescriptions != nullptr) {
         internal_free(gHolodiskDescriptions);
         gHolodiskDescriptions = nullptr;
