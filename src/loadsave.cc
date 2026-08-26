@@ -697,8 +697,7 @@ int lsgSaveGame(int mode)
             gLoadSaveWindowBuffer + gOffsets.windowWidth * gOffsets.previewY + gOffsets.previewX,
             gOffsets.previewWidth,
             gOffsets.previewHeight,
-            gOffsets.windowWidth
-        );
+            gOffsets.windowWidth);
         break;
     default:
         _LoadTumbSlot(_slot_cursor);
