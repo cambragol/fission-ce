@@ -691,8 +691,8 @@ int lsgSaveGame(int mode)
     case SLOT_STATE_UNSUPPORTED_VERSION:
         blitBufferToBufferStretch(
             _snapshotBuf,
-            LS_PREVIEW_WIDTH,
-            LS_PREVIEW_HEIGHT,
+            LS_PREVIEW_WIDTH - 1,
+            LS_PREVIEW_HEIGHT - 1,
             LS_PREVIEW_WIDTH,
             gLoadSaveWindowBuffer + gOffsets.windowWidth * gOffsets.previewY + gOffsets.previewX,
             gOffsets.previewWidth,
