@@ -293,7 +293,6 @@ static bool gAtBorder = false;
 static bool gReCentering = false;
 static int gReCenterTarget = -1;
 
-
 // 0x4B0C40
 int tileInit(TileData** squareGrid, int squareGridWidth, int squareGridHeight, int hexGridWidth, int hexGridHeight, unsigned char* buf, int windowWidth, int windowHeight, int windowPitch, TileWindowRefreshProc* windowRefreshProc)
 {
@@ -500,8 +499,7 @@ void tileUpdateSmoothScroll()
         return;
     }
 
-    bool moving = (FID_ANIM_TYPE(gDude->fid) == ANIM_WALK ||
-                   FID_ANIM_TYPE(gDude->fid) == ANIM_RUNNING);
+    bool moving = (FID_ANIM_TYPE(gDude->fid) == ANIM_WALK || FID_ANIM_TYPE(gDude->fid) == ANIM_RUNNING);
 
     if (moving) {
         int result = tileSetCenter(gDude->tile, 0);
