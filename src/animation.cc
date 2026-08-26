@@ -399,7 +399,7 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
 
     if (error) {
         // Abort the current sequence without executing any actions
-        _anim_cleanup();   // resets gAnimationSequenceCurrentIndex
+        _anim_cleanup(); // resets gAnimationSequenceCurrentIndex
         // Restore the real NPC and destroy the ghost
         objectDestroy(ghost, nullptr);
         realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
