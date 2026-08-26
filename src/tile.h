@@ -64,7 +64,6 @@ int _tile_scroll_to(int tile, int flags);
 
 void tileUpdateSmoothScroll();
 
-
 static bool tileIsValid(int tile)
 {
     return tile >= 0 && tile < gHexGridSize;

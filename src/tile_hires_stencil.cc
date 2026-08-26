@@ -68,8 +68,8 @@ static bool gIsTileHiresStencilEnabled = true;
 static bool gMapIsSmall = false;
 
 // for tileUpdateSmoothScroll support
-static constexpr int VERTICAL_STENCIL_MARGIN = 3;   // squares (6 * 12 = 72 pixels)
-static constexpr int HORIZONTAL_STENCIL_MARGIN = 3;   // squares (6 * 12 = 72 pixels)
+static constexpr int VERTICAL_STENCIL_MARGIN = 3; // squares (6 * 12 = 72 pixels)
+static constexpr int HORIZONTAL_STENCIL_MARGIN = 3; // squares (6 * 12 = 72 pixels)
 
 static void clean_cache()
 {
@@ -190,7 +190,7 @@ static void mark_screen_tiles_around_as_visible(int center_tile, const Point& sc
 
     // ---- Horizontal range with margin ----
     int horizontal_start_full = squareX - squares_screen_width_half - HORIZONTAL_STENCIL_MARGIN;
-    int horizontal_end_full   = squareX + squares_screen_width_half + HORIZONTAL_STENCIL_MARGIN;
+    int horizontal_end_full = squareX + squares_screen_width_half + HORIZONTAL_STENCIL_MARGIN;
 
     // Clamp horizontal range to grid bounds
     if (horizontal_start_full < 0) horizontal_start_full = 0;
@@ -205,7 +205,7 @@ static void mark_screen_tiles_around_as_visible(int center_tile, const Point& sc
 
     // ---- Vertical range with margin ----
     int vertical_start_full = squareY - squares_screen_height_half - VERTICAL_STENCIL_MARGIN;
-    int vertical_end_full   = squareY + squares_screen_height_half + VERTICAL_STENCIL_MARGIN;
+    int vertical_end_full = squareY + squares_screen_height_half + VERTICAL_STENCIL_MARGIN;
 
     // Clamp vertical range to grid bounds
     if (vertical_start_full < 0) vertical_start_full = 0;
