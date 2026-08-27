@@ -219,7 +219,7 @@ typedef struct AnimationDescription {
         int lightIntensity;
     };
     CacheEntry* artCacheKey;
-    bool executed;      // true if this callback has already been run
+    bool executed; // true if this callback has already been run
 } AnimationDescription;
 
 typedef struct AnimationSequence {
@@ -1301,7 +1301,7 @@ int animationRegisterCallbackForced(void* a1, void* a2, AnimationCallback* proc,
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK;
-    animationDescription->executed = false; 
+    animationDescription->executed = false;
     animationDescription->extendedFlags = ANIMATION_SEQUENCE_FORCED;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = a2;
