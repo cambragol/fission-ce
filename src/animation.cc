@@ -219,6 +219,7 @@ typedef struct AnimationDescription {
         int lightIntensity;
     };
     CacheEntry* artCacheKey;
+    bool executed;      // true if this callback has already been run
 } AnimationDescription;
 
 typedef struct AnimationSequence {
@@ -710,10 +711,13 @@ static void _anim_cleanup()
     for (int i = 0; i < gAnimationDescriptionCurrentIndex; i++) {
         AnimationDescription* desc = &animationSequence->animations[i];
         if (desc->extendedFlags & ANIMATION_SEQUENCE_FORCED) {
-            if (desc->kind == ANIM_KIND_CALLBACK && desc->callback) {
-                desc->callback(desc->param1, desc->param2);
-            } else if (desc->kind == ANIM_KIND_CALLBACK3 && desc->callback3) {
-                desc->callback3(desc->param1, desc->param2, desc->param3);
+            if (!desc->executed) {
+                if (desc->kind == ANIM_KIND_CALLBACK && desc->callback) {
+                    desc->callback(desc->param1, desc->param2);
+                } else if (desc->kind == ANIM_KIND_CALLBACK3 && desc->callback3) {
+                    desc->callback3(desc->param1, desc->param2, desc->param3);
+                }
+                desc->executed = true;
             }
         }
     }
@@ -1246,6 +1250,7 @@ int animationRegisterCallback(void* param1, void* param2, AnimationCallback* pro
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK;
+    animationDescription->executed = false;
     animationDescription->extendedFlags = 0;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = param2;
@@ -1271,6 +1276,7 @@ int animationRegisterCallback3(void* param1, void* param2, void* param3, Animati
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK3;
+    animationDescription->executed = false;
     animationDescription->extendedFlags = 0;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = param2;
@@ -1295,6 +1301,7 @@ int animationRegisterCallbackForced(void* a1, void* a2, AnimationCallback* proc,
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK;
+    animationDescription->executed = false; 
     animationDescription->extendedFlags = ANIMATION_SEQUENCE_FORCED;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = a2;
@@ -1632,12 +1639,14 @@ static int animationRunSequence(int animationSequenceIndex)
             rc = _anim_hide(animationDescription->owner, animationSequenceIndex);
             break;
         case ANIM_KIND_CALLBACK:
+            animationDescription->executed = true;
             rc = animationDescription->callback(animationDescription->param1, animationDescription->param2);
             if (rc == 0) {
                 rc = _anim_set_continue(animationSequenceIndex, 0);
             }
             break;
         case ANIM_KIND_CALLBACK3:
+            animationDescription->executed = true;
             rc = animationDescription->callback3(animationDescription->param1, animationDescription->param2, animationDescription->param3);
             if (rc == 0) {
                 rc = _anim_set_continue(animationSequenceIndex, 0);
@@ -1818,14 +1827,17 @@ static int _anim_set_end(int animationSequenceIndex)
 
         // Handle callback entries
         if (animationDescription->kind == ANIM_KIND_CALLBACK || animationDescription->kind == ANIM_KIND_CALLBACK3) {
-            // Forced callbacks always execute, regardless of step
+            // Forced callbacks execute only if not already executed
             if (animationDescription->extendedFlags & ANIMATION_SEQUENCE_FORCED) {
-                if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback) {
-                    animationDescription->callback(animationDescription->param1, animationDescription->param2);
-                } else if (animationDescription->kind == ANIM_KIND_CALLBACK3 && animationDescription->callback3) {
-                    animationDescription->callback3(animationDescription->param1, animationDescription->param2, animationDescription->param3);
+                if (!animationDescription->executed) {
+                    if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback) {
+                        animationDescription->callback(animationDescription->param1, animationDescription->param2);
+                    } else if (animationDescription->kind == ANIM_KIND_CALLBACK3 && animationDescription->callback3) {
+                        animationDescription->callback3(animationDescription->param1, animationDescription->param2, animationDescription->param3);
+                    }
+                    animationDescription->executed = true;
                 }
-                // Forced callbacks: no sound cleanup here because they were executed
+                // Forced callbacks: no sound cleanup here because they were executed (or already were)
             } else {
                 // Non-forced callbacks: only clean up sound if the step was reached
                 if (i >= animationSequence->step) {
