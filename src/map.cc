@@ -1145,6 +1145,9 @@ static int mapLoad(File* stream)
         goto err;
     }
 
+    // unhide any NPCs left with OBJECT_GHOST_HIDDEN
+    animationUnhideGhosts();
+
     if ((gMapHeader.flags & 1) == 0) {
         _map_fix_critter_combat_data();
     }
@@ -1455,6 +1458,9 @@ int mapSetTransition(MapTransition* transition)
     if (transition == nullptr) {
         return -1;
     }
+
+    // unhide any stray NPCs left with OBJECT_GHOST_HIDDEN
+    animationUnhideGhosts();
 
     memcpy(&gMapTransition, transition, sizeof(gMapTransition));
 
