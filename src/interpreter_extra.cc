@@ -2995,7 +2995,14 @@ static void opGetMessageString(Program* program)
 
     char* string;
     if (messageIndex >= 0) {
-        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1);
+        // message_str()/mstr() is called by every script alike (dialogue
+        // nodes, combat_p_proc, critter_p_proc, timed_event_p_proc, ...).
+        // Passing the calling script's own object lets
+        // _scr_get_msg_str_speech() both (a) tell whether this is the active
+        // dialogue's own line -- and so should bypass the VockFloats gate
+        // -- by comparing against gGameDialogSpeaker, and (b) scale a float's
+        // volume by distance from the player.
+        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1, scriptGetSelf(program));
         if (string == nullptr) {
             debugPrint("\nError: No message file EXISTS!: index %d, line %d", messageListIndex, messageIndex);
             string = errStr;
@@ -3140,6 +3147,21 @@ static void opFloatMessage(Program* program)
 
     if (obj->elevation != gElevation) {
         return;
+    }
+
+    // FISSION-VOCK FIX: [vock-floats] TextScramble belongs here, not in
+    // message_str() (opGetMessageString() above) -- this is float_msg(),
+    // the one opcode where "this text is about to become a floating bubble
+    // over obj" is actually true, rather than a guess based on "the
+    // calling script isn't the active dialogue's own speaker" (which also
+    // matches plain look-at/examine text printed via display_msg(), not
+    // floated at all -- see _scr_scramble_float_text()'s comment in
+    // scripts.cc for the full story).
+    bool vockFloatsGateOpen = settings.enhancements.vock_floats && !settings.enhancements.strict_vanilla;
+    bool inOwnDialogue = gameDialogWindowActive() && obj == gGameDialogSpeaker;
+    if (vockFloatsGateOpen && !inOwnDialogue && settings.mod_settings.float_text_scramble) {
+        double clarity = gameSoundCalcFloatClarity(obj);
+        string = _scr_scramble_float_text(string, clarity);
     }
 
     if (floatingMessageType == FLOATING_MESSAGE_TYPE_COLOR_SEQUENCE) {

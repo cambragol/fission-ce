@@ -1,13 +1,18 @@
 #include "game_sound.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <algorithm>
+#include <vector>
 
 #include "animation.h"
 #include "art.h"
 #include "audio.h"
 #include "audio_file.h"
 #include "combat.h"
+#include "critter.h"
 #include "debug.h"
 #include "game.h"
 #include "game_config.h"
@@ -26,6 +31,7 @@
 #include "sound_effects_cache.h"
 #include "stat.h"
 #include "svga.h"
+#include "text_object.h"
 #include "wav_io.h"
 #include "window_manager.h"
 #include "worldmap.h"
@@ -82,6 +88,24 @@ static SoundEndCallback* gBackgroundSoundEndCallback = nullptr;
 
 // 0x518E5C
 static SoundEndCallback* gSpeechEndCallback = nullptr;
+
+// Independent pool for non-dialog floating speech, separate from the single
+// gSpeechSound slot dialogue uses. Dialogue genuinely is single-voice (only
+// one NPC's window can be open at a time), but floats from different NPCs
+// (combat barks, ambient chatter, etc) should be able to overlap instead of
+// each new one cutting off whatever float is already playing.
+typedef struct FloatSpeechSlot {
+    Sound* sound;
+    Object* speaker;
+    unsigned int allocSeq;
+} FloatSpeechSlot;
+
+// FISSION-VOCK ADD: sized once in gameSoundInit() from [vock-floats]
+// FloatAudioChannels in game.cfg (settings.mod_settings.float_audio_channels),
+// then never resized -- see AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc,
+// which reserves mixer buffer slots for this same count.
+static std::vector<FloatSpeechSlot> gFloatSpeechSlots;
+static unsigned int gFloatSpeechAllocSeq = 0;
 
 // 0x518E60
 static char _snd_lookup_weapon_type[WEAPON_SOUND_EFFECT_COUNT] = {
@@ -148,7 +172,6 @@ static char gBackgroundSoundFileName[270];
 static void soundEffectsEnable();
 static void soundEffectsDisable();
 static int soundEffectsIsEnabled();
-static int soundEffectsGetVolume();
 static void backgroundSoundDisable();
 static void backgroundSoundEnable();
 static int backgroundSoundGetDuration();
@@ -169,6 +192,8 @@ static long gameSoundFileTell(int handle);
 static long gameSoundFileGetSize(int handle);
 static bool gameSoundIsCompressed(char* filePath);
 static void speechCallback(void* userData, int event);
+static void floatSpeechCallback(void* userData, int event);
+static int _gsound_calc_float_volume(Object* speaker);
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
@@ -207,6 +232,17 @@ int gameSoundInit()
     if (gGameSoundDebugEnabled) {
         debugPrint("Initializing sound system...");
     }
+
+    // FISSION-VOCK ADD: size the float-speech pool from [vock-floats]
+    // FloatAudioChannels (game.cfg) once, before soundInit() below starts
+    // the audio engine's mixer callback thread -- see
+    // AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which derives its own
+    // budget from this same setting.
+    int floatAudioChannels = settings.mod_settings.float_audio_channels;
+    if (floatAudioChannels < 1) {
+        floatAudioChannels = 1;
+    }
+    gFloatSpeechSlots.assign(floatAudioChannels, FloatSpeechSlot { nullptr, nullptr, 0 });
 
     if (_gsound_get_music_path(&_sound_music_path1, GAME_CONFIG_MUSIC_PATH1_KEY) != 0) {
         return -1;
@@ -977,11 +1013,28 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         // Mark as WAV so soundLoad can extract parameters
         gSpeechSound->isWav = true;
     } else {
-        // Ensure ACM I/O (already set by _gsound_background_allocate, but set explicitly for safety)
-        if (soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr,
-                audioSeek, gameSoundFileTellNotImplemented, audioGetSize)) {
+        // ACM - explicitly set decompressing I/O.
+        //
+        // FISSION-VOCK FIX: gameSoundInit() installs the plain, non-decompressing
+        // gameSoundFileOpen/Read/GetSize as the *global default* sound I/O
+        // (see the soundSetDefaultFileIO call after audioInit() runs) -- that
+        // default is deliberately dumb, and every caller that needs ACM
+        // decompression is expected to opt back into audioOpen/audioRead via
+        // soundSetFileIO, exactly like backgroundSoundLoad ("Using ACM I/O")
+        // and soundEffectLoad already do. Upstream fallout2-ce's speechLoad
+        // did this unconditionally too. This branch used to just keep
+        // whatever I/O soundAllocate() copied from the global default,
+        // assuming it was audioOpen -- it isn't, so ACM speech was read as
+        // raw compressed bytes straight into the playback buffer (audible as
+        // white noise) instead of being decoded through the SoundDecoder.
+        if (gGameSoundDebugEnabled) {
+            debugPrint("speechLoad: Found ACM file: %s\n", path);
+        }
+        rc = soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+        if (rc != 0) {
             if (gGameSoundDebugEnabled) {
-                debugPrint("failed because file IO could not be set for compression.\n");
+                debugPrint("speechLoad: Failed to set ACM I/O (rc=%d)\n", rc);
             }
             soundDelete(gSpeechSound);
             gSpeechSound = nullptr;
@@ -990,9 +1043,9 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         gSpeechSound->isWav = false;
     }
 
-    // Continue with original loading logic
     if (loopingMode == GSOUND_LOOP) {
-        if (soundSetLooping(gSpeechSound, 0xFFFF)) {
+        rc = soundSetLooping(gSpeechSound, 0xFFFF);
+        if (rc != SOUND_NO_ERROR) {
             if (gGameSoundDebugEnabled) {
                 debugPrint("failed because looping could not be set.\n");
             }
@@ -1002,7 +1055,22 @@ int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameS
         }
     }
 
-    if (soundSetCallback(gSpeechSound, speechCallback, nullptr)) {
+    // FISSION-VOCK FIX: speechCallback() (which sets gSpeechSound = nullptr on
+    // SOUND_CALLBACK_EVENT_DONE) was fully implemented but never actually
+    // registered here, unlike backgroundSoundLoad()'s equivalent
+    // soundSetCallback(gBackgroundSound, backgroundSoundCallback, ...) a few
+    // lines up. Without it, when a speech sound finishes naturally, the
+    // background tick (soundContinueAll() -> soundContinue()) frees the
+    // underlying Sound via soundDelete(), but gSpeechSound is never told and
+    // is left dangling. The next speechLoad() call's speechDelete() then
+    // calls soundDelete() on that already-freed pointer -- a heap
+    // use-after-free, confirmed via AddressSanitizer (soundDelete ->
+    // speechDelete -> speechLoad, freed by a prior soundContinueAll() background
+    // tick). Registering the callback here lets gSpeechSound get nulled out
+    // the same way gBackgroundSound already does, so speechDelete() sees a
+    // clean nullptr instead of a dangling pointer once playback has ended.
+    rc = soundSetCallback(gSpeechSound, speechCallback, nullptr);
+    if (rc != SOUND_NO_ERROR) {
         if (gGameSoundDebugEnabled) {
             debugPrint("soundSetCallback failed for speech sound\n");
         }
@@ -1099,6 +1167,377 @@ void speechDelete()
             gSpeechSound = nullptr;
         }
     }
+}
+
+void floatSpeechCallback(void* userData, int event)
+{
+    if (event == SOUND_CALLBACK_EVENT_DONE) {
+        int slotIndex = (int)(uintptr_t)userData;
+        gFloatSpeechSlots[slotIndex].sound = nullptr;
+        gFloatSpeechSlots[slotIndex].speaker = nullptr;
+    }
+}
+
+// Scales soundEffectsGetVolume() by distance between the speaking object
+// and the player, then by the [vock-floats] Volume knob below. Elevation is
+// always checked first and short-circuits to silence -- tile distance alone
+// can't tell floors apart. Volume is tied to the Sound Effects Volume
+// Preferences slider rather than the dialog speech slider -- there's no
+// dedicated float-volume Preferences UI; a config-only float_speech_volume
+// existed briefly and was removed for exactly that reason. Volume below is
+// different in kind, not just a revival of that: it's a linear multiplier
+// *on top of* the SFX slider (VOLUME_MAX = unity, matches the slider
+// exactly) rather than a replacement for it, so it can't be used to make
+// floats louder than SFX or to silence SFX without also silencing floats.
+//
+// Distance falloff: full gain out to half of refDistance, then a straight
+// ramp down to an exact 0.0 at refDistance itself, silent beyond it --
+// gain = clamp(2 * (1 - distance/refDistance), 0, 1), where refDistance =
+// Perception x [vock-floats] DistancePerPerception
+// (settings.mod_settings.float_distance_per_perception, default 2). Started
+// as a pure ramp from distance 0 (see commit fef10eb) with no plateau; the
+// plateau was added after text-scramble clarity (which shares this same
+// formula, see gameSoundCalcFloatClarity() below) turned out to garble text
+// immediately at almost any distance without one -- see git history around
+// FLOAT_SPEECH_CLARITY_GAIN_FLOOR/CEILING for that detour, which is now
+// folded directly into this shared formula instead of being a
+// clarity-only remap. A config-selectable choice of curve-shaped
+// alternatives (vanilla-ambient-SFX-mirroring via
+// _gsound_compute_relative_volume() below, inverse-distance, sigmoid,
+// logarithmic) was explored even earlier and removed again in favor of
+// always using one shared formula -- see git history around
+// FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/SIGMOID/LOG and the
+// DistanceFormula game.cfg key for that detour.
+
+// Returns true if a solid obstacle sits between speaker and gDude, using
+// the same straight-line raycast the obj_can_see_obj sfall opcode uses (see
+// opObjectCanSeeObject() in interpreter_extra.cc) -- when the line is
+// clear, the walk reaches gDude itself and sets *obstaclePtr to gDude;
+// anything else means something blocked it first. Vanilla's own
+// obj_can_hear_obj never did this check (elevation + perception radius
+// only), so this is new territory for "hearing" specifically, not a gap in
+// an existing vanilla feature.
+static bool _gsound_float_is_obstructed(Object* speaker)
+{
+    if (speaker->tile == -1 || gDude->tile == -1) {
+        return false;
+    }
+
+    Object* obstacle = nullptr;
+    _make_straight_path(speaker, speaker->tile, gDude->tile, nullptr, &obstacle, 16);
+    return obstacle != gDude;
+}
+
+// Pure distance-based gain factor in [0.0, 1.0] -- 1.0 is full volume, 0.0
+// is elevation-mismatched/inaudible/out of range. Takes distancePerPerception
+// as a parameter (rather than reading a single fixed setting) so volume and
+// text-scramble clarity can each define their own effective range while
+// sharing the same falloff shape and obstruction handling, without
+// duplicating this logic in two places.
+//
+// Shape: full gain (1.0) out to half of refDistance, then a straight linear
+// ramp down to an exact 0.0 at refDistance itself. Not a plain ramp from
+// distance 0 -- ramping from the speaker's own tile made text-scramble
+// clarity (the other caller of this function) garble text a little at
+// almost any distance, reading as "scrambling starts right next to the
+// speaker" instead of "stays clear, then fades out near the edge of
+// range." Volume gets the same plateau for consistency -- both callers
+// share one formula and one obstruction handling, only refDistance differs
+// between them.
+static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception)
+{
+    if (speaker == nullptr || gDude == nullptr) {
+        return 1.0;
+    }
+
+    if (speaker->elevation != gDude->elevation) {
+        return 0.0;
+    }
+
+    int refDistance = critterGetStat(gDude, STAT_PERCEPTION) * distancePerPerception;
+    if (refDistance < 1) {
+        refDistance = 1;
+    }
+
+    int distance = objectGetDistanceBetween(speaker, gDude);
+
+    // Equivalent to remapping the plain ramp (1 - distance/refDistance)
+    // through a [0.0, 0.5] floor/ceiling: doubling it means gain is already
+    // >= 1.0 (clamped) for any distance <= refDistance/2, and only actually
+    // ramps down over the second half of refDistance.
+    double gain = std::clamp(2.0 * (1.0 - (double)distance / (double)refDistance), 0.0, 1.0);
+
+    // [vock-floats] ObstructionDampening in game.cfg -- 0 (default) skips the
+    // raycast entirely, so players who don't opt in pay nothing extra here.
+    // Applied *after* the falloff above (including its plateau), not
+    // folded into the ramp -- an obstructed line inside the plateau still
+    // needs to be dampened by the full percentage, not partially absorbed
+    // by the plateau flattening it back out to 1.0.
+    int obstructionDampening = std::clamp(settings.mod_settings.float_obstruction_dampening, 0, 100);
+    if (obstructionDampening > 0 && _gsound_float_is_obstructed(speaker)) {
+        gain *= 1.0 - ((double)obstructionDampening / 100.0);
+    }
+
+    return gain;
+}
+
+static double _gsound_calc_float_distance_factor(Object* speaker)
+{
+    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_distance_per_perception);
+}
+
+// Linear [vock-floats] Volume curve -- gain = Volume / VOLUME_MAX, same
+// 0-32767 scale as the pre-existing dialog speech_volume setting.
+// Independent of speaker/distance, so it's cheap to recompute per call
+// rather than caching.
+static double _gsound_calc_float_volume_gain()
+{
+    int volume = std::clamp(settings.mod_settings.float_volume, VOLUME_MIN, VOLUME_MAX);
+    return (double)volume / (double)VOLUME_MAX;
+}
+
+static int _gsound_calc_float_volume(Object* speaker)
+{
+    int baseVolume = soundEffectsGetVolume();
+    double gain = _gsound_calc_float_distance_factor(speaker) * _gsound_calc_float_volume_gain();
+    return (int)(baseVolume * gain);
+}
+
+// Text clarity is exactly _gsound_calc_float_gain() -- same plateau/ramp
+// shape and obstruction handling as volume above -- computed against its
+// own independent range: [vock-floats] TextScrambleDistancePerPerception in
+// game.cfg, rather than reusing DistancePerPerception. gain and clarity are
+// the same [0.0, 1.0] scale by construction, so no separate remap is
+// needed here; only the refDistance passed in differs from volume's call.
+double gameSoundCalcFloatClarity(Object* speaker)
+{
+    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_text_scramble_distance_per_perception);
+}
+
+// Re-evaluates and re-applies every active float's volume from its
+// speaker's *current* distance to the player. Called every tick (see
+// _gsound_bkg_proc()) so a float's loudness tracks the player moving
+// closer or farther away while it's still playing, instead of being fixed
+// at whatever distance it happened to start at. Also cuts a float off
+// outright the tick its speaker dies -- a corpse shouldn't keep talking
+// through the rest of its line, and shouldn't keep its floating text on
+// screen either (the text object's own lifetime is unrelated to audio
+// playback, so killing the sound alone doesn't touch it -- confirmed via
+// testing: text stayed up after audio cut off before this was added).
+// critterIsDead() safely returns false for null/non-critter objects, so
+// this doesn't need its own null check.
+static void floatSpeechUpdateVolumes()
+{
+    for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+        if (gFloatSpeechSlots[i].sound != nullptr) {
+            if (critterIsDead(gFloatSpeechSlots[i].speaker)) {
+                // FISSION-VOCK FIX: soundDelete() synchronously invokes the sound's
+                // callback (floatSpeechCallback) with
+                // SOUND_CALLBACK_EVENT_DONE, which nulls this same slot's
+                // sound/speaker fields immediately -- confirmed via
+                // debugPrint tracing (the float's text wasn't clearing on
+                // death: textObjectsRemoveByOwner() was being called with
+                // gFloatSpeechSlots[i].speaker already nulled out from
+                // under it, i.e. owner=nullptr, so it never matched
+                // anything). Capture speaker locally first so it's still
+                // valid by the time textObjectsRemoveByOwner() runs.
+                Object* speaker = gFloatSpeechSlots[i].speaker;
+                soundDelete(gFloatSpeechSlots[i].sound);
+                textObjectsRemoveByOwner(speaker);
+                gFloatSpeechSlots[i].sound = nullptr;
+                gFloatSpeechSlots[i].speaker = nullptr;
+                continue;
+            }
+
+            int volume = _gsound_calc_float_volume(gFloatSpeechSlots[i].speaker);
+            soundSetVolume(gFloatSpeechSlots[i].sound, (int)(volume * 0.69));
+        }
+    }
+}
+
+// Loads and immediately plays a float from its own pool slot, independent of
+// gSpeechSound. Mirrors speechLoad()'s ACM/WAV I/O setup (see the FISSION-VOCK FIX
+// comment in speechLoad() above for why the explicit audioOpen override is
+// required) but never touches the dialogue's single speech slot, so a new
+// float doesn't cut off one that's already playing.
+bool speechLoadFloat(const char* fileName, Object* speaker)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    int rc;
+    bool foundWav;
+
+    if (!gGameSoundInitialized || !gSpeechEnabled) {
+        return false;
+    }
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("Loading float speech sound file %s%s...", fileName, ".ACM");
+    }
+
+    // FISSION-VOCK FIX: if this speaker already has an active slot, replace it
+    // instead of allocating a new one. The pool exists so *different* NPCs
+    // can overlap without cutting each other off, but nothing stopped a
+    // single NPC from ending up in multiple slots talking over itself
+    // (confirmed via testing: clicking one NPC repeatedly played several
+    // of its own lines concurrently). A speaker should still only ever
+    // have one line playing at a time.
+    int slotIndex = -1;
+    if (speaker != nullptr) {
+        for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+            if (gFloatSpeechSlots[i].sound != nullptr && gFloatSpeechSlots[i].speaker == speaker) {
+                slotIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (slotIndex != -1) {
+        soundDelete(gFloatSpeechSlots[slotIndex].sound);
+        gFloatSpeechSlots[slotIndex].sound = nullptr;
+        gFloatSpeechSlots[slotIndex].speaker = nullptr;
+    } else {
+        for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+            if (gFloatSpeechSlots[i].sound == nullptr) {
+                slotIndex = i;
+                break;
+            }
+        }
+
+        if (slotIndex == -1) {
+            // Pool is full. What happens next depends on [vock-floats]
+            // EvictionPolicy in game.cfg
+            // (settings.mod_settings.float_eviction_policy):
+            int evictIndex = -1;
+
+            switch (settings.mod_settings.float_eviction_policy) {
+            case FLOAT_SPEECH_EVICTION_POLICY_OLDEST: {
+                // Steal the slot with the smallest allocSeq, so a burst of
+                // floats never gets silently dropped once the pool is full.
+                unsigned int oldestSeq = UINT_MAX;
+                for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                    if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
+                        oldestSeq = gFloatSpeechSlots[i].allocSeq;
+                        evictIndex = i;
+                    }
+                }
+                break;
+            }
+            case FLOAT_SPEECH_EVICTION_POLICY_FURTHEST: {
+                // Steal whichever occupied slot's speaker is currently
+                // farthest from the player -- but only if the new float's
+                // speaker is closer than that, so eviction never makes the
+                // pool's overall audibility worse. If the new float is the
+                // farthest of all of them (or has no speaker to measure
+                // from), it's dropped instead, same as Vanilla below.
+                if (speaker != nullptr && gDude != nullptr) {
+                    int furthestDistance = objectGetDistanceBetween(speaker, gDude);
+                    for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                        int distance = objectGetDistanceBetween(gFloatSpeechSlots[i].speaker, gDude);
+                        if (distance > furthestDistance) {
+                            furthestDistance = distance;
+                            evictIndex = i;
+                        }
+                    }
+                }
+                break;
+            }
+            default:
+                // Vanilla: no eviction, matching how ambient SFX behaves
+                // when its own pool is full (soundEffectLoad() above) --
+                // leave evictIndex at -1, dropping the new float below.
+                break;
+            }
+
+            if (evictIndex == -1) {
+                if (gGameSoundDebugEnabled) {
+                    debugPrint("float speech pool full, dropping new float\n");
+                }
+                return false;
+            }
+
+            if (gGameSoundDebugEnabled) {
+                debugPrint("float speech pool full, evicting slot %d\n", evictIndex);
+            }
+            soundDelete(gFloatSpeechSlots[evictIndex].sound);
+            gFloatSpeechSlots[evictIndex].sound = nullptr;
+            slotIndex = evictIndex;
+        }
+    }
+
+    Sound* sound;
+    if (_gsound_background_allocate(&sound, GSOUND_MEMORY, GSOUND_NO_LOOP)) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because sound could not be allocated.\n");
+        }
+        return false;
+    }
+
+    if (gameSoundFindSpeechSoundPath(path, fileName) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because the file could not be found.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    foundWav = isWavFile(path);
+    if (foundWav) {
+        rc = soundSetFileIO(sound, wavOpen, wavClose, wavRead, nullptr,
+            wavSeek, wavTell, wavGetSize);
+        if (rc == 0) {
+            sound->isWav = true;
+        }
+    } else {
+        rc = soundSetFileIO(sound, audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+    }
+
+    if (rc != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed to set float speech I/O (rc=%d)\n", rc);
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    rc = soundSetCallback(sound, floatSpeechCallback, (void*)(uintptr_t)slotIndex);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundSetCallback failed for float speech sound\n");
+        }
+    }
+
+    rc = soundLoad(sound, path);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed on call to soundLoad.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    soundSetReadLimit(sound, 0x40000);
+
+    int volume = _gsound_calc_float_volume(speaker);
+    soundSetVolume(sound, (int)(volume * 0.69));
+
+    if (soundPlay(sound) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed starting to play.\n");
+        }
+        soundDelete(sound);
+        return false;
+    }
+
+    gFloatSpeechSlots[slotIndex].sound = sound;
+    gFloatSpeechSlots[slotIndex].speaker = speaker;
+    gFloatSpeechSlots[slotIndex].allocSeq = ++gFloatSpeechAllocSeq;
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("succeeded.\n");
+    }
+
+    return true;
 }
 
 // 0x451054
@@ -1658,6 +2097,10 @@ int soundPlayFile(const char* name)
 void _gsound_bkg_proc()
 {
     soundContinueAll();
+
+    // FISSION-VOCK ADD: keep floats' volume tracking the player's live distance from
+    // their speaker instead of freezing it at trigger time.
+    floatSpeechUpdateVolumes();
 }
 
 // 0x451A08
