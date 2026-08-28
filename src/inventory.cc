@@ -2451,7 +2451,7 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
         }
     }
 
-    if (draw) { 
+    if (draw) {
         if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla || !isScreen) {
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
         } else {
