@@ -66,6 +66,8 @@ namespace fallout {
 #define INVENTORY_SLOT_WIDTH 64
 #define INVENTORY_SLOT_HEIGHT 48
 
+#define INVENTORY_SLOT_PADDING 4
+
 #define INVENTORY_LEFT_HAND_SLOT_X 154
 #define INVENTORY_LEFT_HAND_SLOT_Y 286
 #define INVENTORY_LEFT_HAND_SLOT_MAX_X (INVENTORY_LEFT_HAND_SLOT_X + INVENTORY_LARGE_SLOT_WIDTH)
@@ -96,21 +98,21 @@ namespace fallout {
 #define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X 250
 #define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y INVENTORY_TRADE_INNER_SCROLLER_Y
 
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X 0
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_Y 10
-#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X 29 - INVENTORY_SLOT_PADDING
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_Y 20
+#define INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH + INVENTORY_SLOT_PADDING * 2)
 
-#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X 165
-#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y 10
-#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
+#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X 165 - INVENTORY_SLOT_PADDING
+#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y 20
+#define INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH + INVENTORY_SLOT_PADDING * 2)
 
-#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X 250
-#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y 10
-#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
+#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X 250 - INVENTORY_SLOT_PADDING
+#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y 20
+#define INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH + INVENTORY_SLOT_PADDING * 2)
 
-#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X 395
-#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y 10
-#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH)
+#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X 388 - INVENTORY_SLOT_PADDING
+#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y 20
+#define INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_MAX_X (INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X + INVENTORY_SLOT_WIDTH + INVENTORY_SLOT_PADDING * 2)
 
 #define INVENTORY_LOOT_LEFT_SCROLLER_X 180
 #define INVENTORY_LOOT_LEFT_SCROLLER_Y 37
@@ -152,8 +154,6 @@ namespace fallout {
 #define INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH 640
 #define INVENTORY_TRADE_BACKGROUND_WINDOW_HEIGHT 480
 #define INVENTORY_TRADE_WINDOW_OFFSET ((INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH - INVENTORY_TRADE_WINDOW_WIDTH) / 2)
-
-#define INVENTORY_SLOT_PADDING 4
 
 #define INVENTORY_SCROLLER_X_PAD (INVENTORY_SCROLLER_X + INVENTORY_SLOT_PADDING)
 #define INVENTORY_SCROLLER_Y_PAD (INVENTORY_SCROLLER_Y + INVENTORY_SLOT_PADDING)
@@ -4134,7 +4134,7 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         owner = nullptr;
         item = nullptr;
 
-        InventoryItem* inventoryItem;
+        InventoryItem* inventoryItem = nullptr;
         if (keyCode < 2000) {
             int index = _stack_offset[_curr_stack] + keyCode - 1000;
             if (index >= _pud->length) {
@@ -4173,7 +4173,9 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             owner = _btable;
         }
 
-        quantity = inventoryItem->quantity;
+        if (inventoryItem != nullptr) {
+            quantity = inventoryItem->quantity;
+        }
     }
 
     if (outItemSlot != nullptr) {
@@ -6538,7 +6540,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 1000 && keyCode <= 1000 + gInventorySlotsCount) {
+                if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
@@ -6562,7 +6564,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
                         keyCode = -1;
                     }
-                } else if (keyCode >= 2000 && keyCode <= 2000 + gInventorySlotsCount) {
+                } else if (keyCode >= 2000 && keyCode < 2000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
@@ -8015,11 +8017,11 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
                     if (keyCode != 500) {
                         soundPlayFile("ib1p1xx1");
                     }
+                    break;
                 }
-            } else {
-                soundPlayFile("iisxxxx1");
             }
-            break;
+
+            soundPlayFile("iisxxxx1");
 
         } else if (keyCode == 5000 || keyCode == KEY_LOWERCASE_A) {
             if (keyCode == KEY_LOWERCASE_A) {
