@@ -632,7 +632,6 @@ jobs:
           draft: false
           prerelease: true
           name: Fallout Fission Beta ${{ needs.get-version.outputs.version }}
-          generate_release_notes: true
           body: |
             ## Fallout Fission Beta ${{ needs.get-version.outputs.version }}
 
