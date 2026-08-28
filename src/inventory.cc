@@ -266,7 +266,7 @@ static bool _setup_inventory(int inventoryWindowType);
 static void _exit_inventory(bool shouldEnableIso);
 static void _display_inventory(int stackOffset, int draggedSlotIndex, int inventoryWindowType);
 static void _display_target_inventory(int stackOffset, int dragSlotIndex, Inventory* inventory, int inventoryWindowType);
-static void _display_inventory_info(Object* item, int quantity, unsigned char* dest, int pitch, bool isDragged);
+static void _display_inventory_info(Object* item, int quantity, unsigned char* dest, int pitch, bool isDragged, bool isScreen);
 static void _display_body(int fid, int inventoryWindowType);
 static int inventoryCommonInit();
 static void inventoryCommonFree();
@@ -2152,7 +2152,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                     + (gLayout.scrollerX + col * gLayout.slotWidth + gLayout.slotPadding);
                 artRenderGreen(itemGetInventoryFid(inventoryItem->item), windowBuffer + destOffset,
                     gLayout.slotContentWidth, gLayout.slotContentHeight, pitch);
-                _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex);
+                _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + destOffset, pitch, slotIndex == dragSlotIndex, true);
             }
         }
     } else {
@@ -2185,7 +2185,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 offset = pitch * (y + INVENTORY_SCROLLER_Y_PAD) + INVENTORY_SCROLLER_X_PAD;
             }
 
-            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
+            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex, true);
 
             y += INVENTORY_SLOT_HEIGHT;
         }
@@ -2330,7 +2330,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         InventoryItem* inventoryItem = &(inventory->items[inventory->length - (itemIndex + 1)]);
         int inventoryFid = itemGetInventoryFid(inventoryItem->item);
         artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
-        _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
+        _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex, true);
 
         y += INVENTORY_SLOT_HEIGHT;
     }
@@ -2410,7 +2410,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
 // Renders inventory item quantity.
 //
 // 0x4705A0
-static void _display_inventory_info(Object* item, int quantity, unsigned char* dest, int pitch, bool isDragged)
+static void _display_inventory_info(Object* item, int quantity, unsigned char* dest, int pitch, bool isDragged, bool isScreen)
 {
     int oldFont = fontGetCurrent();
     fontSetCurrent(101);
@@ -2451,8 +2451,8 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
         }
     }
 
-    if (draw) {
-        if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
+    if (draw) { 
+        if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla || !isScreen) {
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
         } else {
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_LIME_GREEN]);
@@ -7333,7 +7333,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             InventoryItem* inventoryItem = &(inventory->items[inventory->length - (index + _ptable_offset + 1)]);
             int inventoryFid = itemGetInventoryFid(inventoryItem->item);
             artRender(inventoryFid, dest, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, INVENTORY_TRADE_WINDOW_WIDTH);
-            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, dest, INVENTORY_TRADE_WINDOW_WIDTH, index == draggedSlotIndex);
+            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, dest, INVENTORY_TRADE_WINDOW_WIDTH, index == draggedSlotIndex, false);
 
             dest += INVENTORY_TRADE_WINDOW_WIDTH * INVENTORY_SLOT_HEIGHT;
         }
@@ -7372,7 +7372,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             InventoryItem* inventoryItem = &(inventory->items[inventory->length - (index + _btable_offset + 1)]);
             int inventoryFid = itemGetInventoryFid(inventoryItem->item);
             artRender(inventoryFid, dest, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, INVENTORY_TRADE_WINDOW_WIDTH);
-            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, dest, INVENTORY_TRADE_WINDOW_WIDTH, index == draggedSlotIndex);
+            _display_inventory_info(inventoryItem->item, inventoryItem->quantity, dest, INVENTORY_TRADE_WINDOW_WIDTH, index == draggedSlotIndex, false);
 
             dest += INVENTORY_TRADE_WINDOW_WIDTH * INVENTORY_SLOT_HEIGHT;
         }
@@ -8210,7 +8210,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
     }
 
     int inventoryFid = itemGetInventoryFid(item);
-    artRenderGreen(inventoryFid, windowBuffer + windowDescription->width * 46 + 16, INVENTORY_LARGE_SLOT_WIDTH, INVENTORY_LARGE_SLOT_HEIGHT, windowDescription->width);
+    artRender(inventoryFid, windowBuffer + windowDescription->width * 46 + 16, INVENTORY_LARGE_SLOT_WIDTH, INVENTORY_LARGE_SLOT_HEIGHT, windowDescription->width);
 
     int x;
     int y;
