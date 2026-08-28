@@ -722,6 +722,22 @@ bool _gdialogActive()
     return _dialog_state_fix != 0;
 }
 
+// FISSION-VOCK ADD: _gdialogActive() (_dialog_state_fix) is true for the *entire*
+// duration of talk_p_proc, not just when a real dialogue window with a head
+// is on screen -- gameDialogEnter() sets _dialog_state_fix = 1 before
+// calling talk_p_proc, and only clears it afterwards if the script never
+// actually calls start_gdialog(). Plenty of vanilla NPCs (e.g. flavor NPCs
+// whose talk_p_proc just does a float_msg()/message_str() and returns,
+// without ever opening a dialogue window) rely on that. For deciding
+// whether it's safe to lip-sync (gameDialogStartLips(), which needs a real
+// head via gGameDialogHeadFid), _gdialog_state == GAME_DIALOG_ACTIVE is the
+// precise signal: it's only set once start_gdialog() has actually created
+// the window.
+bool gameDialogWindowActive()
+{
+    return _gdialog_state == GAME_DIALOG_ACTIVE;
+}
+
 // gdialogEnter
 // 0x444D3C
 void gameDialogEnter(Object* speaker, int mode)
@@ -2556,7 +2572,10 @@ void _gdProcessUpdate()
     _demo_copy_title(gGameDialogReplyWindow);
 
     if (gDialogReplyMessageListId > 0) {
-        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1);
+        // This is the active dialogue's own reply line, rendered by the
+        // dialogue engine itself -- always the true owner of the open
+        // window, regardless of which script last ran.
+        char* s = _scr_get_msg_str_speech(gDialogReplyMessageListId, gDialogReplyMessageId, 1, gGameDialogSpeaker);
         if (s == nullptr) {
             showMesageBox("\n'GDialog::Error Grabbing text message!");
             exit(1);
