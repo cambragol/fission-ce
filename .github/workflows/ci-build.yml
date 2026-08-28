@@ -17,9 +17,11 @@ jobs:
   get-version:
     name: Get Next Version
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      skip_release: ${{ steps.check-skip.outputs.skip_release }}
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -27,27 +29,44 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Check for skip-release label on associated PR
+        id: check-skip
+        run: |
+          # Find the PR associated with this push to main (if any)
+          PR_NUMBER=$(gh pr list --state merged --base main --json number,mergeCommit \
+            --jq ".[] | select(.mergeCommit.oid == \"${{ github.sha }}\") | .number" 2>/dev/null || echo "")
+          
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found associated PR: #$PR_NUMBER"
+            if gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+              --json labels --jq '.labels[].name' | grep -q "skip-release"; then
+              echo "skip-release label found on PR #$PR_NUMBER"
+              echo "skip_release=true" >> $GITHUB_OUTPUT
+            else
+              echo "No skip-release label found"
+              echo "skip_release=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No associated PR found - proceeding with release"
+            echo "skip_release=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Calculate next version
         id: version
         run: |
-          # Get the latest beta tag
           LATEST=$(git tag -l "beta-*" | sort -V | tail -1)
           echo "Latest tag: $LATEST"
 
           if [ -z "$LATEST" ]; then
-            # No existing tags - start at beta-0.9.6.1
             NEXT="0.9.6.1"
           else
-            # Strip the "beta-" prefix
             VERSION="${LATEST#beta-}"
-            
-            # Split into parts
             MAJOR=$(echo "$VERSION" | cut -d. -f1)
             MINOR=$(echo "$VERSION" | cut -d. -f2)
             PATCH=$(echo "$VERSION" | cut -d. -f3)
             BUILD=$(echo "$VERSION" | cut -d. -f4)
-            
-            # Increment the last digit
             BUILD=$((BUILD + 1))
             NEXT="${MAJOR}.${MINOR}.${PATCH}.${BUILD}"
           fi
@@ -91,7 +110,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-format-18
           echo "CLANG_FORMAT_VERSION=$(clang-format-18 --version)" >> $GITHUB_ENV
-          
+
       - name: Check for skip-formatting label (PR only)
         if: github.event_name == 'pull_request'
         run: |
@@ -116,13 +135,13 @@ jobs:
           else
             echo "Code is properly formatted"
           fi
-          
+
       - name: Auto-format if needed
         if: env.format_needed == 'true' && env.skip-formatting != 'true'
         run: |
           echo "Applying clang-format..."
           find src -type f \( -name "*.cc" -o -name "*.h" \) -print0 | xargs -0 clang-format-18 -i
-          
+
           if ! git diff --quiet; then
             echo "Committing formatting changes..."
             git config user.name "github-actions[bot]"
@@ -137,7 +156,6 @@ jobs:
 
   android:
     name: Android
-    needs: get-version
     runs-on: ubuntu-latest
     steps:
       - name: Clone
@@ -195,7 +213,6 @@ jobs:
 
   ios:
     name: iOS
-    needs: get-version
     runs-on: macos-14
     steps:
       - name: Clone
@@ -229,7 +246,6 @@ jobs:
 
   linux:
     name: Linux (${{ matrix.arch }})
-    needs: get-version
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -292,7 +308,6 @@ jobs:
 
   linux-arm:
     name: Linux (${{ matrix.arch }})
-    needs: get-version
     runs-on: ubuntu-22.04-arm
     strategy:
       fail-fast: false
@@ -360,7 +375,6 @@ jobs:
 
   macos:
     name: macOS
-    needs: get-version
     runs-on: macos-14
     steps:
       - name: Clone
@@ -425,7 +439,6 @@ jobs:
 
   windows:
     name: Windows (${{ matrix.arch }})
-    needs: get-version
     runs-on: windows-2025
     strategy:
       fail-fast: false
@@ -491,7 +504,11 @@ jobs:
     name: Package Combined Archive
     runs-on: ubuntu-latest
     needs: [get-version, android, linux, linux-arm, windows]
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.get-version.outputs.skip_release != 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -539,7 +556,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [get-version, android, ios, linux, linux-arm, macos, windows, package-combined]
     permissions: write-all
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.get-version.outputs.skip_release != 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -573,9 +594,28 @@ jobs:
           echo "Release files:"
           ls -la release-files/
 
+      - name: Generate changelog since last tag
+        id: changelog
+        run: |
+          # Get the previous tag to compare against
+          PREV_TAG=$(git tag -l "beta-*" | sort -V | tail -1)
+          echo "Previous tag: $PREV_TAG"
+
+          if [ -z "$PREV_TAG" ]; then
+            # No previous tag - list all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%an)" | head -50)
+          else
+            # Commits since last tag
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%an)" | head -50)
+          fi
+
+          # Escape for GitHub output (multiline)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create and push tag
         run: |
-          VERSION="${{ needs.get-version.outputs.version }}"
           TAG="${{ needs.get-version.outputs.tag }}"
           echo "Creating tag $TAG"
           git config user.name "github-actions[bot]"
@@ -593,6 +633,11 @@ jobs:
           prerelease: true
           name: Fallout Fission Beta ${{ needs.get-version.outputs.version }}
           body: |
-            Automated beta build ${{ needs.get-version.outputs.version }}
-            
-            Built from ${{ github.ref_name }} — ${{ github.sha }}
+            ## Fallout Fission Beta ${{ needs.get-version.outputs.version }}
+
+            Built from `${{ github.ref_name }}` — `${{ github.sha }}`
+
+            ---
+            ## Changes since last release
+
+            ${{ steps.changelog.outputs.changelog }}
