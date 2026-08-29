@@ -60,6 +60,7 @@ int gameSoundExit();
 int gameSoundSetMasterVolume(int value);
 int gameSoundGetMasterVolume();
 int soundEffectsSetVolume(int value);
+int soundEffectsGetVolume();
 int backgroundSoundIsEnabled();
 void backgroundSoundSetVolume(int value);
 int backgroundSoundGetVolume();
@@ -78,6 +79,8 @@ int speechGetVolume();
 void speechSetEndCallback(SoundEndCallback* callback);
 int speechGetDuration();
 int speechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
+bool speechLoadFloat(const char* fileName, Object* speaker);
+double gameSoundCalcFloatClarity(Object* speaker);
 int _gsound_speech_play_preloaded();
 void speechDelete();
 int _gsound_play_sfx_file_volume(const char* name, int volume);
@@ -103,6 +106,8 @@ void _gsound_lrg_butt_release(int btn, int keyCode);
 int soundPlayFile(const char* name);
 int _gsound_sfx_q_start();
 int ambientSoundEffectEventProcess(Object* object, void* data);
+int gameSoundFindSpeechSoundPath(char* dest, const char* src);
+bool isWavFile(const char* path);
 
 } // namespace fallout
 
