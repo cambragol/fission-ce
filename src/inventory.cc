@@ -773,7 +773,6 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     if (settings.enhancements.strict_vanilla || !settings.enhancements.inventory_filter)
         return;
 
-    // Clear the filter bar rectangle using the correct background
     int oldFont = fontGetCurrent();
 
     // Determine bar height (max line height of the two fonts + padding)
@@ -782,8 +781,9 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     fontSetCurrent(106);
     int h106 = fontGetLineHeight();
     fontSetCurrent(oldFont);
-    int barHeight = (h101 > h106 ? h101 : h106) + 4; // +4 for safety
+    int barHeight = (h101 > h106 ? h101 : h106) + 4;
 
+    // Clear the filter bar rectangle using the correct background
     int bgFid = buildFid(OBJ_TYPE_INTERFACE, inventoryGetBackgroundFrm(gCurrentInvWindowType), 0, 0, 0);
     FrmImage bg;
     if (bg.lock(bgFid)) {
@@ -793,90 +793,112 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         int srcWidth = width;
         int srcHeight = barHeight;
 
-        // For trade window, the inventory window is a sub-region of the larger background.
+        // For trade window, offset source X
         if (gCurrentInvWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-            srcX += INVENTORY_TRADE_WINDOW_X; // 80
-            // Clamp to background bounds
-            if (srcX + srcWidth > bgPitch) srcWidth = bgPitch - srcX;
-            if (srcY + srcHeight > bg.getHeight()) srcHeight = bg.getHeight() - srcY;
+            srcX += INVENTORY_TRADE_WINDOW_X;
         }
+
+        if (srcX + srcWidth > bgPitch) srcWidth = bgPitch - srcX;
+        if (srcY + srcHeight > bg.getHeight()) srcHeight = bg.getHeight() - srcY;
 
         if (srcWidth > 0 && srcHeight > 0) {
             unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
             blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
-                dest + destPitch * y + x, destPitch);
+                               dest + destPitch * y + x, destPitch);
         }
         bg.unlock();
     }
 
-    // Draw the filter bar
-    const char* fullNames[] = { "Weap", "Ammo", "Drug", "Armo", "Misc" };
+    const char* fullNames[] = { "Weap", "Ammo", "Drug", "Gear", "Misc" };
     const char categoryIcons[] = { 'A', 'B', 'C', 'D', 'E' };
     const int numCategories = 5;
     const int spacing = 5;
     int available = width - (numCategories - 1) * spacing;
     if (available <= 0) {
-        fontSetCurrent(oldFont);
         return;
     }
     int perCategory = available / numCategories;
 
-    int startX = x + 2; // make this dynamic later to center menu in every inventory?
+    // Determine display mode for ALL categories (consistent style)
+    // Modes: 0 = brackets [Name], 1 = base name, 2 = 3-char abbrev, 3 = 2-char abbrev, 4 = icon
+    int mode = 0;
+
+    fontSetCurrent(101);
+    int maxBracketWidth = 0;
+    int maxBaseWidth = 0;
+    int max3CharWidth = 0;
+    int max2CharWidth = 0;
+
     for (int i = 0; i < numCategories; i++) {
-        const char* base = fullNames[i];
-        const char* label = base;
+        // Measure brackets
+        char bracketStr[32];
+        snprintf(bracketStr, sizeof(bracketStr), "[%s]", fullNames[i]);
+        int w = fontGetStringWidth(bracketStr);
+        if (w > maxBracketWidth) maxBracketWidth = w;
+
+        // Measure base name (4 chars)
+        int baseW = fontGetStringWidth(fullNames[i]);
+        if (baseW > maxBaseWidth) maxBaseWidth = baseW;
+
+        // Measure 3-char abbreviation (e.g., "Wea", "Amm", "Dru", "Gea", "Mis")
+        char three[16];
+        strncpy(three, fullNames[i], 3);
+        three[3] = '\0';
+        int w3 = fontGetStringWidth(three);
+        if (w3 > max3CharWidth) max3CharWidth = w3;
+
+        // Measure 2-char abbreviation (e.g., "We", "Am", "Dr", "Ge", "Mi")
+        char two[16];
+        strncpy(two, fullNames[i], 2);
+        two[2] = '\0';
+        int w2 = fontGetStringWidth(two);
+        if (w2 > max2CharWidth) max2CharWidth = w2;
+    }
+
+    // Decide mode (try from best to worst)
+    if (maxBracketWidth <= perCategory) {
+        mode = 0;
+    } else if (maxBaseWidth <= perCategory) {
+        mode = 1;
+    } else if (max3CharWidth <= perCategory) {
+        mode = 2;
+    } else if (max2CharWidth <= perCategory) {
+        mode = 3;
+    } else {
+        mode = 4; // icons
+    }
+
+    // Draw each category label
+    int startX = x + 2; // small left margin
+    for (int i = 0; i < numCategories; i++) {
+        const char* label = nullptr;
         char buffer[32];
-        bool useIcon = false; // flag to select font 106
+        bool useIcon = (mode == 4);
 
-        // All measurements use font 101
-        fontSetCurrent(101);
-
-        // Try brackets
-        strcpy(buffer, "[");
-        strcat(buffer, base);
-        strcat(buffer, "]");
-        if (fontGetStringWidth(buffer) <= perCategory) {
+        if (mode == 0) {
+            snprintf(buffer, sizeof(buffer), "[%s]", fullNames[i]);
+            label = buffer;
+        } else if (mode == 1) {
+            label = fullNames[i];
+        } else if (mode == 2) {
+            // 3-char
+            strncpy(buffer, fullNames[i], 3);
+            buffer[3] = '\0';
+            label = buffer;
+        } else if (mode == 3) {
+            // 2-char
+            strncpy(buffer, fullNames[i], 2);
+            buffer[2] = '\0';
+            label = buffer;
+        } else {
+            // mode 4: icon (single character)
+            buffer[0] = categoryIcons[i];
+            buffer[1] = '\0';
             label = buffer;
         }
-        // Try without brackets
-        else if (fontGetStringWidth(base) <= perCategory) {
-            label = base;
-        }
-        // Shorten progressively
-        else {
-            int len = strlen(base);
-            strcpy(buffer, base);
-            while (len > 0) {
-                buffer[len] = '\0';
-                if (fontGetStringWidth(buffer) <= perCategory) {
-                    label = buffer;
-                    // If we reduced to a single character, use the icon
-                    if (len == 1) {
-                        useIcon = true;
-                        buffer[0] = categoryIcons[i];
-                        buffer[1] = '\0';
-                        label = buffer;
-                    }
-                    break;
-                }
-                len--;
-            }
-            // If even one character doesn't fit, force icon
-            if (len == 0) {
-                useIcon = true;
-                buffer[0] = categoryIcons[i];
-                buffer[1] = '\0';
-                label = buffer;
-            }
-        }
 
-        // Set the correct font for drawing
-        if (useIcon) {
-            fontSetCurrent(106); // icon font
-        } else {
-            fontSetCurrent(101); // normal text font
-        }
-
+        int fontToUse = useIcon ? 106 : 101;
+        fontSetCurrent(fontToUse);
         int finalWidth = fontGetStringWidth(label);
         int offset = (perCategory - finalWidth) / 2;
         int drawX = startX + i * (perCategory + spacing) + offset;
@@ -889,7 +911,8 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         } else {
             color = _colorTable[COL_BRIGHT_LIME]; // normal
         }
-        fontDrawText(dest + destPitch * y + drawX, label, finalWidth,
+
+        fontDrawText(dest + destPitch * (y + 2) + drawX, label, finalWidth,
             destPitch, color);
     }
 
@@ -919,6 +942,30 @@ static void createFilterButtons(int win, int x, int y, int width, int baseKeyCod
             nullptr, nullptr, nullptr,
             BUTTON_FLAG_TRANSPARENT);
         (void)btn;
+    }
+}
+
+// Maps a keyboard key to a filter category index (0-4).
+// Returns -1 if the key is not a filter shortcut.
+static int inventoryKeyToFilterCategory(int keyCode) {
+    switch (keyCode) {
+        case KEY_UPPERCASE_W:
+        case KEY_LOWERCASE_W:
+            return 0; // Weapons
+        case KEY_UPPERCASE_A:
+        case KEY_LOWERCASE_A:
+            return 1; // Ammo
+        case KEY_UPPERCASE_D:
+        case KEY_LOWERCASE_D:
+            return 2; // Drugs
+        case KEY_UPPERCASE_G:
+        case KEY_LOWERCASE_G:
+            return 3; // Gear
+        case KEY_UPPERCASE_M:
+        case KEY_LOWERCASE_M:
+            return 4; // Misc
+        default:
+            return -1;
     }
 }
 
@@ -1311,6 +1358,7 @@ void inventoryOpen()
                 } else {
                     gFilterCategory = category;
                 }
+                soundPlayFile("ib1p1xx1");
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
                 inventoryRenderSummary();
                 windowRefresh(gInventoryWindow);
@@ -1354,6 +1402,21 @@ void inventoryOpen()
                         }
                     }
                 }
+            }
+        }
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            int filterCategory = inventoryKeyToFilterCategory(keyCode);
+            if (filterCategory != -1) {
+                if (gFilterCategory == filterCategory) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = filterCategory;
+                }
+                _stack_offset[_curr_stack] = 0;
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_NORMAL);
+                inventoryRenderSummary();
+                windowRefresh(gInventoryWindow);
             }
         }
 
@@ -3804,6 +3867,7 @@ void inventoryOpenUseItemOn(Object* targetObj)
                             gFilterCategory = category;
                         // Reset scroll offset
                         _stack_offset[_curr_stack] = 0;
+                        soundPlayFile("ib1p1xx1");
                         _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
                         windowRefresh(gInventoryWindow);
                     }
@@ -3856,6 +3920,20 @@ void inventoryOpenUseItemOn(Object* targetObj)
                             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
                         }
                     }
+                }
+            }
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                int filterCategory = inventoryKeyToFilterCategory(keyCode);
+                if (filterCategory != -1) {
+                    if (gFilterCategory == filterCategory) {
+                        gFilterCategory = -1;
+                    } else {
+                        gFilterCategory = filterCategory;
+                    }
+                    _stack_offset[_curr_stack] = 0;
+                    soundPlayFile("ib1p1xx1");
+                    _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
+                    windowRefresh(gInventoryWindow);
                 }
             }
         }
@@ -7036,6 +7114,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 _stack_offset[_curr_stack] = 0;
                 _target_stack_offset[_target_curr_stack] = 0;
                 // Refresh both panels
+                soundPlayFile("ib1p1xx1");
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
                 _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
                 // Refresh character bodies
@@ -7139,6 +7218,22 @@ int inventoryOpenLooting(Object* looter, Object* target)
                         }
                     }
                 }
+            }
+        }
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            int filterCategory = inventoryKeyToFilterCategory(keyCode);
+            if (filterCategory != -1) {
+                if (gFilterCategory == filterCategory) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = filterCategory;
+                }
+                _stack_offset[_curr_stack] = 0;
+                _target_stack_offset[_target_curr_stack] = 0;
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_LOOT);
+                _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
+                windowRefresh(gInventoryWindow);
             }
         }
 
@@ -8042,6 +8137,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 _target_stack_offset[_target_curr_stack] = 0;
 
                 // Refresh both outer inventories
+                soundPlayFile("ib1p1xx1");
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
                 _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
 
@@ -8278,6 +8374,23 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                     }
                 }
             }
+        }
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                int filterCategory = inventoryKeyToFilterCategory(keyCode);
+                if (filterCategory != -1) {
+                    if (gFilterCategory == filterCategory) {
+                        gFilterCategory = -1;
+                    } else {
+                        gFilterCategory = filterCategory;
+                    }
+                    _stack_offset[_curr_stack] = 0;
+                    _target_stack_offset[_target_curr_stack] = 0;
+                    soundPlayFile("ib1p1xx1");
+                    _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_TRADE);
+                    _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
+                    inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
+                    windowRefresh(gInventoryWindow);
+                }
         }
 
         renderPresent();
