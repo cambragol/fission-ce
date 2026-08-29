@@ -692,7 +692,8 @@ static int buildFilteredIndices(Inventory* inventory)
     return count;
 }
 
-static void inventoryRefreshBodies(int inventoryWindowType) {
+static void inventoryRefreshBodies(int inventoryWindowType)
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.display_weight)
         return;
@@ -712,23 +713,25 @@ static void inventoryRefreshBodies(int inventoryWindowType) {
 }
 
 // Returns the background FRM ID for the given inventory window type.
-static int inventoryGetBackgroundFrm(int windowType) {
+static int inventoryGetBackgroundFrm(int windowType)
+{
     switch (windowType) {
-        case INVENTORY_WINDOW_TYPE_NORMAL:
-            return gCurrentInventoryBackgroundFrm;
-        case INVENTORY_WINDOW_TYPE_LOOT:
-            return gCurrentLootBackgroundFrm;
-        case INVENTORY_WINDOW_TYPE_USE_ITEM_ON:
-            return 113;
-        case INVENTORY_WINDOW_TYPE_TRADE:
-            return gGameDialogSpeakerIsPartyMember ? 420 : 111;
-        default:
-            return 48; // fallback (should never happen)
+    case INVENTORY_WINDOW_TYPE_NORMAL:
+        return gCurrentInventoryBackgroundFrm;
+    case INVENTORY_WINDOW_TYPE_LOOT:
+        return gCurrentLootBackgroundFrm;
+    case INVENTORY_WINDOW_TYPE_USE_ITEM_ON:
+        return 113;
+    case INVENTORY_WINDOW_TYPE_TRADE:
+        return gGameDialogSpeakerIsPartyMember ? 420 : 111;
+    default:
+        return 48; // fallback (should never happen)
     }
 }
 
 // Draw weight/capacity info centered under the portrait.
-static void inventoryDrawWeightInfo(unsigned char* dest, int pitch, int x, int y, Object* obj) {
+static void inventoryDrawWeightInfo(unsigned char* dest, int pitch, int x, int y, Object* obj)
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.display_weight)
         return;
@@ -801,7 +804,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         if (srcWidth > 0 && srcHeight > 0) {
             unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
             blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
-                            dest + destPitch * y + x, destPitch);
+                dest + destPitch * y + x, destPitch);
         }
         bg.unlock();
     }
@@ -2826,7 +2829,6 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
-
 }
 
 // Renders inventory item quantity.
