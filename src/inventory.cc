@@ -804,7 +804,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
         if (srcWidth > 0 && srcHeight > 0) {
             unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
             blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
-                               dest + destPitch * y + x, destPitch);
+                dest + destPitch * y + x, destPitch);
         }
         bg.unlock();
     }
@@ -947,25 +947,26 @@ static void createFilterButtons(int win, int x, int y, int width, int baseKeyCod
 
 // Maps a keyboard key to a filter category index (0-4).
 // Returns -1 if the key is not a filter shortcut.
-static int inventoryKeyToFilterCategory(int keyCode) {
+static int inventoryKeyToFilterCategory(int keyCode)
+{
     switch (keyCode) {
-        case KEY_UPPERCASE_W:
-        case KEY_LOWERCASE_W:
-            return 0; // Weapons
-        case KEY_UPPERCASE_A:
-        case KEY_LOWERCASE_A:
-            return 1; // Ammo
-        case KEY_UPPERCASE_D:
-        case KEY_LOWERCASE_D:
-            return 2; // Drugs
-        case KEY_UPPERCASE_G:
-        case KEY_LOWERCASE_G:
-            return 3; // Gear
-        case KEY_UPPERCASE_M:
-        case KEY_LOWERCASE_M:
-            return 4; // Misc
-        default:
-            return -1;
+    case KEY_UPPERCASE_W:
+    case KEY_LOWERCASE_W:
+        return 0; // Weapons
+    case KEY_UPPERCASE_A:
+    case KEY_LOWERCASE_A:
+        return 1; // Ammo
+    case KEY_UPPERCASE_D:
+    case KEY_LOWERCASE_D:
+        return 2; // Drugs
+    case KEY_UPPERCASE_G:
+    case KEY_LOWERCASE_G:
+        return 3; // Gear
+    case KEY_UPPERCASE_M:
+    case KEY_LOWERCASE_M:
+        return 4; // Misc
+    default:
+        return -1;
     }
 }
 
@@ -8376,21 +8377,21 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
             }
         }
         if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int filterCategory = inventoryKeyToFilterCategory(keyCode);
-                if (filterCategory != -1) {
-                    if (gFilterCategory == filterCategory) {
-                        gFilterCategory = -1;
-                    } else {
-                        gFilterCategory = filterCategory;
-                    }
-                    _stack_offset[_curr_stack] = 0;
-                    _target_stack_offset[_target_curr_stack] = 0;
-                    soundPlayFile("ib1p1xx1");
-                    _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_TRADE);
-                    _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
-                    inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
-                    windowRefresh(gInventoryWindow);
+            int filterCategory = inventoryKeyToFilterCategory(keyCode);
+            if (filterCategory != -1) {
+                if (gFilterCategory == filterCategory) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = filterCategory;
                 }
+                _stack_offset[_curr_stack] = 0;
+                _target_stack_offset[_target_curr_stack] = 0;
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_TRADE);
+                _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
+                inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
+                windowRefresh(gInventoryWindow);
+            }
         }
 
         renderPresent();
