@@ -689,11 +689,14 @@ int lsgSaveGame(int mode)
     case SLOT_STATE_EMPTY:
     case SLOT_STATE_ERROR:
     case SLOT_STATE_UNSUPPORTED_VERSION:
-        blitBufferToBuffer(_snapshotBuf,
-            gOffsets.previewWidth - 1,
-            gOffsets.previewHeight - 1,
-            gOffsets.previewWidth,
+        blitBufferToBufferStretch(
+            _snapshotBuf,
+            LS_PREVIEW_WIDTH - 1,
+            LS_PREVIEW_HEIGHT - 1,
+            LS_PREVIEW_WIDTH,
             gLoadSaveWindowBuffer + gOffsets.windowWidth * gOffsets.previewY + gOffsets.previewX,
+            gOffsets.previewWidth,
+            gOffsets.previewHeight,
             gOffsets.windowWidth);
         break;
     default:
@@ -1887,33 +1890,33 @@ static int lsgWindowInit(int windowType)
 
     // Handle preview snapshot capture
     if (windowType == LOAD_SAVE_WINDOW_TYPE_SAVE_GAME || windowType == LOAD_SAVE_WINDOW_TYPE_PICK_QUICK_SAVE_SLOT) {
-
         bool gameMouseWasVisible = gameMouseObjectsIsVisible();
-        if (gameMouseWasVisible) {
-            gameMouseObjectsHide();
-        }
-
+        if (gameMouseWasVisible) gameMouseObjectsHide();
         mouseHideCursor();
         tileWindowRefresh();
         mouseShowCursor();
+        if (gameMouseWasVisible) gameMouseObjectsShow();
 
-        if (gameMouseWasVisible) {
-            gameMouseObjectsShow();
-        }
-
-        // Capture preview using loaded preview dimensions
         Window* window = windowGetWindow(gIsoWindow);
-        unsigned char* isoWindowBuffer = window->buffer
-            + window->width * (window->height - ORIGINAL_ISO_WINDOW_HEIGHT) / 2
-            + (window->width - ORIGINAL_ISO_WINDOW_WIDTH) / 2;
-        blitBufferToBufferStretch(isoWindowBuffer,
-            ORIGINAL_ISO_WINDOW_WIDTH,
-            ORIGINAL_ISO_WINDOW_HEIGHT,
-            windowGetWidth(gIsoWindow),
-            _snapshotBuf,
-            LS_PREVIEW_WIDTH,
-            LS_PREVIEW_HEIGHT,
-            LS_PREVIEW_WIDTH);
+        int winWidth = window->width;
+        int winHeight = window->height;
+        unsigned char* winBuf = window->buffer;
+
+        // Offset to the 640x480 game area
+        int offY = (winHeight - ORIGINAL_ISO_WINDOW_HEIGHT) / 2;
+        int offX = (winWidth - ORIGINAL_ISO_WINDOW_WIDTH) / 2;
+        unsigned char* srcStart = winBuf + offY * winWidth + offX;
+
+        // Shrink directly to _snapshotBuf (224x133) using nearest?neighbor
+        for (int destY = 0; destY < LS_PREVIEW_HEIGHT; destY++) {
+            int srcY = (destY * ORIGINAL_ISO_WINDOW_HEIGHT) / LS_PREVIEW_HEIGHT;
+            unsigned char* srcRow = srcStart + srcY * winWidth;
+            unsigned char* destRow = _snapshotBuf + destY * LS_PREVIEW_WIDTH;
+            for (int destX = 0; destX < LS_PREVIEW_WIDTH; destX++) {
+                int srcX = (destX * ORIGINAL_ISO_WINDOW_WIDTH) / LS_PREVIEW_WIDTH;
+                destRow[destX] = srcRow[srcX];
+            }
+        }
     }
 
     // Load interface images
@@ -2938,9 +2941,7 @@ static int _LoadTumbSlot(int slot)
             return -1;
         }
 
-        // Use dynamic preview size
-        int previewSize = gOffsets.previewWidth * gOffsets.previewHeight;
-        if (fileRead(_thumbnail_image, previewSize, 1, stream) != 1) {
+        if (fileRead(_thumbnail_image, LS_PREVIEW_SIZE, 1, stream) != 1) {
             debugPrint("\nLOADSAVE: ** (C) Error reading thumbnail #%d! **\n", slot);
             fileClose(stream);
             return -1;

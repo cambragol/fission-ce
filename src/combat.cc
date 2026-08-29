@@ -4278,7 +4278,11 @@ static int attackComputeCriticalFailure(Attack* attack)
         attackComputeDamage(attack, 1, 2);
     }
 
-    if ((attack->attackerFlags & DAM_LOSE_TURN) != 0) {
+    if ((attack->attackerFlags & DAM_HURT_SELF) != DAM_NONE) {
+        attack->attackerDamage += randomBetween(1, 5);
+    }
+
+    if ((attack->attackerFlags & DAM_LOSE_TURN) != DAM_NONE) {
         attack->attacker->data.critter.combat.ap = 0;
     }
 

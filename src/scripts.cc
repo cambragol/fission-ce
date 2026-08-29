@@ -1,6 +1,7 @@
 #include "scripts.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,7 @@
 #include "game_dialog.h"
 #include "game_mouse.h"
 #include "game_movie.h"
+#include "game_sound.h"
 #include "input.h"
 #include "memory.h"
 #include "message.h"
@@ -30,6 +32,7 @@
 #include "proto.h"
 #include "proto_instance.h"
 #include "queue.h"
+#include "random.h"
 #include "scan_unimplemented.h"
 #include "settings.h"
 #include "sfall_arrays.h"
@@ -3177,10 +3180,72 @@ char* _scr_get_msg_str(int messageListId, int messageId)
     return _scr_get_msg_str_speech(messageListId, messageId, 0);
 }
 
+// FISSION-VOCK ADD: [vock-floats] TextScramble opt-in -- replaces roughly
+// (1.0 - clarity) of the alphabetic characters in a float's text with
+// noise, leaving spacing/punctuation untouched so word boundaries stay
+// visible even when heavily garbled. clarity comes from
+// gameSoundCalcFloatClarity(), which shares its falloff/obstruction shape
+// with the float's audio but ramps over its own independent range (see
+// TextScrambleDistancePerPerception in sfall_config.h).
+//
+// Called from opFloatMessage() (interpreter_extra.cc) -- the float_msg
+// opcode -- not from _scr_get_msg_str_speech()/message_str() below.
+// message_str() is a generic string lookup every script calls for every
+// purpose (dialogue text, look-at/examine descriptions via display_msg(),
+// building strings never displayed at all), so it can't tell whether its
+// result is about to become a floating bubble. float_msg() is the one
+// place that's unambiguous: it's called with the exact object the text
+// will float over, right before textObjectAdd() puts it on screen.
+// Scrambling used to happen at message_str() time instead, gated only on
+// "not the active dialogue's own line" -- which incorrectly scrambled any
+// non-dialogue message_str() call, including plain look-at text printed to
+// the console, since that's *also* "not the active dialogue's own line."
+//
+// Non-static (unlike its neighbors here) so interpreter_extra.cc can call
+// it directly -- see scripts.h.
+//
+// Writes into a static scratch buffer rather than mutating the caller's
+// string in place, since float_msg()'s string may be program-owned string
+// table storage, not a copy safe to overwrite.
+char* _scr_scramble_float_text(const char* text, double clarity)
+{
+    static char scrambled[MESSAGE_LIST_ITEM_FIELD_MAX_SIZE];
+
+    // [vock-floats] TextScrambleChars in game.cfg -- falls back to the
+    // built-in pool if left empty, since an empty pool would leave nothing
+    // for randomBetween() below to index into.
+    const char* noise = settings.mod_settings.float_text_scramble_chars.c_str();
+    int noiseLength = (int)strlen(noise);
+    if (noiseLength == 0) {
+        noise = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
+        noiseLength = (int)strlen(noise);
+    }
+
+    int garbleChance = (int)((1.0 - clarity) * 100.0);
+
+    size_t length = strlen(text);
+    if (length >= sizeof(scrambled)) {
+        length = sizeof(scrambled) - 1;
+    }
+
+    for (size_t i = 0; i < length; i++) {
+        char c = text[i];
+        if (isalpha((unsigned char)c) && randomBetween(1, 100) <= garbleChance) {
+            scrambled[i] = noise[randomBetween(0, noiseLength - 1)];
+        } else {
+            scrambled[i] = c;
+        }
+    }
+    scrambled[length] = '\0';
+
+    return scrambled;
+}
+
 // message_str
 // 0x4A6C5C
-char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
+char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* speaker)
 {
+    bool isDialogueOwner = speaker != nullptr && speaker == gGameDialogSpeaker;
     if (messageListId == 0 && messageId == 0) {
         return _blank_str;
     }
@@ -3200,9 +3265,15 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
         return nullptr;
     }
 
-    if (FID_TYPE(gGameDialogHeadFid) != OBJ_TYPE_HEAD) {
-        a3 = 0;
-    }
+    // FISSION-VOCK FIX: This used to unconditionally force a3 (the "also play speech"
+    // flag) to 0 whenever gGameDialogHeadFid wasn't a head fid, which is the
+    // case for any message_str()/mstr() call outside of a real dialogue
+    // window (float_msg, combat, timed_event_p_proc, talk_p_proc-only
+    // flavor NPCs, etc), even though gGameDialogHeadFid has nothing to do
+    // with whether the caller wants audio -- it only matters for whether we
+    // can lip-sync against a head on screen. That distinction is now
+    // handled below via gameDialogWindowActive(), so non-dialog speech (e.g.
+    // voiced floats) is no longer silently dropped here.
 
     MessageListItem messageListItem;
     messageListItem.num = messageId;
@@ -3211,18 +3282,91 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3)
         return _err_str;
     }
 
+    // FISSION-VOCK FIX: gameDialogWindowActive() only tells us *some* dialogue window
+    // is open right now -- it says nothing about whether *this* message
+    // belongs to that dialogue. A window can be open with NPC Y while an
+    // unrelated script (critter X's combat_p_proc, a timed_event_p_proc,
+    // etc) calls message_str()/mstr() for its own, unrelated line in the
+    // same tick. Without this check that unrelated line took the "always
+    // voice + lip-sync against gGameDialogHeadFid" branch below regardless
+    // of [enhancements] VockFloats, and lip-synced the wrong head besides. Only
+    // the script that actually owns the open dialogue (gGameDialogSpeaker)
+    // should bypass the VockFloats gate; every other caller -- including
+    // ones that happen to run while some other NPC's window is open -- is a
+    // float and must go through the gated branch like any other.
+    bool inOwnDialogue = gameDialogWindowActive() && isDialogueOwner;
+
+    // FISSION-VOCK ADD: [enhancements] VockFloats is the master switch for the
+    // whole float-enhancement subsystem below (voiced audio, censor bleep,
+    // distance text scramble). The individual toggles it gates --
+    // VoicedFloats, CensorBleep, TextScramble -- live in game.cfg
+    // [vock-floats] and are independent of each other: none of them implies
+    // any other. inOwnDialogue lines never consult this gate at all, since a
+    // real dialogue window's own line is always fully voiced/lip-synced.
+    bool vockFloatsGateOpen = settings.enhancements.vock_floats && !settings.enhancements.strict_vanilla;
+
     if (a3) {
-        if (_gdialogActive()) {
-            if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
-                if (messageListItem.flags & 0x01) {
+        if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
+            if (messageListItem.flags & 0x01) {
+                // Line text was badword-filtered: audio would not match what
+                // is displayed, so bleep instead of playing the real line,
+                // same as the in-dialog case below.
+                if (inOwnDialogue) {
                     gameDialogStartLips(nullptr);
-                } else {
-                    gameDialogStartLips(messageListItem.audio);
+                } else if (vockFloatsGateOpen && settings.mod_settings.float_censor_bleep) {
+                    // FISSION-VOCK FIX: gated on CensorBleep specifically, not
+                    // VoicedFloats -- a filtered line never plays its real
+                    // audio either way, so whether it bleeps instead is its
+                    // own decision, independent of whether clean floats are
+                    // voiced at all.
+                    soundPlayFile("censor");
                 }
-            } else {
-                debugPrint("Missing speech name: %d\n", messageListItem.num);
+            } else if (inOwnDialogue) {
+                // FISSION-VOCK FIX: this used to check _gdialogActive(), which is true
+                // for the whole duration of talk_p_proc even when the script
+                // never opens a real dialogue window (e.g. simple flavor
+                // NPCs whose talk_p_proc is just a float_msg()/message_str()
+                // and a return -- see aceric.ssl's Node001/Node002). In that
+                // case gGameDialogHeadFid is stale/invalid, so attempting
+                // gameDialogStartLips() below would try to lip-sync against
+                // a nonexistent head and fail (lipsLoad() finding no .LIP
+                // file and mishandling it as "out of memory"). Checking
+                // gameDialogWindowActive() instead (_gdialog_state ==
+                // GAME_DIALOG_ACTIVE) only takes this branch when
+                // start_gdialog() has actually created a window with a real
+                // head to lip-sync against.
+                gameDialogStartLips(messageListItem.audio);
+            } else if (vockFloatsGateOpen && settings.mod_settings.voiced_floats) {
+                // FISSION-VOCK FIX: message_str()/mstr() is also called from outside
+                // gdialog (float_msg, combat, timed_event_p_proc, etc), or
+                // from a script that isn't the one whose window is currently
+                // open (see inOwnDialogue above). There is no head window to
+                // lip-sync in that case, but the voice
+                // file still exists and should be heard. Previously this
+                // branch did nothing, so floats and other non-dialog lines
+                // always played silently even when a voice file was present.
+                // Play it as plain speech, no lip-sync. Volume (tied to
+                // the Sound Effects Volume Preferences slider, scaled by
+                // distance/Perception, and kept live-updated as the player
+                // moves) is computed inside speechLoadFloat() -- see its
+                // comment and _gsound_calc_float_volume() in game_sound.cc.
+                //
+                // FISSION-VOCK FIX: speechLoadFloat() plays from its own pool of slots
+                // instead of the single gSpeechSound dialogue uses (see
+                // speechLoadFloat()'s comment in game_sound.cc), so floats
+                // from different NPCs -- e.g. combat barks from two critters
+                // at once -- no longer cut each other off.
+                speechLoadFloat(messageListItem.audio, speaker);
             }
+        } else {
+            debugPrint("Missing speech name: %d\n", messageListItem.num);
         }
+
+        // FISSION-VOCK FIX: [vock-floats] TextScramble no longer applies here --
+        // message_str() is a generic lookup, not specifically for floats
+        // (see opFloatMessage() in interpreter_extra.cc, which is where
+        // scrambling now happens, and _scr_scramble_float_text()'s comment
+        // in this file for why the move was needed).
     }
 
     return messageListItem.text;

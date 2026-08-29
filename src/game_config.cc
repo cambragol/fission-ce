@@ -163,6 +163,13 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, false);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GREEN_MONOCHROME, false);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, false);
+    // FISSION-VOCK ADD: master on/off for the whole float-enhancement subsystem
+    // (voiced floats, censor bleep, distance text scramble -- see the
+    // [vock-floats] keys in game.cfg for the individual toggles). Volume for
+    // voiced floats is tied to [sound] sndfx_volume rather than its own
+    // setting -- see _scr_get_msg_str_speech()/speechLoadFloat() in
+    // scripts.cc/game_sound.cc.
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, false);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");
