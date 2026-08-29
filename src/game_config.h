@@ -117,6 +117,7 @@ namespace fallout {
 #define GAME_CONFIG_MULTI_COLUMN_INVENTORY "InventoryColumns"
 #define GAME_CONFIG_NPC_ARMOR "NpcArmor"
 #define GAME_CONFIG_GREEN_MONOCHROME "GreenScreens"
+#define GAME_CONFIG_INVENTORY_FILTER "InventoryFilter"
 
 #define ENGLISH "english"
 #define FRENCH "french"

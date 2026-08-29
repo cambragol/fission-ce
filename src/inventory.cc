@@ -693,6 +693,9 @@ static int buildFilteredIndices(Inventory* inventory)
 static void drawFilterBar(unsigned char* dest, int destPitch,
     int x, int y, int width)
 {
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.inventory_filter)
+        return;
+
     // Clear the filter bar rectangle using the correct background
     int oldFont = fontGetCurrent();
 
@@ -860,7 +863,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
 static void createFilterButtons(int win, int x, int y, int width, int baseKeyCode)
 {
-    if (settings.enhancements.strict_vanilla)
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.inventory_filter)
         return;
 
     const int numCategories = 5;
@@ -1244,15 +1247,17 @@ void inventoryOpen()
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
             }
         } else if (keyCode >= 8000 && keyCode <= 8004) {
-            int category = keyCode - 8000;
-            if (gFilterCategory == category) {
-                gFilterCategory = -1; // toggle off if already active
-            } else {
-                gFilterCategory = category;
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                int category = keyCode - 8000;
+                if (gFilterCategory == category) {
+                    gFilterCategory = -1; // toggle off if already active
+                } else {
+                    gFilterCategory = category;
+                }
+                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+                inventoryRenderSummary();
+                windowRefresh(gInventoryWindow);
             }
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-            inventoryRenderSummary();
-            windowRefresh(gInventoryWindow);
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
@@ -3804,15 +3809,17 @@ void inventoryOpenUseItemOn(Object* targetObj)
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
                 if (keyCode >= 8000 && keyCode <= 8004) {
-                    int category = keyCode - 8000;
-                    if (gFilterCategory == category)
-                        gFilterCategory = -1;
-                    else
-                        gFilterCategory = category;
-                    // Reset scroll offset
-                    _stack_offset[_curr_stack] = 0;
-                    _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
-                    windowRefresh(gInventoryWindow);
+                    if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                        int category = keyCode - 8000;
+                        if (gFilterCategory == category)
+                            gFilterCategory = -1;
+                        else
+                            gFilterCategory = category;
+                        // Reset scroll offset
+                        _stack_offset[_curr_stack] = 0;
+                        _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
+                        windowRefresh(gInventoryWindow);
+                    }
                 }
                 if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
@@ -7030,25 +7037,27 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
             }
         } else if (keyCode >= 8000 && keyCode <= 8004) {
-            // Toggle filter
-            int category = keyCode - 8000;
-            if (gFilterCategory == category) {
-                gFilterCategory = -1;
-            } else {
-                gFilterCategory = category;
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                // Toggle filter
+                int category = keyCode - 8000;
+                if (gFilterCategory == category) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = category;
+                }
+                // Reset scroll offsets for both panels
+                _stack_offset[_curr_stack] = 0;
+                _target_stack_offset[_target_curr_stack] = 0;
+                // Refresh both panels
+                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
+                _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
+                // Refresh character bodies
+                _display_body(-1, INVENTORY_WINDOW_TYPE_LOOT);
+                if (_target_stack[_target_curr_stack] != nullptr) {
+                    _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_LOOT);
+                }
+                windowRefresh(gInventoryWindow);
             }
-            // Reset scroll offsets for both panels
-            _stack_offset[_curr_stack] = 0;
-            _target_stack_offset[_target_curr_stack] = 0;
-            // Refresh both panels
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
-            _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
-            // Refresh character bodies
-            _display_body(-1, INVENTORY_WINDOW_TYPE_LOOT);
-            if (_target_stack[_target_curr_stack] != nullptr) {
-                _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_LOOT);
-            }
-            windowRefresh(gInventoryWindow);
         } else {
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
@@ -8031,23 +8040,25 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
 
         // Filter keyCode handling
         if (keyCode >= 8000 && keyCode <= 8004) {
-            int category = keyCode - 8000;
-            if (gFilterCategory == category)
-                gFilterCategory = -1;
-            else
-                gFilterCategory = category;
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                int category = keyCode - 8000;
+                if (gFilterCategory == category)
+                    gFilterCategory = -1;
+                else
+                    gFilterCategory = category;
 
-            // Reset scroll offsets
-            _stack_offset[_curr_stack] = 0;
-            _target_stack_offset[_target_curr_stack] = 0;
+                // Reset scroll offsets
+                _stack_offset[_curr_stack] = 0;
+                _target_stack_offset[_target_curr_stack] = 0;
 
-            // Refresh both outer inventories
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
-            _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
+                // Refresh both outer inventories
+                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
+                _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
 
-            // The inner offer tables are not filtered, so they don't need redrawing.
-            windowRefresh(gInventoryWindow);
-            continue;
+                // The inner offer tables are not filtered, so they don't need redrawing.
+                windowRefresh(gInventoryWindow);
+                continue;
+            }
         }
 
         if (keyCode == KEY_LOWERCASE_T || modifier <= -30) {
