@@ -153,6 +153,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, settings.enhancements.npc_armor);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GREEN_MONOCHROME, settings.enhancements.green_monochrome);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, settings.enhancements.inventory_filter);
+    settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, settings.enhancements.display_weight);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, settings.enhancements.vock_floats);
 }
 
@@ -360,6 +361,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, settings.enhancements.npc_armor);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GREEN_MONOCHROME, settings.enhancements.green_monochrome);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, settings.enhancements.inventory_filter);
+    settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, settings.enhancements.display_weight);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, settings.enhancements.vock_floats);
 
     // Mod Settings

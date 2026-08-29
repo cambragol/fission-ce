@@ -692,6 +692,78 @@ static int buildFilteredIndices(Inventory* inventory)
     return count;
 }
 
+static void inventoryRefreshBodies(int inventoryWindowType) {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.display_weight)
+        return;
+
+    _display_body(-1, inventoryWindowType);
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT || inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        Object* target = nullptr;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            target = _target_stack[_target_curr_stack];
+        } else { // TRADE
+            target = _target_stack[0];
+        }
+        if (target != nullptr) {
+            _display_body(target->fid, inventoryWindowType);
+        }
+    }
+}
+
+// Returns the background FRM ID for the given inventory window type.
+static int inventoryGetBackgroundFrm(int windowType) {
+    switch (windowType) {
+        case INVENTORY_WINDOW_TYPE_NORMAL:
+            return gCurrentInventoryBackgroundFrm;
+        case INVENTORY_WINDOW_TYPE_LOOT:
+            return gCurrentLootBackgroundFrm;
+        case INVENTORY_WINDOW_TYPE_USE_ITEM_ON:
+            return 113;
+        case INVENTORY_WINDOW_TYPE_TRADE:
+            return gGameDialogSpeakerIsPartyMember ? 420 : 111;
+        default:
+            return 48; // fallback (should never happen)
+    }
+}
+
+// Draw weight/capacity info centered under the portrait.
+static void inventoryDrawWeightInfo(unsigned char* dest, int pitch, int x, int y, Object* obj) {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.display_weight)
+        return;
+
+    char formattedText[20];
+    formattedText[0] = '\0';
+
+    int oldFont = fontGetCurrent();
+    fontSetCurrent(101);
+
+    int color = _colorTable[COL_LIME_GREEN];
+    if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
+        int cur = objectGetInventoryWeight(obj);
+        int max = critterGetStat(obj, STAT_CARRY_WEIGHT);
+        snprintf(formattedText, sizeof(formattedText), "%d/%d", cur, max);
+        if (critterIsEncumbered(obj)) {
+            color = _colorTable[COL_PURE_RED];
+        }
+    } else if (PID_TYPE(obj->pid) == OBJ_TYPE_ITEM && itemGetType(obj) == ITEM_TYPE_CONTAINER) {
+        int cur = containerGetTotalSize(obj);
+        int max = containerGetMaxSize(obj);
+        snprintf(formattedText, sizeof(formattedText), "%d/%d", cur, max);
+    } else {
+        int weight = objectGetInventoryWeight(obj);
+        snprintf(formattedText, sizeof(formattedText), "%d", weight);
+    }
+
+    // Draw centered text (overlays the portrait)
+    int textWidth = fontGetStringWidth(formattedText);
+    int textX = x + (INVENTORY_BODY_VIEW_WIDTH - textWidth) / 2;
+    fontDrawText(dest + pitch * y + textX, formattedText, textWidth, pitch, color);
+
+    fontSetCurrent(oldFont);
+}
+
 static void drawFilterBar(unsigned char* dest, int destPitch,
     int x, int y, int width)
 {
@@ -709,71 +781,29 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
     fontSetCurrent(oldFont);
     int barHeight = (h101 > h106 ? h101 : h106) + 4; // +4 for safety
 
-    // Clear based on the current window type
-    switch (gCurrentInvWindowType) {
-    case INVENTORY_WINDOW_TYPE_NORMAL: {
-        FrmImage bg;
-        int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
-        if (bg.lock(bgFid)) {
-            int bgPitch = bg.getWidth();
-            // No shift: background and window share the same coordinate system
-            unsigned char* src = bg.getData() + bgPitch * y + x;
-            blitBufferToBuffer(src, width, barHeight, bgPitch,
-                dest + destPitch * y + x, destPitch);
-            bg.unlock();
-        }
-        break;
-    }
-    case INVENTORY_WINDOW_TYPE_LOOT: {
-        FrmImage bg;
-        int bgFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
-        if (bg.lock(bgFid)) {
-            int bgPitch = bg.getWidth();
-            unsigned char* src = bg.getData() + bgPitch * y + x;
-            blitBufferToBuffer(src, width, barHeight, bgPitch,
-                dest + destPitch * y + x, destPitch);
-            bg.unlock();
-        }
-        break;
-    }
-    case INVENTORY_WINDOW_TYPE_USE_ITEM_ON: {
-        FrmImage bg;
-        int bgFid = buildFid(OBJ_TYPE_INTERFACE, 113, 0, 0, 0);
-        if (bg.lock(bgFid)) {
-            int bgPitch = bg.getWidth();
-            unsigned char* src = bg.getData() + bgPitch * y + x;
-            blitBufferToBuffer(src, width, barHeight, bgPitch,
-                dest + destPitch * y + x, destPitch);
-            bg.unlock();
-        }
-        break;
-    }
-    case INVENTORY_WINDOW_TYPE_TRADE: {
-        int frmId = gGameDialogSpeakerIsPartyMember ? 420 : 111;
-        FrmImage bg;
-        int bgFid = buildFid(OBJ_TYPE_INTERFACE, frmId, 0, 0, 0);
-        if (bg.lock(bgFid)) {
-            int bgPitch = bg.getWidth();
-            int srcX = x + INVENTORY_TRADE_WINDOW_X; // 80
-            int srcY = y; // y is relative to the trade window
-            int srcWidth = width;
-            int srcHeight = 12; // font 106 height
+    int bgFid = buildFid(OBJ_TYPE_INTERFACE, inventoryGetBackgroundFrm(gCurrentInvWindowType), 0, 0, 0);
+    FrmImage bg;
+    if (bg.lock(bgFid)) {
+        int bgPitch = bg.getWidth();
+        int srcX = x;
+        int srcY = y;
+        int srcWidth = width;
+        int srcHeight = barHeight;
 
-            // Clamp
+        // For trade window, the inventory window is a sub-region of the larger background.
+        if (gCurrentInvWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+            srcX += INVENTORY_TRADE_WINDOW_X; // 80
+            // Clamp to background bounds
             if (srcX + srcWidth > bgPitch) srcWidth = bgPitch - srcX;
             if (srcY + srcHeight > bg.getHeight()) srcHeight = bg.getHeight() - srcY;
-
-            if (srcWidth > 0 && srcHeight > 0) {
-                unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
-                blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
-                    dest + destPitch * y + x, destPitch);
-            }
-            bg.unlock();
         }
-        break;
-    }
-    default:
-        break;
+
+        if (srcWidth > 0 && srcHeight > 0) {
+            unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
+            blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
+                            dest + destPitch * y + x, destPitch);
+        }
+        bg.unlock();
     }
 
     // Draw the filter bar
@@ -2674,45 +2704,6 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         }
     }
 
-    // CE: Show items weight.
-    /*if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-        char formattedText[20];
-
-        int oldFont = fontGetCurrent();
-        fontSetCurrent(101);
-
-        FrmImage backgroundFrm;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
-        if (backgroundFrm.lock(backgroundFid)) {
-            int x = INVENTORY_LOOT_LEFT_SCROLLER_X;
-            int y = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2 + 16;
-            blitBufferToBuffer(backgroundFrm.getData() + pitch * y + x, INVENTORY_SLOT_WIDTH, fontGetLineHeight(), pitch, windowBuffer + pitch * y + x, pitch);
-        }
-
-        Object* object = _stack[0];
-
-        int color = _colorTable[COL_LIME_GREEN];
-        if (PID_TYPE(object->pid) == OBJ_TYPE_CRITTER) {
-            int carryWeight = critterGetStat(object, STAT_CARRY_WEIGHT);
-            int inventoryWeight = objectGetInventoryWeight(object);
-            snprintf(formattedText, sizeof(formattedText), "%d/%d", inventoryWeight, carryWeight);
-
-            if (critterIsEncumbered(object)) {
-                color = _colorTable[COL_PURE_RED];
-            }
-        } else {
-            int inventoryWeight = objectGetInventoryWeight(object);
-            snprintf(formattedText, sizeof(formattedText), "%d", inventoryWeight);
-        }
-
-        int width = fontGetStringWidth(formattedText);
-        int x = INVENTORY_LOOT_LEFT_SCROLLER_X + INVENTORY_SLOT_WIDTH / 2 - width / 2;
-        int y = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotHeight * gInventorySlotsCount + 2 + 16;
-        fontDrawText(windowBuffer + pitch * y + x, formattedText, width, pitch, color);
-
-        fontSetCurrent(oldFont);
-    }*/
-
     windowRefresh(gInventoryWindow);
 }
 
@@ -2836,56 +2827,6 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
         tradeWindowUpdateScrollButtons(); // updates all 8 trade buttons
     }
 
-    // CE: Show items weight.
-    /*if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-        char formattedText[20];
-        formattedText[0] = '\0';
-
-        int oldFont = fontGetCurrent();
-        fontSetCurrent(101);
-
-        FrmImage backgroundFrmImage;
-        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentLootBackgroundFrm, 0, 0, 0);
-        if (backgroundFrmImage.lock(backgroundFid)) {
-            int x = INVENTORY_LOOT_RIGHT_SCROLLER_X;
-            int y = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotHeight * gInventorySlotsCount + 2 + 16;
-            blitBufferToBuffer(backgroundFrmImage.getData() + pitch * y + x,
-                INVENTORY_SLOT_WIDTH,
-                fontGetLineHeight(),
-                pitch,
-                windowBuffer + pitch * y + x,
-                pitch);
-        }
-
-        Object* object = _target_stack[_target_curr_stack];
-
-        int color = _colorTable[COL_LIME_GREEN];
-        if (PID_TYPE(object->pid) == OBJ_TYPE_CRITTER) {
-            int currentWeight = objectGetInventoryWeight(object);
-            int maxWeight = critterGetStat(object, STAT_CARRY_WEIGHT);
-            snprintf(formattedText, sizeof(formattedText), "%d/%d", currentWeight, maxWeight);
-
-            if (critterIsEncumbered(object)) {
-                color = _colorTable[COL_PURE_RED];
-            }
-        } else if (PID_TYPE(object->pid) == OBJ_TYPE_ITEM) {
-            if (itemGetType(object) == ITEM_TYPE_CONTAINER) {
-                int currentSize = containerGetTotalSize(object);
-                int maxSize = containerGetMaxSize(object);
-                snprintf(formattedText, sizeof(formattedText), "%d/%d", currentSize, maxSize);
-            }
-        } else {
-            int inventoryWeight = objectGetInventoryWeight(object);
-            snprintf(formattedText, sizeof(formattedText), "%d", inventoryWeight);
-        }
-
-        int width = fontGetStringWidth(formattedText);
-        int x = INVENTORY_LOOT_RIGHT_SCROLLER_X + INVENTORY_SLOT_WIDTH / 2 - width / 2;
-        int y = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotHeight * gInventorySlotsCount + 2 + 16;
-        fontDrawText(windowBuffer + pitch * y + x, formattedText, width, pitch, color);
-
-        fontSetCurrent(oldFont);
-    }*/
 }
 
 // Renders inventory item quantity.
@@ -2954,7 +2895,6 @@ static void _display_body(int fid, int inventoryWindowType)
         }
 
         gInventoryWindowDudeRotation += 1;
-
         if (gInventoryWindowDudeRotation == ROTATION_COUNT) {
             gInventoryWindowDudeRotation = 0;
         }
@@ -2977,6 +2917,21 @@ static void _display_body(int fid, int inventoryWindowType)
         gInventoryWindowDudeFid,
         fid,
     };
+
+    // Determine which window buffer and pitch to use (same for both portraits)
+    unsigned char* windowBuffer;
+    int windowPitch;
+    int win;
+    bool isTrade = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE);
+    if (isTrade) {
+        windowBuffer = windowGetBuffer(_barter_back_win);
+        windowPitch = windowGetWidth(_barter_back_win);
+        win = _barter_back_win;
+    } else {
+        windowBuffer = windowGetBuffer(gInventoryWindow);
+        windowPitch = windowGetWidth(gInventoryWindow);
+        win = gInventoryWindow;
+    }
 
     for (int index = 0; index < 2; index += 1) {
         int fid = fids[index];
@@ -3007,12 +2962,8 @@ static void _display_body(int fid, int inventoryWindowType)
             frameHeight = INVENTORY_BODY_VIEW_HEIGHT;
         }
 
-        int win;
         Rect rect;
-        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-            unsigned char* windowBuffer = windowGetBuffer(_barter_back_win);
-            int windowPitch = windowGetWidth(_barter_back_win);
-
+        if (isTrade) {
             if (index == 1) {
                 rect.left = 560;
                 rect.top = 25;
@@ -3021,87 +2972,96 @@ static void _display_body(int fid, int inventoryWindowType)
                 rect.top = 25;
             }
 
-            rect.right = rect.left + INVENTORY_BODY_VIEW_WIDTH - 1;
-            rect.bottom = rect.top + INVENTORY_BODY_VIEW_HEIGHT - 1;
-
-            FrmImage backgroundFrmImage;
-            int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gGameDialogSpeakerIsPartyMember ? 420 : 111, 0, 0, 0);
-            if (backgroundFrmImage.lock(backgroundFid)) {
-                blitBufferToBuffer(backgroundFrmImage.getData() + rect.top * 640 + rect.left,
+            // Clear background for trade portraits
+            FrmImage bg;
+            int bgFid = buildFid(OBJ_TYPE_INTERFACE, gGameDialogSpeakerIsPartyMember ? 420 : 111, 0, 0, 0);
+            if (bg.lock(bgFid)) {
+                blitBufferToBuffer(bg.getData() + rect.top * 640 + rect.left,
                     INVENTORY_BODY_VIEW_WIDTH,
                     INVENTORY_BODY_VIEW_HEIGHT,
                     640,
                     windowBuffer + windowPitch * rect.top + rect.left,
                     windowPitch);
+                bg.unlock();
             }
-
-            blitBufferToBufferGreenTrans(frameData, frameWidth, frameHeight, framePitch,
-                windowBuffer + windowPitch * (rect.top + (INVENTORY_BODY_VIEW_HEIGHT - frameHeight) / 2) + (INVENTORY_BODY_VIEW_WIDTH - frameWidth) / 2 + rect.left,
-                windowPitch);
-
-            win = _barter_back_win;
         } else {
-            unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
-            int windowPitch = windowGetWidth(gInventoryWindow);
-
-            FrmImage backgroundFrmImage;
-            int Fid = gCurrentLootBackgroundFrm;
-            int sourceXOffset = 0;
-
+            // Non-trade: determine position and background FRM
+            int bgFrmId = gCurrentLootBackgroundFrm;
+            int srcXOffset = 0;
             if (index == 1) {
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     rect.left = 426; // loot right cha window (or container)
                     rect.top = 39;
-                    Fid = gCurrentLootBackgroundFrm;
-                    sourceXOffset = 538;
+                    bgFrmId = gCurrentLootBackgroundFrm;
+                    srcXOffset = 538;
                 } else {
                     rect.left = 297; // inventory data window? ?not used?
                     rect.top = 37;
-                    Fid = gCurrentInventoryBackgroundFrm;
-                    sourceXOffset = 229;
+                    bgFrmId = gCurrentInventoryBackgroundFrm;
+                    srcXOffset = 229;
                 }
             } else {
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     rect.left = 48; // loot left cha window
                     rect.top = 39;
-                    Fid = gCurrentLootBackgroundFrm;
-                    sourceXOffset = 0;
+                    bgFrmId = gCurrentLootBackgroundFrm;
+                    srcXOffset = 0;
                 } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
                     rect.left = 176; // Use item cha window
                     rect.top = 37;
-                    Fid = 113;
-                    sourceXOffset = 292;
+                    bgFrmId = 113;
+                    srcXOffset = 292;
                 } else {
                     // MULTI-COLUMN: Use shifted body view position
-                    rect.left = gLayout.bodyViewX; // was 176
+                    rect.left = gLayout.bodyViewX;
                     rect.top = 37;
-                    Fid = gCurrentInventoryBackgroundFrm;
-                    sourceXOffset = 0;
+                    bgFrmId = gCurrentInventoryBackgroundFrm;
+                    srcXOffset = 0;
                 }
             }
 
-            int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, Fid, 0, 0, 0);
-
-            rect.right = rect.left + INVENTORY_BODY_VIEW_WIDTH - 1;
-            rect.bottom = rect.top + INVENTORY_BODY_VIEW_HEIGHT - 1;
-
-            if (backgroundFrmImage.lock(backgroundFid)) {
-                blitBufferToBuffer(backgroundFrmImage.getData() + backgroundFrmImage.getWidth() * rect.top + rect.left + sourceXOffset,
+            // Clear background for non-trade portraits
+            FrmImage bg;
+            int bgFid = buildFid(OBJ_TYPE_INTERFACE, bgFrmId, 0, 0, 0);
+            if (bg.lock(bgFid)) {
+                int bgPitch = bg.getWidth();
+                blitBufferToBuffer(bg.getData() + bgPitch * rect.top + rect.left + srcXOffset,
                     INVENTORY_BODY_VIEW_WIDTH,
                     INVENTORY_BODY_VIEW_HEIGHT,
-                    backgroundFrmImage.getWidth(),
+                    bgPitch,
                     windowBuffer + windowPitch * rect.top + rect.left,
                     windowPitch);
+                bg.unlock();
             }
-
-            blitBufferToBufferGreenTrans(frameData, frameWidth, frameHeight, framePitch,
-                windowBuffer + windowPitch * (rect.top + (INVENTORY_BODY_VIEW_HEIGHT - frameHeight) / 2) + (INVENTORY_BODY_VIEW_WIDTH - frameWidth) / 2 + rect.left,
-                windowPitch);
-
-            win = gInventoryWindow;
         }
-        windowRefreshRect(win, &rect);
 
+        rect.right = rect.left + INVENTORY_BODY_VIEW_WIDTH - 1;
+        rect.bottom = rect.top + INVENTORY_BODY_VIEW_HEIGHT - 1;
+
+        // Draw the portrait
+        int destY = rect.top + (INVENTORY_BODY_VIEW_HEIGHT - frameHeight) / 2;
+        int destX = rect.left + (INVENTORY_BODY_VIEW_WIDTH - frameWidth) / 2;
+        blitBufferToBufferGreenTrans(frameData, frameWidth, frameHeight, framePitch,
+            windowBuffer + windowPitch * destY + destX,
+            windowPitch);
+
+        // Draw weight info if appropriate (only for loot and trade)
+        bool drawWeight = false;
+        Object* weightObj = nullptr;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+            drawWeight = true;
+            weightObj = (index == 0) ? _inven_dude : _target_stack[0];
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            drawWeight = true;
+            weightObj = (index == 0) ? _stack[0] : _target_stack[_target_curr_stack];
+        }
+
+        if (drawWeight && weightObj != nullptr) {
+            int weightY = rect.top + INVENTORY_BODY_VIEW_HEIGHT - fontGetLineHeight() - 2;
+            inventoryDrawWeightInfo(windowBuffer, windowPitch, rect.left, weightY, weightObj);
+        }
+
+        windowRefreshRect(win, &rect);
         artUnlock(handle);
     }
 
@@ -7391,6 +7351,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
         }
     }
 
+    inventoryRefreshBodies(INVENTORY_WINDOW_TYPE_LOOT);
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
 
     return result;
@@ -7795,6 +7756,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
         }
     }
 
+    inventoryRefreshBodies(INVENTORY_WINDOW_TYPE_TRADE);
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
 }
 
@@ -7861,6 +7823,7 @@ static void _barter_move_from_table_inventory(Object* item, int quantity, int sl
         }
     }
 
+    inventoryRefreshBodies(INVENTORY_WINDOW_TYPE_TRADE);
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
 }
 
