@@ -766,7 +766,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
             if (srcWidth > 0 && srcHeight > 0) {
                 unsigned char* src = bg.getData() + bgPitch * srcY + srcX;
                 blitBufferToBuffer(src, srcWidth, srcHeight, bgPitch,
-                                dest + destPitch * y + x, destPitch);
+                    dest + destPitch * y + x, destPitch);
             }
             bg.unlock();
         }
@@ -1011,11 +1011,12 @@ void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeigh
 }
 
 // Computes layout based on number of columns and sets common elements
-static void inventoryUpdateLayout() {
+static void inventoryUpdateLayout()
+{
 
     // Set slot height
     if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-        gInventorySlotHeight = 47;  // default
+        gInventorySlotHeight = 47; // default
     }
 
     // Trade window with filter bar active: shrink height to leave room.
