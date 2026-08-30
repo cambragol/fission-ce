@@ -2487,6 +2487,40 @@ int proto_max_id(int type)
     return _protoLists[type].max_entries_num;
 }
 
+int protoFindTileProtoForFloorFid(int fid, Proto** protoOut)
+{
+    *protoOut = nullptr;
+
+    ProtoList* list = &_protoLists[OBJ_TYPE_TILE];
+    for (int num = 1; num < list->max_entries_num; num++) {
+        int pid = (OBJ_TYPE_TILE << 24) | num;
+        Proto* proto;
+        if (protoGetProto(pid, &proto) == -1) {
+            continue;
+        }
+        if (proto->tile.fid == fid) {
+            *protoOut = proto;
+            return 0;
+        }
+    }
+
+    for (int i = 0; i < _mod_proto_entries_size; i++) {
+        if (_mod_proto_entries[i].type != OBJ_TYPE_TILE) {
+            continue;
+        }
+        Proto* proto;
+        if (protoGetProto(_mod_proto_entries[i].pid, &proto) == -1) {
+            continue;
+        }
+        if (proto->tile.fid == fid) {
+            *protoOut = proto;
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 // 0x4A1B30
 int _proto_save_pid(int pid)
 {

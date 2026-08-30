@@ -440,6 +440,11 @@ typedef struct WallProto {
     int material; // material
 } WallProto;
 
+// Bits for `TileProto.extendedFlags` (avoid overlapping shared PROTO_EXT_FLAG_* used by tiles).
+typedef enum TileProtoExtendedFlags {
+    PROTO_TILE_EXT_FLAG_ICE_SLIDE = 0x10000,
+} TileProtoExtendedFlags;
+
 typedef struct TileProto {
     int pid; // id
     int messageId; // message_num

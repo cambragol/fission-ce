@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "actions.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
@@ -3126,6 +3127,7 @@ void _object_animate()
                 _object_move(index);
                 if (savedTile != object->tile) {
                     scriptsExecSpatialProc(object, object->tile, object->elevation);
+                    actionTileWalkIceSlide(object, savedTile, object->tile);
                 }
             }
             continue;
