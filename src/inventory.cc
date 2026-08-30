@@ -757,25 +757,6 @@ static int getFilteredCount()
     }
 }
 
-static int buildFilteredCombinedIndices()
-{
-    int count = 0;
-    if (gFilterCategory == -1) {
-        for (int i = gCombinedItemCount - 1; i >= 0; i--) {
-            gFilteredIndices[count++] = i;
-        }
-    } else {
-        for (int i = gCombinedItemCount - 1; i >= 0; i--) {
-            Object* item = gCombinedItems[i].item;
-            if (itemGetCategory(item) == gFilterCategory) {
-                gFilteredIndices[count++] = i;
-            }
-        }
-    }
-    gFilteredCount = count;
-    return count;
-}
-
 // Returns the background FRM ID for the given inventory window type.
 static int inventoryGetBackgroundFrm(int windowType)
 {
@@ -821,6 +802,25 @@ static void inventoryDrawWeightInfo(unsigned char* dest, int pitch, int x, int y
     fontDrawText(dest + pitch * y + textX, formattedText, textWidth, pitch, color);
 
     fontSetCurrent(oldFont);
+}
+
+static void inventoryRefreshBodies(int inventoryWindowType)
+{
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.display_weight)
+        return;
+
+    _display_body(-1, inventoryWindowType);
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT || inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+        Object* target = nullptr;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            target = _target_stack[_target_curr_stack];
+        } else { // TRADE
+            target = _target_stack[0];
+        }
+        if (target != nullptr) {
+            _display_body(target->fid, inventoryWindowType);
+        }
+    }
 }
 
 static void drawFilterBar(unsigned char* dest, int destPitch,
@@ -1683,6 +1683,19 @@ void inventoryOpenForCompanion(Object* critter)
                 }
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+        } else if (keyCode >= 8000 && keyCode <= 8004) {
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                int category = keyCode - 8000;
+                if (gFilterCategory == category) {
+                    gFilterCategory = -1; // toggle off if already active
+                } else {
+                    gFilterCategory = category;
+                }
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+                inventoryRenderSummary();
+                windowRefresh(gInventoryWindow);
+            }
         } else if (keyCode == INVENTORY_BUTTON_LEFT) {
             if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                 // Arrow mode - sort inventory
@@ -1728,6 +1741,21 @@ void inventoryOpenForCompanion(Object* critter)
                         }
                     }
                 }
+            }
+        }
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            int filterCategory = inventoryKeyToFilterCategory(keyCode);
+            if (filterCategory != -1) {
+                if (gFilterCategory == filterCategory) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = filterCategory;
+                }
+                _stack_offset[_curr_stack] = 0;
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_NORMAL);
+                inventoryRenderSummary();
+                windowRefresh(gInventoryWindow);
             }
         }
 
@@ -3049,23 +3077,23 @@ drawFilterBar(windowBuffer, pitch, gLayout.scrollerX, barY, barWidth);
         }
 
         int inventoryFid = itemGetInventoryFid(item);
-        artRenderGreen(inventoryFid, windowBuffer + offset, INVENTORY_SLOT_WIDTH_PAD, INVENTORY_SLOT_HEIGHT_PAD, pitch);
+        artRenderGreen(inventoryFid, windowBuffer + offset, gInventorySlotWidthPadded, gInventorySlotHeightPadded, pitch);
         _display_inventory_info(item, quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex);
 
-        y += INVENTORY_SLOT_HEIGHT;
+        y += gInventorySlotHeight;
     }
 
     // Draw filter bar below the scroller (for all non?normal modes)
     if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
         int barY;
         if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-            barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT;
+            barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
             drawFilterBar(windowBuffer, pitch, INVENTORY_TRADE_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-            barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT + 2;
+            barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
             drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         } else { // Use?on
-            barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * INVENTORY_SLOT_HEIGHT;
+            barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
             drawFilterBar(windowBuffer, pitch, INVENTORY_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         }
     }
@@ -3149,6 +3177,7 @@ drawFilterBar(windowBuffer, pitch, gLayout.scrollerX, barY, barWidth);
     }
 
     windowRefresh(gInventoryWindow);
+}
     
 // Render inventory item.
 //
@@ -3346,8 +3375,8 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
             fontSetCurrent(101);
             int lineHeight = fontGetLineHeight();
             int textWidth = fontGetStringWidth(ownerName);
-            int x = (INVENTORY_SLOT_WIDTH_PAD - textWidth) / 2;
-            int y = INVENTORY_SLOT_HEIGHT_PAD - lineHeight;
+            int x = (gInventorySlotWidthPadded - textWidth) / 2;
+            int y = gInventorySlotHeightPadded - lineHeight;
             fontDrawText(dest + pitch * y + x, ownerName, textWidth, pitch, _colorTable[992]);
             fontSetCurrent(ownerFont);
         }
@@ -3851,7 +3880,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     }
 
     // Erase the slot background
-    bool pickUpFromSlot = isHandOrArmor;
+    pickUpFromSlot = isHandOrArmor;
     if (pickUpFromSlot || count <= 1) {
         unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
         int width, height;
@@ -7891,8 +7920,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                         if (item != nullptr) {
                             _gStealCount += 1;
                             _gStealSize += itemGetSize(item);
-                            InventoryMoveResult rc = _move_inventory(item, slotIndex, _target_stack[_target_curr_stack], true);
-                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
+                            InventoryMoveResult rc = _move_inventory(item, slotIndex, _target_stack[_target_curr_stack], true, quantity);                            if (rc == INVENTORY_MOVE_RESULT_CAUGHT_STEALING) {
                                 isCaughtStealing = true;
                             } else if (rc == INVENTORY_MOVE_RESULT_SUCCESS) {
                                 stealingXp += stealingXpBonus;
@@ -7966,6 +7994,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     }
                 }
             }
+        }
         if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
@@ -9214,6 +9243,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 }
             }
         }
+    }
         if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
@@ -9258,6 +9288,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
     // NOTE: Uninline.
     inventoryCommonFree();
 }
+
 
 // 0x47620C
 static void _container_enter(int keyCode, int inventoryWindowType)
