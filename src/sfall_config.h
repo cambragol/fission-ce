@@ -61,6 +61,90 @@ namespace fallout {
 #define MOD_CONFIG_GAME_DIALOG_FIX_KEY "DialogueFix"
 #define MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY "BonusHtHDamageFix"
 
+// Own section: number of NPC floats that can play voiced audio at once. See
+// AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which reserves this many
+// mixer buffer slots in addition to its fixed music/SFX/dialogue budget.
+#define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
+#define MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY "FloatAudioChannels"
+// Float volume stays full out to half of refDistance, then ramps linearly
+// down to an exact 0.0 at refDistance itself, silent beyond it: gain =
+// clamp(2 * (1 - distance/refDistance), 0, 1), where refDistance is
+// DistancePerPerception x Perception. See _gsound_calc_float_gain() in
+// game_sound.cc -- text-scramble clarity below shares this exact formula
+// (own refDistance, see TextScrambleDistancePerPerception), not just a
+// similar one. Originally a plain ramp from the speaker's own tile with no
+// plateau (see commit fef10eb); the plateau was added once clarity (using
+// the same formula) turned out to garble text immediately at almost any
+// distance without one. A config-selectable choice of curve-shaped
+// alternatives (vanilla-ambient-SFX-mirroring, inverse-distance, sigmoid,
+// log) was also explored, separately, and removed again in favor of
+// always using one shared formula -- see git history around
+// FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/SIGMOID/LOG and the
+// DistanceFormula game.cfg key if reviving any of that is ever useful.
+//
+// refDistance = Perception x DistancePerPerception. Was a hardcoded #define
+// (FLOAT_SPEECH_DISTANCE_PER_PERCEPTION) until this key was added.
+#define MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY "DistancePerPerception"
+// 0-100, default 0 (off): how much a solid obstacle between the speaker and
+// the player dims a float, applied as a percentage multiplier on top of
+// the distance falloff above -- 0 means obstacles are ignored entirely
+// (today's behavior), 100 means a blocked line is fully silent, values
+// between scale it down proportionally.
+// Reuses the same line-of-sight raycast as the obj_can_see_obj sfall
+// opcode (_make_straight_path() in animation.cc/.h), so it costs one more
+// tile walk per float, same as combat already pays per shot fired. Affects
+// text-scramble clarity too, since gameSoundCalcFloatClarity() shares this
+// same obstruction handling -- an obstructed line reads harder to make out,
+// same as it sounds harder to make out.
+#define MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY "ObstructionDampening"
+// What happens when a float triggers with every pool slot already busy --
+// see speechLoadFloat() in game_sound.cc for the 3 policy values.
+#define MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY "EvictionPolicy"
+#define FLOAT_SPEECH_EVICTION_POLICY_VANILLA (0)
+#define FLOAT_SPEECH_EVICTION_POLICY_OLDEST (1)
+#define FLOAT_SPEECH_EVICTION_POLICY_FURTHEST (2)
+// Off by default (non-vanilla): garbles a float's on-screen text based on
+// distance/obstruction to the speaker (see gameSoundCalcFloatClarity() in
+// game_sound.cc), so a wide screen showing a far-off NPC's line can't just
+// be read clearly when it wouldn't be heard clearly. Applies to every
+// float's text regardless of whether that line has an audio file or was
+// badword-filtered -- the scramble only ever touches alphabetic characters,
+// so it can't disturb the symbols the badword filter already substituted
+// in.
+#define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY "TextScramble"
+// Text clarity has its own DistancePerPerception-style range, independent
+// of the audio one above -- same refDistance = Perception x <this value>
+// formula, same _gsound_calc_float_gain() (plateau, ramp, and obstruction
+// all included), just its own refDistance so clarity can stay legible
+// farther out than volume stays audible without needing to touch
+// DistancePerPerception itself. Default (4) is exactly double
+// DistancePerPerception's default (2): audio's own plateau ends at
+// 1 x Perception and it's fully silent by 2 x Perception, while text's
+// plateau ends at 2 x Perception -- i.e. text stays perfectly clean for
+// as long as the line is at least partially audible at all -- and doesn't
+// finish scrambling until 4 x Perception, twice audio's silent distance.
+#define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY "TextScrambleDistancePerPerception"
+// Character pool TextScramble draws its noise glyphs from -- see
+// _scr_scramble_float_text() in scripts.cc. Any characters are accepted;
+// falls back to the default pool below if left empty in game.cfg.
+#define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY "TextScrambleChars"
+// On by default: play a float's real voice file when it has one and the
+// line is clean. Sibling of CensorBleep below -- split out so either can be
+// switched off independently under the [enhancements] VockFloats master
+// gate (see game_config.h).
+#define MOD_CONFIG_VOICED_FLOATS_KEY "VoicedFloats"
+// On by default: play a censor tone in place of a badword-filtered float's
+// audio (see MESSAGE_LIST_ITEM_TEXT_FILTERED in message.h). Independent of
+// VoicedFloats -- a filtered line never plays its real audio either way, so
+// this only decides whether it gets a bleep or plain silence.
+#define MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY "CensorBleep"
+// 0-32767 (VOLUME_MIN-VOLUME_MAX, same scale as the pre-existing dialog
+// speech_volume setting), default 22281: a per-float volume knob layered
+// multiplicatively on top of the Sound Effects Volume Preferences slider
+// (gain = Volume / VOLUME_MAX), rather than a replacement for it. Linear,
+// not logarithmic -- see _gsound_calc_float_volume() in game_sound.cc.
+#define MOD_CONFIG_FLOAT_VOLUME_KEY "Volume"
+
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
 #define MOD_CONFIG_GLOBAL_SCRIPT_PATHS "GlobalScriptPaths" // requires parsing/modification
@@ -115,6 +199,18 @@ namespace fallout {
 
 // Game fixes
 #define MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE 5
+
+// vock-floats
+#define MOD_CONFIG_DEFAULT_FLOAT_AUDIO_CHANNELS 8
+#define MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION 2
+#define MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING 50
+#define MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY FLOAT_SPEECH_EVICTION_POLICY_VANILLA
+#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE 0
+#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION 4
+#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS "#%&*~^"
+#define MOD_CONFIG_DEFAULT_VOICED_FLOATS 1
+#define MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP 1
+#define MOD_CONFIG_DEFAULT_FLOAT_VOLUME 32767
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""

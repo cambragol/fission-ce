@@ -46,6 +46,8 @@ typedef enum OutlineType {
 } OutlineType;
 
 typedef enum ObjectFlags {
+
+    OBJECT_NONE = 0x00,
     OBJECT_HIDDEN = 0x01,
 
     // Specifies that the object should not be saved to the savegame file.
@@ -129,6 +131,7 @@ typedef enum CritterManeuver {
 } CritterManeuver;
 
 typedef enum Dam {
+    DAM_NONE = 0x00,
     DAM_KNOCKED_OUT = 0x01,
     DAM_KNOCKED_DOWN = 0x02,
     DAM_CRIP_LEG_LEFT = 0x04,

@@ -1851,7 +1851,7 @@ static void opAttackComplex(Program* program)
     }
 
     if (_gdialogActive()) {
-        // TODO: Might be an error, program flag is not removed.
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
@@ -2310,6 +2310,7 @@ static void opKillCritter(Program* program)
 
     if (_isLoadingGame()) {
         debugPrint("\nError: attempt to destroy critter in load/save-game: %s!", program->name);
+        return;
     }
 
     program->flags |= PROGRAM_FLAG_CHILD_CALL;
@@ -2478,12 +2479,14 @@ static void opCritterDamage(Program* program)
 
     if (object == nullptr) {
         scriptPredefinedError(program, "critter_damage", SCRIPT_ERROR_OBJECT_IS_NULL);
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
     if (PID_TYPE(object->pid) != OBJ_TYPE_CRITTER) {
         scriptPredefinedError(program, "critter_damage", SCRIPT_ERROR_FOLLOWS);
         debugPrint(" Can't call on non-critters!");
+        program->flags &= ~PROGRAM_FLAG_CHILD_CALL;
         return;
     }
 
@@ -2935,7 +2938,7 @@ static void opCritterRemoveTrait(Program* program)
 
     if (object == nullptr) {
         scriptError("\nScript Error %s: op_critter_rm_trait: perk_sub failed", program->name);
-        // FIXME: Ruins stack.
+        programStackPushInteger(program, -1);
         return;
     }
 
@@ -2992,7 +2995,14 @@ static void opGetMessageString(Program* program)
 
     char* string;
     if (messageIndex >= 0) {
-        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1);
+        // message_str()/mstr() is called by every script alike (dialogue
+        // nodes, combat_p_proc, critter_p_proc, timed_event_p_proc, ...).
+        // Passing the calling script's own object lets
+        // _scr_get_msg_str_speech() both (a) tell whether this is the active
+        // dialogue's own line -- and so should bypass the VockFloats gate
+        // -- by comparing against gGameDialogSpeaker, and (b) scale a float's
+        // volume by distance from the player.
+        string = _scr_get_msg_str_speech(messageListIndex, messageIndex, 1, scriptGetSelf(program));
         if (string == nullptr) {
             debugPrint("\nError: No message file EXISTS!: index %d, line %d", messageListIndex, messageIndex);
             string = errStr;
@@ -3011,7 +3021,7 @@ static void opCritterGetInventoryObject(Program* program)
     int type = programStackPopInteger(program);
     Object* critter = static_cast<Object*>(programStackPopPointer(program));
 
-    if (PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER) {
+    if (critter != nullptr && PID_TYPE(critter->pid) == OBJ_TYPE_CRITTER) {
         switch (type) {
         case INVEN_TYPE_WORN:
             programStackPushPointer(program, critterGetArmor(critter));
@@ -3120,8 +3130,8 @@ static void opFloatMessage(Program* program)
     }
     Object* obj = static_cast<Object*>(programStackPopPointer(program));
 
-    int color = _colorTable[32747];
-    int backgroundColor = _colorTable[0];
+    int color = _colorTable[COL_LIGHT_LEMON];
+    int backgroundColor = _colorTable[COL_BLACK];
     int font = 101;
 
     if (obj == nullptr) {
@@ -3139,6 +3149,21 @@ static void opFloatMessage(Program* program)
         return;
     }
 
+    // FISSION-VOCK FIX: [vock-floats] TextScramble belongs here, not in
+    // message_str() (opGetMessageString() above) -- this is float_msg(),
+    // the one opcode where "this text is about to become a floating bubble
+    // over obj" is actually true, rather than a guess based on "the
+    // calling script isn't the active dialogue's own speaker" (which also
+    // matches plain look-at/examine text printed via display_msg(), not
+    // floated at all -- see _scr_scramble_float_text()'s comment in
+    // scripts.cc for the full story).
+    bool vockFloatsGateOpen = settings.enhancements.vock_floats && !settings.enhancements.strict_vanilla;
+    bool inOwnDialogue = gameDialogWindowActive() && obj == gGameDialogSpeaker;
+    if (vockFloatsGateOpen && !inOwnDialogue && settings.mod_settings.float_text_scramble) {
+        double clarity = gameSoundCalcFloatClarity(obj);
+        string = _scr_scramble_float_text(string, clarity);
+    }
+
     if (floatingMessageType == FLOATING_MESSAGE_TYPE_COLOR_SEQUENCE) {
         floatingMessageType = _last_color + 1;
         if (floatingMessageType >= FLOATING_MESSAGE_TYPE_COUNT) {
@@ -3149,43 +3174,43 @@ static void opFloatMessage(Program* program)
 
     switch (floatingMessageType) {
     case FLOATING_MESSAGE_TYPE_WARNING:
-        color = _colorTable[31744];
-        backgroundColor = _colorTable[0];
+        color = _colorTable[COL_PURE_RED];
+        backgroundColor = _colorTable[COL_BLACK];
         font = 103;
         tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW);
         break;
     case FLOATING_MESSAGE_TYPE_NORMAL:
     case FLOATING_MESSAGE_TYPE_YELLOW:
-        color = _colorTable[32747];
+        color = _colorTable[COL_LIGHT_LEMON];
         break;
     case FLOATING_MESSAGE_TYPE_BLACK:
     case FLOATING_MESSAGE_TYPE_PURPLE:
     case FLOATING_MESSAGE_TYPE_GREY:
-        color = _colorTable[10570];
+        color = _colorTable[COL_VERY_DARK_GRAY];
         break;
     case FLOATING_MESSAGE_TYPE_RED:
-        color = _colorTable[31744];
+        color = _colorTable[COL_PURE_RED];
         break;
     case FLOATING_MESSAGE_TYPE_GREEN:
-        color = _colorTable[992];
+        color = _colorTable[COL_LIME_GREEN];
         break;
     case FLOATING_MESSAGE_TYPE_BLUE:
-        color = _colorTable[31];
+        color = _colorTable[COL_BRIGHT_BLUE];
         break;
     case FLOATING_MESSAGE_TYPE_NEAR_WHITE:
-        color = _colorTable[21140];
+        color = _colorTable[COL_GUNMETAL];
         break;
     case FLOATING_MESSAGE_TYPE_LIGHT_RED:
-        color = _colorTable[32074];
+        color = _colorTable[COL_BRIGHT_RED];
         break;
     case FLOATING_MESSAGE_TYPE_WHITE:
-        color = _colorTable[32767];
+        color = _colorTable[COL_WHITE];
         break;
     case FLOATING_MESSAGE_TYPE_DARK_GREY:
-        color = _colorTable[8456];
+        color = _colorTable[COL_DARK_SLATE];
         break;
     case FLOATING_MESSAGE_TYPE_LIGHT_GREY:
-        color = _colorTable[15855];
+        color = _colorTable[COL_GRAY_OLIVE];
         break;
     }
 

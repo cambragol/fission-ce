@@ -764,7 +764,7 @@ void opCreateWin(Program* program)
     width = (width * windowGetXres() + 639) / 640;
     height = (height * windowGetYres() + 479) / 480;
 
-    if (scriptWindowCreate(windowName, x, y, width, height, _colorTable[0], 0) == -1) {
+    if (scriptWindowCreate(windowName, x, y, width, height, _colorTable[COL_BLACK], 0) == -1) {
         programFatalError("Couldn't create window.");
     }
 }

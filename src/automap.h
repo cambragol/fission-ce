@@ -12,6 +12,11 @@ namespace fallout {
 
 #define AUTOMAP_MAP_COUNT (MOD_MAP_MAX) // Expanded from 160 to support mod maps
 
+#define MINIMAP_CLIP_LEFT 34
+#define MINIMAP_CLIP_TOP 29
+#define MINIMAP_CLIP_RIGHT 182
+#define MINIMAP_CLIP_BOTTOM 192
+
 // View options for rendering automap for map window. These are stored in
 // [gAutomapFlags] and is saved in save game file.
 typedef enum AutomapFlags {

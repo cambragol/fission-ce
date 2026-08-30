@@ -3282,6 +3282,7 @@ static int _combat_turn(Object* obj, bool a2)
             interfaceRenderArmorClass(true);
             _combat_free_move = 2 * perkGetRank(gDude, PERK_BONUS_MOVE);
             interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
+            _intface_update_ammo_lights(); // added to start color cycle on first round
         } else {
             soundContinueAll();
         }
@@ -4277,7 +4278,11 @@ static int attackComputeCriticalFailure(Attack* attack)
         attackComputeDamage(attack, 1, 2);
     }
 
-    if ((attack->attackerFlags & DAM_LOSE_TURN) != 0) {
+    if ((attack->attackerFlags & DAM_HURT_SELF) != DAM_NONE) {
+        attack->attackerDamage += randomBetween(1, 5);
+    }
+
+    if ((attack->attackerFlags & DAM_LOSE_TURN) != DAM_NONE) {
         attack->attacker->data.critter.combat.ap = 0;
     }
 
@@ -5501,13 +5506,13 @@ static char* hitLocationGetName(Object* critter, int hitLocation)
 // 0x4261B4
 static void _draw_loc_off(int a1, int a2)
 {
-    _draw_loc_(a2, _colorTable[992]);
+    _draw_loc_(a2, _colorTable[COL_LIME_GREEN]);
 }
 
 // 0x4261C0
 static void _draw_loc_on_(int a1, int a2)
 {
-    _draw_loc_(a2, _colorTable[31744]);
+    _draw_loc_(a2, _colorTable[COL_PURE_RED]);
 }
 
 // 0x4261CC
@@ -5552,7 +5557,7 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
         calledShotWindowY,
         CALLED_SHOT_WINDOW_WIDTH,
         CALLED_SHOT_WINDOW_HEIGHT,
-        _colorTable[0],
+        _colorTable[COL_BLACK],
         WINDOW_MODAL);
     if (gCalledShotWindow == -1) {
         return -1;
@@ -5629,14 +5634,14 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
 
         btn = buttonCreate(gCalledShotWindow, 33, _call_ty[index] - 90, 128, 20, index, index, -1, index, nullptr, nullptr, nullptr, 0);
         buttonSetMouseCallbacks(btn, _draw_loc_on_, _draw_loc_off, nullptr, nullptr);
-        _draw_loc_(index, _colorTable[992]);
+        _draw_loc_(index, _colorTable[COL_LIME_GREEN]);
 
         probability = _determine_to_hit(gDude, critter, _hit_loc_right[index], hitMode);
         _print_tohit(windowBuffer + CALLED_SHOT_WINDOW_WIDTH * (_call_ty[index] - 86) + 453, CALLED_SHOT_WINDOW_WIDTH, probability);
 
         btn = buttonCreate(gCalledShotWindow, 341, _call_ty[index] - 90, 128, 20, index + 4, index + 4, -1, index + 4, nullptr, nullptr, nullptr, 0);
         buttonSetMouseCallbacks(btn, _draw_loc_on_, _draw_loc_off, nullptr, nullptr);
-        _draw_loc_(index + 4, _colorTable[992]);
+        _draw_loc_(index + 4, _colorTable[COL_LIME_GREEN]);
     }
 
     windowRefresh(gCalledShotWindow);

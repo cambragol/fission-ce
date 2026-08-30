@@ -3,25 +3,34 @@
 #include <string.h>
 
 #include <mutex>
+#include <vector>
 
 #include <SDL.h>
 
+#include "settings.h"
+#include "sound_effects_cache.h"
+
 namespace fallout {
 
-#define AUDIO_ENGINE_SOUND_BUFFERS 8
+// Background music and dialogue speech are each a single scalar Sound*
+// global (gBackgroundSound/gSpeechSound in game_sound.cc), not pools -- there
+// is no allocation loop to raise, so unlike SFX and floats these aren't
+// runtime-configurable.
+#define BACKGROUND_MUSIC_MAX_COUNT (1)
+#define DIALOGUE_SPEECH_MAX_COUNT (1)
 
 struct AudioEngineSoundBuffer {
-    bool active;
-    unsigned int size;
-    int bitsPerSample;
-    int channels;
-    int rate;
-    void* data;
-    int volume;
-    bool playing;
-    bool looping;
-    unsigned int pos;
-    SDL_AudioStream* stream;
+    bool active = false;
+    unsigned int size = 0;
+    int bitsPerSample = 0;
+    int channels = 0;
+    int rate = 0;
+    void* data = nullptr;
+    int volume = 0;
+    bool playing = false;
+    bool looping = false;
+    unsigned int pos = 0;
+    SDL_AudioStream* stream = nullptr;
     std::recursive_mutex mutex;
 };
 
@@ -32,7 +41,28 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length);
 
 static SDL_AudioSpec gAudioEngineSpec;
 static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
-static AudioEngineSoundBuffer gAudioEngineSoundBuffers[AUDIO_ENGINE_SOUND_BUFFERS];
+
+// FISSION-VOCK FIX: was a flat #define (12, raised from 8 to fit the new
+// float-speech pool on top of the old worst-case budget of background music
+// (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) + dialogue speech (1) = 6, plus 2
+// spare). Now derived from every category's actual budget instead of a
+// hand-maintained number, so it can't silently drift out of sync with them.
+// Floats are the only category configurable at runtime (see [vock-floats]
+// FloatAudioChannels in game.cfg / settings.mod_settings.float_audio_channels),
+// so this is computed once in audioEngineInit(), before the SDL device is
+// opened and the mixer callback thread starts -- gAudioEngineSoundBuffers is
+// never resized after that.
+static int audioEngineSoundBufferCount()
+{
+    int floatAudioChannels = settings.mod_settings.float_audio_channels;
+    if (floatAudioChannels < 1) {
+        floatAudioChannels = 1;
+    }
+
+    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatAudioChannels;
+}
+
+static std::vector<AudioEngineSoundBuffer> gAudioEngineSoundBuffers;
 
 static bool audioEngineIsInitialized()
 {
@@ -41,7 +71,7 @@ static bool audioEngineIsInitialized()
 
 static bool soundBufferIsValid(int soundBufferIndex)
 {
-    return soundBufferIndex >= 0 && soundBufferIndex < AUDIO_ENGINE_SOUND_BUFFERS;
+    return soundBufferIndex >= 0 && soundBufferIndex < (int)gAudioEngineSoundBuffers.size();
 }
 
 static void audioEngineMixin(void* userData, Uint8* stream, int length)
@@ -52,7 +82,7 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
         return;
     }
 
-    for (int index = 0; index < AUDIO_ENGINE_SOUND_BUFFERS; index++) {
+    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
         std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
 
@@ -67,6 +97,25 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                     remaining = sizeof(buffer);
                 }
 
+                // FISSION-VOCK FIX: bounds-check *before* reading the next frame, not
+                // after. soundBuffer->size (derived from the decoded/loaded
+                // sound data) is not guaranteed to be an exact multiple of
+                // srcFrameSize -- confirmed via AddressSanitizer: a 2-byte
+                // (16-bit mono) frame read one byte past the end of a
+                // 72769-byte buffer (odd length) via SDL_AudioStreamPut,
+                // heap-buffer-overflow. The old code only checked
+                // soundBuffer->pos >= soundBuffer->size *after* already
+                // reading srcFrameSize bytes, so the last partial frame of
+                // any non-frame-aligned buffer could read past its end.
+                if (soundBuffer->pos + srcFrameSize > soundBuffer->size) {
+                    if (soundBuffer->looping) {
+                        soundBuffer->pos = 0;
+                    } else {
+                        soundBuffer->playing = false;
+                        break;
+                    }
+                }
+
                 // TODO: Make something better than frame-by-frame convertion.
                 SDL_AudioStreamPut(soundBuffer->stream, (unsigned char*)soundBuffer->data + soundBuffer->pos, srcFrameSize);
                 soundBuffer->pos += srcFrameSize;
@@ -78,15 +127,6 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
 
                 SDL_MixAudioFormat(stream + pos, buffer, gAudioEngineSpec.format, bytesRead, soundBuffer->volume);
 
-                if (soundBuffer->pos >= soundBuffer->size) {
-                    if (soundBuffer->looping) {
-                        soundBuffer->pos %= soundBuffer->size;
-                    } else {
-                        soundBuffer->playing = false;
-                        break;
-                    }
-                }
-
                 pos += bytesRead;
             }
         }
@@ -95,14 +135,20 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
 
 bool audioEngineInit()
 {
+    // FISSION-VOCK ADD: sized once, here, before SDL_OpenAudioDevice() below
+    // starts the mixer callback thread that iterates this vector -- never
+    // resized afterward.
+    gAudioEngineSoundBuffers = std::vector<AudioEngineSoundBuffer>(audioEngineSoundBufferCount());
+
     SDL_AudioSpec desiredSpec;
     desiredSpec.freq = 22050;
     desiredSpec.format = AUDIO_S16;
     desiredSpec.channels = 2;
     desiredSpec.samples = 1024;
     desiredSpec.callback = audioEngineMixin;
-
-    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    const char* driver = SDL_GetCurrentAudioDriver();
+    // Prevent overriding channels, as some audio drivers (WASAPI) don't handle > 2 correctly in this context and play no sound.
+    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
     if (gAudioEngineDeviceId == -1) {
         return false;
     }
@@ -140,7 +186,7 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
         return -1;
     }
 
-    for (int index = 0; index < AUDIO_ENGINE_SOUND_BUFFERS; index++) {
+    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
         std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
 

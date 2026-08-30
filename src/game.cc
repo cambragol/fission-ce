@@ -175,7 +175,11 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
     // it should be initialized early in the process.
     messageListRepositoryInit();
 
-    programWindowSetTitle(windowTitle);
+    // Set game name and version
+    char version[VERSION_MAX];
+    versionGetVersion(version, sizeof(version));
+    programWindowSetTitle(version);
+
     scriptWindowInit(1, flags);
     paletteInit();
 
@@ -703,7 +707,7 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
                 MessageListItem messageListItem;
                 char title[128];
                 strcpy(title, getmsg(&gMiscMessageList, &messageListItem, 7));
-                showDialogBox(title, nullptr, 0, 192, 116, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                showDialogBox(title, nullptr, 0, 192, 116, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
             } else {
                 soundPlayFile("ib1p1xx1");
                 pipboyOpen(PIPBOY_OPEN_INTENT_UNSPECIFIED);
@@ -776,22 +780,25 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
                 MessageListItem messageListItem;
                 char title[128];
                 strcpy(title, getmsg(&gMiscMessageList, &messageListItem, 7));
-                showDialogBox(title, nullptr, 0, 192, 116, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                showDialogBox(title, nullptr, 0, 192, 116, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
             } else {
                 soundPlayFile("ib1p1xx1");
                 pipboyOpen(PIPBOY_OPEN_INTENT_REST);
             }
         }
         break;
+    case KEY_UPPERCASE_H:
+    case KEY_LOWERCASE_H:
     case KEY_HOME:
         if (gDude->elevation != gElevation) {
             mapSetElevation(gDude->elevation);
         }
-
         if (gIsMapper) {
             tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW);
         } else {
+            tileScrollLimitingDisable();
             _tile_scroll_to(gDude->tile, 2);
+            tileScrollLimitingEnable();
         }
 
         break;
@@ -1424,7 +1431,7 @@ int globalVarsRead(const char* path, const char* section, int* variablesListLeng
         if (equals != nullptr) {
             sscanf(equals + 1, "%d", *variablesListPtr + *variablesListLengthPtr - 1);
         } else {
-            *variablesListPtr[*variablesListLengthPtr - 1] = 0;
+            (*variablesListPtr)[*variablesListLengthPtr - 1] = 0;
         }
     }
 
@@ -1699,7 +1706,7 @@ static void showHelp()
                     screenGetWidth(),
                     screenGetHeight(),
                     screenGetWidth(),
-                    intensityColorTable[_colorTable[0]][0]);
+                    intensityColorTable[_colorTable[COL_BLACK]][0]);
 
                 windowShow(overlay);
                 windowShow(win);
@@ -1771,7 +1778,7 @@ int showQuitConfirmationDialog()
     MessageListItem messageListItem;
     messageListItem.num = 0;
     if (messageListGetItem(&gMiscMessageList, &messageListItem)) {
-        rc = showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+        rc = showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_YES_NO);
         if (rc != 0) {
             _game_user_wants_to_quit = 2;
         }
@@ -2095,7 +2102,7 @@ int gameShowDeathDialog(const char* message)
     int oldUserWantsToQuit = _game_user_wants_to_quit;
     _game_user_wants_to_quit = 0;
 
-    int rc = showDialogBox(message, nullptr, 0, 169, 117, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+    int rc = showDialogBox(message, nullptr, 0, 169, 117, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE);
 
     _game_user_wants_to_quit = oldUserWantsToQuit;
 

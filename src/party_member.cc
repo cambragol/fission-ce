@@ -1674,6 +1674,10 @@ static int partyFixMultipleMembers()
     int critterCount = 0;
     Object* obj = objectFindFirst();
     while (obj != nullptr) {
+        if (PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER) {
+            critterCount++;
+        }
+
         bool isPartyMember = false;
         for (int index = 1; index < gPartyMemberDescriptionsLength; index++) {
             if (obj->pid == gPartyMemberPids[index]) {
@@ -2076,7 +2080,7 @@ int _partyMemberIncLevels()
             if (messageListGetItem(&gMiscMessageList, &msg)) {
                 name = critterGetName(obj);
                 snprintf(str, sizeof(str), msg.text, name);
-                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[0], &levelUpMessageRect);
+                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[COL_BLACK], &levelUpMessageRect);
                 tileWindowRefreshRect(&levelUpMessageRect, obj->elevation);
             }
         } else {
@@ -2159,7 +2163,7 @@ int _partyMemberIncLevels()
             if (messageListGetItem(&gMiscMessageList, &msg)) {
                 name = critterGetName(obj);
                 snprintf(str, sizeof(str), msg.text, name);
-                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[0], &levelUpMessageRect);
+                textObjectAdd(obj, str, 101, _colorTable[0x7FFF], _colorTable[COL_BLACK], &levelUpMessageRect);
                 tileWindowRefreshRect(&levelUpMessageRect, obj->elevation);
             }
         }

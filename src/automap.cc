@@ -631,7 +631,7 @@ static int automapScreenToTile(int relX, int relY, int playerTile, int winWidth,
     int vPlayer = playerTile / 200;
 
     // minimap mode constants (must match renderer - move to constants/defines?)
-    int clipLeft = 34, clipTop = 29, clipRight = 182, clipBottom = 192;
+    int clipLeft = MINIMAP_CLIP_LEFT, clipTop = MINIMAP_CLIP_TOP, clipRight = MINIMAP_CLIP_RIGHT, clipBottom = MINIMAP_CLIP_BOTTOM;
     int vpCenterX = winWidth / 2 - clipLeft / 2;
     int vpCenterY = winHeight / 2 - clipTop / 2;
 
@@ -714,10 +714,10 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     int color;
     if (isInGame) {
-        color = _colorTable[8456];
+        color = _colorTable[COL_DARK_SLATE];
         _obj_process_seen();
     } else {
-        color = _colorTable[22025];
+        color = _colorTable[COL_WARM_SAND_2];
     }
 
     gOldFont = fontGetCurrent();
@@ -946,7 +946,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
                         soundPlayFile("iisxxxx1");
                         MessageListItem msg;
                         const char* title = getmsg(&gMiscMessageList, &msg, scanner ? 18 : 17);
-                        showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                        showDialogBox(title, nullptr, 0, 165, 140, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     }
                 }
                 break;
@@ -1016,9 +1016,9 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 
     int color;
     if ((flags & AUTOMAP_IN_GAME) != 0) {
-        color = _colorTable[8456];
+        color = _colorTable[COL_DARK_SLATE];
     } else {
-        color = _colorTable[22025];
+        color = _colorTable[COL_WARM_SAND_2];
     }
 
     windowFill(window, 0, 0, winWidth, winHeight, color);
@@ -1035,59 +1035,59 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
             int tileX = obj->tile % 200;
             int tileY = obj->tile / 200;
             int objectType = FID_TYPE(obj->fid);
-            unsigned char objColor = _colorTable[0];
+            unsigned char objColor = _colorTable[COL_BLACK];
 
             // Color determination (same as before)
             if ((flags & AUTOMAP_IN_GAME) != 0) {
                 if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
                     && (flags & AUTOMAP_WITH_SCANNER) != 0
                     && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
-                    objColor = _colorTable[31744];
+                    objColor = _colorTable[COL_PURE_RED];
                 } else {
                     if ((obj->flags & OBJECT_SEEN) == 0) continue;
                     if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
-                        objColor = _colorTable[32328];
+                        objColor = _colorTable[COL_ORANGE];
                     else if (objectType == OBJ_TYPE_WALL)
-                        objColor = _colorTable[992];
+                        objColor = _colorTable[COL_LIME_GREEN];
                     else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
                         && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
-                        objColor = _colorTable[480];
+                        objColor = _colorTable[COL_DARK_GREEN_2];
                     else if (obj == gDude)
-                        objColor = _colorTable[31744];
+                        objColor = _colorTable[COL_PURE_RED];
                     else
-                        objColor = _colorTable[0];
+                        objColor = _colorTable[COL_BLACK];
                 }
             } else {
                 switch (objectType) {
                 case OBJ_TYPE_ITEM:
-                    objColor = _colorTable[6513];
+                    objColor = _colorTable[COL_BLUE_NAVY];
                     break;
                 case OBJ_TYPE_CRITTER:
-                    objColor = _colorTable[28672];
+                    objColor = _colorTable[COL_RED];
                     break;
                 case OBJ_TYPE_SCENERY:
-                    objColor = _colorTable[448];
+                    objColor = _colorTable[COL_DARK_GREEN_2];
                     break;
                 case OBJ_TYPE_WALL:
-                    objColor = _colorTable[12546];
+                    objColor = _colorTable[COL_DARK_TAUPE];
                     break;
                 case OBJ_TYPE_MISC:
-                    objColor = _colorTable[31650];
+                    objColor = _colorTable[COL_GOLDEN_YELLOW];
                     break;
                 default:
-                    objColor = _colorTable[0];
+                    objColor = _colorTable[COL_BLACK];
                     break;
                 }
             }
 
-            if (objColor == _colorTable[0]) continue;
+            if (objColor == _colorTable[COL_BLACK]) continue;
 
             // Original Fallout automap formula
             int v10 = -2 * tileX - 10 + winWidth * (2 * tileY + 9) - 60;
             unsigned char* pixel = windowBuffer + v10;
 
             if ((flags & AUTOMAP_IN_GAME) != 0) {
-                if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+                if (*pixel != _colorTable[COL_LIME_GREEN] || objColor != _colorTable[COL_DARK_GREEN_2]) {
                     pixel[0] = objColor;
                     pixel[1] = objColor;
                 }
@@ -1144,50 +1144,50 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 
             // Color determination (same as before, copy from above)
             int objectType = FID_TYPE(obj->fid);
-            unsigned char objColor = _colorTable[0];
+            unsigned char objColor = _colorTable[COL_BLACK];
             if ((flags & AUTOMAP_IN_GAME) != 0) {
                 if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
                     && (flags & AUTOMAP_WITH_SCANNER) != 0
                     && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
-                    objColor = _colorTable[31744];
+                    objColor = _colorTable[COL_PURE_RED];
                 } else {
                     if ((obj->flags & OBJECT_SEEN) == 0) continue;
                     if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
-                        objColor = _colorTable[32328];
+                        objColor = _colorTable[COL_ORANGE];
                     else if (objectType == OBJ_TYPE_WALL)
-                        objColor = _colorTable[992];
+                        objColor = _colorTable[COL_LIME_GREEN];
                     else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
                         && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
-                        objColor = _colorTable[480];
+                        objColor = _colorTable[COL_DARK_GREEN_2];
                     else if (obj == gDude)
-                        objColor = _colorTable[31744];
+                        objColor = _colorTable[COL_PURE_RED];
                     else
-                        objColor = _colorTable[0];
+                        objColor = _colorTable[COL_BLACK];
                 }
             } else {
                 switch (objectType) {
                 case OBJ_TYPE_ITEM:
-                    objColor = _colorTable[6513];
+                    objColor = _colorTable[COL_BLUE_NAVY];
                     break;
                 case OBJ_TYPE_CRITTER:
-                    objColor = _colorTable[28672];
+                    objColor = _colorTable[COL_RED];
                     break;
                 case OBJ_TYPE_SCENERY:
-                    objColor = _colorTable[448];
+                    objColor = _colorTable[COL_DARK_GREEN_2];
                     break;
                 case OBJ_TYPE_WALL:
-                    objColor = _colorTable[12546];
+                    objColor = _colorTable[COL_DARK_TAUPE];
                     break;
                 case OBJ_TYPE_MISC:
-                    objColor = _colorTable[31650];
+                    objColor = _colorTable[COL_GOLDEN_YELLOW];
                     break;
                 default:
-                    objColor = _colorTable[0];
+                    objColor = _colorTable[COL_BLACK];
                     break;
                 }
             }
 
-            if (objColor == _colorTable[0]) continue;
+            if (objColor == _colorTable[COL_BLACK]) continue;
 
             // Object base coordinates
             double objBaseX, objBaseY;
@@ -1215,7 +1215,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
 
             // Drawing (same as before)
             if ((flags & AUTOMAP_IN_GAME) != 0) {
-                if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+                if (*pixel != _colorTable[COL_LIME_GREEN] || objColor != _colorTable[COL_DARK_GREEN_2]) {
                     pixel[0] = objColor;
                     pixel[1] = objColor;
                 }
@@ -1238,7 +1238,7 @@ static void automapRenderInMapWindow(int window, int elevation, unsigned char* b
     }
 
     // Map name and area name (same for both modes)
-    int textColor = ((flags & AUTOMAP_IN_GAME) != 0) ? _colorTable[992] : _colorTable[12546];
+    int textColor = ((flags & AUTOMAP_IN_GAME) != 0) ? _colorTable[COL_LIME_GREEN] : _colorTable[COL_DARK_TAUPE];
     if (mapGetCurrentMap() != -1) {
         char* areaName = mapGetCityName(mapGetCurrentMap());
         char* mapName = mapGetName(mapGetCurrentMap(), elevation);
@@ -1317,30 +1317,30 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
 
         // Color determination (same as original minimap/automap logic)
         int objectType = FID_TYPE(obj->fid);
-        unsigned char objColor = _colorTable[0];
+        unsigned char objColor = _colorTable[COL_BLACK];
         if ((flags & AUTOMAP_IN_GAME) != 0) {
             if (objectType == OBJ_TYPE_CRITTER && (obj->flags & OBJECT_HIDDEN) == 0
                 && (flags & AUTOMAP_WITH_SCANNER) != 0
                 && (obj->data.critter.combat.results & DAM_DEAD) == 0) {
-                objColor = _colorTable[31744];
+                objColor = _colorTable[COL_PURE_RED];
             } else {
                 if ((obj->flags & OBJECT_SEEN) == 0) continue;
                 if (obj->pid == PROTO_ID_EXIT_GRID_MAP_MARKER)
-                    objColor = _colorTable[32328];
+                    objColor = _colorTable[COL_ORANGE];
                 else if (objectType == OBJ_TYPE_WALL)
-                    objColor = _colorTable[992];
+                    objColor = _colorTable[COL_LIME_GREEN];
                 else if (objectType == OBJ_TYPE_SCENERY && (flags & AUTOMAP_WTH_HIGH_DETAILS) != 0
                     && obj->pid != PROTO_ID_BLOCK_HEX_AUTO_INVISO)
-                    objColor = _colorTable[480];
+                    objColor = _colorTable[COL_DARK_GREEN_2];
                 else if (obj == gDude)
-                    objColor = _colorTable[31744];
+                    objColor = _colorTable[COL_PURE_RED];
                 else
-                    objColor = _colorTable[0];
+                    objColor = _colorTable[COL_BLACK];
             }
         } else {
             continue;
         }
-        if (objColor == _colorTable[0]) continue;
+        if (objColor == _colorTable[COL_BLACK]) continue;
 
         // Object base coordinates (same as minimap)
         double objBaseX, objBaseY;
@@ -1376,7 +1376,7 @@ void automapRenderMinimapCroppedToBuffer(unsigned char* buffer, int pitch,
         unsigned char* pixel = buffer + destPixelY * pitch + destPixelX;
 
         // Drawing (same as original minimap style)
-        if (*pixel != _colorTable[992] || objColor != _colorTable[480]) {
+        if (*pixel != _colorTable[COL_LIME_GREEN] || objColor != _colorTable[COL_DARK_GREEN_2]) {
             pixel[0] = objColor;
             pixel[1] = objColor;
         }
@@ -1413,8 +1413,8 @@ int automapRenderInPipboyWindow(int window, int map, int elevation)
     }
     unsigned char* windowBuffer = windowGetBuffer(window) + 640 * AUTOMAP_PIPBOY_VIEW_Y + AUTOMAP_PIPBOY_VIEW_X;
 
-    unsigned char wallColor = _colorTable[992];
-    unsigned char sceneryColor = _colorTable[480];
+    unsigned char wallColor = _colorTable[COL_LIME_GREEN];
+    unsigned char sceneryColor = _colorTable[COL_DARK_GREEN_2];
 
     gAutomapEntry.data = (unsigned char*)internal_malloc(11024);
     if (gAutomapEntry.data == nullptr) {
@@ -2149,7 +2149,7 @@ bool automapHandleKey(int keyCode)
                 soundPlayFile("iisxxxx1");
                 MessageListItem msg;
                 const char* title = getmsg(&gMiscMessageList, &msg, scanner ? 18 : 17);
-                showDialogBox(title, nullptr, 0, 165, 140, _colorTable[32328], nullptr, _colorTable[32328], 0);
+                showDialogBox(title, nullptr, 0, 165, 140, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
             }
         }
         break;

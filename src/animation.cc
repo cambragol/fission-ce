@@ -219,6 +219,7 @@ typedef struct AnimationDescription {
         int lightIntensity;
     };
     CacheEntry* artCacheKey;
+    bool executed; // true if this callback has already been run
 } AnimationDescription;
 
 typedef struct AnimationSequence {
@@ -362,7 +363,9 @@ static int showRealNPC(void* param1, void* param2)
 static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int elevation)
 {
     Object* ghost;
-    if (objectCreateWithFidPid(&ghost, realNPC->fid, -1) == -1) return;
+    if (objectCreateWithFidPid(&ghost, realNPC->fid, -1) == -1)
+        return;
+
     ghost->flags |= OBJECT_NO_BLOCK | OBJECT_NO_SAVE;
     ghost->rotation = realNPC->rotation;
     objectSetLocation(ghost, fromTile, elevation, nullptr);
@@ -376,6 +379,7 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
 
     // If no animation slot is available, clean up and bail out
     if (reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT) == -1) {
+        // Could not start sequence - restore real NPC and destroy ghost
         objectDestroy(ghost, nullptr);
         realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
         objectShow(realNPC, &rect);
@@ -383,11 +387,28 @@ static void createGhostAnimation(Object* realNPC, int fromTile, int toTile, int 
         return;
     }
 
-    reg_anim_begin(ANIMATION_REQUEST_INSIGNIFICANT);
-    animationRegisterUnsetFlag(ghost, OBJECT_HIDDEN, 0);
-    animationRegisterMoveToTileStraight(ghost, toTile, elevation, ANIM_WALK, 0);
-    animationRegisterCallback(ghost, realNPC, showRealNPC, -1); // show real NPC at end
-    animationRegisterHideObjectForced(ghost);
+    bool error = false;
+
+    if (animationRegisterUnsetFlag(ghost, OBJECT_HIDDEN, 0) == -1)
+        error = true;
+    if (!error && animationRegisterMoveToTileStraight(ghost, toTile, elevation, ANIM_WALK, 0) == -1)
+        error = true;
+    if (!error && animationRegisterCallbackForced(ghost, realNPC, showRealNPC, -1) == -1)
+        error = true;
+    if (!error && animationRegisterHideObjectForced(ghost) == -1)
+        error = true;
+
+    if (error) {
+        // Abort the current sequence without executing any actions
+        _anim_cleanup(); // resets gAnimationSequenceCurrentIndex
+        // Restore the real NPC and destroy the ghost
+        objectDestroy(ghost, nullptr);
+        realNPC->flags &= ~OBJECT_GHOST_HIDDEN;
+        objectShow(realNPC, &rect);
+        tileWindowRefreshRect(&rect, realNPC->elevation);
+        return;
+    }
+
     reg_anim_end();
 }
 
@@ -684,19 +705,42 @@ static void _anim_cleanup()
         return;
     }
 
+    AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
+
+    // Execute all forced callbacks in the current sequence before destroying
+    for (int i = 0; i < gAnimationDescriptionCurrentIndex; i++) {
+        AnimationDescription* desc = &animationSequence->animations[i];
+        if (desc->extendedFlags & ANIMATION_SEQUENCE_FORCED) {
+            if (!desc->executed) {
+                if (desc->kind == ANIM_KIND_CALLBACK && desc->callback) {
+                    desc->callback(desc->param1, desc->param2);
+                } else if (desc->kind == ANIM_KIND_CALLBACK3 && desc->callback3) {
+                    desc->callback3(desc->param1, desc->param2, desc->param3);
+                }
+                desc->executed = true;
+            }
+        }
+    }
+
+    // Clear accumulating flags for all sequences
     for (int index = 0; index < ANIMATION_SEQUENCE_LIST_CAPACITY; index++) {
         gAnimationSequences[index].flags &= ~(ANIM_SEQ_ACCUMULATING | ANIM_SEQ_0x10);
     }
 
-    AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
-    for (int index = 0; index < gAnimationDescriptionCurrentIndex; index++) {
-        AnimationDescription* animationDescription = &(animationSequence->animations[index]);
-        if (animationDescription->artCacheKey != nullptr) {
-            artUnlock(animationDescription->artCacheKey);
+    // Clean up art caches and sounds for the current sequence
+    for (int i = 0; i < gAnimationDescriptionCurrentIndex; i++) {
+        AnimationDescription* desc = &animationSequence->animations[i];
+
+        if (desc->artCacheKey != nullptr) {
+            artUnlock(desc->artCacheKey);
+            desc->artCacheKey = nullptr;
         }
 
-        if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback == (AnimationCallback*)_gsnd_anim_sound) {
-            soundEffectDelete((Sound*)animationDescription->param1);
+        // Delete sounds only for non-forced sound callbacks (forced ones already executed)
+        if ((desc->extendedFlags & ANIMATION_SEQUENCE_FORCED) == 0) {
+            if (desc->kind == ANIM_KIND_CALLBACK && desc->callback == (AnimationCallback*)_gsnd_anim_sound) {
+                soundEffectDelete((Sound*)desc->param1);
+            }
         }
     }
 
@@ -1206,6 +1250,7 @@ int animationRegisterCallback(void* param1, void* param2, AnimationCallback* pro
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK;
+    animationDescription->executed = false;
     animationDescription->extendedFlags = 0;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = param2;
@@ -1231,6 +1276,7 @@ int animationRegisterCallback3(void* param1, void* param2, void* param3, Animati
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK3;
+    animationDescription->executed = false;
     animationDescription->extendedFlags = 0;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = param2;
@@ -1255,6 +1301,7 @@ int animationRegisterCallbackForced(void* a1, void* a2, AnimationCallback* proc,
     AnimationSequence* animationSequence = &(gAnimationSequences[gAnimationSequenceCurrentIndex]);
     AnimationDescription* animationDescription = &(animationSequence->animations[gAnimationDescriptionCurrentIndex]);
     animationDescription->kind = ANIM_KIND_CALLBACK;
+    animationDescription->executed = false;
     animationDescription->extendedFlags = ANIMATION_SEQUENCE_FORCED;
     animationDescription->artCacheKey = nullptr;
     animationDescription->param2 = a2;
@@ -1592,12 +1639,14 @@ static int animationRunSequence(int animationSequenceIndex)
             rc = _anim_hide(animationDescription->owner, animationSequenceIndex);
             break;
         case ANIM_KIND_CALLBACK:
+            animationDescription->executed = true;
             rc = animationDescription->callback(animationDescription->param1, animationDescription->param2);
             if (rc == 0) {
                 rc = _anim_set_continue(animationSequenceIndex, 0);
             }
             break;
         case ANIM_KIND_CALLBACK3:
+            animationDescription->executed = true;
             rc = animationDescription->callback3(animationDescription->param1, animationDescription->param2, animationDescription->param3);
             if (rc == 0) {
                 rc = _anim_set_continue(animationSequenceIndex, 0);
@@ -1768,7 +1817,7 @@ static int _anim_set_end(int animationSequenceIndex)
         }
     }
 
-    // Second loop — skip any owner that was destroyed above
+    // Second loop - skip any owner that was destroyed above
     for (i = 0; i < animationSequence->length; i++) {
         animationDescription = &(animationSequence->animations[i]);
         if (animationDescription->artCacheKey) {
@@ -1776,63 +1825,79 @@ static int _anim_set_end(int animationSequenceIndex)
             animationDescription->artCacheKey = nullptr;
         }
 
-        if (animationDescription->kind != 11 && animationDescription->kind != 12) {
-            if (animationDescription->kind != ANIM_KIND_PING) {
-                Object* owner = animationDescription->owner;
-
-                // Skip if this owner was already destroyed
-                bool ownerDestroyed = false;
-                for (int d = 0; d < destroyedOwnersLength; d++) {
-                    if (destroyedOwners[d] == owner) {
-                        ownerDestroyed = true;
-                        break;
+        // Handle callback entries
+        if (animationDescription->kind == ANIM_KIND_CALLBACK || animationDescription->kind == ANIM_KIND_CALLBACK3) {
+            // Forced callbacks execute only if not already executed
+            if (animationDescription->extendedFlags & ANIMATION_SEQUENCE_FORCED) {
+                if (!animationDescription->executed) {
+                    if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback) {
+                        animationDescription->callback(animationDescription->param1, animationDescription->param2);
+                    } else if (animationDescription->kind == ANIM_KIND_CALLBACK3 && animationDescription->callback3) {
+                        animationDescription->callback3(animationDescription->param1, animationDescription->param2, animationDescription->param3);
+                    }
+                    animationDescription->executed = true;
+                }
+                // Forced callbacks: no sound cleanup here because they were executed (or already were)
+            } else {
+                // Non-forced callbacks: only clean up sound if the step was reached
+                if (i >= animationSequence->step) {
+                    if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback == (AnimationCallback*)_gsnd_anim_sound) {
+                        soundEffectDelete((Sound*)animationDescription->param1);
                     }
                 }
-                if (ownerDestroyed) {
-                    continue;
-                }
+                // Non-forced callbacks are not executed here; they already ran when the step was reached
+            }
+            continue; // done with this entry
+        }
 
-                if (FID_TYPE(owner->fid) == OBJ_TYPE_CRITTER) {
-                    int j = 0;
-                    for (; j < i; j++) {
-                        AnimationDescription* ad = &(animationSequence->animations[j]);
-                        if (owner == ad->owner) {
-                            if (ad->kind != ANIM_KIND_CALLBACK && ad->kind != ANIM_KIND_CALLBACK3) {
-                                break;
-                            }
-                        }
-                    }
+        // For non-callback types (including PING, but we skip PING later)
+        if (animationDescription->kind != ANIM_KIND_PING) {
+            Object* owner = animationDescription->owner;
 
-                    if (i == j) {
-                        int k = 0;
-                        for (; k < animationSequence->animationIndex; k++) {
-                            AnimationDescription* ad = &(animationSequence->animations[k]);
-                            if (ad->kind == ANIM_KIND_HIDE && ad->owner == owner) {
-                                break;
-                            }
-                        }
-
-                        if (k == animationSequence->animationIndex) {
-                            for (int m = 0; m < gAnimationCurrentSad; m++) {
-                                if (gAnimationSads[m].obj == owner) {
-                                    gAnimationSads[m].step = ANIM_COMPLETE;
-                                    break;
-                                }
-                            }
-
-                            if ((animationSequence->flags & ANIM_SEQ_NO_STAND) == 0 && !critterIsProne(owner)) {
-                                _dude_stand(owner, owner->rotation, -1);
-                            }
-                        }
-                    }
+            // Skip if this owner was already destroyed
+            bool ownerDestroyed = false;
+            for (int d = 0; d < destroyedOwnersLength; d++) {
+                if (destroyedOwners[d] == owner) {
+                    ownerDestroyed = true;
+                    break;
                 }
             }
-        } else if (i >= animationSequence->step) {
-            if (animationDescription->extendedFlags & ANIMATION_SEQUENCE_FORCED) {
-                animationDescription->callback(animationDescription->param1, animationDescription->param2);
-            } else {
-                if (animationDescription->kind == ANIM_KIND_CALLBACK && animationDescription->callback == (AnimationCallback*)_gsnd_anim_sound) {
-                    soundEffectDelete((Sound*)animationDescription->param1);
+            if (ownerDestroyed) {
+                continue;
+            }
+
+            if (FID_TYPE(owner->fid) == OBJ_TYPE_CRITTER) {
+                int j = 0;
+                for (; j < i; j++) {
+                    AnimationDescription* ad = &(animationSequence->animations[j]);
+                    if (owner == ad->owner) {
+                        if (ad->kind != ANIM_KIND_CALLBACK && ad->kind != ANIM_KIND_CALLBACK3) {
+                            break;
+                        }
+                    }
+                }
+
+                if (i == j) {
+                    int k = 0;
+                    for (; k < animationSequence->animationIndex; k++) {
+                        AnimationDescription* ad = &(animationSequence->animations[k]);
+                        if (ad->kind == ANIM_KIND_HIDE && ad->owner == owner) {
+                            break;
+                        }
+                    }
+
+                    if (k == animationSequence->animationIndex) {
+                        for (int m = 0; m < gAnimationCurrentSad; m++) {
+                            if (gAnimationSads[m].obj == owner) {
+                                gAnimationSads[m].step = ANIM_COMPLETE;
+                                break;
+                            }
+                        }
+
+                        if ((animationSequence->flags & ANIM_SEQ_NO_STAND) == 0 && !critterIsProne(owner)) {
+                            _dude_stand(owner, owner->rotation, -1);
+                        }
+                    }
                 }
             }
         }

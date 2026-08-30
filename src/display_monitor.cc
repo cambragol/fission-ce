@@ -242,7 +242,7 @@ void displayMonitorAddMessage(char* str)
     // TODO: Refactor these two loops.
     char* splitPos = nullptr;
     while (true) {
-        while (fontGetStringWidth(str) < DISPLAY_MONITOR_WIDTH - _max_disp - knobWidth) {
+        while (fontGetStringWidth(str) <= DISPLAY_MONITOR_WIDTH - _max_disp - knobWidth) {
             char* temp = gDisplayMonitorLines[_disp_start];
             int length;
             if (knob != '\0') {
@@ -350,7 +350,7 @@ static void displayMonitorRefresh()
 
     for (int index = 0; index < _max_disp; index++) {
         int stringIndex = (_disp_curr + gDisplayMonitorLinesCapacity + index - _max_disp) % gDisplayMonitorLinesCapacity;
-        fontDrawText(buf + index * _intface_full_width * fontGetLineHeight(), gDisplayMonitorLines[stringIndex], DISPLAY_MONITOR_WIDTH, _intface_full_width, _colorTable[992]);
+        fontDrawText(buf + index * _intface_full_width * fontGetLineHeight(), gDisplayMonitorLines[stringIndex], DISPLAY_MONITOR_WIDTH, _intface_full_width, _colorTable[COL_LIME_GREEN]);
 
         // Even though the display monitor is rectangular, it's graphic is not.
         // To give a feel of depth it's covered by some metal canopy and
