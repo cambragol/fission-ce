@@ -23,6 +23,7 @@
 #include "game_sound.h"
 #include "input.h"
 #include "interface.h"
+#include "inventory.h"
 #include "item.h"
 #include "kb.h"
 #include "lips.h"
@@ -3892,7 +3893,7 @@ void partyMemberControlWindowUpdate()
         int width = artGetWidth(preview, 0, ROTATION_SW);
         int height = artGetHeight(preview, 0, ROTATION_SW);
         unsigned char* buffer = artGetFrameData(preview, 0, ROTATION_SW);
-        blitBufferToBufferTrans(buffer, width, height, width, windowBuffer + windowWidth * (132 - height / 2) + 39 - width / 2, windowWidth);
+        blitBufferToBufferGreenTrans(buffer, width, height, width, windowBuffer + windowWidth * (132 - height / 2) + 39 - width / 2, windowWidth);
         artUnlock(previewHandle);
     }
 

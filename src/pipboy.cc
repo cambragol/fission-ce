@@ -5548,17 +5548,18 @@ static void cluesRenderImage(const char* filename, int* currentLine)
         maxLum = minLum + 1; // force range
     }
 
-    // Green palette: from darkest to brightest.
-    // Use _colorTable[COL_LIGHT_LEMON] for the brightest as it is used elsewhere in pipboy.
-    const int greenPalettes[] = {
-        _colorTable[COL_DARK_FOREST], // darkest green
+    // Color palates for green-monochrome screen effects
+    int greenPalette[] = {
+        _colorTable[COL_BLACKISH_TEAL],
+        _colorTable[COL_DARK_FOREST],
         _colorTable[COL_FOREST_GREEN_2],
         _colorTable[COL_GREEN_LIME],
         _colorTable[COL_BRIGHT_LIME],
-        _colorTable[COL_LIME_GREEN], // brightest green
-        _colorTable[COL_LIGHT_LEMON] // yellow - used in pipboy highlighting - so include
+        _colorTable[COL_LIME_GREEN],
+        _colorTable[COL_LIGHT_LEMON],
+        _colorTable[COL_LIGHT_SPRING_GREEN]
     };
-    const int numShades = sizeof(greenPalettes) / sizeof(greenPalettes[0]);
+    int numGreenShades = sizeof(greenPalette) / sizeof(greenPalette[0]);
 
     // Second pass - draw with contrast stretching
     for (int row = 0; row < height && row < frameHeight; row++) {
@@ -5593,11 +5594,11 @@ static void cluesRenderImage(const char* filename, int* currentLine)
             if (stretched > 255) stretched = 255;
 
             // Map stretched luminance to a shade index
-            int shadeIdx = (stretched * (numShades - 1) + 127) / 255;
+            int shadeIdx = (stretched * (numGreenShades - 1) + 127) / 255;
             if (shadeIdx < 0) shadeIdx = 0;
-            if (shadeIdx >= numShades) shadeIdx = numShades - 1;
+            if (shadeIdx >= numGreenShades) shadeIdx = numGreenShades - 1;
 
-            unsigned char color = greenPalettes[shadeIdx];
+            unsigned char color = greenPalette[shadeIdx];
             gPipboyWindowBuffer[destY * PIPBOY_WINDOW_WIDTH + destX] = color;
         }
     }
