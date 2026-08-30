@@ -67,8 +67,8 @@ namespace fallout {
 
 #define INVENTORY_SLOT_PADDING 4
 
-#define INVENTORY_LEFT_HAND_SLOT_X 154
-#define INVENTORY_LEFT_HAND_SLOT_Y 286
+#define INVENTORY_LEFT_HAND_SLOT_X 152
+#define INVENTORY_LEFT_HAND_SLOT_Y 284
 #define INVENTORY_LEFT_HAND_SLOT_MAX_X (INVENTORY_LEFT_HAND_SLOT_X + INVENTORY_LARGE_SLOT_WIDTH)
 #define INVENTORY_LEFT_HAND_SLOT_MAX_Y (INVENTORY_LEFT_HAND_SLOT_Y + INVENTORY_LARGE_SLOT_HEIGHT)
 
@@ -4706,7 +4706,6 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         item = nullptr;
         quantity = 0;
 
-        InventoryItem* inventoryItem = nullptr;
         if (keyCode < 2000) {
             int slot = keyCode - 1000;
             int index = _stack_offset[_curr_stack] + slot;
@@ -4760,10 +4759,7 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             owner = _btable;
             quantity = invItem->quantity;
         }
-
-        if (inventoryItem != nullptr) {
-            quantity = inventoryItem->quantity;
-        }
+        break;
     }
 
     if (outItemSlot != nullptr) {
