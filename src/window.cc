@@ -475,8 +475,8 @@ void _doRegionFunc(Region* region, int mouseEvent)
     }
 
     if (mouseEvent < 4) {
-        if (region->program != nullptr && region->rightProcs[mouseEvent] != 0) {
-            programExecuteProcedureAsync(region->program, region->rightProcs[mouseEvent]);
+        if (region->program != nullptr && region->procs[mouseEvent] != 0) {
+            programExecuteProcedureAsync(region->program, region->procs[mouseEvent]);
         }
     }
 }
@@ -571,6 +571,7 @@ void scriptWindowDispatchButtonMouseEvent(int btn, int mouseEvent)
                             managedButton->mouseEventCallback(managedButton->mouseEventCallbackUserData, mouseEvent);
                         }
                     }
+                    return;
                 }
             }
         }
@@ -630,6 +631,7 @@ void scriptWindowDispatchButtonRightMouseEvent(int btn, int mouseEvent)
                             managedButton->rightMouseEventCallback(managedButton->rightMouseEventCallbackUserData, mouseEvent);
                         }
                     }
+                    return;
                 }
             }
         }
@@ -649,25 +651,25 @@ void _doRightButtonRelease(int btn, int keyCode)
 void _setButtonGFX(int width, int height, unsigned char* normal, unsigned char* pressed)
 {
     if (normal != nullptr) {
-        bufferFill(normal, width, height, width, _colorTable[0]);
-        bufferFill(normal + width + 1, width - 2, height - 2, width, intensityColorTable[_colorTable[32767]][89]);
-        bufferDrawLine(normal, width, 1, 1, width - 2, 1, _colorTable[32767]);
-        bufferDrawLine(normal, width, 2, 2, width - 3, 2, _colorTable[32767]);
-        bufferDrawLine(normal, width, 1, height - 2, width - 2, height - 2, intensityColorTable[_colorTable[32767]][44]);
-        bufferDrawLine(normal, width, 2, height - 3, width - 3, height - 3, intensityColorTable[_colorTable[32767]][44]);
-        bufferDrawLine(normal, width, width - 2, 1, width - 3, 2, intensityColorTable[_colorTable[32767]][89]);
-        bufferDrawLine(normal, width, 1, 2, 1, height - 3, _colorTable[32767]);
-        bufferDrawLine(normal, width, 2, 3, 2, height - 4, _colorTable[32767]);
-        bufferDrawLine(normal, width, width - 2, 2, width - 2, height - 3, intensityColorTable[_colorTable[32767]][44]);
-        bufferDrawLine(normal, width, width - 3, 3, width - 3, height - 4, intensityColorTable[_colorTable[32767]][44]);
-        bufferDrawLine(normal, width, 1, height - 2, 2, height - 3, intensityColorTable[_colorTable[32767]][89]);
+        bufferFill(normal, width, height, width, _colorTable[COL_BLACK]);
+        bufferFill(normal + width + 1, width - 2, height - 2, width, intensityColorTable[_colorTable[COL_WHITE]][89]);
+        bufferDrawLine(normal, width, 1, 1, width - 2, 1, _colorTable[COL_WHITE]);
+        bufferDrawLine(normal, width, 2, 2, width - 3, 2, _colorTable[COL_WHITE]);
+        bufferDrawLine(normal, width, 1, height - 2, width - 2, height - 2, intensityColorTable[_colorTable[COL_WHITE]][44]);
+        bufferDrawLine(normal, width, 2, height - 3, width - 3, height - 3, intensityColorTable[_colorTable[COL_WHITE]][44]);
+        bufferDrawLine(normal, width, width - 2, 1, width - 3, 2, intensityColorTable[_colorTable[COL_WHITE]][89]);
+        bufferDrawLine(normal, width, 1, 2, 1, height - 3, _colorTable[COL_WHITE]);
+        bufferDrawLine(normal, width, 2, 3, 2, height - 4, _colorTable[COL_WHITE]);
+        bufferDrawLine(normal, width, width - 2, 2, width - 2, height - 3, intensityColorTable[_colorTable[COL_WHITE]][44]);
+        bufferDrawLine(normal, width, width - 3, 3, width - 3, height - 4, intensityColorTable[_colorTable[COL_WHITE]][44]);
+        bufferDrawLine(normal, width, 1, height - 2, 2, height - 3, intensityColorTable[_colorTable[COL_WHITE]][89]);
     }
 
     if (pressed != nullptr) {
-        bufferFill(pressed, width, height, width, _colorTable[0]);
-        bufferFill(pressed + width + 1, width - 2, height - 2, width, intensityColorTable[_colorTable[32767]][89]);
-        bufferDrawLine(pressed, width, 1, 1, width - 2, 1, _colorTable[32767] + 44);
-        bufferDrawLine(pressed, width, 1, 1, 1, height - 2, _colorTable[32767] + 44);
+        bufferFill(pressed, width, height, width, _colorTable[COL_BLACK]);
+        bufferFill(pressed + width + 1, width - 2, height - 2, width, intensityColorTable[_colorTable[COL_WHITE]][89]);
+        bufferDrawLine(pressed, width, 1, 1, width - 2, 1, _colorTable[COL_WHITE] + 44);
+        bufferDrawLine(pressed, width, 1, 1, 1, height - 2, _colorTable[COL_WHITE] + 44);
     }
 }
 
@@ -1078,7 +1080,7 @@ char** windowWordWrap(char* string, int maxLength, int indent, int* substringLis
             pch++;
         } else {
             while (width > maxLength) {
-                width -= fontGetCharacterWidth(*pch);
+                width -= fontGetCharacterWidth(*pch & 0xFF);
                 pch--;
             }
 

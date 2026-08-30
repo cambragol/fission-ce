@@ -340,7 +340,7 @@ static bool characterSelectorWindowInit()
         characterSelectorWindowY,
         gOffsets.width,
         gOffsets.height,
-        _colorTable[0],
+        _colorTable[COL_BLACK],
         0);
     if (gCharacterSelectorWindow == -1) {
         return characterSelectorWindowFatalError(false);
@@ -714,7 +714,7 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.nameMidX - (length / 2),
-        text, 160, gOffsets.width, _colorTable[992]);
+        text, 160, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // STRENGTH
     y += vh + vh + vh;
@@ -726,14 +726,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // PERCEPTION
     y += vh;
@@ -745,14 +745,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // ENDURANCE
     y += vh;
@@ -764,14 +764,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // CHARISMA
     y += vh;
@@ -783,14 +783,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // INTELLIGENCE
     y += vh;
@@ -802,14 +802,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // AGILITY
     y += vh;
@@ -821,14 +821,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // LUCK
     y += vh;
@@ -840,14 +840,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     str = statGetValueDescription(value);
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     y += vh; // blank line
 
@@ -862,7 +862,7 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     value = critterGetStat(gDude, STAT_MAXIMUM_HIT_POINTS);
     snprintf(text, sizeof(text), " %d/%d", critterGetHitPoints(gDude), value);
@@ -870,7 +870,7 @@ static bool characterSelectorWindowRenderStats()
     length = fontGetStringWidth(text);
     // Use offset-based position
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // ARMOR CLASS
     y += vh;
@@ -880,14 +880,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     value = critterGetStat(gDude, STAT_ARMOR_CLASS);
     snprintf(text, sizeof(text), " %d", value);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // ACTION POINTS
     y += vh;
@@ -900,14 +900,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     value = critterGetStat(gDude, STAT_MAXIMUM_ACTION_POINTS);
     snprintf(text, sizeof(text), " %d", value);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     // MELEE DAMAGE
     y += vh;
@@ -917,14 +917,14 @@ static bool characterSelectorWindowRenderStats()
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     value = critterGetStat(gDude, STAT_MELEE_DAMAGE);
     snprintf(text, sizeof(text), " %d", value);
 
     length = fontGetStringWidth(text);
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX,
-        text, length, gOffsets.width, _colorTable[992]);
+        text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
     y += vh; // blank line
 
@@ -940,14 +940,14 @@ static bool characterSelectorWindowRenderStats()
 
         length = fontGetStringWidth(text);
         fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-            text, length, gOffsets.width, _colorTable[992]);
+            text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
         value = skillGetValue(gDude, skills[index]);
         snprintf(text, sizeof(text), " %d%%", value);
 
         length = fontGetStringWidth(text);
         fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX,
-            text, length, gOffsets.width, _colorTable[992]);
+            text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
     }
 
     // TRAITS
@@ -962,7 +962,7 @@ static bool characterSelectorWindowRenderStats()
 
         length = fontGetStringWidth(text);
         fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.secondaryStatMidX - length,
-            text, length, gOffsets.width, _colorTable[992]);
+            text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
     }
 
     fontSetCurrent(oldFont);
@@ -991,7 +991,7 @@ static bool characterSelectorWindowRenderBio()
                 string,
                 gOffsets.width - gOffsets.bioX,
                 gOffsets.width,
-                _colorTable[992]);
+                _colorTable[COL_LIME_GREEN]);
             y += lineHeight;
         }
 

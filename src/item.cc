@@ -268,7 +268,7 @@ int itemAttemptAdd(Object* owner, Object* itemToAdd, int quantity)
 
             int currentSize = containerGetTotalSize(owner);
             int maxSize = containerGetMaxSize(owner);
-            if (currentSize + sizeToAdd >= maxSize) {
+            if (currentSize + sizeToAdd > maxSize) {
                 return -6;
             }
 
@@ -580,7 +580,8 @@ int itemDropAll(Object* critter, int tile)
         InventoryItem* inventoryItem = &(inventory->items[0]);
         Object* item = inventoryItem->item;
         if (item->pid == PROTO_ID_MONEY) {
-            if (itemRemove(critter, item, inventoryItem->quantity) != 0) {
+            int quantity = inventoryItem->quantity;
+            if (itemRemove(critter, item, quantity) != 0) {
                 return -1;
             }
 
@@ -591,7 +592,7 @@ int itemDropAll(Object* critter, int tile)
                 return -1;
             }
 
-            item->data.item.misc.charges = inventoryItem->quantity;
+            item->data.item.misc.charges = quantity;
         } else {
             if ((item->flags & OBJECT_EQUIPPED) != 0) {
                 hasEquippedItems = true;
@@ -3164,7 +3165,7 @@ static bool dudeIsAddicted(int drugPid)
         if (drugPid == -1 || drugPid == drugDescription->drugPid) {
             if (gGameGlobalVars[drugDescription->gvar] != 0) {
                 return true;
-            } else {
+            } else if (drugPid != -1) {
                 return false;
             }
         }
@@ -3521,13 +3522,13 @@ bool explosiveSetDamage(int pid, int minDamage, int maxDamage)
 
 bool explosiveGetDamage(int pid, int* minDamagePtr, int* maxDamagePtr)
 {
-    if (pid == PROTO_ID_DYNAMITE_I) {
+    if (pid == PROTO_ID_DYNAMITE_I || pid == PROTO_ID_DYNAMITE_II) {
         *minDamagePtr = gDynamiteMinDamage;
         *maxDamagePtr = gDynamiteMaxDamage;
         return true;
     }
 
-    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_I) {
+    if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_I || pid == PROTO_ID_PLASTIC_EXPLOSIVES_II) {
         *minDamagePtr = gPlasticExplosiveMinDamage;
         *maxDamagePtr = gPlasticExplosiveMaxDamage;
         return true;

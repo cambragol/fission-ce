@@ -5,7 +5,7 @@
 # Fallout: F.I.S.S.I.O.N.
 *Flexible Isometric Simulation System for Interactive Open‑world Nuclear‑roleplaying*
 
-Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 2, forked from [Fallout2-CE](https://github.com/alexbatalov/fallout2-ce) that preserves the original isometric, turn‑based gameplay while adding modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, Android, iOS—and even in browsers.
+Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 2, forked from [Fallout2-CE](https://github.com/alexbatalov/fallout2-ce) that preserves the original isometric, turn‑based gameplay while adding modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, and maybe even Android and iOS.
 
 > **Powered by the F.I.S.S.I.O.N. Engine**
 > *Flexible. Isometric. Simulation. System. Interactive. Open‑world. Nuclear‑roleplay.*
@@ -15,12 +15,12 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 
 ## Key Features
 
-- **Authentic isometric, turn‑based experience** (SPECIAL, original Fallout gameplay)
+- **Authentic isometric, turn‑based experience** SPECIAL system, original Fallout gameplay
 - **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
 - **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
-- **Modular, customizable systems**—community mods plug in seamlessly (working now)
+- **Modular, customizable systems**—community mods plug in seamlessly
 - **100% compatible** with original Fallout 1 & 2 assets  (can't run Fallout 1 yet... one day)
-- **Future‑proof**: easily extended for new content and Fallout 2 integration (working now)
+- **Future‑proof**: easily extended for new content and Fallout 2 integration
 
 ---
 
@@ -171,12 +171,27 @@ For advanced tweaks, use the [enhancements] sections in 'fission.cfg':
 
 ```
 [enhancements]
-WorldMapTravelMarkers=1
-GaplessMusic=1
-EnhancedBarter=1
-Minimap=1
+AutoOpenDoors=0
+AutoPush=1
+AutoQuickSave=0
+DisplayBonusDamage=0
+DisplayKarmaChanges=0
+EnhancedBarter=0
+ExplosionsEmitLight=0
+GameSpeed=1
+GaplessMusic=0
+GreenScreens=0
+InventoryColumns=1
+MassHighlight=1
+Minimap=0
+NpcArmor=0
+NumbersInDialogue=0
+RemoveCriticalTimelimits=0
+SkipOpeningMovies=0
+StrictVanilla=0
+VockFloats=0
 ```
-For a vanilla Fallout2.exe experiecne (at widescreen) set StrictVanilla=1
+For a vanilla Fallout2.exe experiecne (at original or widescreen) set StrictVanilla=1
 
 ---
 

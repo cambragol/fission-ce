@@ -491,7 +491,7 @@ void windowDrawBorder(int win)
     _lighten_buf(window->buffer + window->width - 5, 5, window->height, window->width);
     _lighten_buf(window->buffer + window->width * (window->height - 5) + 5, window->width - 10, 5, window->width);
 
-    bufferDrawRect(window->buffer, window->width, 0, 0, window->width - 1, window->height - 1, _colorTable[0]);
+    bufferDrawRect(window->buffer, window->width, 0, 0, window->width - 1, window->height - 1, _colorTable[COL_BLACK]);
 
     bufferDrawRectShadowed(window->buffer, window->width, 1, 1, window->width - 2, window->height - 2, _colorTable[_GNW_wcolor[1]], _colorTable[_GNW_wcolor[2]]);
     bufferDrawRectShadowed(window->buffer, window->width, 5, 5, window->width - 6, window->height - 6, _colorTable[_GNW_wcolor[2]], _colorTable[_GNW_wcolor[1]]);
@@ -1441,7 +1441,7 @@ int _win_register_text_button(int win, int x, int y, int mouseEnterEventCode, in
         buttonHeight - 2,
         _colorTable[_GNW_wcolor[1]],
         _colorTable[_GNW_wcolor[2]]);
-    bufferDrawRect(normal, buttonWidth, 0, 0, buttonWidth - 1, buttonHeight - 1, _colorTable[0]);
+    bufferDrawRect(normal, buttonWidth, 0, 0, buttonWidth - 1, buttonHeight - 1, _colorTable[COL_BLACK]);
 
     fontDrawText(pressed + buttonWidth * 4 + 9, title, buttonWidth, buttonWidth, _colorTable[_GNW_wcolor[3]]);
     bufferDrawRectShadowed(pressed,
@@ -1460,7 +1460,7 @@ int _win_register_text_button(int win, int x, int y, int mouseEnterEventCode, in
         buttonHeight - 2,
         _colorTable[_GNW_wcolor[2]],
         _colorTable[_GNW_wcolor[1]]);
-    bufferDrawRect(pressed, buttonWidth, 0, 0, buttonWidth - 1, buttonHeight - 1, _colorTable[0]);
+    bufferDrawRect(pressed, buttonWidth, 0, 0, buttonWidth - 1, buttonHeight - 1, _colorTable[COL_BLACK]);
 
     Button* button = buttonCreateInternal(win,
         x,
@@ -2327,7 +2327,7 @@ int _win_group_check_buttons(int buttonCount, int* btns, int maxChecked, RadioBu
         return -1;
     }
 
-    if (buttonCount >= BUTTON_GROUP_BUTTON_LIST_CAPACITY) {
+    if (buttonCount > BUTTON_GROUP_BUTTON_LIST_CAPACITY) {
         return -1;
     }
 

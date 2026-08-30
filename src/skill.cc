@@ -281,8 +281,15 @@ int skillGetBaseValue(Object* obj, int skill)
         return 0;
     }
 
-    Proto* proto;
-    protoGetProto(obj->pid, &proto);
+    // Only critters have skills
+    if (PID_TYPE(obj->pid) != OBJ_TYPE_CRITTER) {
+        return 0;
+    }
+
+    Proto* proto = nullptr;
+    if (protoGetProto(obj->pid, &proto) == -1) {
+        return 0;
+    }
 
     return proto->critter.data.skills[skill];
 }

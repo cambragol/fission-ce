@@ -1227,7 +1227,7 @@ int actionPickUp(Object* critter, Object* item)
         int actionFrame;
         CacheEntry* cacheEntry;
         Art* art = artLock(fid, &cacheEntry);
-        if (art == nullptr) {
+        if (art != nullptr) {
             actionFrame = artGetActionFrame(art);
             artUnlock(cacheEntry);
         } else {
@@ -1452,7 +1452,7 @@ int actionUseSkill(Object* user, Object* target, int skill)
             char* msg = skillsGetGenericResponse(partyMember, isDude);
 
             Rect rect;
-            if (textObjectAdd(partyMember, msg, 101, _colorTable[32747], _colorTable[0], &rect) == 0) {
+            if (textObjectAdd(partyMember, msg, 101, _colorTable[COL_LIGHT_LEMON], _colorTable[COL_BLACK], &rect) == 0) {
                 tileWindowRefreshRect(&rect, gElevation);
             }
 
@@ -1964,7 +1964,7 @@ int _report_dmg(Attack* attack, Object* _)
 // 0x413660
 int _compute_dmg_damage(int min, int max, Object* obj, int* knockbackDistancePtr, int damageType)
 {
-    if (!critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
+    if (critterFlagCheck(obj->pid, CRITTER_NO_KNOCKBACK)) {
         knockbackDistancePtr = nullptr;
     }
 
