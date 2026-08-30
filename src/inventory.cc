@@ -3925,71 +3925,71 @@ static void _inven_pickup(int buttonCode, int indexOffset)
         item = dragItem;
     }
 
-// Erase the slot background
-pickUpFromSlot = isHandOrArmor;
-if (pickUpFromSlot || count <= 1) {
-    unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
-    int width, height;
-    if (pickUpFromSlot) {
-        // Hand/armor slots use large dimensions
-        if (gInventoryRightHandItem != gInventoryLeftHandItem || item != gInventoryLeftHandItem) {
-            height = INVENTORY_LARGE_SLOT_HEIGHT;
-            width = INVENTORY_LARGE_SLOT_WIDTH;
-        } else {
-            // ?dual-wield case: both hands same item
-            height = INVENTORY_LARGE_SLOT_HEIGHT;
-            width = 180;
-            rect.left = gLayout.leftHandSlotX;
-            rect.top = gLayout.leftHandSlotY;
-        }
-    } else {
-        // Grid slot: use standard slot dimensions
-        width = gLayout.slotWidth;
-        height = gLayout.slotHeight;
-        // rect should already be set correctly for the grid slot
-    }
-    rect.right = rect.left + width - 1;
-    rect.bottom = rect.top + height - 1;
-
-    FrmImage backgroundFrmImage;
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
-    if (backgroundFrmImage.lock(backgroundFid)) {
-        int srcPitch = gLayout.windowWidth;
-        int srcX, srcY;
+    // Erase the slot background
+    pickUpFromSlot = isHandOrArmor;
+    if (pickUpFromSlot || count <= 1) {
+        unsigned char* windowBuffer = windowGetBuffer(gInventoryWindow);
+        int width, height;
         if (pickUpFromSlot) {
-            int handArmorShift = (gInventoryColumns > 1) ? ((gInventoryColumns - 1) * gLayout.slotWidth) : 0;
-            switch (buttonCode) {
-            case INVENTORY_HAND_RIGHT_KEY:
-                srcX = INVENTORY_RIGHT_HAND_SLOT_X + handArmorShift;
-                srcY = INVENTORY_RIGHT_HAND_SLOT_Y;
-                break;
-            case INVENTORY_HAND_LEFT_KEY:
-                srcX = INVENTORY_LEFT_HAND_SLOT_X + handArmorShift;
-                srcY = INVENTORY_LEFT_HAND_SLOT_Y;
-                break;
-            case INVENTORY_ARMOR_KEY:
-                srcX = INVENTORY_ARMOR_SLOT_X + handArmorShift;
-                srcY = INVENTORY_ARMOR_SLOT_Y;
-                break;
-            default:
-                srcX = rect.left;
-                srcY = rect.top;
-                break;
+            // Hand/armor slots use large dimensions
+            if (gInventoryRightHandItem != gInventoryLeftHandItem || item != gInventoryLeftHandItem) {
+                height = INVENTORY_LARGE_SLOT_HEIGHT;
+                width = INVENTORY_LARGE_SLOT_WIDTH;
+            } else {
+                // ?dual-wield case: both hands same item
+                height = INVENTORY_LARGE_SLOT_HEIGHT;
+                width = 180;
+                rect.left = gLayout.leftHandSlotX;
+                rect.top = gLayout.leftHandSlotY;
             }
         } else {
-            srcX = rect.left;
-            srcY = rect.top;
+            // Grid slot: use standard slot dimensions
+            width = gLayout.slotWidth;
+            height = gLayout.slotHeight;
+            // rect should already be set correctly for the grid slot
         }
-        unsigned char* src = backgroundFrmImage.getData() + srcPitch * srcY + srcX;
-        unsigned char* dest = windowBuffer + gLayout.windowWidth * rect.top + rect.left;
-        blitBufferToBuffer(src, width, height, srcPitch, dest, gLayout.windowWidth);
-    }
-    windowRefreshRect(gInventoryWindow, &rect);
+        rect.right = rect.left + width - 1;
+        rect.bottom = rect.top + height - 1;
 
-    if (itemInHand != nullptr) {
-        _inven_update_lighting(nullptr);
+        FrmImage backgroundFrmImage;
+        int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gCurrentInventoryBackgroundFrm, 0, 0, 0);
+        if (backgroundFrmImage.lock(backgroundFid)) {
+            int srcPitch = gLayout.windowWidth;
+            int srcX, srcY;
+            if (pickUpFromSlot) {
+                int handArmorShift = (gInventoryColumns > 1) ? ((gInventoryColumns - 1) * gLayout.slotWidth) : 0;
+                switch (buttonCode) {
+                case INVENTORY_HAND_RIGHT_KEY:
+                    srcX = INVENTORY_RIGHT_HAND_SLOT_X + handArmorShift;
+                    srcY = INVENTORY_RIGHT_HAND_SLOT_Y;
+                    break;
+                case INVENTORY_HAND_LEFT_KEY:
+                    srcX = INVENTORY_LEFT_HAND_SLOT_X + handArmorShift;
+                    srcY = INVENTORY_LEFT_HAND_SLOT_Y;
+                    break;
+                case INVENTORY_ARMOR_KEY:
+                    srcX = INVENTORY_ARMOR_SLOT_X + handArmorShift;
+                    srcY = INVENTORY_ARMOR_SLOT_Y;
+                    break;
+                default:
+                    srcX = rect.left;
+                    srcY = rect.top;
+                    break;
+                }
+            } else {
+                srcX = rect.left;
+                srcY = rect.top;
+            }
+            unsigned char* src = backgroundFrmImage.getData() + srcPitch * srcY + srcX;
+            unsigned char* dest = windowBuffer + gLayout.windowWidth * rect.top + rect.left;
+            blitBufferToBuffer(src, width, height, srcPitch, dest, gLayout.windowWidth);
+        }
+        windowRefreshRect(gInventoryWindow, &rect);
+
+        if (itemInHand != nullptr) {
+            _inven_update_lighting(nullptr);
+        }
     }
-}
 
     // Allow ctrl-click to quick unequip or equip item
     bool immediate = _ctrl_pressed();
