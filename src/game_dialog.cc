@@ -3536,7 +3536,8 @@ int _gdialog_barter_create_win()
     backgroundFrmImage.unlock();
 
     // TRADE
-    _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 40, 162, 14, 14, -1, -1, -1, KEY_LOWERCASE_M, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
+    // Changed KEY_LOWERCASE_M (Make offer) to KEY_LOWERCASE_O (Offer) to avoid conflict with Inventory Filter
+    _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 40, 162, 14, 14, -1, -1, -1, KEY_LOWERCASE_O, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
     if (_gdialog_buttons[0] != -1) {
         buttonSetCallbacks(_gdialog_buttons[0], _gsound_med_butt_press, _gsound_med_butt_release);
 
