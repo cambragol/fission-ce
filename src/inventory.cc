@@ -7476,94 +7476,93 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
 
     int actionMenuItem = actionMenuItems[menuItemIndex];
     switch (actionMenuItem) {
-case GAME_MOUSE_ACTION_MENU_ITEM_DROP:
-{
-    if (!item || !owner) break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_DROP: {
+        if (!item || !owner) break;
 
-    // If the item is in a hand or armor slot
-    if (itemSlot != nullptr) {
-        // Adjust stats if removing armor
-        if (itemSlot == &gInventoryArmor) {
-            adjustCritterStatsOnArmorChange(_stack[0], item, nullptr);
-        }
+        // If the item is in a hand or armor slot
+        if (itemSlot != nullptr) {
+            // Adjust stats if removing armor
+            if (itemSlot == &gInventoryArmor) {
+                adjustCritterStatsOnArmorChange(_stack[0], item, nullptr);
+            }
 
-        // Add the item to the owner's inventory (it's not there yet)
-        if (itemAdd(owner, item, 1) == 0) {
-            *itemSlot = nullptr;          // clear the slot
-            objectDrop(owner, item);      // drop from inventory to ground
-        } else {
-            // Failed to add (over-encumbered etc.) - keep the slot as is.
-            // Optionally show a message.
+            // Add the item to the owner's inventory (it's not there yet)
+            if (itemAdd(owner, item, 1) == 0) {
+                *itemSlot = nullptr; // clear the slot
+                objectDrop(owner, item); // drop from inventory to ground
+            } else {
+                // Failed to add (over-encumbered etc.) - keep the slot as is.
+                // Optionally show a message.
+            }
         }
-    }
-    // If the item is in the inventory grid
-    else {
-        // Money
-        if (item->pid == PROTO_ID_MONEY) {
-            if (quantity > 1) {
-                int chosen = inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity);
-                if (chosen > 0) {
-                    if (chosen == 1) {
-                        itemSetMoney(item, 1);
+        // If the item is in the inventory grid
+        else {
+            // Money
+            if (item->pid == PROTO_ID_MONEY) {
+                if (quantity > 1) {
+                    int chosen = inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity);
+                    if (chosen > 0) {
+                        if (chosen == 1) {
+                            itemSetMoney(item, 1);
+                            objectDrop(owner, item);
+                        } else {
+                            // Remove all but chosen from stack, then drop the remaining chosen
+                            if (itemRemove(owner, item, quantity - chosen) == 0) {
+                                Object* splitItem;
+                                Object** dummySlot;
+                                Object* dummyOwner;
+                                if (_inven_from_button(keyCode, &splitItem, &dummySlot, &dummyOwner) != 0) {
+                                    itemSetMoney(splitItem, chosen);
+                                    objectDrop(owner, splitItem);
+                                } else {
+                                    // Restore if something went wrong
+                                    itemAdd(owner, item, quantity - chosen);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    itemSetMoney(item, 1);
+                    objectDrop(owner, item);
+                }
+            }
+            // Explosive (active)
+            else if (explosiveIsActiveExplosive(item->pid)) {
+                _dropped_explosive = 1;
+                objectDrop(owner, item);
+            }
+            // Regular item (non-money, non-explosive)
+            else {
+                int quantityToDrop = (quantity > 1)
+                    ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
+                    : quantity;
+
+                if (quantityToDrop != -1) {
+                    if (quantityToDrop == quantity) {
+                        // Drop the entire stack
                         objectDrop(owner, item);
                     } else {
-                        // Remove all but chosen from stack, then drop the remaining chosen
-                        if (itemRemove(owner, item, quantity - chosen) == 0) {
-                            Object* splitItem;
-                            Object** dummySlot;
-                            Object* dummyOwner;
-                            if (_inven_from_button(keyCode, &splitItem, &dummySlot, &dummyOwner) != 0) {
-                                itemSetMoney(splitItem, chosen);
-                                objectDrop(owner, splitItem);
-                            } else {
-                                // Restore if something went wrong
-                                itemAdd(owner, item, quantity - chosen);
+                        // Drop a portion: use _inven_from_button to get the item repeatedly
+                        for (int i = 0; i < quantityToDrop; i++) {
+                            Object* tempItem;
+                            Object** tempSlot;
+                            Object* tempOwner;
+                            if (_inven_from_button(keyCode, &tempItem, &tempSlot, &tempOwner) != 0) {
+                                objectDrop(tempOwner, tempItem);
                             }
                         }
                     }
                 }
-            } else {
-                itemSetMoney(item, 1);
-                objectDrop(owner, item);
             }
         }
-        // Explosive (active)
-        else if (explosiveIsActiveExplosive(item->pid)) {
-            _dropped_explosive = 1;
-            objectDrop(owner, item);
+
+        // Rebuild combined inventory if active
+        if (gUseCombinedInventory) {
+            inventoryBuildCombinedList(gDude);
         }
-        // Regular item (non-money, non-explosive)
-        else {
-            int quantityToDrop = (quantity > 1)
-                ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
-                : quantity;
 
-            if (quantityToDrop != -1) {
-                if (quantityToDrop == quantity) {
-                    // Drop the entire stack
-                    objectDrop(owner, item);
-                } else {
-                    // Drop a portion: use _inven_from_button to get the item repeatedly
-                    for (int i = 0; i < quantityToDrop; i++) {
-                        Object* tempItem;
-                        Object** tempSlot;
-                        Object* tempOwner;
-                        if (_inven_from_button(keyCode, &tempItem, &tempSlot, &tempOwner) != 0) {
-                            objectDrop(tempOwner, tempItem);
-                        }
-                    }
-                }
-            }
-        }
+        break;
     }
-
-    // Rebuild combined inventory if active
-    if (gUseCombinedInventory) {
-        inventoryBuildCombinedList(gDude);
-    }
-
-    break;
-}
     case GAME_MOUSE_ACTION_MENU_ITEM_LOOK:
         if (inventoryWindowType != INVENTORY_WINDOW_TYPE_NORMAL) {
             objectExamineFunc(_stack[0], item, gInventoryPrintItemDescriptionHandler);
@@ -7616,45 +7615,44 @@ case GAME_MOUSE_ACTION_MENU_ITEM_DROP:
             }
         }
         break;
-case GAME_MOUSE_ACTION_MENU_ITEM_UNLOAD:
-{
-    if (!item || !owner) break;
+    case GAME_MOUSE_ACTION_MENU_ITEM_UNLOAD: {
+        if (!item || !owner) break;
 
-    // Ensure it's a weapon with ammo.
-    if (itemGetType(item) != ITEM_TYPE_WEAPON || !weaponCanBeUnloaded(item)) break;
+        // Ensure it's a weapon with ammo.
+        if (itemGetType(item) != ITEM_TYPE_WEAPON || !weaponCanBeUnloaded(item)) break;
 
-    // Use the original unload function to create the ammo object.
-    Object* ammo = weaponUnload(item);
-    if (ammo == nullptr) {
-        // No ammo to unload – optionally play a sound.
+        // Use the original unload function to create the ammo object.
+        Object* ammo = weaponUnload(item);
+        if (ammo == nullptr) {
+            // No ammo to unload – optionally play a sound.
+            break;
+        }
+
+        // The ammo returned by weaponUnload is already disconnected and ready for inventory.
+        // Add it to the owner (fallback to player, then destroy if both fail).
+        if (itemAdd(owner, ammo, 1) != 0) {
+            if (owner != gDude && itemAdd(gDude, ammo, 1) != 0) {
+                objectDestroy(ammo);
+            }
+        }
+
+        // Rebuild combined inventory if active.
+        if (gUseCombinedInventory) {
+            inventoryBuildCombinedList(gDude);
+        }
+
+        // Refresh the display for the current window type.
+        _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT || inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+            _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, inventoryWindowType);
+        }
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+            inventoryRenderSummary();
+        }
+        windowRefresh(gInventoryWindow);
+
         break;
     }
-
-    // The ammo returned by weaponUnload is already disconnected and ready for inventory.
-    // Add it to the owner (fallback to player, then destroy if both fail).
-    if (itemAdd(owner, ammo, 1) != 0) {
-        if (owner != gDude && itemAdd(gDude, ammo, 1) != 0) {
-            objectDestroy(ammo);
-        }
-    }
-
-    // Rebuild combined inventory if active.
-    if (gUseCombinedInventory) {
-        inventoryBuildCombinedList(gDude);
-    }
-
-    // Refresh the display for the current window type.
-    _display_inventory(_stack_offset[_curr_stack], -1, inventoryWindowType);
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT || inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-        _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, inventoryWindowType);
-    }
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
-        inventoryRenderSummary();
-    }
-    windowRefresh(gInventoryWindow);
-
-    break;
-}
     default:
         break;
     }
@@ -8380,10 +8378,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
 
     if (isPlanting) {
         // Drop on right side
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_LOOT_RIGHT_SCROLLER_X, INVENTORY_LOOT_RIGHT_SCROLLER_Y,
-                INVENTORY_LOOT_RIGHT_SCROLLER_MAX_X,
-                gInventorySlotHeight * gInventorySlotsCount + INVENTORY_LOOT_RIGHT_SCROLLER_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_LOOT_RIGHT_SCROLLER_X, INVENTORY_LOOT_RIGHT_SCROLLER_Y, INVENTORY_LOOT_RIGHT_SCROLLER_MAX_X, gInventorySlotHeight * gInventorySlotsCount + INVENTORY_LOOT_RIGHT_SCROLLER_Y)) {
             int quantityToMove = (quantity > 1 && !immediate)
                 ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
                 : quantity;
@@ -8407,10 +8402,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
         }
     } else {
         // Drop on left side
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_LOOT_LEFT_SCROLLER_X, INVENTORY_LOOT_LEFT_SCROLLER_Y,
-                INVENTORY_LOOT_LEFT_SCROLLER_MAX_X,
-                gInventorySlotHeight * gInventorySlotsCount + INVENTORY_LOOT_LEFT_SCROLLER_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_LOOT_LEFT_SCROLLER_X, INVENTORY_LOOT_LEFT_SCROLLER_Y, INVENTORY_LOOT_LEFT_SCROLLER_MAX_X, gInventorySlotHeight * gInventorySlotsCount + INVENTORY_LOOT_LEFT_SCROLLER_Y)) {
             int quantityToMove = (quantity > 1 && !immediate)
                 ? inventoryQuantitySelect(INVENTORY_WINDOW_TYPE_MOVE_ITEMS, item, quantity)
                 : quantity;
@@ -8926,11 +8918,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
 
     if (fromDude) {
         // Drop on the left offer table
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y,
-                INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X,
-                gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y, INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X, gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, true, true, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(owner, sourceTable, item, quantityToMove) == -1) {
@@ -8943,11 +8931,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
         }
     } else {
         // Drop on the right offer table
-        if (immediate || mouseHitTestInWindow(gInventoryWindow,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y,
-                INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X,
-                gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
+        if (immediate || mouseHitTestInWindow(gInventoryWindow, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y, INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X, gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, false, true, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(owner, sourceTable, item, quantityToMove) == -1) {
@@ -9455,10 +9439,10 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 }
                 // Left inner (player offer table)
                 else if (mouseHitTestInWindow(gInventoryWindow,
-                        INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X,
-                        INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y,
-                        INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X,
-                        gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
+                             INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_X,
+                             INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y,
+                             INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_MAX_X,
+                             gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_TRACKING_Y)) {
                     if (wheelY > 0) {
                         if (_ptable_offset > 0) {
                             _ptable_offset -= 1;
@@ -9473,10 +9457,10 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 }
                 // Right outer (merchant/NPC inventory)
                 else if (mouseHitTestInWindow(gInventoryWindow,
-                        INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X,
-                        INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y,
-                        INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_MAX_X,
-                        gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y)) {
+                             INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_X,
+                             INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y,
+                             INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_MAX_X,
+                             gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_RIGHT_SCROLLER_TRACKING_Y)) {
                     if (wheelY > 0) {
                         if (_target_stack_offset[_target_curr_stack] > 0) {
                             _target_stack_offset[_target_curr_stack] -= 1;
@@ -9494,10 +9478,10 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 }
                 // Right inner (merchant offer table)
                 else if (mouseHitTestInWindow(gInventoryWindow,
-                        INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X,
-                        INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y,
-                        INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X,
-                        gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
+                             INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_X,
+                             INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y,
+                             INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_MAX_X,
+                             gInventorySlotHeight * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_TRACKING_Y)) {
                     if (wheelY > 0) {
                         if (_btable_offset > 0) {
                             _btable_offset -= 1;
@@ -9513,21 +9497,21 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
             }
         }
         if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int filterCategory = inventoryKeyToFilterCategory(keyCode);
-                if (filterCategory != -1) {
-                    if (gFilterCategory == filterCategory) {
-                        gFilterCategory = -1;
-                    } else {
-                        gFilterCategory = filterCategory;
-                    }
-                    _stack_offset[_curr_stack] = 0;
-                    _target_stack_offset[_target_curr_stack] = 0;
-                    soundPlayFile("ib1p1xx1");
-                    _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_TRADE);
-                    _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
-                    inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
-                    windowRefresh(gInventoryWindow);
+            int filterCategory = inventoryKeyToFilterCategory(keyCode);
+            if (filterCategory != -1) {
+                if (gFilterCategory == filterCategory) {
+                    gFilterCategory = -1;
+                } else {
+                    gFilterCategory = filterCategory;
                 }
+                _stack_offset[_curr_stack] = 0;
+                _target_stack_offset[_target_curr_stack] = 0;
+                soundPlayFile("ib1p1xx1");
+                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_TRADE);
+                _display_target_inventory(0, -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
+                inventoryWindowRenderInnerInventories(_barter_back_win, _ptable, _btable, -1);
+                windowRefresh(gInventoryWindow);
+            }
         }
 
         renderPresent();
