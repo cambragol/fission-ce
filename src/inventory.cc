@@ -293,12 +293,11 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
 static void _container_enter(int keyCode, int inventoryWindowType);
 static void _container_exit(int keyCode, int inventoryWindowType);
 static int _drop_into_container(Object* container, Object* item, int sourceIndex, Object** itemSlot, int quantity);
-static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoItemSlot, int quantity, int keyCode);
+static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoItemSlot, int quantity, int keyCode, Object* ammoOwner);
 static void _draw_amount(int value, int inventoryWindowType);
 static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int maximum, int defaultValue = 1);
 static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item);
 static int inventoryQuantityWindowFree(int inventoryWindowType);
-static bool _ctrl_pressed();
 static void _drag_item_loop(Object* item, bool immediate);
 
 static void inventoryPortraitOnMouseEnter(int btn, int keyCode);
@@ -3052,8 +3051,20 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
 
-        // Build filtered index list using helper
-        gFilteredCount = buildFilteredIndices(_pud);
+        // --- Build filtered index list (using combined inventory if active) ---
+        if (!settings.enhancements.strict_vanilla) {
+            if (gUseCombinedInventory) {
+                gFilteredCount = buildFilteredCombinedIndices();
+            } else {
+                gFilteredCount = buildFilteredIndices(_pud);
+            }
+        } else {
+            // Vanilla: use _pud directly (no combined in vanilla)
+            gFilteredCount = _pud->length;
+            for (int i = 0; i < gFilteredCount; i++) {
+                gFilteredIndices[i] = gFilteredCount - 1 - i;
+            }
+        }
 
         // Clamp stackOffset to valid range
         if (stackOffset >= gFilteredCount) {
@@ -4007,7 +4018,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     }
 
     // Allow ctrl-click to quick unequip or equip item
-    bool immediate = _ctrl_pressed();
+    bool immediate = false;
     _drag_item_loop(item, immediate);
 
     // Drop handling (common for both grid and hand/armor)
@@ -4033,7 +4044,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                         itemDropped = true;
                     }
                 } else {
-                    if (_drop_ammo_into_weapon(targetItem, item, itemSlot, count, buttonCode) == 0) {
+                    if (_drop_ammo_into_weapon(targetItem, item, itemSlot, count, buttonCode, owner) == 0) {
                         itemIndex = 0;
                         itemDropped = true;
                     }
@@ -4055,62 +4066,11 @@ static void _inven_pickup(int buttonCode, int indexOffset)
             }
         }
     }
-    // Ctrl+click from grid - equip weapon (already handled immediate equip below)
-    else if (!isHandOrArmor && immediate && itemGetType(item) != ITEM_TYPE_ARMOR) {
+
+    // Ctrl+click from grid - equip weapon - commented out for now, maybe for good
+    /*else if (!isHandOrArmor && immediate && itemGetType(item) != ITEM_TYPE_ARMOR) {
         bool canEquip = false;
         bool itemUsed = false;
-
-        // Special handling for ammo
-        if (itemGetType(item) == ITEM_TYPE_AMMO) {
-            // Check if there's a weapon in either hand that can be reloaded with this ammo
-            Object* weapon = nullptr;
-            if (gInventoryLeftHandItem != nullptr && itemGetType(gInventoryLeftHandItem) == ITEM_TYPE_WEAPON) {
-                if (weaponCanBeReloadedWith(gInventoryLeftHandItem, item)) {
-                    weapon = gInventoryLeftHandItem;
-                }
-            }
-            if (weapon == nullptr && gInventoryRightHandItem != nullptr && itemGetType(gInventoryRightHandItem) == ITEM_TYPE_WEAPON) {
-                if (weaponCanBeReloadedWith(gInventoryRightHandItem, item)) {
-                    weapon = gInventoryRightHandItem;
-                }
-            }
-
-            if (weapon != nullptr) {
-                // Reload the weapon
-                // We need to temporarily remove the weapon from the hand and reload it
-                Object* handSlotPtr = (weapon == gInventoryLeftHandItem) ? gInventoryLeftHandItem : gInventoryRightHandItem;
-                // We'll call _drop_ammo_into_weapon but we need to handle the item removal
-                // For simplicity, we'll do a manual reload:
-                int reloadCount = 0;
-                // Remove one ammo from inventory
-                if (itemRemove(owner, item, 1) == 0) {
-                    // Reload the weapon
-                    if (weaponReload(weapon, item) == 0) {
-                        // Ammo consumed
-                        objectDestroy(item);
-                        reloadCount = 1;
-                    } else {
-                        // Reload failed, put the ammo back
-                        itemAdd(owner, item, 1);
-                    }
-                }
-                if (reloadCount > 0) {
-                    itemDropped = true;
-                    itemUsed = true;
-                    // Play reload sound
-                    const char* sfx = sfxBuildWeaponName(WEAPON_SOUND_EFFECT_READY, weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY, nullptr);
-                    soundPlayFile(sfx);
-                }
-            } else {
-                // No compatible weapon - cancel
-                Object* targetOwner = (gUseCombinedInventory && srcOwner != nullptr) ? srcOwner : _inven_dude;
-                itemAdd(targetOwner, item, 1);
-                if (gUseCombinedInventory) {
-                    inventoryBuildCombinedList(_inven_dude);
-                }
-                itemDropped = true;
-            }
-        }
 
         // Non-ammo items allow equipping
         if (!itemUsed) {
@@ -4158,7 +4118,8 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                 // Optional message: "That companion cannot use that weapon."
             }
         }
-    }
+    }*/
+
     // Drop on left hand slot
     else if (mouseHitTestInWindow(gInventoryWindow,
                  gLayout.leftHandSlotX, gLayout.leftHandSlotY,
@@ -4179,7 +4140,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                     if (_drop_into_container(gInventoryLeftHandItem, item, itemIndex, itemSlot, count) == 0) {
                         itemDropped = true;
                     }
-                } else if (gInventoryLeftHandItem == nullptr || _drop_ammo_into_weapon(gInventoryLeftHandItem, item, itemSlot, count, buttonCode)) {
+                } else if (gInventoryLeftHandItem == nullptr || _drop_ammo_into_weapon(gInventoryLeftHandItem, item, itemSlot, count, buttonCode, owner)) {
                     _switch_hand(item, &gInventoryLeftHandItem, itemSlot, buttonCode);
                     itemDropped = true;
                 }
@@ -4204,7 +4165,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                     if (_drop_into_container(gInventoryRightHandItem, item, itemIndex, itemSlot, count) == 0) {
                         itemDropped = true;
                     }
-                } else if (gInventoryRightHandItem == nullptr || _drop_ammo_into_weapon(gInventoryRightHandItem, item, itemSlot, count, buttonCode)) {
+                } else if (gInventoryRightHandItem == nullptr || _drop_ammo_into_weapon(gInventoryRightHandItem, item, itemSlot, count, buttonCode, owner)) {
                     _switch_hand(item, &gInventoryRightHandItem, itemSlot, buttonCode);
                     itemDropped = true;
                 }
@@ -8370,7 +8331,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
         windowRefreshRect(gInventoryWindow, &rect);
     }
 
-    bool immediate = _ctrl_pressed();
+    bool immediate = false;
     _drag_item_loop(item, immediate);
 
     InventoryMoveResult result = INVENTORY_MOVE_RESULT_FAILED;
@@ -8911,7 +8872,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
         }
     }
 
-    bool immediate = _ctrl_pressed();
+    bool immediate = false;
     _drag_item_loop(item, immediate);
 
     MessageListItem messageListItem;
@@ -8984,7 +8945,7 @@ static void _barter_move_from_table_inventory(Object* item, int quantity, int sl
         windowRefreshRect(gInventoryWindow, &rect);
     }
 
-    bool immediate = _ctrl_pressed();
+    bool immediate = false;
     _drag_item_loop(item, immediate);
 
     MessageListItem messageListItem;
@@ -9119,12 +9080,6 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
     tradeWindowUpdateScrollButtons();
 
     fontSetCurrent(oldFont);
-}
-
-static bool _ctrl_pressed()
-{
-    const Uint8* keyboardState = SDL_GetKeyboardState(nullptr);
-    return keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
 }
 
 // 0x4757F0
@@ -9649,19 +9604,11 @@ static int _drop_into_container(Object* container, Object* item, int sourceIndex
 }
 
 // 0x47650C
-static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoItemSlot, int quantity, int keyCode)
+static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoItemSlot, int quantity, int keyCode, Object* ammoOwner)
 {
-    if (itemGetType(weapon) != ITEM_TYPE_WEAPON) {
-        return -1;
-    }
-
-    if (itemGetType(ammo) != ITEM_TYPE_AMMO) {
-        return -1;
-    }
-
-    if (!weaponCanBeReloadedWith(weapon, ammo)) {
-        return -1;
-    }
+    if (itemGetType(weapon) != ITEM_TYPE_WEAPON) return -1;
+    if (itemGetType(ammo) != ITEM_TYPE_AMMO) return -1;
+    if (!weaponCanBeReloadedWith(weapon, ammo)) return -1;
 
     int quantityToMove;
     if (quantity > 1) {
@@ -9669,29 +9616,38 @@ static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoIte
     } else {
         quantityToMove = 1;
     }
+    if (quantityToMove == -1) return -1;
 
-    if (quantityToMove == -1) {
-        return -1;
-    }
-
-    Object* sourceItem = ammo;
-    bool isReloaded = false;
+    // Remove the weapon from its owner (player) temporarily
     int rc = itemRemove(_inven_dude, weapon, 1);
-    for (int index = 0; index < quantityToMove; index++) {
+
+    bool isReloaded = false;
+    Object* sourceItem = ammo;
+    for (int i = 0; i < quantityToMove; i++) {
+        // Reload the weapon with this ammo
         int rcReload = weaponReload(weapon, sourceItem);
         if (rcReload == 0) {
-            if (ammoItemSlot != nullptr) {
-                *ammoItemSlot = nullptr;
+            // Reload succeeded – remove the ammo from its owner
+            if (itemRemove(ammoOwner, sourceItem, 1) == 0) {
+                // Rebuild combined inventory immediately after removal
+                if (gUseCombinedInventory) {
+                    inventoryBuildCombinedList(gDude);
+                }
+                if (ammoItemSlot != nullptr) {
+                    *ammoItemSlot = nullptr;
+                }
+                objectDestroy(sourceItem);
+                isReloaded = true;
+            } else {
+                // Ammo removal failed – stop further attempts
+                break;
             }
-
-            objectDestroy(sourceItem);
-
-            isReloaded = true;
+            // Try to get next ammo item for multi-round reload
             if (_inven_from_button(keyCode, &sourceItem, nullptr, nullptr) == 0) {
                 break;
             }
-        }
-        if (rcReload != -1) {
+        } else if (rcReload != -1) {
+            // Partial reload (e.g., some rounds loaded, some failed)
             isReloaded = true;
         }
         if (rcReload != 0) {
@@ -9699,14 +9655,20 @@ static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoIte
         }
     }
 
+    // Re-add the weapon (even if reload partially succeeded)
     if (rc != -1) {
         itemAdd(_inven_dude, weapon, 1);
+        // Rebuild combined inventory after adding weapon back
+        if (gUseCombinedInventory) {
+            inventoryBuildCombinedList(gDude);
+        }
     }
 
     if (!isReloaded) {
         return -1;
     }
 
+    // Play reload sound
     const char* sfx = sfxBuildWeaponName(WEAPON_SOUND_EFFECT_READY, weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY, nullptr);
     soundPlayFile(sfx);
 
