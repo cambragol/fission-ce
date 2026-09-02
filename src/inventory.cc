@@ -10212,11 +10212,7 @@ static void tradeWindowUpdateScrollButtons()
             buttonDisable(gTradeLeftUpButton);
     }
     if (gTradeLeftDownButton != -1) {
-        int totalItems = _pud->length;
-        if (gFilterCategory != -1) {
-            // Recompute filtered count for the left inventory
-            totalItems = buildFilteredIndices(_pud);
-        }
+        int totalItems = getFilteredCount();  // uses combined inventory & filter
         int visible = gInventorySlotsCount;
         if (totalItems - _stack_offset[_curr_stack] > visible)
             buttonEnable(gTradeLeftDownButton);
