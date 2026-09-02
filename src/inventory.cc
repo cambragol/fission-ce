@@ -3457,17 +3457,37 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
         }
     }
 
-    // Owner label (drawn at bottom of item, overlapping)
+    // Owner label (drawn at bottom of item, overlapping, shortened when too long)
     if (gUseCombinedInventory) {
         const char* ownerName = getOwnerDisplayName(item, _inven_dude);
         if (ownerName != nullptr) {
             int ownerFont = fontGetCurrent();
             fontSetCurrent(101);
             int lineHeight = fontGetLineHeight();
-            int textWidth = fontGetStringWidth(ownerName);
-            int x = (gInventorySlotWidthPadded - textWidth) / 2;
+            int maxWidth = 35;
+
+            char truncated[64];
+            strncpy(truncated, ownerName, sizeof(truncated) - 1);
+            truncated[sizeof(truncated) - 1] = '\0';
+
+            // If the full name is too wide, truncate and add "..."
+            if (fontGetStringWidth(truncated) > maxWidth) {
+                int len = strlen(truncated);
+                while (len > 1) {
+                    truncated[len - 1] = '\0';
+                    // Check if the shortened name + "..." fits
+                    if (fontGetStringWidth(truncated) + fontGetStringWidth("...") <= maxWidth) {
+                        strcat(truncated, "...");
+                        break;
+                    }
+                    len--;
+                }
+            }
+
+            int finalTextWidth = fontGetStringWidth(truncated);
+            int x = (gInventorySlotWidthPadded - finalTextWidth) / 2;
             int y = gInventorySlotHeightPadded - lineHeight;
-            fontDrawText(dest + pitch * y + x, ownerName, textWidth, pitch, _colorTable[992]);
+            fontDrawText(dest + pitch * y + x, truncated, finalTextWidth, pitch, _colorTable[992]);
             fontSetCurrent(ownerFont);
         }
     }
