@@ -3464,7 +3464,7 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
             int ownerFont = fontGetCurrent();
             fontSetCurrent(101);
             int lineHeight = fontGetLineHeight();
-            int maxWidth = 35;
+            int maxWidth = gInventorySlotWidthPadded;
 
             char truncated[64];
             strncpy(truncated, ownerName, sizeof(truncated) - 1);
