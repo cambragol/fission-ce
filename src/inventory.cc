@@ -1234,7 +1234,8 @@ static int inventoryMessageListFree()
 }
 
 // New entry point for inventories - needs Strict Vanilla wrapping
-void inventoryOpenWithCycling(Object* startTarget) {
+void inventoryOpenWithCycling(Object* startTarget)
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
         // Just open the player's inventory directly
@@ -1572,7 +1573,8 @@ void inventoryOpen()
     }
 }
 
-void inventoryOpenForCompanion(Object* critter) {
+void inventoryOpenForCompanion(Object* critter)
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
         return;
@@ -3646,15 +3648,13 @@ static void _display_body(int fid, int inventoryWindowType)
             // Right side: only show for companions or containers
             if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
                 Object* target = _target_stack[0];
-                if (target && (objectIsPartyMember(target) || 
-                            (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
+                if (target && (objectIsPartyMember(target) || (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
                     drawWeight = true;
                     weightObj = target;
                 }
             } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                 Object* target = _target_stack[_target_curr_stack];
-                if (target && (objectIsPartyMember(target) || 
-                            (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
+                if (target && (objectIsPartyMember(target) || (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
                     drawWeight = true;
                     weightObj = target;
                 }
@@ -10284,7 +10284,8 @@ static void tradeWindowUpdateScrollButtons()
  * will appear at the top, which matches the vanilla trade/loot behavior
  * where newly acquired items appear at the top.
  */
-static void inventoryBuildCombinedList(Object* focusOwner) {
+static void inventoryBuildCombinedList(Object* focusOwner)
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
         gCombinedItemCount = 0;
@@ -10656,7 +10657,7 @@ static void applyCombinedSort(int sortType)
 
 static void sortCombinedInventory(int sortType, int inventoryWindowType)
 {
-    
+
     if (!gUseCombinedInventory) return;
 
     applyCombinedSort(sortType); // sorts the array in place
@@ -10669,7 +10670,8 @@ static void sortCombinedInventory(int sortType, int inventoryWindowType)
     windowRefresh(gInventoryWindow);
 }
 
-static void inventoryBuildPartyList() {
+static void inventoryBuildPartyList()
+{
 
     if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
         gPartyList.clear();
