@@ -129,6 +129,7 @@ struct EnhancementSettings {
     bool green_monochrome = false;
     bool inventory_filter = false;
     bool display_weight = false;
+    bool companion_inventory = false;
     bool vock_floats = false;
 };
 

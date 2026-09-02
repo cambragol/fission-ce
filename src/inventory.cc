@@ -1234,8 +1234,13 @@ static int inventoryMessageListFree()
 }
 
 // New entry point for inventories - needs Strict Vanilla wrapping
-void inventoryOpenWithCycling(Object* startTarget)
-{
+void inventoryOpenWithCycling(Object* startTarget) {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
+        // Just open the player's inventory directly
+        inventoryOpen();
+        return;
+    }
     Object* target = (startTarget != nullptr) ? startTarget : gDude;
 
     while (true) {
@@ -1316,14 +1321,19 @@ void inventoryOpen()
     Object* oldArmor = critterGetArmor(_inven_dude);
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
 
-    // Build party list for cycling
-    inventoryBuildPartyList();
-    gCurrentPartyIndex = 0;
-    for (size_t i = 0; i < gPartyList.size(); i++) {
-        if (gPartyList[i] == _inven_dude) {
-            gCurrentPartyIndex = (int)i;
-            break;
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+        inventoryBuildPartyList();
+        gCurrentPartyIndex = 0;
+        for (size_t i = 0; i < gPartyList.size(); i++) {
+            if (gPartyList[i] == _inven_dude) {
+                gCurrentPartyIndex = (int)i;
+                break;
+            }
         }
+    } else {
+        // Clear party list and set index to 0 (only player inventory)
+        gPartyList.clear();
+        gCurrentPartyIndex = 0;
     }
 
     reg_anim_clear(_inven_dude);
@@ -1353,57 +1363,59 @@ void inventoryOpen()
             break;
         }
 
-        if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
-            // Save who we're currently on before any list modification
-            Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
-                ? gPartyList[gCurrentPartyIndex]
-                : nullptr;
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+            if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
+                // Save who we're currently on before any list modification
+                Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
+                    ? gPartyList[gCurrentPartyIndex]
+                    : nullptr;
 
-            // Fail-safe: ensure player is in the list
-            bool hasPlayer = false;
-            for (Object* obj : gPartyList) {
-                if (obj == gDude) {
-                    hasPlayer = true;
-                    break;
-                }
-            }
-            if (!hasPlayer && gDude != nullptr) {
-                debugPrint("Player missing from party list - inserting at front.\n");
-                gPartyList.insert(gPartyList.begin(), gDude);
-                // Recalculate current index by finding who we were on before insertion
-                gCurrentPartyIndex = 0;
-                for (int i = 0; i < (int)gPartyList.size(); i++) {
-                    if (gPartyList[i] == currentCritter) {
-                        gCurrentPartyIndex = i;
+                // Fail-safe: ensure player is in the list
+                bool hasPlayer = false;
+                for (Object* obj : gPartyList) {
+                    if (obj == gDude) {
+                        hasPlayer = true;
                         break;
                     }
                 }
+                if (!hasPlayer && gDude != nullptr) {
+                    debugPrint("Player missing from party list - inserting at front.\n");
+                    gPartyList.insert(gPartyList.begin(), gDude);
+                    // Recalculate current index by finding who we were on before insertion
+                    gCurrentPartyIndex = 0;
+                    for (int i = 0; i < (int)gPartyList.size(); i++) {
+                        if (gPartyList[i] == currentCritter) {
+                            gCurrentPartyIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (gPartyList.size() <= 1) continue;
+
+                // Validate current index is still in bounds
+                if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
+                    gCurrentPartyIndex = 0;
+                }
+
+                int newIndex = gCurrentPartyIndex;
+                if (keyCode == KEY_ARROW_LEFT) {
+                    newIndex--;
+                    if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
+                } else {
+                    newIndex++;
+                    if (newIndex >= (int)gPartyList.size()) newIndex = 0;
+                }
+
+                if (newIndex == gCurrentPartyIndex) continue;
+
+                Object* newCritter = gPartyList[newIndex];
+                if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
+
+                gSwitchTarget = newCritter;
+                gSwitchToCharacter = true;
+                break;
             }
-
-            if (gPartyList.size() <= 1) continue;
-
-            // Validate current index is still in bounds
-            if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
-                gCurrentPartyIndex = 0;
-            }
-
-            int newIndex = gCurrentPartyIndex;
-            if (keyCode == KEY_ARROW_LEFT) {
-                newIndex--;
-                if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
-            } else {
-                newIndex++;
-                if (newIndex >= (int)gPartyList.size()) newIndex = 0;
-            }
-
-            if (newIndex == gCurrentPartyIndex) continue;
-
-            Object* newCritter = gPartyList[newIndex];
-            if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
-
-            gSwitchTarget = newCritter;
-            gSwitchToCharacter = true;
-            break;
         }
 
         if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X) {
@@ -1560,8 +1572,11 @@ void inventoryOpen()
     }
 }
 
-void inventoryOpenForCompanion(Object* critter)
-{
+void inventoryOpenForCompanion(Object* critter) {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
+        return;
+    }
     if (critter == nullptr) return;
 
     // Save original inven_dude and inven_pid (should be the player)
@@ -1590,13 +1605,19 @@ void inventoryOpenForCompanion(Object* critter)
     bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
 
     // Build party list (player + alive companions)
-    inventoryBuildPartyList();
-    gCurrentPartyIndex = 0;
-    for (size_t i = 0; i < gPartyList.size(); i++) {
-        if (gPartyList[i] == _inven_dude) {
-            gCurrentPartyIndex = (int)i;
-            break;
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+        inventoryBuildPartyList();
+        gCurrentPartyIndex = 0;
+        for (size_t i = 0; i < gPartyList.size(); i++) {
+            if (gPartyList[i] == _inven_dude) {
+                gCurrentPartyIndex = (int)i;
+                break;
+            }
         }
+    } else {
+        // Clear party list and set index to 0 (only player inventory)
+        gPartyList.clear();
+        gCurrentPartyIndex = 0;
     }
 
     reg_anim_clear(_inven_dude);
@@ -1627,57 +1648,59 @@ void inventoryOpenForCompanion(Object* critter)
         }
 
         // Handle party cycling
-        if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
-            // Save who we're currently on before any list modification
-            Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
-                ? gPartyList[gCurrentPartyIndex]
-                : nullptr;
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+            if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
+                // Save who we're currently on before any list modification
+                Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
+                    ? gPartyList[gCurrentPartyIndex]
+                    : nullptr;
 
-            // Fail-safe: ensure player is in the list
-            bool hasPlayer = false;
-            for (Object* obj : gPartyList) {
-                if (obj == gDude) {
-                    hasPlayer = true;
-                    break;
-                }
-            }
-            if (!hasPlayer && gDude != nullptr) {
-                debugPrint("Player missing from party list - inserting at front.\n");
-                gPartyList.insert(gPartyList.begin(), gDude);
-                // Recalculate current index by finding who we were on before insertion
-                gCurrentPartyIndex = 0;
-                for (int i = 0; i < (int)gPartyList.size(); i++) {
-                    if (gPartyList[i] == currentCritter) {
-                        gCurrentPartyIndex = i;
+                // Fail-safe: ensure player is in the list
+                bool hasPlayer = false;
+                for (Object* obj : gPartyList) {
+                    if (obj == gDude) {
+                        hasPlayer = true;
                         break;
                     }
                 }
+                if (!hasPlayer && gDude != nullptr) {
+                    debugPrint("Player missing from party list - inserting at front.\n");
+                    gPartyList.insert(gPartyList.begin(), gDude);
+                    // Recalculate current index by finding who we were on before insertion
+                    gCurrentPartyIndex = 0;
+                    for (int i = 0; i < (int)gPartyList.size(); i++) {
+                        if (gPartyList[i] == currentCritter) {
+                            gCurrentPartyIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (gPartyList.size() <= 1) continue;
+
+                // Validate current index is still in bounds
+                if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
+                    gCurrentPartyIndex = 0;
+                }
+
+                int newIndex = gCurrentPartyIndex;
+                if (keyCode == KEY_ARROW_LEFT) {
+                    newIndex--;
+                    if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
+                } else {
+                    newIndex++;
+                    if (newIndex >= (int)gPartyList.size()) newIndex = 0;
+                }
+
+                if (newIndex == gCurrentPartyIndex) continue;
+
+                Object* newCritter = gPartyList[newIndex];
+                if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
+
+                gSwitchTarget = newCritter;
+                gSwitchToCharacter = true;
+                break;
             }
-
-            if (gPartyList.size() <= 1) continue;
-
-            // Validate current index is still in bounds
-            if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
-                gCurrentPartyIndex = 0;
-            }
-
-            int newIndex = gCurrentPartyIndex;
-            if (keyCode == KEY_ARROW_LEFT) {
-                newIndex--;
-                if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
-            } else {
-                newIndex++;
-                if (newIndex >= (int)gPartyList.size()) newIndex = 0;
-            }
-
-            if (newIndex == gCurrentPartyIndex) continue;
-
-            Object* newCritter = gPartyList[newIndex];
-            if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
-
-            gSwitchTarget = newCritter;
-            gSwitchToCharacter = true;
-            break;
         }
 
         if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X) {
@@ -2788,22 +2811,27 @@ static bool _setup_inventory(int inventoryWindowType)
     gCombinedExcludeObject = nullptr; // Excludes the target inventory (companions) from Combined Inventory
 
     if (!isInCombat()) {
-        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
-            gUseCombinedInventory = true;
-            gCombinedExcludeObject = nullptr;
-            inventoryBuildCombinedList(_inven_dude);
-        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-            gUseCombinedInventory = true;
-            gCombinedExcludeObject = _target_stack[_target_curr_stack];
-            inventoryBuildCombinedList(gDude);
-        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-            gUseCombinedInventory = true;
-            gCombinedExcludeObject = _target_stack[_target_curr_stack];
-            inventoryBuildCombinedList(gDude);
-            // Move player's money to the top (end of array) for convenience
-            if (gUseCombinedInventory) {
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON) {
+                gUseCombinedInventory = true;
+                gCombinedExcludeObject = nullptr;
+                inventoryBuildCombinedList(_inven_dude);
+            } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+                gUseCombinedInventory = true;
+                gCombinedExcludeObject = _target_stack[_target_curr_stack];
+                inventoryBuildCombinedList(gDude);
+            } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+                gUseCombinedInventory = true;
+                gCombinedExcludeObject = _target_stack[_target_curr_stack];
+                inventoryBuildCombinedList(gDude);
+                // Move player's money to the top (end of array) for convenience
                 movePlayerMoneyToTopCombined();
-            } else {
+            }
+        } else {
+            gUseCombinedInventory = false;
+            gCombinedExcludeObject = nullptr;
+            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+                // Vanilla behavior: still move money to top in trade windows
                 _move_money_to_top(_pud, _pud->length);
             }
         }
@@ -3609,12 +3637,28 @@ static void _display_body(int fid, int inventoryWindowType)
         // Draw weight info if appropriate (only for loot and trade)
         bool drawWeight = false;
         Object* weightObj = nullptr;
-        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+
+        if (index == 0) {
+            // Left side: always show weight for the player
             drawWeight = true;
-            weightObj = (index == 0) ? _inven_dude : _target_stack[0];
-        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-            drawWeight = true;
-            weightObj = (index == 0) ? _stack[0] : _target_stack[_target_curr_stack];
+            weightObj = (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) ? _inven_dude : _stack[0];
+        } else {
+            // Right side: only show for companions or containers
+            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+                Object* target = _target_stack[0];
+                if (target && (objectIsPartyMember(target) || 
+                            (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
+                    drawWeight = true;
+                    weightObj = target;
+                }
+            } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+                Object* target = _target_stack[_target_curr_stack];
+                if (target && (objectIsPartyMember(target) || 
+                            (FID_TYPE(target->fid) == OBJ_TYPE_ITEM && itemGetType(target) == ITEM_TYPE_CONTAINER))) {
+                    drawWeight = true;
+                    weightObj = target;
+                }
+            }
         }
 
         if (drawWeight && weightObj != nullptr) {
@@ -7864,17 +7908,22 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 int currentWeight = objectGetInventoryWeight(looter);
                 int newInventoryWeight = objectGetInventoryWeight(target);
                 if (newInventoryWeight <= maxCarryWeight - currentWeight) {
-                    itemMoveAll(target, looter); // items moved
+                    itemMoveAll(target, looter);
                     if (gUseCombinedInventory) {
                         inventoryBuildCombinedList(gDude);
                     }
                     if (!settings.enhancements.strict_vanilla) {
                         soundPlayFile("ib1p1xx1");
-                        // break; // Exit loop early and close window for convenience
                     }
-                    // display changes but do not exit
                     _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
                     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
+
+                    // Force weight display update
+                    gInventoryWindowDudeRotationTimestamp = 0;
+                    _display_body(-1, INVENTORY_WINDOW_TYPE_LOOT);
+                    if (_target_stack[_target_curr_stack] != nullptr) {
+                        _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_LOOT);
+                    }
                 } else {
                     // Sorry, you cannot carry that much.
                     messageListItem.num = 31;
@@ -7893,13 +7942,15 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 if (gUseCombinedInventory) {
                     inventoryBuildCombinedList(gDude);
                 }
-                if (!settings.enhancements.strict_vanilla) {
-                    soundPlayFile("ib1p1xx1");
-                    // break; // Close window for convenience (same as Take All)
-                }
-                // Refresh displays
                 _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_LOOT);
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_LOOT);
+
+                // Force weight display update
+                gInventoryWindowDudeRotationTimestamp = 0;
+                _display_body(-1, INVENTORY_WINDOW_TYPE_LOOT);
+                if (_target_stack[_target_curr_stack] != nullptr) {
+                    _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_LOOT);
+                }
             }
         } else if (keyCode == KEY_ARROW_UP) {
             if (_stack_offset[_curr_stack] > 0) {
@@ -10233,8 +10284,12 @@ static void tradeWindowUpdateScrollButtons()
  * will appear at the top, which matches the vanilla trade/loot behavior
  * where newly acquired items appear at the top.
  */
-static void inventoryBuildCombinedList(Object* focusOwner)
-{
+static void inventoryBuildCombinedList(Object* focusOwner) {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
+        gCombinedItemCount = 0;
+        return;
+    }
     if (focusOwner == nullptr) focusOwner = _inven_dude;
     gCombinedItemCount = 0;
 
@@ -10601,6 +10656,9 @@ static void applyCombinedSort(int sortType)
 
 static void sortCombinedInventory(int sortType, int inventoryWindowType)
 {
+    
+    if (!gUseCombinedInventory) return;
+
     applyCombinedSort(sortType); // sorts the array in place
 
     // Refresh display
@@ -10611,8 +10669,12 @@ static void sortCombinedInventory(int sortType, int inventoryWindowType)
     windowRefresh(gInventoryWindow);
 }
 
-static void inventoryBuildPartyList()
-{
+static void inventoryBuildPartyList() {
+
+    if (settings.enhancements.strict_vanilla || !settings.enhancements.companion_inventory) {
+        gPartyList.clear();
+        return;
+    }
     gPartyList.clear();
 
     // Always include the player
