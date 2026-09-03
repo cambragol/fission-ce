@@ -3069,7 +3069,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
 
-        // Build filtered index list (using combined inventory if active) 
+        // Build filtered index list (using combined inventory if active)
         gFilteredCount = getFilteredCount();
 
         // Clamp stackOffset to valid range
@@ -9407,7 +9407,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                         inventoryWindowRenderInnerInventories(win, nullptr, bartererTable, -1);
                     } else {
                         int slotIndex = keyCode - 2400;
-                            if (slotIndex + _btable_offset < _btable_pud->length) {
+                        if (slotIndex + _btable_offset < _btable_pud->length) {
                             InventoryItem* inventoryItem = &(_btable_pud->items[_btable_pud->length - (slotIndex + _btable_offset + 1)]);
                             _barter_move_from_table_inventory(inventoryItem->item, inventoryItem->quantity, slotIndex, barterer, bartererTable, false);
                             _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
