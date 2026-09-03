@@ -42,3 +42,5 @@ MDBTDN.FRM          ; Multidex red button down
 SMALLNUM.FRM        ; Multidex skill numbers
 PIPBBUUP.frm        ; Broken Pipboy up button
 PIPBBUDN.frm        ; Broken Pipboy down button
+SORTUSEH.frm        ; New Use Item On Action Icon Highlighted
+SORTUSEO.frm        ; New Use Item on Action Icon
