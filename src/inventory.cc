@@ -3012,20 +3012,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
                 pitch);
         }
 
-        // --- Build filtered index list (using combined inventory if active) ---
-        if (!settings.enhancements.strict_vanilla) {
-            if (gUseCombinedInventory) {
-                gFilteredCount = buildFilteredCombinedIndices();
-            } else {
-                gFilteredCount = buildFilteredIndices(_pud);
-            }
-        } else {
-            // Vanilla: use _pud directly (no combined in vanilla)
-            gFilteredCount = _pud->length;
-            for (int i = 0; i < gFilteredCount; i++) {
-                gFilteredIndices[i] = gFilteredCount - 1 - i;
-            }
-        }
+        // Build filtered index list (using combined inventory if active)
+        gFilteredCount = getFilteredCount();
 
         // Clamp stackOffset.
         if (stackOffset >= gFilteredCount) {
@@ -3081,20 +3069,8 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
     // Draw items in grid (only for normal inventory)
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
 
-        // --- Build filtered index list (using combined inventory if active) ---
-        if (!settings.enhancements.strict_vanilla) {
-            if (gUseCombinedInventory) {
-                gFilteredCount = buildFilteredCombinedIndices();
-            } else {
-                gFilteredCount = buildFilteredIndices(_pud);
-            }
-        } else {
-            // Vanilla: use _pud directly (no combined in vanilla)
-            gFilteredCount = _pud->length;
-            for (int i = 0; i < gFilteredCount; i++) {
-                gFilteredIndices[i] = gFilteredCount - 1 - i;
-            }
-        }
+        // Build filtered index list (using combined inventory if active) 
+        gFilteredCount = getFilteredCount();
 
         // Clamp stackOffset to valid range
         if (stackOffset >= gFilteredCount) {
@@ -3294,22 +3270,16 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
                 pitch);
         }
 
-        // --- Build filtered index list (if not strict vanilla) ---
-        if (!settings.enhancements.strict_vanilla) {
-            gFilteredCount = buildFilteredIndices(inventory);
-        } else {
-            gFilteredCount = inventory->length;
-            for (int i = 0; i < gFilteredCount; i++) {
-                gFilteredIndices[i] = gFilteredCount - 1 - i;
-            }
-        }
-        // --- Clamp stackOffset to valid range ---
+        // Build filtered index list (if not strict vanilla)
+        gFilteredCount = buildFilteredIndices(inventory);
+
+        // Clamp stackOffset to valid range
         if (stackOffset >= gFilteredCount) {
             stackOffset = 0;
             _target_stack_offset[_target_curr_stack] = 0;
         }
 
-        // --- Draw filtered items ---
+        // Draw filtered items
         int y = 0;
         for (int slotIndex = 0; slotIndex < gInventorySlotsCount; slotIndex++) {
             int filteredIndex = stackOffset + slotIndex;
@@ -3324,7 +3294,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
             y += gInventorySlotHeight;
         }
 
-        // --- Draw filter bar (if not strict vanilla) ---
+        // Draw filter bar (if not strict vanilla)
         if (!settings.enhancements.strict_vanilla) {
             int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
             drawFilterBar(windowBuffer, pitch,
@@ -8282,7 +8252,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
     Rect rect;
     Object* owner = nullptr;
 
-    // --- Helper to get the actual item from the left panel ---
+    // Helper to get the actual item from the left panel
     auto getLeftItem = [&](int slotIndex, int stackOffset, Object*& outItem, int& outQuantity, Object*& outOwner) -> bool {
         if (gFilterCategory != -1) {
             // Build filtered indices for the left inventory.
@@ -9070,6 +9040,14 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
     char formattedText[80];
     int rectHeight = fontGetLineHeight() + INVENTORY_SLOT_HEIGHT * gInventorySlotsCount;
 
+    // Clamp inner offsets to prevent out-of-bounds after item removal
+    if (_ptable_pud != NULL && _ptable_offset >= _ptable_pud->length) {
+        _ptable_offset = (_ptable_pud->length > 0) ? _ptable_pud->length - 1 : 0;
+    }
+    if (_btable_pud != NULL && _btable_offset >= _btable_pud->length) {
+        _btable_offset = (_btable_pud->length > 0) ? _btable_pud->length - 1 : 0;
+    }
+
     if (leftTable != nullptr) {
         unsigned char* src = windowGetBuffer(win);
         blitBufferToBuffer(src + INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH * INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y + INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD + INVENTORY_TRADE_WINDOW_OFFSET, INVENTORY_SLOT_WIDTH, rectHeight + 1, INVENTORY_TRADE_BACKGROUND_WINDOW_WIDTH, windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y + INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD, INVENTORY_TRADE_WINDOW_WIDTH);
@@ -9412,7 +9390,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                         inventoryWindowRenderInnerInventories(win, playerTable, nullptr, -1);
                     } else {
                         int slotIndex = keyCode - 2300;
-                        if (slotIndex < _ptable_pud->length) {
+                        if (slotIndex + _ptable_offset < _ptable_pud->length) {
                             InventoryItem* inventoryItem = &(_ptable_pud->items[_ptable_pud->length - (slotIndex + _ptable_offset + 1)]);
                             _barter_move_from_table_inventory(inventoryItem->item, inventoryItem->quantity, slotIndex, barterer, playerTable, true);
                             _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
@@ -9429,7 +9407,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                         inventoryWindowRenderInnerInventories(win, nullptr, bartererTable, -1);
                     } else {
                         int slotIndex = keyCode - 2400;
-                        if (slotIndex < _btable_pud->length) {
+                            if (slotIndex + _btable_offset < _btable_pud->length) {
                             InventoryItem* inventoryItem = &(_btable_pud->items[_btable_pud->length - (slotIndex + _btable_offset + 1)]);
                             _barter_move_from_table_inventory(inventoryItem->item, inventoryItem->quantity, slotIndex, barterer, bartererTable, false);
                             _display_target_inventory(_target_stack_offset[_target_curr_stack], -1, _target_pud, INVENTORY_WINDOW_TYPE_TRADE);
