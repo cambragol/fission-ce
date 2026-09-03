@@ -6278,42 +6278,6 @@ static int _compare_items_by_name(const void* a, const void* b)
     return strcmp(nameA, nameB);
 }
 
-// Compare by total stack weight (heaviest at top)
-static int _compare_items_by_weight(const void* a, const void* b)
-{
-    InventoryItem* itemA = (InventoryItem*)a;
-    InventoryItem* itemB = (InventoryItem*)b;
-
-    // Get weight PER ITEM
-    int weightPerItemA = itemGetWeight(itemA->item);
-    int weightPerItemB = itemGetWeight(itemB->item);
-
-    // Calculate TOTAL stack weight (per item * quantity)
-    int totalWeightA = weightPerItemA * itemA->quantity;
-    int totalWeightB = weightPerItemB * itemB->quantity;
-
-    // Ascending order: lightest first in array, heaviest last (at TOP)
-    return totalWeightA - totalWeightB;
-}
-
-// Compare by total stack value (most valuable at top)
-static int _compare_items_by_value(const void* a, const void* b)
-{
-    InventoryItem* itemA = (InventoryItem*)a;
-    InventoryItem* itemB = (InventoryItem*)b;
-
-    // Get value PER ITEM
-    int valuePerItemA = itemGetCost(itemA->item);
-    int valuePerItemB = itemGetCost(itemB->item);
-
-    // Calculate TOTAL stack value (per item * quantity)
-    int totalValueA = valuePerItemA * itemA->quantity;
-    int totalValueB = valuePerItemB * itemB->quantity;
-
-    // Ascending order: least valuable first in array, most valuable last (at TOP)
-    return totalValueA - totalValueB;
-}
-
 // Main sorting function - orchestrates all sort types
 // Returns true if sorting actually occurred, false if nothing changed
 static bool _inven_sort_inventory(Object* obj, int sortType, int inventoryWindowType)
@@ -10516,14 +10480,61 @@ static int compareCombinedItemsByType(const void* a, const void* b)
     }
 }
 
+// Shared: compare items by name, used as a tiebreaker when a primary sort key is equal
+static int compareItemNames(Object* itemA, Object* itemB)
+{
+    const char* nameA = objectGetName(itemA);
+    const char* nameB = objectGetName(itemB);
+    if (nameA == nullptr && nameB == nullptr) return 0;
+    if (nameA == nullptr) return -1;
+    if (nameB == nullptr) return 1;
+    return strcmp(nameA, nameB);
+}
+
+// Shared: total stack weight/value, ascending (lightest/least valuable first);
+// ties broken by name so equal-weight/value items land in a stable, repeatable order
+static int compareByTotalWeight(Object* itemA, int quantityA, Object* itemB, int quantityB)
+{
+    int totalWeightA = itemGetWeight(itemA) * quantityA;
+    int totalWeightB = itemGetWeight(itemB) * quantityB;
+    if (totalWeightA != totalWeightB) {
+        return totalWeightA - totalWeightB;
+    }
+    return compareItemNames(itemA, itemB);
+}
+
+static int compareByTotalValue(Object* itemA, int quantityA, Object* itemB, int quantityB)
+{
+    int totalValueA = itemGetCost(itemA) * quantityA;
+    int totalValueB = itemGetCost(itemB) * quantityB;
+    if (totalValueA != totalValueB) {
+        return totalValueA - totalValueB;
+    }
+    return compareItemNames(itemA, itemB);
+}
+
+// Compare by total stack weight (heaviest at top)
+static int _compare_items_by_weight(const void* a, const void* b)
+{
+    InventoryItem* itemA = (InventoryItem*)a;
+    InventoryItem* itemB = (InventoryItem*)b;
+    return compareByTotalWeight(itemA->item, itemA->quantity, itemB->item, itemB->quantity);
+}
+
+// Compare by total stack value (most valuable at top)
+static int _compare_items_by_value(const void* a, const void* b)
+{
+    InventoryItem* itemA = (InventoryItem*)a;
+    InventoryItem* itemB = (InventoryItem*)b;
+    return compareByTotalValue(itemA->item, itemA->quantity, itemB->item, itemB->quantity);
+}
+
 // Compare by total weight (heaviest at end)
 static int compareCombinedItemsByWeight(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    int weightA = itemGetWeight(ca->item) * ca->quantity;
-    int weightB = itemGetWeight(cb->item) * cb->quantity;
-    return weightA - weightB;
+    return compareByTotalWeight(ca->item, ca->quantity, cb->item, cb->quantity);
 }
 
 // Compare by total value (most valuable at end)
@@ -10531,9 +10542,15 @@ static int compareCombinedItemsByValue(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    int valueA = itemGetCost(ca->item) * ca->quantity;
-    int valueB = itemGetCost(cb->item) * cb->quantity;
-    return valueA - valueB;
+    return compareByTotalValue(ca->item, ca->quantity, cb->item, cb->quantity);
+}
+
+// Shared tiebreak: item of the target type sorts after non-target items; ties broken by name.
+static int compareByTypeThenName(Object* itemA, Object* itemB, bool isTargetA, bool isTargetB)
+{
+    if (isTargetA && !isTargetB) return 1;
+    if (!isTargetA && isTargetB) return -1;
+    return compareItemNames(itemA, itemB);
 }
 
 // Weapons first, then by name
@@ -10541,16 +10558,9 @@ static int compareCombinedItemsByWeapons(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    bool isWeaponA = (itemGetType(ca->item) == ITEM_TYPE_WEAPON);
-    bool isWeaponB = (itemGetType(cb->item) == ITEM_TYPE_WEAPON);
-    if (isWeaponA && !isWeaponB) return 1;
-    if (!isWeaponA && isWeaponB) return -1;
-    const char* nameA = objectGetName(ca->item);
-    const char* nameB = objectGetName(cb->item);
-    if (nameA == nullptr && nameB == nullptr) return 0;
-    if (nameA == nullptr) return -1;
-    if (nameB == nullptr) return 1;
-    return strcmp(nameA, nameB);
+    return compareByTypeThenName(ca->item, cb->item,
+        itemGetType(ca->item) == ITEM_TYPE_WEAPON,
+        itemGetType(cb->item) == ITEM_TYPE_WEAPON);
 }
 
 // Ammo first, then by name
@@ -10558,16 +10568,9 @@ static int compareCombinedItemsByAmmo(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    bool isAmmoA = (itemGetType(ca->item) == ITEM_TYPE_AMMO);
-    bool isAmmoB = (itemGetType(cb->item) == ITEM_TYPE_AMMO);
-    if (isAmmoA && !isAmmoB) return 1;
-    if (!isAmmoA && isAmmoB) return -1;
-    const char* nameA = objectGetName(ca->item);
-    const char* nameB = objectGetName(cb->item);
-    if (nameA == nullptr && nameB == nullptr) return 0;
-    if (nameA == nullptr) return -1;
-    if (nameB == nullptr) return 1;
-    return strcmp(nameA, nameB);
+    return compareByTypeThenName(ca->item, cb->item,
+        itemGetType(ca->item) == ITEM_TYPE_AMMO,
+        itemGetType(cb->item) == ITEM_TYPE_AMMO);
 }
 
 // Drugs first, then by name
@@ -10575,16 +10578,9 @@ static int compareCombinedItemsByDrugs(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
     const CombinedItem* cb = (const CombinedItem*)b;
-    bool isDrugA = (itemGetType(ca->item) == ITEM_TYPE_DRUG);
-    bool isDrugB = (itemGetType(cb->item) == ITEM_TYPE_DRUG);
-    if (isDrugA && !isDrugB) return 1;
-    if (!isDrugA && isDrugB) return -1;
-    const char* nameA = objectGetName(ca->item);
-    const char* nameB = objectGetName(cb->item);
-    if (nameA == nullptr && nameB == nullptr) return 0;
-    if (nameA == nullptr) return -1;
-    if (nameB == nullptr) return 1;
-    return strcmp(nameA, nameB);
+    return compareByTypeThenName(ca->item, cb->item,
+        itemGetType(ca->item) == ITEM_TYPE_DRUG,
+        itemGetType(cb->item) == ITEM_TYPE_DRUG);
 }
 
 // Other (Misc, Container, Key, Armor) first, then by name
@@ -10596,14 +10592,7 @@ static int compareCombinedItemsByOther(const void* a, const void* b)
     int typeB = itemGetType(cb->item);
     bool isOtherA = (typeA == ITEM_TYPE_MISC || typeA == ITEM_TYPE_CONTAINER || typeA == ITEM_TYPE_KEY || typeA == ITEM_TYPE_ARMOR);
     bool isOtherB = (typeB == ITEM_TYPE_MISC || typeB == ITEM_TYPE_CONTAINER || typeB == ITEM_TYPE_KEY || typeB == ITEM_TYPE_ARMOR);
-    if (isOtherA && !isOtherB) return 1;
-    if (!isOtherA && isOtherB) return -1;
-    const char* nameA = objectGetName(ca->item);
-    const char* nameB = objectGetName(cb->item);
-    if (nameA == nullptr && nameB == nullptr) return 0;
-    if (nameA == nullptr) return -1;
-    if (nameB == nullptr) return 1;
-    return strcmp(nameA, nameB);
+    return compareByTypeThenName(ca->item, cb->item, isOtherA, isOtherB);
 }
 
 static void applyCombinedSort(int sortType)
