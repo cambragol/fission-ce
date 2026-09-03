@@ -1326,17 +1326,17 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         }
                     }
 
-                    if (!settings.enhancements.auto_push){
+                    if (!settings.enhancements.auto_push) {
                         if (actionCheckPush(gDude, targetObj)) {
                             actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_PUSH;
                         }
                     }
 
-                    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory){
+                    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
                         if (objectIsPartyMember(targetObj) && targetObj != gDude) {
                             actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_COMPANION_INVENTORY;
                         }
-                    }   
+                    }
                 }
 
                 actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_LOOK;
@@ -1508,12 +1508,12 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             actionUseSkill(gDude, targetObj, skill);
                         }
                     } break;
-                    if (!settings.enhancements.auto_push){
+                        if (!settings.enhancements.auto_push) {
                         case GAME_MOUSE_ACTION_MENU_ITEM_PUSH:
                             actionPush(gDude, targetObj);
                             break;
-                    }
-                    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory){
+                        }
+                        if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
                         case GAME_MOUSE_ACTION_MENU_ITEM_COMPANION_INVENTORY:
                             inventoryOpenWithCycling(targetObj);
                             break;
