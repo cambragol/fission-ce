@@ -228,7 +228,7 @@ static unsigned char gGameMouseActionMenuHighlightedItemIndex = 0;
 static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_COUNT] = {
     253, // Cancel
     255, // Drop
-    257, // Inventory
+    5200, // Use Item From Inventory - new version with hand
     259, // Look
     261, // Rotate
     263, // Talk
@@ -245,13 +245,14 @@ static const short gGameMouseActionMenuItemFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_CO
     6783, // Sort Weight
     4203, // Sort Value
     7443, // Sort Reverse
+    257, // Companion Inventory - former Use Item From Inventory
 };
 
 // Array for highlighted context items - needed for sort menu
 static const short gGameMouseActionMenuItemHighlightedFrmIds[GAME_MOUSE_ACTION_MENU_ITEM_COUNT] = {
     252, // Cancel (highlighted) - instead of 253 - 1
     254, // Drop (highlighted) - instead of 255 - 1
-    256, // Inventory (highlighted) - instead of 257 - 1
+    5193, // Inventory (highlighted) - New version with hand
     258, // Look (highlighted) - instead of 259 - 1
     260, // Rotate (highlighted) - instead of 261 - 1
     262, // Talk (highlighted) - instead of 263 - 1
@@ -268,6 +269,7 @@ static const short gGameMouseActionMenuItemHighlightedFrmIds[GAME_MOUSE_ACTION_M
     6777, // Sort Weight (highlighted) - instead of 6495 - 1
     4197, // Sort Value (highlighted) - instead of 6671 - 1
     7437, // Sort Reverse (highlighted) - instead of 5951 - 1
+    256, // Inventory (highlighted) - instead of 257 - 1 - former Use Item From Inventory
 };
 
 // 0x518D34
@@ -1324,9 +1326,17 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         }
                     }
 
-                    if (actionCheckPush(gDude, targetObj)) {
-                        actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_PUSH;
+                    if (!settings.enhancements.auto_push){
+                        if (actionCheckPush(gDude, targetObj)) {
+                            actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_PUSH;
+                        }
                     }
+
+                    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory){
+                        if (objectIsPartyMember(targetObj) && targetObj != gDude) {
+                            actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_COMPANION_INVENTORY;
+                        }
+                    }   
                 }
 
                 actionMenuItems[actionMenuItemsCount++] = GAME_MOUSE_ACTION_MENU_ITEM_LOOK;
@@ -1498,9 +1508,16 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                             actionUseSkill(gDude, targetObj, skill);
                         }
                     } break;
-                    case GAME_MOUSE_ACTION_MENU_ITEM_PUSH:
-                        actionPush(gDude, targetObj);
-                        break;
+                    if (!settings.enhancements.auto_push){
+                        case GAME_MOUSE_ACTION_MENU_ITEM_PUSH:
+                            actionPush(gDude, targetObj);
+                            break;
+                    }
+                    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory){
+                        case GAME_MOUSE_ACTION_MENU_ITEM_COMPANION_INVENTORY:
+                            inventoryOpenWithCycling(targetObj);
+                            break;
+                        }
                     }
                 }
             }
