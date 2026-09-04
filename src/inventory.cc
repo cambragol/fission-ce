@@ -183,28 +183,28 @@ namespace fallout {
 
 #define MAX_SORT_PRIORITY 999
 
-#define INVENTORY_BUTTON_LEFT      2500   // Left portrait/body view (also triggers sort in arrow mode)
-#define INVENTORY_BUTTON_RIGHT     2501   // Right portrait/body view (trade/loot)
-#define INVENTORY_BUTTON_TAKE_ALL  2502   // Loot "Take All" button
-#define INVENTORY_BUTTON_DROP_ALL  2503   // Loot "Drop All" button (enhanced)
+#define INVENTORY_BUTTON_LEFT 2500 // Left portrait/body view (also triggers sort in arrow mode)
+#define INVENTORY_BUTTON_RIGHT 2501 // Right portrait/body view (trade/loot)
+#define INVENTORY_BUTTON_TAKE_ALL 2502 // Loot "Take All" button
+#define INVENTORY_BUTTON_DROP_ALL 2503 // Loot "Drop All" button (enhanced)
 
 // Equipment slot key codes (inventory screen)
-#define INVENTORY_HAND_RIGHT_KEY   2006   // Right hand slot
-#define INVENTORY_HAND_LEFT_KEY    2007   // Left hand slot
-#define INVENTORY_ARMOR_KEY        2008   // Armor slot
+#define INVENTORY_HAND_RIGHT_KEY 2006 // Right hand slot
+#define INVENTORY_HAND_LEFT_KEY 2007 // Left hand slot
+#define INVENTORY_ARMOR_KEY 2008 // Armor slot
 
 // Key code bases for inventory buttons
-#define KEYCODE_GRID_BASE          1000   // Player inventory grid
-#define KEYCODE_TARGET_GRID_BASE   2000   // Target inventory grid (loot/trade)
-#define KEYCODE_OFFER_LEFT_BASE    2300   // Player offer table (trade)
-#define KEYCODE_OFFER_RIGHT_BASE   2400   // Merchant offer table (trade)
-#define KEYCODE_FILTER_BASE        8000   // Category filter buttons
+#define KEYCODE_GRID_BASE 1000 // Player inventory grid
+#define KEYCODE_TARGET_GRID_BASE 2000 // Target inventory grid (loot/trade)
+#define KEYCODE_OFFER_LEFT_BASE 2300 // Player offer table (trade)
+#define KEYCODE_OFFER_RIGHT_BASE 2400 // Merchant offer table (trade)
+#define KEYCODE_FILTER_BASE 8000 // Category filter buttons
 
 // Special button key codes (not in a contiguous range)
-#define BUTTON_DONE                500    // Quantity dialog "Done"
-#define BUTTON_ALL                 5000   // Quantity dialog "All"
-#define BUTTON_PLUS                6000   // Quantity dialog "+"
-#define BUTTON_MINUS               7000   // Quantity dialog "-"
+#define BUTTON_DONE 500 // Quantity dialog "Done"
+#define BUTTON_ALL 5000 // Quantity dialog "All"
+#define BUTTON_PLUS 6000 // Quantity dialog "+"
+#define BUTTON_MINUS 7000 // Quantity dialog "-"
 
 #define SORT_MENU_ITEM_COUNT (sizeof(_act_sort) / sizeof(_act_sort[0]))
 
