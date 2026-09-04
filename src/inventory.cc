@@ -4267,15 +4267,22 @@ static void _adjust_fid()
 
         // Override with armor if worn
         if (gInventoryArmor != nullptr) {
-            protoGetProto(gInventoryArmor->pid, &proto);
-            if (critterGetStat(_inven_dude, STAT_GENDER) == GENDER_FEMALE) {
-                inventoryFid = proto->item.data.armor.femaleFid;
-            } else {
-                inventoryFid = proto->item.data.armor.maleFid;
+            // Only show armor on companion's preview if 'NpcArmor' is enabled
+            // Always show for the player
+            bool showArmor = (_inven_dude == gDude) ||
+                            (!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor);
+            if (showArmor) {
+                protoGetProto(gInventoryArmor->pid, &proto);
+                if (critterGetStat(_inven_dude, STAT_GENDER) == GENDER_FEMALE) {
+                    inventoryFid = proto->item.data.armor.femaleFid;
+                } else {
+                    inventoryFid = proto->item.data.armor.maleFid;
+                }
+                if (inventoryFid == -1) {
+                    inventoryFid = _art_vault_guy_num;
+                }
             }
-            if (inventoryFid == -1) {
-                inventoryFid = _art_vault_guy_num;
-            }
+            // If not showing armor, keep inventoryFid as the default (no armor)
         }
 
         // Determine weapon animation code
