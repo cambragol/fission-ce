@@ -1359,7 +1359,7 @@ static int inventoryRunLoop(void)
 
                 gSwitchTarget = newCritter;
                 gSwitchToCharacter = true;
-                return 1;   // request switch
+                return 1; // request switch
             }
         }
 
@@ -1434,8 +1434,7 @@ static int inventoryRunLoop(void)
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
                 int totalVisibleSlots = gInventoryRows * gInventoryColumns;
-                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisibleSlots) ||
-                    (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
+                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisibleSlots) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
