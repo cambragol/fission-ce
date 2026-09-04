@@ -1281,105 +1281,33 @@ void inventoryOpenWithCycling(Object* startTarget)
     gSwitchTarget = nullptr;
 }
 
-// 0x46E7B0
-void inventoryOpen()
+// Main event loop for the normal (player/companion) inventory window.
+// Returns 1 if the user requested to switch to another party member,
+static int inventoryRunLoop(void)
 {
-    if (isInCombat()) {
-        if (_combat_whose_turn() != _inven_dude) {
-            return;
-        }
-    }
-
-    ScopedGameMode gm(GameMode::kInventory);
-
-    gSwitchToCharacter = false;
-    gSwitchTarget = nullptr;
-
-    // Capture old skill values for Multidex animation
-    int oldSkillValues[8];
-    if (interfaceIsSuperWide()) {
-        for (int i = 0; i < 8; i++) {
-            oldSkillValues[i] = skillGetValue(gDude, gMultidexSkillIds[i]);
-        }
-    }
-
-    if (inventoryCommonInit() == -1) {
-        return;
-    }
-
-    if (isInCombat()) {
-        if (_inven_dude == gDude) {
-            int actionPointsRequired = 4 - 2 * perkGetRank(_inven_dude, PERK_QUICK_POCKETS);
-            if (actionPointsRequired > 0 && actionPointsRequired > gDude->data.critter.combat.ap) {
-                // You don't have enough action points to use inventory
-                MessageListItem messageListItem;
-                messageListItem.num = 19;
-                if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                    displayMonitorAddMessage(messageListItem.text);
-                }
-
-                // NOTE: Uninline.
-                inventoryCommonFree();
-
-                return;
-            }
-
-            if (actionPointsRequired > 0) {
-                if (actionPointsRequired > gDude->data.critter.combat.ap) {
-                    gDude->data.critter.combat.ap = 0;
-                } else {
-                    gDude->data.critter.combat.ap -= actionPointsRequired;
-                }
-                interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
-            }
-        }
-    }
-
-    Object* oldArmor = critterGetArmor(_inven_dude);
-    bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
-
-    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
-        inventoryBuildPartyList();
-        gCurrentPartyIndex = 0;
-        for (size_t i = 0; i < gPartyList.size(); i++) {
-            if (gPartyList[i] == _inven_dude) {
-                gCurrentPartyIndex = (int)i;
-                break;
-            }
-        }
-    } else {
-        // Clear party list and set index to 0 (only player inventory)
-        gPartyList.clear();
-        gCurrentPartyIndex = 0;
-    }
-
-    reg_anim_clear(_inven_dude);
-    inventoryRenderSummary();
-    _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-    inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
-
-    int totalVisible = gInventoryRows * gInventoryColumns;
+    const int totalVisible = gInventoryRows * gInventoryColumns;
 
     for (;;) {
         sharedFpsLimiter.mark();
 
         int keyCode = inputGetInput();
 
-        // SFALL: Close with 'I'.
+        // Close with ESC or 'I'
         if (keyCode == KEY_ESCAPE || keyCode == KEY_UPPERCASE_I || keyCode == KEY_LOWERCASE_I) {
-            break;
+            return 0;
         }
 
         if (_game_user_wants_to_quit != 0) {
-            break;
+            return 0;
         }
 
         _display_body(-1, INVENTORY_WINDOW_TYPE_NORMAL);
 
         if (gameGetState() == GAME_STATE_5) {
-            break;
+            return 0;
         }
 
+        // Party cycling (companion switching)
         if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
             if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
                 // Save who we're currently on before any list modification
@@ -1431,10 +1359,11 @@ void inventoryOpen()
 
                 gSwitchTarget = newCritter;
                 gSwitchToCharacter = true;
-                break;
+                return 1;   // request switch
             }
         }
 
+        // Keyboard shortcuts
         if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X) {
             showQuitConfirmationDialog();
         } else if (keyCode == KEY_HOME) {
@@ -1452,41 +1381,33 @@ void inventoryOpen()
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
         } else if (keyCode == KEY_END) {
-            int totalFiltered = getFilteredCount();
-            _stack_offset[_curr_stack] = totalFiltered - totalVisible;
+            int total = getFilteredCount();
+            _stack_offset[_curr_stack] = total - totalVisible;
             if (_stack_offset[_curr_stack] < 0) {
                 _stack_offset[_curr_stack] = 0;
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
         } else if (keyCode == KEY_ARROW_DOWN) {
-            int totalFiltered = getFilteredCount();
-            if (_stack_offset[_curr_stack] + totalVisible < totalFiltered) {
+            int total = getFilteredCount();
+            if (_stack_offset[_curr_stack] + totalVisible < total) {
                 _stack_offset[_curr_stack] += gInventoryColumns;
                 _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
             }
         } else if (keyCode == KEY_PAGE_DOWN) {
-            int totalFiltered = getFilteredCount();
+            int total = getFilteredCount();
             _stack_offset[_curr_stack] += totalVisible;
-            if (_stack_offset[_curr_stack] + totalVisible >= totalFiltered) {
-                _stack_offset[_curr_stack] = totalFiltered - totalVisible;
+            if (_stack_offset[_curr_stack] + totalVisible >= total) {
+                _stack_offset[_curr_stack] = total - totalVisible;
                 if (_stack_offset[_curr_stack] < 0) {
                     _stack_offset[_curr_stack] = 0;
                 }
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode == INVENTORY_BUTTON_LEFT) {
-            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
-                // Arrow mode - sort inventory
-                inventoryWindowOpenSortContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
-            } else {
-                // Not arrow mode - original behavior (exit container)
-                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
-            }
         } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
             if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
                 int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
-                    gFilterCategory = -1; // toggle off if already active
+                    gFilterCategory = -1; // toggle off
                 } else {
                     gFilterCategory = category;
                 }
@@ -1495,7 +1416,14 @@ void inventoryOpen()
                 inventoryRenderSummary();
                 windowRefresh(gInventoryWindow);
             }
+        } else if (keyCode == INVENTORY_BUTTON_LEFT) {
+            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
+                inventoryWindowOpenSortContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
+            } else {
+                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
+            }
         } else {
+            // Mouse handling
             if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
                 if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
@@ -1505,10 +1433,9 @@ void inventoryOpen()
                     windowRefresh(gInventoryWindow);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                int totalVisible = gInventoryRows * gInventoryColumns;
-                // Grid slots: KEYCODE_GRID_BASE to KEYCODE_GRID_BASE+totalVisible-1
-                // Hand/armor slots: new constants
-                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
+                int totalVisibleSlots = gInventoryRows * gInventoryColumns;
+                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisibleSlots) ||
+                    (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
@@ -1527,8 +1454,8 @@ void inventoryOpen()
                             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
                         }
                     } else if (wheelY < 0) {
-                        int totalFiltered = getFilteredCount();
-                        if (_stack_offset[_curr_stack] + totalVisible < totalFiltered) {
+                        int total = getFilteredCount();
+                        if (_stack_offset[_curr_stack] + totalVisible < total) {
                             _stack_offset[_curr_stack] += gInventoryColumns;
                             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
                         }
@@ -1536,6 +1463,8 @@ void inventoryOpen()
                 }
             }
         }
+
+        // Filter via keyboard shortcuts (W,A,D,G,M)
         if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
@@ -1555,6 +1484,86 @@ void inventoryOpen()
         renderPresent();
         sharedFpsLimiter.throttle();
     }
+}
+
+// 0x46E7B0
+void inventoryOpen()
+{
+    if (isInCombat()) {
+        if (_combat_whose_turn() != _inven_dude) {
+            return;
+        }
+    }
+
+    ScopedGameMode gm(GameMode::kInventory);
+
+    gSwitchToCharacter = false;
+    gSwitchTarget = nullptr;
+
+    // Capture old skill values for Multidex animation
+    int oldSkillValues[8];
+    if (interfaceIsSuperWide()) {
+        for (int i = 0; i < 8; i++) {
+            oldSkillValues[i] = skillGetValue(gDude, gMultidexSkillIds[i]);
+        }
+    }
+
+    if (inventoryCommonInit() == -1) {
+        return;
+    }
+
+    if (isInCombat()) {
+        if (_inven_dude == gDude) {
+            int actionPointsRequired = 4 - 2 * perkGetRank(_inven_dude, PERK_QUICK_POCKETS);
+            if (actionPointsRequired > 0 && actionPointsRequired > gDude->data.critter.combat.ap) {
+                MessageListItem messageListItem;
+                messageListItem.num = 19; // You don't have enough action points to use inventory
+                if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
+                    displayMonitorAddMessage(messageListItem.text);
+                }
+
+                // NOTE: Uninline.
+                inventoryCommonFree();
+
+                return;
+            }
+
+            if (actionPointsRequired > 0) {
+                if (actionPointsRequired > gDude->data.critter.combat.ap) {
+                    gDude->data.critter.combat.ap = 0;
+                } else {
+                    gDude->data.critter.combat.ap -= actionPointsRequired;
+                }
+                interfaceRenderActionPoints(gDude->data.critter.combat.ap, _combat_free_move);
+            }
+        }
+    }
+
+    Object* oldArmor = critterGetArmor(_inven_dude);
+    bool isoWasEnabled = _setup_inventory(INVENTORY_WINDOW_TYPE_NORMAL);
+
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+        inventoryBuildPartyList();
+        gCurrentPartyIndex = 0;
+        for (size_t i = 0; i < gPartyList.size(); i++) {
+            if (gPartyList[i] == _inven_dude) {
+                gCurrentPartyIndex = (int)i;
+                break;
+            }
+        }
+    } else {
+        // Clear party list and set index to 0 (only player inventory)
+        gPartyList.clear();
+        gCurrentPartyIndex = 0;
+    }
+
+    reg_anim_clear(_inven_dude);
+    inventoryRenderSummary();
+    _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
+    inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
+
+    // Run the main event loop
+    int switched = inventoryRunLoop();
 
     _inven_dude = _stack[0];
     _adjust_fid();
@@ -1643,199 +1652,8 @@ void inventoryOpenForCompanion(Object* critter)
     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
 
-    int totalVisible = gInventoryRows * gInventoryColumns;
-
-    for (;;) {
-        sharedFpsLimiter.mark();
-
-        int keyCode = inputGetInput();
-
-        // SFALL: Close with 'I'.
-        if (keyCode == KEY_ESCAPE || keyCode == KEY_UPPERCASE_I || keyCode == KEY_LOWERCASE_I) {
-            break;
-        }
-
-        if (_game_user_wants_to_quit != 0) {
-            break;
-        }
-
-        _display_body(-1, INVENTORY_WINDOW_TYPE_NORMAL);
-
-        if (gameGetState() == GAME_STATE_5) {
-            break;
-        }
-
-        // Handle party cycling
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
-            if (keyCode == KEY_ARROW_LEFT || keyCode == KEY_ARROW_RIGHT) {
-                // Save who we're currently on before any list modification
-                Object* currentCritter = (gCurrentPartyIndex >= 0 && gCurrentPartyIndex < (int)gPartyList.size())
-                    ? gPartyList[gCurrentPartyIndex]
-                    : nullptr;
-
-                // Fail-safe: ensure player is in the list
-                bool hasPlayer = false;
-                for (Object* obj : gPartyList) {
-                    if (obj == gDude) {
-                        hasPlayer = true;
-                        break;
-                    }
-                }
-                if (!hasPlayer && gDude != nullptr) {
-                    debugPrint("Player missing from party list - inserting at front.\n");
-                    gPartyList.insert(gPartyList.begin(), gDude);
-                    // Recalculate current index by finding who we were on before insertion
-                    gCurrentPartyIndex = 0;
-                    for (int i = 0; i < (int)gPartyList.size(); i++) {
-                        if (gPartyList[i] == currentCritter) {
-                            gCurrentPartyIndex = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (gPartyList.size() <= 1) continue;
-
-                // Validate current index is still in bounds
-                if (gCurrentPartyIndex < 0 || gCurrentPartyIndex >= (int)gPartyList.size()) {
-                    gCurrentPartyIndex = 0;
-                }
-
-                int newIndex = gCurrentPartyIndex;
-                if (keyCode == KEY_ARROW_LEFT) {
-                    newIndex--;
-                    if (newIndex < 0) newIndex = (int)gPartyList.size() - 1;
-                } else {
-                    newIndex++;
-                    if (newIndex >= (int)gPartyList.size()) newIndex = 0;
-                }
-
-                if (newIndex == gCurrentPartyIndex) continue;
-
-                Object* newCritter = gPartyList[newIndex];
-                if (newCritter == nullptr || !critterIsActive(newCritter)) continue;
-
-                gSwitchTarget = newCritter;
-                gSwitchToCharacter = true;
-                break;
-            }
-        }
-
-        if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X) {
-            showQuitConfirmationDialog();
-        } else if (keyCode == KEY_HOME) {
-            _stack_offset[_curr_stack] = 0;
-            _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode == KEY_ARROW_UP) {
-            if (_stack_offset[_curr_stack] >= gInventoryColumns) {
-                _stack_offset[_curr_stack] -= gInventoryColumns;
-                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-            }
-        } else if (keyCode == KEY_PAGE_UP) {
-            _stack_offset[_curr_stack] -= totalVisible;
-            if (_stack_offset[_curr_stack] < 0) {
-                _stack_offset[_curr_stack] = 0;
-            }
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode == KEY_END) {
-            _stack_offset[_curr_stack] = getLeftDisplayCount() - totalVisible;
-            if (_stack_offset[_curr_stack] < 0) {
-                _stack_offset[_curr_stack] = 0;
-            }
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode == KEY_ARROW_DOWN) {
-            if (_stack_offset[_curr_stack] + totalVisible < getLeftDisplayCount()) {
-                _stack_offset[_curr_stack] += gInventoryColumns;
-                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-            }
-        } else if (keyCode == KEY_PAGE_DOWN) {
-            _stack_offset[_curr_stack] += totalVisible;
-            if (_stack_offset[_curr_stack] + totalVisible >= getLeftDisplayCount()) {
-                _stack_offset[_curr_stack] = getLeftDisplayCount() - totalVisible;
-                if (_stack_offset[_curr_stack] < 0) {
-                    _stack_offset[_curr_stack] = 0;
-                }
-            }
-            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
-            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int category = keyCode - KEYCODE_FILTER_BASE;
-                if (gFilterCategory == category) {
-                    gFilterCategory = -1; // toggle off if already active
-                } else {
-                    gFilterCategory = category;
-                }
-                soundPlayFile("ib1p1xx1");
-                _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                inventoryRenderSummary();
-                windowRefresh(gInventoryWindow);
-            }
-        } else if (keyCode == INVENTORY_BUTTON_LEFT) {
-            if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
-                // Arrow mode - sort inventory
-                inventoryWindowOpenSortContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
-            } else {
-                // Not arrow mode - original behavior (exit container)
-                _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
-            }
-        } else {
-            if ((mouseGetEvent() & MOUSE_EVENT_RIGHT_BUTTON_DOWN) != 0) {
-                if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_HAND) {
-                    inventorySetCursor(INVENTORY_WINDOW_CURSOR_ARROW);
-                } else if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
-                    inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
-                    inventoryRenderSummary();
-                    windowRefresh(gInventoryWindow);
-                }
-            } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                // Grid slots: KEYCODE_GRID_BASE to KEYCODE_GRID_BASE+totalVisible-1
-                // Hand/armor slots: new constants
-                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
-                    if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
-                        inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
-                    } else {
-                        _inven_pickup(keyCode, _stack_offset[_curr_stack]);
-                    }
-                }
-            } else if ((mouseGetEvent() & MOUSE_EVENT_WHEEL) != 0) {
-                if (mouseHitTestInWindow(gInventoryWindow, gLayout.scrollerX, gLayout.scrollerY,
-                        gLayout.scrollerX + gLayout.scrollerWidth,
-                        gLayout.scrollerY + gLayout.scrollerHeight)) {
-                    int wheelX, wheelY;
-                    mouseGetWheel(&wheelX, &wheelY);
-                    if (wheelY > 0) {
-                        if (_stack_offset[_curr_stack] >= gInventoryColumns) {
-                            _stack_offset[_curr_stack] -= gInventoryColumns;
-                            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                        }
-                    } else if (wheelY < 0) {
-                        if (_stack_offset[_curr_stack] + totalVisible < getLeftDisplayCount()) {
-                            _stack_offset[_curr_stack] += gInventoryColumns;
-                            _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                        }
-                    }
-                }
-            }
-        }
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-            int filterCategory = inventoryKeyToFilterCategory(keyCode);
-            if (filterCategory != -1) {
-                if (gFilterCategory == filterCategory) {
-                    gFilterCategory = -1;
-                } else {
-                    gFilterCategory = filterCategory;
-                }
-                _stack_offset[_curr_stack] = 0;
-                soundPlayFile("ib1p1xx1");
-                _display_inventory(0, -1, INVENTORY_WINDOW_TYPE_NORMAL);
-                inventoryRenderSummary();
-                windowRefresh(gInventoryWindow);
-            }
-        }
-
-        renderPresent();
-        sharedFpsLimiter.throttle();
-    }
+    // Run the main event loop
+    int switched = inventoryRunLoop();
 
     _inven_dude = _stack[0]; // adjust companion FID before restoring player
     _adjust_fid();
@@ -4890,16 +4708,14 @@ static void inventoryRenderSummary()
         if (item == nullptr) {
             formattedText[0] = '\0';
 
-            // No item
-            messageListItem.num = 14;
+            messageListItem.num = 14; // No item
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
             }
 
             offset += gLayout.windowWidth * fontGetLineHeight();
 
-            // Unarmed dmg:
-            messageListItem.num = 24;
+            messageListItem.num = 24; // Unarmed dmg:
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 // SFALL: Display the actual damage values of unarmed attacks.
                 // CE: Implementation is different.
@@ -4944,8 +4760,7 @@ static void inventoryRenderSummary()
         int itemType = itemGetType(item);
         if (itemType != ITEM_TYPE_WEAPON) {
             if (itemType == ITEM_TYPE_ARMOR) {
-                // (Not worn)
-                messageListItem.num = 18;
+                messageListItem.num = 18; // (Not worn)
                 if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                     fontDrawText(windowBuffer + offset, messageListItem.text, 120, gLayout.windowWidth, _colorTable[COL_LIME_GREEN]);
                 }
@@ -5064,7 +4879,7 @@ static void inventoryRenderSummary()
     }
 
     // Total wt:
-    messageListItem.num = 20;
+    messageListItem.num = 20; // Total Wt:
     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
         if (PID_TYPE(_stack[0]->pid) == OBJ_TYPE_CRITTER) {
             int carryWeight = critterGetStat(_stack[0], STAT_CARRY_WEIGHT);
@@ -7658,8 +7473,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
 
     if (FID_TYPE(target->fid) == OBJ_TYPE_CRITTER) {
         if (critterFlagCheck(target->pid, CRITTER_NO_STEAL)) {
-            // You can't find anything to take from that.
-            messageListItem.num = 50;
+            messageListItem.num = 50; // You can't find anything to take from that.
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 displayMonitorAddMessage(messageListItem.text);
             }
@@ -7884,8 +7698,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                         _display_body(_target_stack[_target_curr_stack]->fid, INVENTORY_WINDOW_TYPE_LOOT);
                     }
                 } else {
-                    // Sorry, you cannot carry that much.
-                    messageListItem.num = 31;
+                    messageListItem.num = 31; // Sorry, you cannot carry that much.
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                         showDialogBox(messageListItem.text, nullptr, 0, 169, 117, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], 0);
                     }
@@ -8153,8 +7966,8 @@ int inventoryOpenLooting(Object* looter, Object* target)
         int xpGained;
         pcAddExperience(stealingXp, &xpGained);
 
-        // You gain %d experience points for successfully using your Steal skill.
-        messageListItem.num = 29;
+        messageListItem.num = 29; // You gain %d experience points for successfully using your Steal skill.
+
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             char formattedText[200];
             snprintf(formattedText, sizeof(formattedText), messageListItem.text, xpGained);
@@ -8363,7 +8176,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
                     if (itemMove(owner, targetObj, item, quantityToMove) != -1) {
                         result = INVENTORY_MOVE_RESULT_SUCCESS;
                     } else {
-                        messageListItem.num = 26;
+                        messageListItem.num = 26; // There is no space left for that item.}
                         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                             displayMonitorAddMessage(messageListItem.text);
                         }
@@ -8396,8 +8209,7 @@ static InventoryMoveResult _move_inventory(Object* item, int slotIndex, Object* 
                         targetObj->flags &= ~OBJECT_EQUIPPED;
                         result = INVENTORY_MOVE_RESULT_SUCCESS;
                     } else {
-                        // You cannot pick that up. You are at your maximum weight capacity.
-                        messageListItem.num = 25;
+                        messageListItem.num = 25; // You cannot pick that up. You are at your maximum weight capacity.
                         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                             displayMonitorAddMessage(messageListItem.text);
                         }
@@ -8497,8 +8309,8 @@ static int _barter_attempt_transaction_original(Object* dude, Object* offerTable
 
     int weightAvailable = critterGetStat(dude, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(dude);
     if (objectGetInventoryWeight(barterTable) > weightAvailable) {
-        // Sorry, you cannot carry that much.
-        messageListItem.num = 31;
+        messageListItem.num = 31; // Sorry, you cannot carry that much.
+
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             gameDialogRenderSupplementaryMessage(messageListItem.text);
         }
@@ -8508,8 +8320,7 @@ static int _barter_attempt_transaction_original(Object* dude, Object* offerTable
     if (gGameDialogSpeakerIsPartyMember) {
         int npcWeightAvailable = critterGetStat(npc, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(npc);
         if (objectGetInventoryWeight(offerTable) > npcWeightAvailable) {
-            // Sorry, that's too much to carry.
-            messageListItem.num = 32;
+            messageListItem.num = 32; // Sorry, that's too much to carry.
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 gameDialogRenderSupplementaryMessage(messageListItem.text);
             }
@@ -8535,8 +8346,7 @@ static int _barter_attempt_transaction_original(Object* dude, Object* offerTable
         }
 
         if (badOffer) {
-            // No, your offer is not good enough.
-            messageListItem.num = 28;
+            messageListItem.num = 28; // No, your offer is not good enough.
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 gameDialogRenderSupplementaryMessage(messageListItem.text);
             }
@@ -8556,8 +8366,7 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
     // Weight checks for companion trades
     int weightAvailable = critterGetStat(dude, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(dude);
     if (objectGetInventoryWeight(barterTable) > weightAvailable) {
-        // Sorry, you cannot carry that much.
-        messageListItem.num = 31;
+        messageListItem.num = 31; // Sorry, you cannot carry that much.
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             gameDialogRenderSupplementaryMessage(messageListItem.text);
         }
@@ -8567,8 +8376,7 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
     if (gGameDialogSpeakerIsPartyMember) {
         int npcWeightAvailable = critterGetStat(npc, STAT_CARRY_WEIGHT) - objectGetInventoryWeight(npc);
         if (objectGetInventoryWeight(offerTable) > npcWeightAvailable) {
-            // Sorry, that's too much to carry.
-            messageListItem.num = 32;
+            messageListItem.num = 32; // Sorry, that's too much to carry.
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 gameDialogRenderSupplementaryMessage(messageListItem.text);
             }
@@ -8581,18 +8389,18 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
         } else if (itemIsQueued(offerTable)) {
             if (offerTable->pid == PROTO_ID_GEIGER_COUNTER_I) {
                 if (miscItemTurnOff(offerTable) == -1) {
-                    // Could not turn off the Geiger Counter — reject with message
-                    messageListItem.num = 36; // "Turn that gadget off first. Then we’ll get down to business."
-                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    // Could not turn off the Geiger Counter - reject with message
+                    messageListItem.num = 36; // "Turn that gadget off first. Then well get down to business."
+                    if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+                        gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                     }
                     return -1;
                 }
             } else {
                 // All other active/queued items are rejected
                 messageListItem.num = 37; // "I don't deal in gadgets like that. Take it off the table."
-                if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                    gameDialogRenderSupplementaryMessage(messageListItem.text);
+                if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+                    gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                 }
                 return -1;
             }
@@ -8633,21 +8441,21 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
                 if (playerOffer < insultThreshold) {
                     gBarterInsultIncrease += baseTrueValue * 10 / 100; // increases minAcceptablePrice by 10%
                     messageListItem.num = 33; // "Your offer is insulting."
-                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+                        gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                     }
                     return -1;
                 } else if (playerOffer < seriousThreshold) {
                     gBarterInsultIncrease += baseTrueValue * 2 / 100; // increases minAcceptablePrice by 2%
                     messageListItem.num = 34; // "Let's be serious here."
-                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+                        gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                     }
                     return -1;
                 } else if (playerOffer < almostDealThreshold) {
                     messageListItem.num = 35; // "We almost have a deal..."
-                    if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
-                        gameDialogRenderSupplementaryMessage(messageListItem.text);
+                    if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+                        gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
                     }
                     return -1;
                 }
@@ -8659,7 +8467,7 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
         }
 
         if (badOffer) {
-            messageListItem.num = 28; // "No, your offer is not good enough."
+            messageListItem.num = 28; // No, your offer is not good enough.
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 gameDialogRenderSupplementaryMessage(messageListItem.text);
             }
@@ -8893,7 +8701,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, true, true, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(owner, sourceTable, item, quantityToMove) == -1) {
-                    messageListItem.num = 26;
+                    messageListItem.num = 26; // There is no space left for that item.
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                         displayMonitorAddMessage(messageListItem.text);
                     }
@@ -8906,7 +8714,7 @@ static void _barter_move_inventory(Object* item, int quantity, int slotIndex, in
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, false, true, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(owner, sourceTable, item, quantityToMove) == -1) {
-                    messageListItem.num = 25;
+                    messageListItem.num = 25; // You cannot pick that up. You are at your maximum weight capacity.
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                         displayMonitorAddMessage(messageListItem.text);
                     }
@@ -8965,8 +8773,7 @@ static void _barter_move_from_table_inventory(Object* item, int quantity, int sl
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, true, false, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(sourceTable, _inven_dude, item, quantityToMove) == -1) {
-                    // There is no space left for that item.
-                    messageListItem.num = 26;
+                    messageListItem.num = 26; // There is no space left for that item.
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                         displayMonitorAddMessage(messageListItem.text);
                     }
@@ -8981,8 +8788,7 @@ static void _barter_move_from_table_inventory(Object* item, int quantity, int sl
             int quantityToMove = _barter_get_quantity_moved_items(item, quantity, false, false, immediate);
             if (quantityToMove != -1) {
                 if (itemMoveForce(sourceTable, npc, item, quantityToMove) == -1) {
-                    // You cannot pick that up. You are at your maximum weight capacity.
-                    messageListItem.num = 25;
+                    messageListItem.num = 25; // You cannot pick that up. You are at your maximum weight capacity.
                     if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                         displayMonitorAddMessage(messageListItem.text);
                     }
@@ -9034,7 +8840,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
 
         if (gGameDialogSpeakerIsPartyMember) {
             MessageListItem messageListItem;
-            messageListItem.num = 30;
+            messageListItem.num = 30; // Wt.
 
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 int weight = objectGetInventoryWeight(leftTable);
@@ -9073,7 +8879,7 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
 
         if (gGameDialogSpeakerIsPartyMember) {
             MessageListItem messageListItem;
-            messageListItem.num = 30;
+            messageListItem.num = 30; // Wt.
 
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 int weight = _barter_compute_value(gDude, _target_stack[0]);
@@ -9249,9 +9055,8 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                     _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_TRADE);
                     inventoryWindowRenderInnerInventories(win, playerTable, bartererTable, -1);
 
-                    // Ok, that's a good trade.
                     MessageListItem messageListItem;
-                    messageListItem.num = 27;
+                    messageListItem.num = 27; // OK, that's a good trade.
                     if (!gGameDialogSpeakerIsPartyMember) {
                         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                             gameDialogRenderSupplementaryMessage(messageListItem.text);
@@ -9946,15 +9751,13 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
 
     MessageListItem messageListItem;
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
-        // MOVE ITEMS
-        messageListItem.num = 21;
+        messageListItem.num = 21; // MOVE ITEMS
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             int length = fontGetStringWidth(messageListItem.text);
             fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[COL_OLIVE_YELLOW]);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_SET_TIMER) {
-        // SET TIMER
-        messageListItem.num = 23;
+        messageListItem.num = 23; // SET TIMER
         if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
             int length = fontGetStringWidth(messageListItem.text);
             fontDrawText(windowBuffer + windowDescription->width * 9 + (windowDescription->width - length) / 2, messageListItem.text, 200, windowDescription->width, _colorTable[COL_OLIVE_YELLOW]);
@@ -10093,8 +9896,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
         _moveFrmImages[7].lock(fid);
 
         if (_moveFrmImages[6].isLocked() && _moveFrmImages[7].isLocked()) {
-            // ALL
-            messageListItem.num = 22;
+            messageListItem.num = 22; // ALL
             if (messageListGetItem(&gInventoryMessageList, &messageListItem)) {
                 int length = fontGetStringWidth(messageListItem.text);
 
