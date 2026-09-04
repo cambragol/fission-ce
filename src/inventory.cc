@@ -4269,8 +4269,7 @@ static void _adjust_fid()
         if (gInventoryArmor != nullptr) {
             // Only show armor on companion's preview if 'NpcArmor' is enabled
             // Always show for the player
-            bool showArmor = (_inven_dude == gDude) ||
-                            (!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor);
+            bool showArmor = (_inven_dude == gDude) || (!settings.enhancements.strict_vanilla && settings.enhancements.npc_armor);
             if (showArmor) {
                 protoGetProto(gInventoryArmor->pid, &proto);
                 if (critterGetStat(_inven_dude, STAT_GENDER) == GENDER_FEMALE) {
