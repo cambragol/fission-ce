@@ -10377,14 +10377,22 @@ static void movePlayerMoneyToTopCombined()
 static int getItemTypePriority(int itemType)
 {
     switch (itemType) {
-    case ITEM_TYPE_WEAPON: return 1;
-    case ITEM_TYPE_AMMO: return 2;
-    case ITEM_TYPE_DRUG: return 3;
-    case ITEM_TYPE_ARMOR: return 4;
-    case ITEM_TYPE_MISC: return 5;
-    case ITEM_TYPE_CONTAINER: return 6;
-    case ITEM_TYPE_KEY: return 7;
-    default: return MAX_SORT_PRIORITY;
+    case ITEM_TYPE_WEAPON:
+        return 1;
+    case ITEM_TYPE_AMMO:
+        return 2;
+    case ITEM_TYPE_DRUG:
+        return 3;
+    case ITEM_TYPE_ARMOR:
+        return 4;
+    case ITEM_TYPE_MISC:
+        return 5;
+    case ITEM_TYPE_CONTAINER:
+        return 6;
+    case ITEM_TYPE_KEY:
+        return 7;
+    default:
+        return MAX_SORT_PRIORITY;
     }
 }
 
