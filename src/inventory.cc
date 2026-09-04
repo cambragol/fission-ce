@@ -10373,7 +10373,21 @@ static void movePlayerMoneyToTopCombined()
     memcpy(gCombinedItems, tempArray, gCombinedItemCount * sizeof(CombinedItem));
 }
 
-// Compare two CombinedItems by type (weapons, ammo, drugs, etc.)
+// Type-priority order for combined-inventory type sort (lower = higher priority, sorts toward the top)
+static int getItemTypePriority(int itemType)
+{
+    switch (itemType) {
+    case ITEM_TYPE_WEAPON: return 1;
+    case ITEM_TYPE_AMMO: return 2;
+    case ITEM_TYPE_DRUG: return 3;
+    case ITEM_TYPE_ARMOR: return 4;
+    case ITEM_TYPE_MISC: return 5;
+    case ITEM_TYPE_CONTAINER: return 6;
+    case ITEM_TYPE_KEY: return 7;
+    default: return MAX_SORT_PRIORITY;
+    }
+}
+
 static int compareCombinedItemsByType(const void* a, const void* b)
 {
     const CombinedItem* ca = (const CombinedItem*)a;
@@ -10382,64 +10396,10 @@ static int compareCombinedItemsByType(const void* a, const void* b)
     int typeA = itemGetType(ca->item);
     int typeB = itemGetType(cb->item);
 
-    // Priority order (lower = higher priority, goes to top of display)
-    int orderA = MAX_SORT_PRIORITY;
-    int orderB = MAX_SORT_PRIORITY;
+    int orderA = getItemTypePriority(typeA);
+    int orderB = getItemTypePriority(typeB);
 
-    switch (typeA) {
-    case ITEM_TYPE_WEAPON:
-        orderA = 1;
-        break;
-    case ITEM_TYPE_AMMO:
-        orderA = 2;
-        break;
-    case ITEM_TYPE_DRUG:
-        orderA = 3;
-        break;
-    case ITEM_TYPE_ARMOR:
-        orderA = 4;
-        break;
-    case ITEM_TYPE_MISC:
-        orderA = 5;
-        break;
-    case ITEM_TYPE_CONTAINER:
-        orderA = 6;
-        break;
-    case ITEM_TYPE_KEY:
-        orderA = 7;
-        break;
-    default:
-        orderA = MAX_SORT_PRIORITY;
-        break;
-    }
-    switch (typeB) {
-    case ITEM_TYPE_WEAPON:
-        orderB = 1;
-        break;
-    case ITEM_TYPE_AMMO:
-        orderB = 2;
-        break;
-    case ITEM_TYPE_DRUG:
-        orderB = 3;
-        break;
-    case ITEM_TYPE_ARMOR:
-        orderB = 4;
-        break;
-    case ITEM_TYPE_MISC:
-        orderB = 5;
-        break;
-    case ITEM_TYPE_CONTAINER:
-        orderB = 6;
-        break;
-    case ITEM_TYPE_KEY:
-        orderB = 7;
-        break;
-    default:
-        orderB = MAX_SORT_PRIORITY;
-        break;
-    }
-
-    if (orderA != orderB) return orderB - orderA; // lower order ? end of array ? top of display
+    if (orderA != orderB) return orderB - orderA; // lower order -> end of array -> top of display
 
     // Same type: type-specific sorting
     switch (typeA) {
@@ -10449,14 +10409,14 @@ static int compareCombinedItemsByType(const void* a, const void* b)
         weaponGetDamageMinMax(cb->item, &minB, &maxB);
         int avgA = (minA + maxA) / 2;
         int avgB = (minB + maxB) / 2;
-        return avgA - avgB; // ascending ? high damage at end (top)
+        return avgA - avgB; // ascending -> high damage at end (top)
     }
     case ITEM_TYPE_AMMO:
-        return ca->quantity - cb->quantity; // ascending ? large stacks at end (top)
+        return ca->quantity - cb->quantity; // ascending -> large stacks at end (top)
     case ITEM_TYPE_DRUG: {
         bool healA = itemIsHealing(ca->item->pid);
         bool healB = itemIsHealing(cb->item->pid);
-        if (healA && !healB) return 1; // healing after non-healing ? healing at end (top)
+        if (healA && !healB) return 1; // healing after non-healing -> healing at end (top)
         if (!healA && healB) return -1;
         int valueA = itemGetCost(ca->item) * ca->quantity;
         int valueB = itemGetCost(cb->item) * cb->quantity;
@@ -10465,7 +10425,7 @@ static int compareCombinedItemsByType(const void* a, const void* b)
     case ITEM_TYPE_ARMOR: {
         int drA = armorGetDamageResistance(ca->item, 0);
         int drB = armorGetDamageResistance(cb->item, 0);
-        return drA - drB; // ascending ? high DR at end (top)
+        return drA - drB; // ascending -> high DR at end (top)
     }
     default: {
         const char* nameA = objectGetName(ca->item);
