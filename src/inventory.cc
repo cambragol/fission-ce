@@ -183,12 +183,28 @@ namespace fallout {
 
 #define MAX_SORT_PRIORITY 999
 
-#define INVENTORY_BUTTON_LEFT 2500
-#define INVENTORY_BUTTON_RIGHT 2501
-#define INVENTORY_BUTTON_DROP_ALL 2503
-#define INVENTORY_HAND_RIGHT_KEY 2006
-#define INVENTORY_HAND_LEFT_KEY 2007
-#define INVENTORY_ARMOR_KEY 2008
+#define INVENTORY_BUTTON_LEFT      2500   // Left portrait/body view (also triggers sort in arrow mode)
+#define INVENTORY_BUTTON_RIGHT     2501   // Right portrait/body view (trade/loot)
+#define INVENTORY_BUTTON_TAKE_ALL  2502   // Loot "Take All" button
+#define INVENTORY_BUTTON_DROP_ALL  2503   // Loot "Drop All" button (enhanced)
+
+// Equipment slot key codes (inventory screen)
+#define INVENTORY_HAND_RIGHT_KEY   2006   // Right hand slot
+#define INVENTORY_HAND_LEFT_KEY    2007   // Left hand slot
+#define INVENTORY_ARMOR_KEY        2008   // Armor slot
+
+// Key code bases for inventory buttons
+#define KEYCODE_GRID_BASE          1000   // Player inventory grid
+#define KEYCODE_TARGET_GRID_BASE   2000   // Target inventory grid (loot/trade)
+#define KEYCODE_OFFER_LEFT_BASE    2300   // Player offer table (trade)
+#define KEYCODE_OFFER_RIGHT_BASE   2400   // Merchant offer table (trade)
+#define KEYCODE_FILTER_BASE        8000   // Category filter buttons
+
+// Special button key codes (not in a contiguous range)
+#define BUTTON_DONE                500    // Quantity dialog "Done"
+#define BUTTON_ALL                 5000   // Quantity dialog "All"
+#define BUTTON_PLUS                6000   // Quantity dialog "+"
+#define BUTTON_MINUS               7000   // Quantity dialog "-"
 
 #define SORT_MENU_ITEM_COUNT (sizeof(_act_sort) / sizeof(_act_sort[0]))
 
@@ -1466,9 +1482,9 @@ void inventoryOpen()
                 // Not arrow mode - original behavior (exit container)
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
             }
-        } else if (keyCode >= 8000 && keyCode <= 8004) {
+        } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
             if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int category = keyCode - 8000;
+                int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
                     gFilterCategory = -1; // toggle off if already active
                 } else {
@@ -1490,9 +1506,9 @@ void inventoryOpen()
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
                 int totalVisible = gInventoryRows * gInventoryColumns;
-                // Grid slots: 1000 to 1000+totalVisible-1
+                // Grid slots: KEYCODE_GRID_BASE to KEYCODE_GRID_BASE+totalVisible-1
                 // Hand/armor slots: new constants
-                if ((keyCode >= 1000 && keyCode < 1000 + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
+                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
@@ -1741,9 +1757,9 @@ void inventoryOpenForCompanion(Object* critter)
                 }
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
-        } else if (keyCode >= 8000 && keyCode <= 8004) {
+        } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
             if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int category = keyCode - 8000;
+                int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
                     gFilterCategory = -1; // toggle off if already active
                 } else {
@@ -1772,9 +1788,9 @@ void inventoryOpenForCompanion(Object* critter)
                     windowRefresh(gInventoryWindow);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                // Grid slots: 1000 to 1000+totalVisible-1
+                // Grid slots: KEYCODE_GRID_BASE to KEYCODE_GRID_BASE+totalVisible-1
                 // Hand/armor slots: new constants
-                if ((keyCode >= 1000 && keyCode < 1000 + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
+                if ((keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + totalVisible) || (keyCode == INVENTORY_HAND_RIGHT_KEY || keyCode == INVENTORY_HAND_LEFT_KEY || keyCode == INVENTORY_ARMOR_KEY)) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_NORMAL);
                     } else {
@@ -2012,7 +2028,7 @@ static bool _setup_inventory(int inventoryWindowType)
                     INVENTORY_LOOT_LEFT_SCROLLER_X,
                     INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
                     INVENTORY_SLOT_WIDTH,
-                    8000);
+                    KEYCODE_FILTER_BASE);
             }
 
             // Repeat for right panel
@@ -2022,7 +2038,7 @@ static bool _setup_inventory(int inventoryWindowType)
                     INVENTORY_LOOT_RIGHT_SCROLLER_X,
                     INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
                     INVENTORY_SLOT_WIDTH,
-                    8000);
+                    KEYCODE_FILTER_BASE);
             }
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
@@ -2038,9 +2054,9 @@ static bool _setup_inventory(int inventoryWindowType)
                 y1,
                 INVENTORY_SLOT_WIDTH,
                 gInventorySlotHeight,
-                1000 + index,
+                KEYCODE_GRID_BASE + index,
                 -1,
-                1000 + index,
+                KEYCODE_GRID_BASE + index,
                 -1,
                 nullptr,
                 nullptr,
@@ -2056,9 +2072,9 @@ static bool _setup_inventory(int inventoryWindowType)
                 y1,
                 INVENTORY_SLOT_WIDTH,
                 gInventorySlotHeight,
-                2000 + index,
+                KEYCODE_TARGET_GRID_BASE + index,
                 -1,
-                2000 + index,
+                KEYCODE_TARGET_GRID_BASE + index,
                 -1,
                 nullptr,
                 nullptr,
@@ -2074,9 +2090,9 @@ static bool _setup_inventory(int inventoryWindowType)
                 y2,
                 INVENTORY_SLOT_WIDTH,
                 gInventorySlotHeight,
-                2300 + index,
+                KEYCODE_OFFER_LEFT_BASE + index,
                 -1,
-                2300 + index,
+                KEYCODE_OFFER_LEFT_BASE + index,
                 -1,
                 nullptr,
                 nullptr,
@@ -2092,9 +2108,9 @@ static bool _setup_inventory(int inventoryWindowType)
                 y2,
                 INVENTORY_SLOT_WIDTH,
                 gInventorySlotHeight,
-                2400 + index,
+                KEYCODE_OFFER_RIGHT_BASE + index,
                 -1,
-                2400 + index,
+                KEYCODE_OFFER_RIGHT_BASE + index,
                 -1,
                 nullptr,
                 nullptr,
@@ -2114,16 +2130,16 @@ static bool _setup_inventory(int inventoryWindowType)
                 INVENTORY_TRADE_LEFT_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
-                8000);
+                KEYCODE_FILTER_BASE);
             createFilterButtons(gInventoryWindow,
                 INVENTORY_TRADE_RIGHT_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
-                8000);
+                KEYCODE_FILTER_BASE);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
         // Multi-column grid for normal inventory
-        int keyCodeBase = 1000;
+        int keyCodeBase = KEYCODE_GRID_BASE;
         for (int row = 0; row < gInventoryRows; ++row) {
             for (int col = 0; col < gInventoryColumns; ++col) {
                 int x = gLayout.scrollerX + col * gLayout.slotWidth;
@@ -2146,7 +2162,7 @@ static bool _setup_inventory(int inventoryWindowType)
             gLayout.scrollerX,
             gLayout.scrollerY + gInventoryRows * gLayout.slotHeight + 2,
             gLayout.scrollerWidth,
-            8000);
+            KEYCODE_FILTER_BASE);
         fontSetCurrent(oldFont);
     } else {
         // For use-on (INVENTORY_WINDOW_TYPE_USE_ITEM_ON) and any other, use original single column
@@ -2175,7 +2191,7 @@ static bool _setup_inventory(int inventoryWindowType)
                 INVENTORY_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
-                8000);
+                KEYCODE_FILTER_BASE);
         }
     }
 
@@ -2642,7 +2658,7 @@ static bool _setup_inventory(int inventoryWindowType)
                         41,
                         -1,
                         -1,
-                        2502,
+                        INVENTORY_BUTTON_TAKE_ALL,
                         -1,
                         _inventoryFrmImages[8].getData(),
                         _inventoryFrmImages[9].getData(),
@@ -3908,7 +3924,7 @@ static void _inven_pickup(int buttonCode, int indexOffset)
         }
     } else {
         // Grid slot handling with stack support
-        itemIndex = buttonCode - 1000;
+        itemIndex = buttonCode - KEYCODE_GRID_BASE;
         int row = itemIndex / gInventoryColumns;
         int col = itemIndex % gInventoryColumns;
         rect.left = gLayout.scrollerX + col * gLayout.slotWidth;
@@ -4567,9 +4583,9 @@ void inventoryOpenUseItemOn(Object* targetObj)
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 8000 && keyCode <= 8004) {
+                if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
                     if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                        int category = keyCode - 8000;
+                        int category = keyCode - KEYCODE_FILTER_BASE;
                         if (gFilterCategory == category)
                             gFilterCategory = -1;
                         else
@@ -4581,7 +4597,7 @@ void inventoryOpenUseItemOn(Object* targetObj)
                         windowRefresh(gInventoryWindow);
                     }
                 }
-                if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
+                if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_USE_ITEM_ON);
                     } else {
@@ -5382,8 +5398,8 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
         quantity = 0;
 
         // Player inventory (left panel) - supports combined inventory and filtering
-        if (keyCode >= 1000 && keyCode < 2000) {
-            int slotIndex = keyCode - 1000;
+        if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE) {
+            int slotIndex = keyCode - KEYCODE_GRID_BASE;
 
             if (gUseCombinedInventory) {
                 // Combined inventory with filtering
@@ -5423,8 +5439,8 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             }
         }
         // Target inventory (loot right panel) - no combined inventory here
-        else if (keyCode >= 2000 && keyCode < 2300) {
-            int slotIndex = keyCode - 2000;
+        else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_OFFER_LEFT_BASE) {
+            int slotIndex = keyCode - KEYCODE_TARGET_GRID_BASE;
             if (gFilterCategory != -1) {
                 int filteredCount = buildFilteredIndices(_target_pud);
                 int filteredIndex = _target_stack_offset[_target_curr_stack] + slotIndex;
@@ -5446,8 +5462,8 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             }
         }
         // Player offer table (trade)
-        else if (keyCode >= 2300 && keyCode < 2400) {
-            int slotIndex = keyCode - 2300;
+        else if (keyCode >= KEYCODE_OFFER_LEFT_BASE && keyCode < KEYCODE_OFFER_RIGHT_BASE) {
+            int slotIndex = keyCode - KEYCODE_OFFER_LEFT_BASE;
             int index = _ptable_offset + slotIndex;
             if (index < _ptable_pud->length) {
                 InventoryItem* invItem = &(_ptable_pud->items[_ptable_pud->length - (index + 1)]);
@@ -5457,8 +5473,8 @@ static int _inven_from_button(int keyCode, Object** outItem, Object*** outItemSl
             }
         }
         // Merchant offer table (trade)
-        else if (keyCode >= 2400) {
-            int slotIndex = keyCode - 2400;
+        else if (keyCode >= KEYCODE_OFFER_RIGHT_BASE) {
+            int slotIndex = keyCode - KEYCODE_OFFER_RIGHT_BASE;
             int index = _btable_offset + slotIndex;
             if (index < _btable_pud->length) {
                 InventoryItem* invItem = &(_btable_pud->items[_btable_pud->length - (index + 1)]);
@@ -5765,24 +5781,13 @@ static void _nothing_to_sort_message(Object* obj, int inventoryWindowType)
     if (obj == nullptr) return;
 
     bool isPlayer = _is_player_object(obj);
+    gFissionMessageListItem.num = isPlayer ? 460 : 461;
 
-    if (isPlayer) {
-        gFissionMessageListItem.num = 460;
-        if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
-            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-                gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
-            } else {
-                displayMonitorAddMessage(gFissionMessageListItem.text);
-            }
-        }
-    } else {
-        gFissionMessageListItem.num = 461;
-        if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
-            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-                gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
-            } else {
-                displayMonitorAddMessage(gFissionMessageListItem.text);
-            }
+    if (messageListGetItem(&gFissionMessageList, &gFissionMessageListItem)) {
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+            gameDialogRenderSupplementaryMessage(gFissionMessageListItem.text);
+        } else {
+            displayMonitorAddMessage(gFissionMessageListItem.text);
         }
     }
 }
@@ -6589,16 +6594,16 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             inventoryToSort = _stack[_curr_stack]; // Left inventory (player)
         } else if (keyCode == INVENTORY_BUTTON_RIGHT) {
             inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
-        } else if (keyCode >= 1000 && keyCode < 2000) {
+        } else if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE) {
             // Left grid slot (player inventory)
             inventoryToSort = _stack[_curr_stack];
-        } else if (keyCode >= 2000 && keyCode < 2300) {
+        } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_OFFER_LEFT_BASE) {
             // Right grid slot (NPC inventory)
             inventoryToSort = _target_stack[_target_curr_stack];
-        } else if (keyCode >= 2300 && keyCode < 2400) {
+        } else if (keyCode >= KEYCODE_OFFER_LEFT_BASE && keyCode < KEYCODE_OFFER_RIGHT_BASE) {
             // Left offer table
             inventoryToSort = _ptable;
-        } else if (keyCode >= 2400 && keyCode < 2500) {
+        } else if (keyCode >= KEYCODE_OFFER_RIGHT_BASE && keyCode < 2500) {
             // Right offer table
             inventoryToSort = _btable;
         } else {
@@ -6609,10 +6614,10 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
             inventoryToSort = _stack[_curr_stack]; // Player inventory
         } else if (keyCode == INVENTORY_BUTTON_RIGHT) {
             inventoryToSort = _target_stack[_target_curr_stack]; // Container/NPC inventory
-        } else if (keyCode >= 1000 && keyCode < 2000) {
+        } else if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE) {
             // Left grid slot (player inventory)
             inventoryToSort = _stack[_curr_stack];
-        } else if (keyCode >= 2000 && keyCode < 2300) {
+        } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_OFFER_LEFT_BASE) {
             // Right grid slot (target inventory)
             inventoryToSort = _target_stack[_target_curr_stack];
         } else {
@@ -6963,13 +6968,13 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 inventoryToSort = _stack[_curr_stack]; // Left inventory (player)
             } else if (keyCode == INVENTORY_BUTTON_RIGHT) {
                 inventoryToSort = _target_stack[_target_curr_stack]; // Right inventory (NPC)
-            } else if (keyCode >= 1000 && keyCode < 2000) {
+            } else if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE) {
                 inventoryToSort = _stack[_curr_stack];
-            } else if (keyCode >= 2000 && keyCode < 2300) {
+            } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_OFFER_LEFT_BASE) {
                 inventoryToSort = _target_stack[_target_curr_stack];
-            } else if (keyCode >= 2300 && keyCode < 2400) {
+            } else if (keyCode >= KEYCODE_OFFER_LEFT_BASE && keyCode < KEYCODE_OFFER_RIGHT_BASE) {
                 inventoryToSort = _ptable;
-            } else if (keyCode >= 2400 && keyCode < 2500) {
+            } else if (keyCode >= KEYCODE_OFFER_RIGHT_BASE && keyCode < 2500) {
                 inventoryToSort = _btable;
             }
 
@@ -7106,10 +7111,10 @@ static void inventoryWindowOpenSortContextMenu(int keyCode, int inventoryWindowT
                 } else {
                     inventoryToSort = _stack[_curr_stack];
                 }
-            } else if (keyCode >= 1000 && keyCode < 2000) {
+            } else if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE) {
                 // Left grid slot
                 inventoryToSort = _stack[_curr_stack];
-            } else if (keyCode >= 2000 && keyCode < 2300) {
+            } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_OFFER_LEFT_BASE) {
                 // Right grid slot (loot only)
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
                     inventoryToSort = _target_stack[_target_curr_stack];
@@ -7853,7 +7858,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
             break;
         }
 
-        if (keyCode == 2502 || keyCode == KEY_LOWERCASE_A) {
+        if (keyCode == INVENTORY_BUTTON_TAKE_ALL || keyCode == KEY_LOWERCASE_A) {
             if (!_gIsSteal) {
                 if (keyCode == KEY_LOWERCASE_A) {
                     soundPlayFile("ib1p1xx1");
@@ -7971,10 +7976,10 @@ int inventoryOpenLooting(Object* looter, Object* target)
             } else {
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
             }
-        } else if (keyCode >= 8000 && keyCode <= 8004) {
+        } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
             if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
                 // Toggle filter
-                int category = keyCode - 8000;
+                int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
                     gFilterCategory = -1;
                 } else {
@@ -8002,11 +8007,11 @@ int inventoryOpenLooting(Object* looter, Object* target)
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 1000 && keyCode < 1000 + gInventorySlotsCount) {
+                if (keyCode >= KEYCODE_GRID_BASE && keyCode < KEYCODE_GRID_BASE + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
-                        int slotIndex = keyCode - 1000;
+                        int slotIndex = keyCode - KEYCODE_GRID_BASE;
                         Object* item = nullptr;
                         Object* owner = nullptr;
                         int quantity = _inven_from_button(keyCode, &item, nullptr, &owner);
@@ -8028,11 +8033,11 @@ int inventoryOpenLooting(Object* looter, Object* target)
                         }
                         keyCode = -1;
                     }
-                } else if (keyCode >= 2000 && keyCode < 2000 + gInventorySlotsCount) {
+                } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode < KEYCODE_TARGET_GRID_BASE + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
                     } else {
-                        int slotIndex = keyCode - 2000;
+                        int slotIndex = keyCode - KEYCODE_TARGET_GRID_BASE;
                         // Build filtered list for target inventory
                         int filteredCount = buildFilteredIndices(_target_pud);
                         int filteredIndex = _target_stack_offset[_target_curr_stack] + slotIndex;
@@ -9204,9 +9209,9 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
         _barter_mod = barterMod + modifier;
 
         // Filter keyCode handling
-        if (keyCode >= 8000 && keyCode <= 8004) {
+        if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
             if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-                int category = keyCode - 8000;
+                int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category)
                     gFilterCategory = -1;
                 else
@@ -9313,11 +9318,11 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                     inventorySetCursor(INVENTORY_WINDOW_CURSOR_HAND);
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
-                if (keyCode >= 1000 && keyCode <= 1000 + gInventorySlotsCount) {
+                if (keyCode >= KEYCODE_GRID_BASE && keyCode <= KEYCODE_GRID_BASE + gInventorySlotsCount) {
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
                     } else {
-                        int slotIndex = keyCode - 1000;
+                        int slotIndex = keyCode - KEYCODE_GRID_BASE;
                         Object* item = nullptr;
                         Object* owner = nullptr;
                         int quantity = _inven_from_button(keyCode, &item, nullptr, &owner);
@@ -9329,13 +9334,13 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                         }
                     }
                     keyCode = -1;
-                } else if (keyCode >= 2000 && keyCode <= 2000 + gInventorySlotsCount) {
+                } else if (keyCode >= KEYCODE_TARGET_GRID_BASE && keyCode <= KEYCODE_TARGET_GRID_BASE + gInventorySlotsCount) {
                     // merchant inventory
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
                         inventoryWindowRenderInnerInventories(win, nullptr, bartererTable, -1);
                     } else {
-                        int slotIndex = keyCode - 2000;
+                        int slotIndex = keyCode - KEYCODE_TARGET_GRID_BASE;
                         if (slotIndex + _target_stack_offset[_target_curr_stack] < _target_pud->length) {
                             int stackOffset = _target_stack_offset[_target_curr_stack];
                             InventoryItem* inventoryItem = &(_target_pud->items[_target_pud->length - (slotIndex + stackOffset + 1)]);
@@ -9347,13 +9352,13 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                     }
 
                     keyCode = -1;
-                } else if (keyCode >= 2300 && keyCode <= 2300 + gInventorySlotsCount) {
+                } else if (keyCode >= KEYCODE_OFFER_LEFT_BASE && keyCode <= KEYCODE_OFFER_LEFT_BASE + gInventorySlotsCount) {
                     // player table (offer)
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
                         inventoryWindowRenderInnerInventories(win, playerTable, nullptr, -1);
                     } else {
-                        int slotIndex = keyCode - 2300;
+                        int slotIndex = keyCode - KEYCODE_OFFER_LEFT_BASE;
                         if (slotIndex + _ptable_offset < _ptable_pud->length) {
                             InventoryItem* inventoryItem = &(_ptable_pud->items[_ptable_pud->length - (slotIndex + _ptable_offset + 1)]);
                             _barter_move_from_table_inventory(inventoryItem->item, inventoryItem->quantity, slotIndex, barterer, playerTable, true);
@@ -9364,13 +9369,13 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                     }
 
                     keyCode = -1;
-                } else if (keyCode >= 2400 && keyCode <= 2400 + gInventorySlotsCount) {
+                } else if (keyCode >= KEYCODE_OFFER_RIGHT_BASE && keyCode <= KEYCODE_OFFER_RIGHT_BASE + gInventorySlotsCount) {
                     // merchant table (offer)
                     if (gInventoryCursor == INVENTORY_WINDOW_CURSOR_ARROW) {
                         inventoryWindowOpenContextMenu(keyCode, INVENTORY_WINDOW_TYPE_TRADE);
                         inventoryWindowRenderInnerInventories(win, nullptr, bartererTable, -1);
                     } else {
-                        int slotIndex = keyCode - 2400;
+                        int slotIndex = keyCode - KEYCODE_OFFER_RIGHT_BASE;
                         if (slotIndex + _btable_offset < _btable_pud->length) {
                             InventoryItem* inventoryItem = &(_btable_pud->items[_btable_pud->length - (slotIndex + _btable_offset + 1)]);
                             _barter_move_from_table_inventory(inventoryItem->item, inventoryItem->quantity, slotIndex, barterer, bartererTable, false);
@@ -9512,8 +9517,8 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
 // 0x47620C
 static void _container_enter(int keyCode, int inventoryWindowType)
 {
-    if (keyCode >= 2000) {
-        int index = _target_pud->length - (_target_stack_offset[_target_curr_stack] + keyCode - 2000 + 1);
+    if (keyCode >= KEYCODE_TARGET_GRID_BASE) {
+        int index = _target_pud->length - (_target_stack_offset[_target_curr_stack] + keyCode - KEYCODE_TARGET_GRID_BASE + 1);
         if (index < _target_pud->length && _target_curr_stack < 9) {
             InventoryItem* inventoryItem = &(_target_pud->items[index]);
             Object* item = inventoryItem->item;
@@ -9530,7 +9535,7 @@ static void _container_enter(int keyCode, int inventoryWindowType)
             }
         }
     } else {
-        int index = _pud->length - (_stack_offset[_curr_stack] + keyCode - 1000 + 1);
+        int index = _pud->length - (_stack_offset[_curr_stack] + keyCode - KEYCODE_GRID_BASE + 1);
         if (index < _pud->length && _curr_stack < 9) {
             InventoryItem* inventoryItem = &(_pud->items[index]);
             Object* item = inventoryItem->item;
@@ -9770,10 +9775,10 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             return -1;
         }
 
-        if (keyCode == KEY_RETURN || keyCode == 500) {
+        if (keyCode == KEY_RETURN || keyCode == BUTTON_DONE) {
             if (value >= min && value <= max) {
                 if (inventoryWindowType != INVENTORY_WINDOW_TYPE_SET_TIMER || value % 10 == 0) {
-                    if (keyCode != 500) {
+                    if (keyCode != BUTTON_DONE) {
                         soundPlayFile("ib1p1xx1");
                     }
                     break;
@@ -9782,7 +9787,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
 
             soundPlayFile("iisxxxx1");
 
-        } else if (keyCode == 5000 || keyCode == KEY_LOWERCASE_A) {
+        } else if (keyCode == BUTTON_ALL || keyCode == KEY_LOWERCASE_A) {
             if (keyCode == KEY_LOWERCASE_A) {
                 soundPlayFile("ib1p1xx1");
             }
@@ -9796,7 +9801,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
                     break; // Exit loop to return the value
                 }
             }
-        } else if (keyCode == 6000) {
+        } else if (keyCode == BUTTON_PLUS) {
             isTyping = false;
             if (value < max) {
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
@@ -9834,7 +9839,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
                 _draw_amount(value, inventoryWindowType);
                 continue;
             }
-        } else if (keyCode == 7000) {
+        } else if (keyCode == BUTTON_MINUS) {
             isTyping = false;
             if (value > min) {
                 if (inventoryWindowType == INVENTORY_WINDOW_TYPE_MOVE_ITEMS) {
@@ -9999,7 +10004,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
             12,
             -1,
             -1,
-            6000,
+            BUTTON_PLUS,
             -1,
             _moveFrmImages[0].getData(),
             _moveFrmImages[1].getData(),
@@ -10025,7 +10030,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
             12,
             -1,
             -1,
-            7000,
+            BUTTON_MINUS,
             -1,
             _moveFrmImages[2].getData(),
             _moveFrmImages[3].getData(),
@@ -10052,7 +10057,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
             -1,
             -1,
             -1,
-            500,
+            BUTTON_DONE,
             _moveFrmImages[4].getData(),
             _moveFrmImages[5].getData(),
             nullptr,
@@ -10105,7 +10110,7 @@ static int inventoryQuantityWindowInit(int inventoryWindowType, Object* item)
                     -1,
                     -1,
                     -1,
-                    5000,
+                    BUTTON_ALL,
                     _moveFrmImages[6].getData(),
                     _moveFrmImages[7].getData(),
                     nullptr,
