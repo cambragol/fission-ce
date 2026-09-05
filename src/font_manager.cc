@@ -230,7 +230,7 @@ static void interfaceFontSetCurrentImpl(int font)
     if (font == 101 && settings.enhancements.green_monochrome && !settings.enhancements.strict_vanilla) {
         font = 107; // Set to scanline font
     }
-    if (font == 108){
+    if (font == 108) {
         font = 101; // Override for white fonts to always be non-scanline
     }
 
