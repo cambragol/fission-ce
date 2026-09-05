@@ -181,7 +181,7 @@ int textObjectAdd(Object* object, char* string, int font, int color, int outline
     memset(textObject, 0, sizeof(*textObject));
 
     int oldFont = fontGetCurrent();
-    if (font == 101){ // set all floating text to solid font
+    if (font == 101) { // set all floating text to solid font
         fontSetCurrent(108);
     } else {
         fontSetCurrent(font);
