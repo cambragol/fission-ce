@@ -3229,7 +3229,7 @@ static const char* getOwnerDisplayName(Object* item, Object* currentOwner)
 static void _display_inventory_info(Object* item, int quantity, unsigned char* dest, int pitch, bool isDragged, bool isScreen)
 {
     int oldFont = fontGetCurrent();
-    fontSetCurrent(101); // small font for quantity
+    fontSetCurrent(101);
 
     char formattedText[12];
     bool drawQuantity = false;
@@ -3253,8 +3253,11 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
     }
 
     if (drawQuantity) {
-        if (!settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla || !isScreen) {
+        if (!isScreen) {
+            int currentFont = fontGetCurrent();
+            fontSetCurrent(108); // Restore non-scanline font
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);
+            fontSetCurrent(currentFont);
         } else {
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_LIME_GREEN]);
         }
@@ -8856,7 +8859,10 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             snprintf(formattedText, sizeof(formattedText), "$%d", cost);
         }
 
+        int currentFont = fontGetCurrent();
+        fontSetCurrent(108); // Restore non-scanline font
         fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_LEFT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[COL_WHITE]);
+        fontSetCurrent(currentFont);
 
         Rect rect;
         rect.left = INVENTORY_TRADE_INNER_LEFT_SCROLLER_X_PAD;
@@ -8895,7 +8901,10 @@ static void inventoryWindowRenderInnerInventories(int win, Object* leftTable, Ob
             snprintf(formattedText, sizeof(formattedText), "$%d", cost);
         }
 
+        int currentFont = fontGetCurrent();
+        fontSetCurrent(108); // small font for quantity
         fontDrawText(windowBuffer + INVENTORY_TRADE_WINDOW_WIDTH * (INVENTORY_SLOT_HEIGHT * gInventorySlotsCount + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_Y_PAD) + INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X_PAD, formattedText, 80, INVENTORY_TRADE_WINDOW_WIDTH, _colorTable[COL_WHITE]);
+        fontSetCurrent(currentFont);
 
         Rect rect;
         rect.left = INVENTORY_TRADE_INNER_RIGHT_SCROLLER_X_PAD;

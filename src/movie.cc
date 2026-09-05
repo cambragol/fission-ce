@@ -53,7 +53,7 @@ static int _stepMovie();
 static int gMovieWindow = -1;
 
 // 0x5195BC
-static int gMovieSubtitlesFont = -1;
+static int gMovieSubtitlesFont = 108;
 
 // 0x5195C0
 static MovieBlitFunc* gMovieBlitFuncs[2][2][2] = {

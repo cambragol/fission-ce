@@ -768,7 +768,7 @@ static void _UpdateBrightnessSlider(void)
 // 0x491A68
 static void _UpdateThing(int index)
 {
-    fontSetCurrent(101);
+    fontSetCurrent(108);
 
     PreferenceDescription* meta = &(gPreferenceDescriptions[index]);
     int pitch = gOffsets.width; // Use offset width for pitch
@@ -1631,7 +1631,7 @@ static int preferencesWindowInit()
     fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.cancelLabelY + gOffsets.cancelLabelX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
 
     // Affect Player Speed in strictVanilla mode - Affect Non-combat Speed otherwise
-    fontSetCurrent(101);
+    fontSetCurrent(108);
     if (!settings.enhancements.strict_vanilla && settings.enhancements.game_speed) {
         messageItemText = getmsg(&gFissionMessageList, &gFissionMessageListItem, 110);
     } else {
@@ -1793,7 +1793,7 @@ static int preferencesWindowInit()
     if (btn != -1) {
         buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
     }
-    fontSetCurrent(101);
+    fontSetCurrent(108);
 
     windowRefresh(gPreferencesWindow);
 
