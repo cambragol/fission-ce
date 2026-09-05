@@ -5450,7 +5450,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
     if (attributes != nullptr) {
         int nameWidth = fontGetStringWidth(name);
 
-        fontSetCurrent(101);
+        fontSetCurrent(108);
         int attributesFontLineHeight = fontGetLineHeight();
         fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * (gOffsets.cardTitleY + nameFontLineHeight - attributesFontLineHeight) + gOffsets.cardTitleX + nameWidth + 8,
             attributes,
@@ -7209,7 +7209,7 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
 
     if (rank != nullptr) {
         int rankX = fontGetStringWidth(name) + 280 + 8;
-        fontSetCurrent(101);
+        fontSetCurrent(108);
 
         int rankHeight = fontGetLineHeight();
         fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * (23 + nameHeight - rankHeight) + rankX, rank, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_BLACK]);

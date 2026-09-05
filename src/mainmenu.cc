@@ -1010,7 +1010,7 @@ static void modListDrawDetails(int selectedIndex)
         truncatedName, MOD_WINDOW_WIDTH, MOD_WINDOW_WIDTH, _colorTable[COL_BLACK]);
 
     // Mod Author
-    fontSetCurrent(101);
+    fontSetCurrent(108);
     int authorLineHeight = fontGetLineHeight();
     int authorY = MOD_NAME_Y + (nameLineHeight - authorLineHeight) - 4;
     int authorX = MOD_TEXT_X + nameWidth + 8; // small gap
@@ -1037,7 +1037,7 @@ static void modListDrawDetails(int selectedIndex)
     windowDrawLine(gModListWindow, lineStartX, lineY, lineEndX, lineY, _colorTable[COL_BLACK]);
     windowDrawLine(gModListWindow, lineStartX, lineY + 1, lineEndX, lineY + 1, _colorTable[COL_BLACK]);
 
-    fontSetCurrent(101);
+    fontSetCurrent(108);
     int lineHeight = fontGetLineHeight() + 2;
 
     // Dynamically calculate total lines available above "DISABLED" text

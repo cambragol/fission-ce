@@ -226,6 +226,14 @@ static void interfaceFontSetCurrentImpl(int font)
         return;
     }
 
+    // Redirect font 101 to 107 when green monochrome is enabled
+    if (font == 101 && settings.enhancements.green_monochrome && !settings.enhancements.strict_vanilla) {
+        font = 107; // Set to scanline font
+    }
+    if (font == 108){
+        font = 101; // Override for white fonts to always be non-scanline
+    }
+
     font -= 100;
 
     if (gInterfaceFontDescriptors[font].data != nullptr) {

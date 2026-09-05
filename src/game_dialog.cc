@@ -988,7 +988,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     _boxesWereDisabled = indicatorBarHide();
     gGameDialogSpeakerIsPartyMember = objectIsPartyMember(gGameDialogSpeaker);
     _oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(108);
     dialogSetReplyWindow(GAME_DIALOG_REPLY_WINDOW_X, GAME_DIALOG_REPLY_WINDOW_Y, GAME_DIALOG_REPLY_WINDOW_WIDTH, GAME_DIALOG_REPLY_WINDOW_HEIGHT, nullptr);
     dialogSetReplyColor(0.3f, 0.3f, 0.3f);
     dialogSetOptionWindow(GAME_DIALOG_OPTIONS_WINDOW_X, GAME_DIALOG_OPTIONS_WINDOW_Y, GAME_DIALOG_OPTIONS_WINDOW_WIDTH, GAME_DIALOG_OPTIONS_WINDOW_HEIGHT, nullptr);
