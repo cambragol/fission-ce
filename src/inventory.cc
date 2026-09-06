@@ -3997,13 +3997,37 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                  gLayout.leftHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (partyMemberCanEquipWeapon(_inven_dude)) { // broad body-type check
             bool canEquip = false;
-            if (itemGetType(item) == ITEM_TYPE_WEAPON) {
-                // Weapons require animation support - critical
-                canEquip = partyMemberCanEquipThisWeapon(_inven_dude, item);
-            } else {
-                // All other items (drugs, ammo, food, misc) can be equipped by anyone
+            if (_inven_dude == gDude) {
                 canEquip = true;
+            } else {
+                if (itemGetType(item) == ITEM_TYPE_WEAPON) {
+                    // Weapon: must have animations for both base and current FID.
+                    Proto* proto = nullptr;
+                    if (protoGetProto(_inven_dude->pid, &proto) != -1) {
+                        int baseFid = proto->fid;
+                        if (baseFid != -1) {
+                            int animCode = weaponGetAnimationCode(item);
+                            int testFidBase = buildFid(OBJ_TYPE_CRITTER, artGetIndex(baseFid), 0, animCode, 0);
+                            if (artExists(testFidBase)) {
+                                int currentFid = _inven_dude->fid;
+                                if (currentFid != -1) {
+                                    int currentArtIndex = artGetIndex(currentFid);
+                                    int testFidCurrent = buildFid(OBJ_TYPE_CRITTER, currentArtIndex, 0, animCode, 0);
+                                    if (artExists(testFidCurrent)) {
+                                        canEquip = true;
+                                    }
+                                } else {
+                                    canEquip = true; // fallback
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Non-weapon: always allowed for companions. Not needed/used, but why not?
+                    canEquip = true;
+                }
             }
+
             if (canEquip) {
                 transferItemToCurrentOwner(item, count, owner);
                 if (gInventoryLeftHandItem != nullptr && itemGetType(gInventoryLeftHandItem) == ITEM_TYPE_CONTAINER && gInventoryLeftHandItem != item) {
@@ -4024,11 +4048,35 @@ static void _inven_pickup(int buttonCode, int indexOffset)
                  gLayout.rightHandSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (partyMemberCanEquipWeapon(_inven_dude)) {
             bool canEquip = false;
-            if (itemGetType(item) == ITEM_TYPE_WEAPON) {
-                canEquip = partyMemberCanEquipThisWeapon(_inven_dude, item);
-            } else {
+            if (_inven_dude == gDude) {
                 canEquip = true;
+            } else {
+                if (itemGetType(item) == ITEM_TYPE_WEAPON) {
+                    Proto* proto = nullptr;
+                    if (protoGetProto(_inven_dude->pid, &proto) != -1) {
+                        int baseFid = proto->fid;
+                        if (baseFid != -1) {
+                            int animCode = weaponGetAnimationCode(item);
+                            int testFidBase = buildFid(OBJ_TYPE_CRITTER, artGetIndex(baseFid), 0, animCode, 0);
+                            if (artExists(testFidBase)) {
+                                int currentFid = _inven_dude->fid;
+                                if (currentFid != -1) {
+                                    int currentArtIndex = artGetIndex(currentFid);
+                                    int testFidCurrent = buildFid(OBJ_TYPE_CRITTER, currentArtIndex, 0, animCode, 0);
+                                    if (artExists(testFidCurrent)) {
+                                        canEquip = true;
+                                    }
+                                } else {
+                                    canEquip = true;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    canEquip = true;
+                }
             }
+
             if (canEquip) {
                 transferItemToCurrentOwner(item, count, owner);
                 if (gInventoryRightHandItem != nullptr && itemGetType(gInventoryRightHandItem) == ITEM_TYPE_CONTAINER && gInventoryRightHandItem != item) {
@@ -4046,33 +4094,63 @@ static void _inven_pickup(int buttonCode, int indexOffset)
     else if ((immediate && itemGetType(item) == ITEM_TYPE_ARMOR) || mouseHitTestInWindow(gInventoryWindow, gLayout.armorSlotX, gLayout.armorSlotY, gLayout.armorSlotX + INVENTORY_LARGE_SLOT_WIDTH, gLayout.armorSlotY + INVENTORY_LARGE_SLOT_HEIGHT)) {
         if (itemGetType(item) == ITEM_TYPE_ARMOR) {
             if (partyMemberCanEquipArmor(_inven_dude)) {
-                transferItemToCurrentOwner(item, count, owner);
-                Object* currentArmor = gInventoryArmor;
-                int itemAddResult = 0;
-                if (itemIndex != -1) {
-                    itemRemove(_inven_dude, item, 1);
-                }
-                if (gInventoryArmor != nullptr) {
-                    if (itemSlot != nullptr) {
-                        *itemSlot = gInventoryArmor;
-                    } else {
-                        gInventoryArmor = nullptr;
-                        itemAddResult = itemAdd(_inven_dude, currentArmor, 1);
+                // Check if the armor has a valid FID for the character (player or companion)
+                int gender = critterGetStat(_inven_dude, STAT_GENDER);
+                int fid = (gender == GENDER_FEMALE) ? armorGetFemaleFid(item) : armorGetMaleFid(item);
+                if (fid != -1) {
+                    // Further safety: check if equipping this armor would break current weapons (for anyone)
+                    bool wouldBreakWeapons = false;
+                    // Check left hand weapon
+                    Object* leftWeapon = gInventoryLeftHandItem;
+                    if (leftWeapon != nullptr && itemGetType(leftWeapon) == ITEM_TYPE_WEAPON) {
+                        int animCode = weaponGetAnimationCode(leftWeapon);
+                        int testFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(fid), 0, animCode, 0);
+                        if (!artExists(testFid)) {
+                            wouldBreakWeapons = true;
+                        }
                     }
-                } else {
-                    if (itemSlot != nullptr) {
-                        *itemSlot = gInventoryArmor;
+                    // Check right hand weapon (if different)
+                    if (!wouldBreakWeapons) {
+                        Object* rightWeapon = gInventoryRightHandItem;
+                        if (rightWeapon != nullptr && rightWeapon != leftWeapon && itemGetType(rightWeapon) == ITEM_TYPE_WEAPON) {
+                            int animCode = weaponGetAnimationCode(rightWeapon);
+                            int testFid = buildFid(OBJ_TYPE_CRITTER, artGetIndex(fid), 0, animCode, 0);
+                            if (!artExists(testFid)) {
+                                wouldBreakWeapons = true;
+                            }
+                        }
                     }
-                }
-                if (itemAddResult != 0) {
-                    gInventoryArmor = currentArmor;
-                    if (itemIndex != -1) {
-                        itemAdd(_inven_dude, item, 1);
+
+                    if (!wouldBreakWeapons) {
+                        transferItemToCurrentOwner(item, count, owner);
+                        Object* currentArmor = gInventoryArmor;
+                        int itemAddResult = 0;
+                        if (itemIndex != -1) {
+                            itemRemove(_inven_dude, item, 1);
+                        }
+                        if (gInventoryArmor != nullptr) {
+                            if (itemSlot != nullptr) {
+                                *itemSlot = gInventoryArmor;
+                            } else {
+                                gInventoryArmor = nullptr;
+                                itemAddResult = itemAdd(_inven_dude, currentArmor, 1);
+                            }
+                        } else {
+                            if (itemSlot != nullptr) {
+                                *itemSlot = gInventoryArmor;
+                            }
+                        }
+                        if (itemAddResult != 0) {
+                            gInventoryArmor = currentArmor;
+                            if (itemIndex != -1) {
+                                itemAdd(_inven_dude, item, 1);
+                            }
+                        } else {
+                            adjustCritterStatsOnArmorChange(_stack[0], currentArmor, item);
+                            gInventoryArmor = item;
+                            itemDropped = true;
+                        }
                     }
-                } else {
-                    adjustCritterStatsOnArmorChange(_stack[0], currentArmor, item);
-                    gInventoryArmor = item;
-                    itemDropped = true;
                 }
             }
         }
