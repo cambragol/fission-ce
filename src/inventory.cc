@@ -1841,20 +1841,20 @@ static bool _setup_inventory(int inventoryWindowType)
         int available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
         if (available > 0) {
             createFilterButtons(gInventoryWindow,
-                    INVENTORY_LOOT_LEFT_SCROLLER_X,
-                    INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
-                    INVENTORY_SLOT_WIDTH,
-                    KEYCODE_FILTER_BASE);
+                INVENTORY_LOOT_LEFT_SCROLLER_X,
+                INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
+                INVENTORY_SLOT_WIDTH,
+                KEYCODE_FILTER_BASE);
         }
 
         // Repeat for right panel
         available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
         if (available > 0) {
             createFilterButtons(gInventoryWindow,
-                    INVENTORY_LOOT_RIGHT_SCROLLER_X,
-                    INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
-                    INVENTORY_SLOT_WIDTH,
-                    KEYCODE_FILTER_BASE);
+                INVENTORY_LOOT_RIGHT_SCROLLER_X,
+                INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
+                INVENTORY_SLOT_WIDTH,
+                KEYCODE_FILTER_BASE);
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         int y1 = INVENTORY_TRADE_SCROLLER_Y;
@@ -1941,15 +1941,15 @@ static bool _setup_inventory(int inventoryWindowType)
         // Create filter category buttons for the outer inventories (left and right)
         int barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
         createFilterButtons(gInventoryWindow,
-                INVENTORY_TRADE_LEFT_SCROLLER_X,
-                barY,
-                INVENTORY_SLOT_WIDTH,
-                KEYCODE_FILTER_BASE);
+            INVENTORY_TRADE_LEFT_SCROLLER_X,
+            barY,
+            INVENTORY_SLOT_WIDTH,
+            KEYCODE_FILTER_BASE);
         createFilterButtons(gInventoryWindow,
-                INVENTORY_TRADE_RIGHT_SCROLLER_X,
-                barY,
-                INVENTORY_SLOT_WIDTH,
-                KEYCODE_FILTER_BASE);
+            INVENTORY_TRADE_RIGHT_SCROLLER_X,
+            barY,
+            INVENTORY_SLOT_WIDTH,
+            KEYCODE_FILTER_BASE);
 
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
         // Multi-column grid for normal inventory
@@ -2001,10 +2001,10 @@ static bool _setup_inventory(int inventoryWindowType)
         // Add filter buttons
         int barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
         createFilterButtons(gInventoryWindow,
-                INVENTORY_SCROLLER_X,
-                barY,
-                INVENTORY_SLOT_WIDTH,
-                KEYCODE_FILTER_BASE);
+            INVENTORY_SCROLLER_X,
+            barY,
+            INVENTORY_SLOT_WIDTH,
+            KEYCODE_FILTER_BASE);
     }
 
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
@@ -2880,7 +2880,7 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         // Draw filter bar (if not strict vanilla).
         int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
         drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-        
+
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
 
@@ -2987,7 +2987,6 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
             barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
             drawFilterBar(windowBuffer, pitch, INVENTORY_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         }
-        
     }
 
     // Draw filter bar below left outer inventory (trade only)
