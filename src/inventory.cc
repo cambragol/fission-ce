@@ -9455,59 +9455,33 @@ static int _drop_ammo_into_weapon(Object* weapon, Object* ammo, Object** ammoIte
     }
     if (quantityToMove == -1) return -1;
 
-    // Remove the weapon from its owner (player) temporarily
-    int rc = itemRemove(_inven_dude, weapon, 1);
-
     bool isReloaded = false;
-    Object* sourceItem = ammo;
     for (int i = 0; i < quantityToMove; i++) {
-        // Reload the weapon with this ammo
-        int rcReload = weaponReload(weapon, sourceItem);
-        if (rcReload == 0) {
-            // Reload succeeded – remove the ammo from its owner
-            if (itemRemove(ammoOwner, sourceItem, 1) == 0) {
-                // Rebuild combined inventory immediately after removal
-                if (gUseCombinedInventory) {
-                    inventoryBuildCombinedList(gDude);
-                }
-                if (ammoItemSlot != nullptr) {
-                    *ammoItemSlot = nullptr;
-                }
-                objectDestroy(sourceItem);
-                isReloaded = true;
-            } else {
-                // Ammo removal failed – stop further attempts
-                break;
-            }
-            // Try to get next ammo item for multi-round reload
-            if (_inven_from_button(keyCode, &sourceItem, nullptr, nullptr) == 0) {
-                break;
-            }
-        } else if (rcReload != -1) {
-            // Partial reload (e.g., some rounds loaded, some failed)
-            isReloaded = true;
-        }
-        if (rcReload != 0) {
-            break;
-        }
+        // Try to reload one clip from the specific ammo stack.
+        int rc = weaponAttemptReload(_inven_dude, weapon, ammoOwner, ammo);
+        if (rc == -1) break;
+        isReloaded = true;
+        // If the stack became empty, ammo is destroyed; stop.
+        if (itemGetQuantity(ammoOwner, ammo) == 0) break;
+        // If the weapon is full, stop.
+        if (ammoGetQuantity(weapon) >= ammoGetCapacity(weapon)) break;
     }
 
-    // Re-add the weapon (even if reload partially succeeded)
-    if (rc != -1) {
-        itemAdd(_inven_dude, weapon, 1);
-        // Rebuild combined inventory after adding weapon back
-        if (gUseCombinedInventory) {
-            inventoryBuildCombinedList(gDude);
-        }
-    }
+    if (!isReloaded) return -1;
 
-    if (!isReloaded) {
-        return -1;
-    }
-
-    // Play reload sound
+    // Play reload sound once.
     const char* sfx = sfxBuildWeaponName(WEAPON_SOUND_EFFECT_READY, weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY, nullptr);
     soundPlayFile(sfx);
+
+    // Clear the slot if the stack is empty.
+    if (ammoItemSlot != nullptr && itemGetQuantity(ammoOwner, ammo) == 0) {
+        *ammoItemSlot = nullptr;
+    }
+
+    // Rebuild combined inventory if active.
+    if (gUseCombinedInventory) {
+        inventoryBuildCombinedList(gDude);
+    }
 
     return 0;
 }
