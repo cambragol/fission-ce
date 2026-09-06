@@ -852,7 +852,7 @@ static void inventoryRefreshBodies(int inventoryWindowType)
 static void drawFilterBar(unsigned char* dest, int destPitch,
     int x, int y, int width)
 {
-    if (settings.enhancements.strict_vanilla || !settings.enhancements.inventory_filter) return;
+    if (settings.enhancements.strict_vanilla || !(settings.enhancements.inventory_filter == 1)) return;
 
     int oldFont = fontGetCurrent();
 
@@ -970,7 +970,7 @@ static void drawFilterBar(unsigned char* dest, int destPitch,
 
 static void createFilterButtons(int win, int x, int y, int width, int baseKeyCode)
 {
-    if (settings.enhancements.strict_vanilla || !settings.enhancements.inventory_filter) return;
+    if (settings.enhancements.strict_vanilla || !(settings.enhancements.inventory_filter == 1)) return;
 
     const int numCategories = 5;
     const int spacing = 6;
@@ -1120,21 +1120,21 @@ static void inventoryUpdateLayout()
 {
 
     // Set slot height
-    if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+    if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter == 1) {
         gInventorySlotHeight = 47; // default
     }
 
     // Trade window with filter bar active: shrink height to leave room.
     if (gCurrentInvWindowType == INVENTORY_WINDOW_TYPE_TRADE
         && !settings.enhancements.strict_vanilla
-        && settings.enhancements.inventory_filter) {
+        && settings.enhancements.inventory_filter == 1) {
         gInventorySlotHeight = 44;
     }
 
     // Normal Inventory with filter bar active: Expand height slightly.
     if (gCurrentInvWindowType == INVENTORY_WINDOW_TYPE_NORMAL
         && !settings.enhancements.strict_vanilla
-        && settings.enhancements.inventory_filter) {
+        && settings.enhancements.inventory_filter == 1) {
         gInventorySlotHeight = 46;
     }
 
@@ -1404,7 +1404,7 @@ static int inventoryRunLoop(void)
             }
             _display_inventory(_stack_offset[_curr_stack], -1, INVENTORY_WINDOW_TYPE_NORMAL);
         } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
-            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter == 1) {
                 int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
                     gFilterCategory = -1; // toggle off
@@ -1464,7 +1464,7 @@ static int inventoryRunLoop(void)
         }
 
         // Filter via keyboard shortcuts (W,A,D,G,M)
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter > 0) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
                 if (gFilterCategory == filterCategory) {
@@ -1712,7 +1712,7 @@ static bool _setup_inventory(int inventoryWindowType)
 
         // Maintain original position in original resolution and column, otherwise center it.
         int inventoryWindowX, inventoryWindowY;
-        // Only use original hard?coded position if we have 1 column and screen is exactly 640x480
+        // Only use original hard-coded position if we have 1 column and screen is exactly 640x480
         if (gInventoryColumns == 1 && screenGetWidth() == 640 && screenGetHeight() == 480) {
             inventoryWindowX = INVENTORY_WINDOW_X;
             inventoryWindowY = INVENTORY_WINDOW_Y;
@@ -1836,27 +1836,25 @@ static bool _setup_inventory(int inventoryWindowType)
             y -= gInventorySlotHeight;
         }
         // Create filter buttons for left panel
-        if (!settings.enhancements.strict_vanilla) {
-            const int numCategories = 5;
-            const int spacing = 6;
-            int available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
-            if (available > 0) {
-                createFilterButtons(gInventoryWindow,
+        const int numCategories = 5;
+        const int spacing = 6;
+        int available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
+        if (available > 0) {
+            createFilterButtons(gInventoryWindow,
                     INVENTORY_LOOT_LEFT_SCROLLER_X,
                     INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
                     INVENTORY_SLOT_WIDTH,
                     KEYCODE_FILTER_BASE);
-            }
+        }
 
-            // Repeat for right panel
-            available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
-            if (available > 0) {
-                createFilterButtons(gInventoryWindow,
+        // Repeat for right panel
+        available = INVENTORY_SLOT_WIDTH - (numCategories - 1) * spacing;
+        if (available > 0) {
+            createFilterButtons(gInventoryWindow,
                     INVENTORY_LOOT_RIGHT_SCROLLER_X,
                     INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2,
                     INVENTORY_SLOT_WIDTH,
                     KEYCODE_FILTER_BASE);
-            }
         }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         int y1 = INVENTORY_TRADE_SCROLLER_Y;
@@ -1941,19 +1939,18 @@ static bool _setup_inventory(int inventoryWindowType)
             y2 += gInventorySlotHeight;
         }
         // Create filter category buttons for the outer inventories (left and right)
-        if (!settings.enhancements.strict_vanilla) {
-            int barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
-            createFilterButtons(gInventoryWindow,
+        int barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
+        createFilterButtons(gInventoryWindow,
                 INVENTORY_TRADE_LEFT_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
                 KEYCODE_FILTER_BASE);
-            createFilterButtons(gInventoryWindow,
+        createFilterButtons(gInventoryWindow,
                 INVENTORY_TRADE_RIGHT_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
                 KEYCODE_FILTER_BASE);
-        }
+
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
         // Multi-column grid for normal inventory
         int keyCodeBase = KEYCODE_GRID_BASE;
@@ -2001,15 +1998,13 @@ static bool _setup_inventory(int inventoryWindowType)
                 buttonSetMouseCallbacks(btn, inventoryItemSlotOnMouseEnter, inventoryItemSlotOnMouseExit, nullptr, nullptr);
             }
         }
-        // Add filter buttons (if not strict vanilla)
-        if (!settings.enhancements.strict_vanilla) {
-            int barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
-            createFilterButtons(gInventoryWindow,
+        // Add filter buttons
+        int barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
+        createFilterButtons(gInventoryWindow,
                 INVENTORY_SCROLLER_X,
                 barY,
                 INVENTORY_SLOT_WIDTH,
                 KEYCODE_FILTER_BASE);
-        }
     }
 
     if (inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
@@ -2883,11 +2878,9 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
         }
 
         // Draw filter bar (if not strict vanilla).
-        if (!settings.enhancements.strict_vanilla) {
-            int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
-            drawFilterBar(windowBuffer, pitch,
-                INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-        }
+        int barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
+        drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
+        
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
 
@@ -2982,24 +2975,23 @@ static void _display_inventory(int stackOffset, int dragSlotIndex, int inventory
             y += gInventorySlotHeight;
         }
 
-        // Draw filter bar below the scroller (for all non?normal modes)
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
-            int barY;
-            if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
-                barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
-                drawFilterBar(windowBuffer, pitch, INVENTORY_TRADE_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-            } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
-                barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
-                drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-            } else { // Use?on
-                barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
-                drawFilterBar(windowBuffer, pitch, INVENTORY_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-            }
+        // Draw filter bar below the scroller (for all non-normal modes)
+        int barY;
+        if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
+            barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
+            drawFilterBar(windowBuffer, pitch, INVENTORY_TRADE_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
+        } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_LOOT) {
+            barY = INVENTORY_LOOT_LEFT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
+            drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_LEFT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
+        } else { // Use-on
+            barY = INVENTORY_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
+            drawFilterBar(windowBuffer, pitch, INVENTORY_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
         }
+        
     }
 
     // Draw filter bar below left outer inventory (trade only)
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE && !settings.enhancements.strict_vanilla) {
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         int barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
         drawFilterBar(windowBuffer, pitch,
             INVENTORY_TRADE_LEFT_SCROLLER_X, barY,
@@ -3126,13 +3118,10 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
             _display_inventory_info(inventoryItem->item, inventoryItem->quantity, windowBuffer + offset, pitch, slotIndex == dragSlotIndex, true);
             y += gInventorySlotHeight;
         }
+        // Draw filter bar
+        int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
+        drawFilterBar(windowBuffer, pitch, INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
 
-        // Draw filter bar (if not strict vanilla)
-        if (!settings.enhancements.strict_vanilla) {
-            int barY = INVENTORY_LOOT_RIGHT_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight + 2;
-            drawFilterBar(windowBuffer, pitch,
-                INVENTORY_LOOT_RIGHT_SCROLLER_X, barY, INVENTORY_SLOT_WIDTH);
-        }
     } else if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         pitch = INVENTORY_TRADE_WINDOW_WIDTH;
 
@@ -3165,7 +3154,7 @@ static void _display_target_inventory(int stackOffset, int dragSlotIndex, Invent
     }
 
     // Draw filter bar below right outer inventory (trade only)
-    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE && !settings.enhancements.strict_vanilla) {
+    if (inventoryWindowType == INVENTORY_WINDOW_TYPE_TRADE) {
         int barY = INVENTORY_TRADE_SCROLLER_Y + gInventorySlotsCount * gInventorySlotHeight;
         drawFilterBar(windowBuffer, pitch,
             INVENTORY_TRADE_RIGHT_SCROLLER_X, barY,
@@ -4488,7 +4477,7 @@ void inventoryOpenUseItemOn(Object* targetObj)
                 }
             } else if ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_DOWN) != 0) {
                 if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
-                    if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+                    if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter == 1) {
                         int category = keyCode - KEYCODE_FILTER_BASE;
                         if (gFilterCategory == category)
                             gFilterCategory = -1;
@@ -4549,7 +4538,7 @@ void inventoryOpenUseItemOn(Object* targetObj)
                     }
                 }
             }
-            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter > 0) {
                 int filterCategory = inventoryKeyToFilterCategory(keyCode);
                 if (filterCategory != -1) {
                     if (gFilterCategory == filterCategory) {
@@ -7876,7 +7865,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 _container_exit(keyCode, INVENTORY_WINDOW_TYPE_LOOT);
             }
         } else if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
-            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter == 1) {
                 // Toggle filter
                 int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category) {
@@ -7993,7 +7982,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
                 }
             }
         }
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter > 0) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
                 if (gFilterCategory == filterCategory) {
@@ -9108,7 +9097,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
 
         // Filter keyCode handling
         if (keyCode >= KEYCODE_FILTER_BASE && keyCode <= 8004) {
-            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+            if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter == 1) {
                 int category = keyCode - KEYCODE_FILTER_BASE;
                 if (gFilterCategory == category)
                     gFilterCategory = -1;
@@ -9366,7 +9355,7 @@ void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* 
                 }
             }
         }
-        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter) {
+        if (!settings.enhancements.strict_vanilla && settings.enhancements.inventory_filter > 0) {
             int filterCategory = inventoryKeyToFilterCategory(keyCode);
             if (filterCategory != -1) {
                 if (gFilterCategory == filterCategory) {

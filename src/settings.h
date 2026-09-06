@@ -127,7 +127,7 @@ struct EnhancementSettings {
     int multi_column_inventory = 1;
     bool npc_armor = false;
     bool green_monochrome = false;
-    bool inventory_filter = false;
+    int inventory_filter = 0;
     bool display_weight = false;
     bool companion_inventory = false;
     bool vock_floats = false;
