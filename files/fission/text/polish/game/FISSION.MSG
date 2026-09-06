@@ -5,6 +5,13 @@
 # Windows 1250 encoding
 # ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
+{33}{}{Twoja oferta jest obraŸliwa.}
+{34}{}{B¹dŸmy powa¿ni.}
+{35}{}{Prawie dobiliœmy targu...}
+
+{36}{}{Najpierw wy³¹cz ten gad¿et. Potem przejdziemy do interesów.}
+{37}{}{Nie handlujê takimi gad¿etami. Zabierz to ze sto³u.}
+
 #
 # Preferences
 #

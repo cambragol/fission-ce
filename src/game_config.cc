@@ -161,6 +161,10 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, false);
     configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, 1);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, false);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GREEN_MONOCHROME, false);
+    configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, 0);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, false);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_COMPANION_INVENTORY, false);
     // FISSION-VOCK ADD: master on/off for the whole float-enhancement subsystem
     // (voiced floats, censor bleep, distance text scramble -- see the
     // [vock-floats] keys in game.cfg for the individual toggles). Volume for

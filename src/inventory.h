@@ -17,6 +17,7 @@ typedef void InventoryPrintItemDescriptionHandler(char* string);
 
 void inventoryResetDude();
 void inventoryOpen();
+void inventoryOpenForCompanion(Object* critter);
 void adjustCritterStatsOnArmorChange(Object* critter, Object* oldArmor, Object* newArmor);
 void inventoryOpenUseItemOn(Object* targetObj);
 Object* critterGetItem2(Object* critter);
@@ -41,6 +42,9 @@ int inventoryOpenStealing(Object* thief, Object* target);
 void inventoryOpenTrade(int win, Object* barterer, Object* playerTable, Object* bartererTable, int barterMod);
 int inventorySetTimer(Object* item);
 Object* inventoryGetTargetObject();
+void inventoryOpenWithCycling(Object* startTarget = nullptr);
+void blitBufferToBufferGreenTrans(unsigned char* src, int srcWidth, int srcHeight, int srcPitch,
+    unsigned char* dest, int destPitch);
 
 } // namespace fallout
 
