@@ -2,13 +2,11 @@
 
 #include <string.h>
 
-#include <algorithm>
-#include <vector>
-
 #include "animation.h"
 #include "art.h"
 #include "automap.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "debug.h"
 #include "display_monitor.h"
@@ -173,14 +171,16 @@ static Object* _wd_obj;
 // 0x59E990
 static int _wd_gvar;
 
-static std::vector<BookDescription> gBooks;
+static BookDescription* gBooks = NULL;
+static int gBooksLength = 0;
 static int gGrenadeExplosionRadius;
 static int gRocketExplosionRadius;
 static int gDynamiteMinDamage;
 static int gDynamiteMaxDamage;
 static int gPlasticExplosiveMinDamage;
 static int gPlasticExplosiveMaxDamage;
-static std::vector<ExplosiveDescription> gExplosives;
+static ExplosiveDescription* gExplosives = NULL;
+static int gExplosivesLength = 0;
 static int gExplosionStartRotation;
 static int gExplosionEndRotation;
 static int gExplosionFrm;
@@ -3300,7 +3300,11 @@ static void booksInit()
 
 static void booksExit()
 {
-    gBooks.clear();
+    if (gBooks != NULL) {
+        internal_free(gBooks);
+        gBooks = NULL;
+    }
+    gBooksLength = 0;
 }
 
 static void booksInitVanilla()
@@ -3331,7 +3335,11 @@ static void booksInitCustom()
                 bool overrideVanilla = false;
                 configGetBool(&booksConfig, "main", "overrideVanilla", &overrideVanilla);
                 if (overrideVanilla) {
-                    gBooks.clear();
+                    if (gBooks != NULL) {
+                        internal_free(gBooks);
+                        gBooks = NULL;
+                    }
+                    gBooksLength = 0;
                 }
 
                 int bookCount = 0;
@@ -3368,19 +3376,23 @@ static void booksInitCustom()
 
 static void booksAdd(int bookPid, int messageId, int skill)
 {
-    BookDescription bookDescription;
-    bookDescription.bookPid = bookPid;
-    bookDescription.messageId = messageId;
-    bookDescription.skill = skill;
-    gBooks.emplace_back(std::move(bookDescription));
+    BookDescription* newBooks = (BookDescription*)internal_realloc(gBooks, sizeof(BookDescription) * (gBooksLength + 1));
+    if (newBooks == NULL) {
+        return;
+    }
+    gBooks = newBooks;
+    gBooks[gBooksLength].bookPid = bookPid;
+    gBooks[gBooksLength].messageId = messageId;
+    gBooks[gBooksLength].skill = skill;
+    gBooksLength++;
 }
 
 bool booksGetInfo(int bookPid, int* messageIdPtr, int* skillPtr)
 {
-    for (auto& bookDescription : gBooks) {
-        if (bookDescription.bookPid == bookPid) {
-            *messageIdPtr = bookDescription.messageId;
-            *skillPtr = bookDescription.skill;
+    for (int i = 0; i < gBooksLength; i++) {
+        if (gBooks[i].bookPid == bookPid) {
+            *messageIdPtr = gBooks[i].messageId;
+            *skillPtr = gBooks[i].skill;
             return true;
         }
     }
@@ -3397,25 +3409,31 @@ static void explosionsReset()
     gGrenadeExplosionRadius = 2;
     gRocketExplosionRadius = 3;
 
-    // Use values from centralized settings
     gDynamiteMinDamage = settings.mod_settings.dynamite_min_damage;
     gDynamiteMaxDamage = settings.mod_settings.dynamite_max_damage;
     gPlasticExplosiveMinDamage = settings.mod_settings.plastic_explosive_min_damage;
     gPlasticExplosiveMaxDamage = settings.mod_settings.plastic_explosive_max_damage;
 
-    // Clamp to safe ranges (as original code did)
-    gDynamiteMaxDamage = std::clamp(gDynamiteMaxDamage, 0, 9999);
-    gDynamiteMinDamage = std::clamp(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
-    gPlasticExplosiveMaxDamage = std::clamp(gPlasticExplosiveMaxDamage, 0, 9999);
-    gPlasticExplosiveMinDamage = std::clamp(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
+    gDynamiteMaxDamage = CLAMP(gDynamiteMaxDamage, 0, 9999);
+    gDynamiteMinDamage = CLAMP(gDynamiteMinDamage, 0, gDynamiteMaxDamage);
+    gPlasticExplosiveMaxDamage = CLAMP(gPlasticExplosiveMaxDamage, 0, 9999);
+    gPlasticExplosiveMinDamage = CLAMP(gPlasticExplosiveMinDamage, 0, gPlasticExplosiveMaxDamage);
 
-    gExplosives.clear();
+    if (gExplosives != NULL) {
+        internal_free(gExplosives);
+        gExplosives = NULL;
+    }
+    gExplosivesLength = 0;
     explosionSettingsReset();
 }
 
 static void explosionsExit()
 {
-    gExplosives.clear();
+    if (gExplosives != NULL) {
+        internal_free(gExplosives);
+        gExplosives = NULL;
+    }
+    gExplosivesLength = 0;
 }
 
 bool explosionEmitsLight()
@@ -3439,12 +3457,16 @@ void weaponSetRocketExplosionRadius(int value)
 
 void explosiveAdd(int pid, int activePid, int minDamage, int maxDamage)
 {
-    ExplosiveDescription explosiveDescription;
-    explosiveDescription.pid = pid;
-    explosiveDescription.activePid = activePid;
-    explosiveDescription.minDamage = minDamage;
-    explosiveDescription.maxDamage = maxDamage;
-    gExplosives.push_back(std::move(explosiveDescription));
+    ExplosiveDescription* newExplosives = (ExplosiveDescription*)internal_realloc(gExplosives, sizeof(ExplosiveDescription) * (gExplosivesLength + 1));
+    if (newExplosives == NULL) {
+        return;
+    }
+    gExplosives = newExplosives;
+    gExplosives[gExplosivesLength].pid = pid;
+    gExplosives[gExplosivesLength].activePid = activePid;
+    gExplosives[gExplosivesLength].minDamage = minDamage;
+    gExplosives[gExplosivesLength].maxDamage = maxDamage;
+    gExplosivesLength++;
 }
 
 bool explosiveIsExplosive(int pid)
@@ -3454,8 +3476,8 @@ bool explosiveIsExplosive(int pid)
     if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_I)
         return true;
 
-    for (const auto& explosive : gExplosives) {
-        if (explosive.pid == pid)
+    for (int i = 0; i < gExplosivesLength; i++) {
+        if (gExplosives[i].pid == pid)
             return true;
     }
 
@@ -3469,8 +3491,8 @@ bool explosiveIsActiveExplosive(int pid)
     if (pid == PROTO_ID_PLASTIC_EXPLOSIVES_II)
         return true;
 
-    for (const auto& explosive : gExplosives) {
-        if (explosive.activePid == pid)
+    for (int i = 0; i < gExplosivesLength; i++) {
+        if (gExplosives[i].activePid == pid)
             return true;
     }
 
@@ -3489,9 +3511,9 @@ bool explosiveActivate(int* pidPtr)
         return true;
     }
 
-    for (const auto& explosive : gExplosives) {
-        if (explosive.pid == *pidPtr) {
-            *pidPtr = explosive.activePid;
+    for (int i = 0; i < gExplosivesLength; i++) {
+        if (gExplosives[i].pid == *pidPtr) {
+            *pidPtr = gExplosives[i].activePid;
             return true;
         }
     }
@@ -3534,10 +3556,10 @@ bool explosiveGetDamage(int pid, int* minDamagePtr, int* maxDamagePtr)
         return true;
     }
 
-    for (const auto& explosive : gExplosives) {
-        if (explosive.pid == pid) {
-            *minDamagePtr = explosive.minDamage;
-            *maxDamagePtr = explosive.maxDamage;
+    for (int i = 0; i < gExplosivesLength; i++) {
+        if (gExplosives[i].pid == pid) {
+            *minDamagePtr = gExplosives[i].minDamage;
+            *maxDamagePtr = gExplosives[i].maxDamage;
             return true;
         }
     }

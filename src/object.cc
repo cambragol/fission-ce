@@ -3,12 +3,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "animation.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "debug.h"
 #include "draw.h"
@@ -834,7 +833,7 @@ void _obj_render_pre_roof(Rect* rect, int elevation)
             int lightIntensity;
             if (objectListNode != nullptr) {
                 // NOTE: Calls `lightGetTileIntensity` twice.
-                lightIntensity = std::max(ambientIntensity, lightGetTileIntensity(elevation, objectListNode->obj->tile));
+                lightIntensity = MAX(ambientIntensity, lightGetTileIntensity(elevation, objectListNode->obj->tile));
             }
 
             while (objectListNode != nullptr) {
@@ -873,7 +872,7 @@ void _obj_render_pre_roof(Rect* rect, int elevation)
         ObjectListNode* objectListNode = _renderTable[i];
         if (objectListNode != nullptr) {
             // NOTE: Calls `lightGetTileIntensity` twice.
-            lightIntensity = std::max(ambientIntensity, lightGetTileIntensity(elevation, objectListNode->obj->tile));
+            lightIntensity = MAX(ambientIntensity, lightGetTileIntensity(elevation, objectListNode->obj->tile));
         }
 
         while (objectListNode != nullptr) {
@@ -1767,7 +1766,7 @@ int objectSetLight(Object* obj, int lightDistance, int lightIntensity, Rect* rec
 
     int rc = _obj_turn_off_light(obj, rect);
     if (lightIntensity > 0) {
-        obj->lightDistance = std::min(lightDistance, 8);
+        obj->lightDistance = MIN(lightDistance, 8);
         obj->lightIntensity = lightIntensity;
 
         if (rect != nullptr) {

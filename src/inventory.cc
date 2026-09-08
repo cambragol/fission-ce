@@ -4,13 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "actions.h"
 #include "animation.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "combat_ai.h"
 #include "critter.h"
 #include "dbox.h"
@@ -6530,7 +6529,7 @@ int inventoryOpenLooting(Object* looter, Object* target)
     objectDestroy(hiddenBox, nullptr);
 
     if (_gIsSteal && !isCaughtStealing && stealingXp > 0 && !objectIsPartyMember(target)) {
-        stealingXp = std::min(300 - skillGetValue(looter, SKILL_STEAL), stealingXp);
+        stealingXp = MIN(300 - skillGetValue(looter, SKILL_STEAL), stealingXp);
         debugPrint("\n[[[%d]]]", 300 - skillGetValue(looter, SKILL_STEAL));
 
         // SFALL: Display actual xp received.
@@ -6762,7 +6761,7 @@ static int _barter_compute_value_enhanced(Object* dude, Object* npc)
     // Reaction modifiers
     // Ensure _barter_mod can't override skill dominance
     double perkBonus = (dude == gDude && perkHasRank(gDude, PERK_MASTER_TRADER)) ? 25.0 : 0.0;
-    _barter_mod = std::clamp(_barter_mod, -35, 35); // Hard cap on reaction impact
+    _barter_mod = CLAMP(_barter_mod, -35, 35); // Hard cap on reaction impact
 
     // Apply reaction modifiers to NPC's and PC's effective skill
     int npcBarter = skillGetValue(npc, SKILL_BARTER) + _barter_mod;
@@ -6909,12 +6908,12 @@ static int _barter_attempt_transaction_enhanced(Object* dude, Object* offerTable
 
             // Dynamic threshold based on skill difference
             int minAcceptablePercent = 90 - (barterDifference * 30) / 200; // 60% to 90%
-            minAcceptablePercent = std::clamp(minAcceptablePercent, 60, 90);
+            minAcceptablePercent = CLAMP(minAcceptablePercent, 60, 90);
             int minAcceptablePrice = ((displayedPrice + gBarterInsultIncrease) * minAcceptablePercent) / 100;
 
             // Insult threshold scales similarly but with wider range (40-80% of base)
             int insultPercent = 80 - (barterDifference * 40) / 200; // 40% to 80%
-            insultPercent = std::clamp(insultPercent, 40, 80);
+            insultPercent = CLAMP(insultPercent, 40, 80);
             int insultThreshold = (baseTrueValue * insultPercent) / 100;
 
             // Calculate intermediate thresholds for additional feedback levels
@@ -7866,7 +7865,7 @@ static int inventoryQuantitySelect(int inventoryWindowType, Object* item, int ma
             max = 99999;
         }
         min = 1;
-        value = std::clamp(defaultValue, min, max);
+        value = CLAMP(defaultValue, min, max);
     } else {
         value = 60;
         min = 10;

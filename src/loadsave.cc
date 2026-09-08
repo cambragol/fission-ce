@@ -5,14 +5,13 @@
 #include <string.h>
 #include <time.h>
 
-#include <algorithm>
-
 #include "art.h"
 #include "automap.h"
 #include "character_editor.h"
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "cycle.h"
 #include "db.h"
@@ -3483,7 +3482,7 @@ static int _copy_file(const char* existingFileName, const char* newFileName)
     }
 
     while (length != 0) {
-        chunk_length = std::min(length, 0xFFFF);
+        chunk_length = MIN(length, 0xFFFF);
 
         if (fileRead(buf, chunk_length, 1, stream1) != 1) {
             break;
