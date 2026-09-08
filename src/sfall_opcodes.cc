@@ -50,10 +50,10 @@ typedef enum ExplosionMetarule {
     EXPL_SET_EXPLOSION_MAX_TARGET = 9,
 } ExplosionMetarule;
 
-static constexpr int kVersionMajor = 4;
-static constexpr int kVersionMinor = 3;
-static constexpr int kVersionPatch = 4;
-static constexpr int kSfallPathBufferSize = 3200; // matches rotation path size in animation.cc
+static const int kVersionMajor = 4;
+static const int kVersionMinor = 3;
+static const int kVersionPatch = 4;
+static const int kSfallPathBufferSize = 3200; // matches rotation path size in animation.cc
 
 // read_byte
 static void op_read_byte(Program* program)

@@ -2,10 +2,9 @@
 
 #include <string.h>
 
-#include <algorithm>
-
 #include "art.h"
 #include "color.h"
+#include "compat_c.h"
 #include "cycle.h"
 #include "db.h"
 #include "debug.h"
@@ -115,7 +114,7 @@ void creditsOpen(const char* filePath, int backgroundFid, bool useReversedStyle)
                             fontSetCurrent(gCreditsWindowNameFont);
                             int nameFontLineHeight = fontGetLineHeight();
 
-                            int lineHeight = std::max(titleFontLineHeight, nameFontLineHeight);
+                            int lineHeight = MAX(titleFontLineHeight, nameFontLineHeight);
                             int stringBufferSize = windowWidth * lineHeight;
                             unsigned char* stringBuffer = (unsigned char*)internal_malloc(stringBufferSize);
                             if (stringBuffer != nullptr) {

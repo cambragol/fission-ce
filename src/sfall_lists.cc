@@ -9,7 +9,7 @@ namespace fallout {
 
 // Due to bad design of |ListType| it's |LIST_ITEMS| and |LIST_CRITTERS| do not
 // match |OBJ_TYPE_CRITTER| and |OBJ_TYPE_ITEM|.
-static constexpr int kObjectTypeToListType[] = {
+static const int kObjectTypeToListType[] = {
     /*    OBJ_TYPE_ITEM */ LIST_ITEMS,
     /* OBJ_TYPE_CRITTER */ LIST_CRITTERS,
     /* OBJ_TYPE_SCENERY */ LIST_SCENERY,
@@ -18,10 +18,10 @@ static constexpr int kObjectTypeToListType[] = {
     /*    OBJ_TYPE_MISC */ LIST_MISC,
 };
 
-static constexpr int kObjectTypeToListTypeSize = sizeof(kObjectTypeToListType) / sizeof(kObjectTypeToListType[0]);
+static const int kObjectTypeToListTypeSize = sizeof(kObjectTypeToListType) / sizeof(kObjectTypeToListType[0]);
 
 // As in Sfall.
-static constexpr int kInitialListId = 0xCCCCCC;
+static const int kInitialListId = 0xCCCCCC;
 
 // Loosely based on [sList] from Sfall.
 struct List {

@@ -4,13 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "actions.h"
 #include "animation.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "debug.h"
 #include "draw.h"
@@ -42,9 +41,9 @@ typedef enum ScrollableDirections {
     SCROLLABLE_S = 0x08,
 } ScrollableDirections;
 
-static constexpr int REFRESH_BOUNCING_CURSOR = 0x01;
-static constexpr int REFRESH_HEX_CURSOR = 0x02;
-static constexpr int REFRESH_BOTH_CURSORS = REFRESH_BOUNCING_CURSOR | REFRESH_HEX_CURSOR;
+static const int REFRESH_BOUNCING_CURSOR = 0x01;
+static const int REFRESH_HEX_CURSOR = 0x02;
+static const int REFRESH_BOTH_CURSORS = REFRESH_BOUNCING_CURSOR | REFRESH_HEX_CURSOR;
 
 // 0x518BF8
 static bool gGameMouseInitialized = false;
@@ -1034,7 +1033,7 @@ void gameMouseRefresh()
                 color = _colorTable[COL_PURE_RED];
             } else {
                 int actionPointsMax = critterGetMovementPointCostAdjustedForCrippledLegs(gDude, distance);
-                int actionPointsRequired = std::max(0, actionPointsMax - _combat_free_move);
+                int actionPointsRequired = MAX(0, actionPointsMax - _combat_free_move);
 
                 if (actionPointsRequired <= gDude->data.critter.combat.ap) {
                     snprintf(formattedActionPoints, sizeof(formattedActionPoints), "%d", actionPointsRequired);

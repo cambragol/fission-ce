@@ -25,17 +25,17 @@ namespace fallout {
 #define BADWORD_LENGTH_MAX 80
 #define DIR_SEPARATOR '/'
 
-static constexpr int kFirstStandardMessageListId = 0;
-static constexpr int kLastStandardMessageListId = kFirstStandardMessageListId + STANDARD_MESSAGE_LIST_COUNT - 1;
+static const int kFirstStandardMessageListId = 0;
+static const int kLastStandardMessageListId = kFirstStandardMessageListId + STANDARD_MESSAGE_LIST_COUNT - 1;
 
-static constexpr int kFirstProtoMessageListId = 0x1000;
-static constexpr int kLastProtoMessageListId = kFirstProtoMessageListId + PROTO_MESSAGE_LIST_COUNT - 1;
+static const int kFirstProtoMessageListId = 0x1000;
+static const int kLastProtoMessageListId = kFirstProtoMessageListId + PROTO_MESSAGE_LIST_COUNT - 1;
 
-static constexpr int kFirstPersistentMessageListId = 0x2000;
-static constexpr int kLastPersistentMessageListId = 0x2FFF;
+static const int kFirstPersistentMessageListId = 0x2000;
+static const int kLastPersistentMessageListId = 0x2FFF;
 
-static constexpr int kFirstTemporaryMessageListId = 0x3000;
-static constexpr int kLastTemporaryMessageListId = 0x3FFF;
+static const int kFirstTemporaryMessageListId = 0x3000;
+static const int kLastTemporaryMessageListId = 0x3FFF;
 
 struct MessageListRepositoryState {
     std::array<MessageList*, STANDARD_MESSAGE_LIST_COUNT> standardMessageLists;

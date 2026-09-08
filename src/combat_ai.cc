@@ -60,15 +60,15 @@ static PacketInfo* gPacketInfo = NULL; // array size MAX_PACKET_NUM
 static int gDispositionMap[MAX_PACKET_NUM][6]; // [base][disp+1] = target packet num, -1 if invalid
 static int gForwardMapInitialized = 0;
 
-static constexpr int kChemUseStimsWhenHurtLittleHpRatio = 60;
-static constexpr int kChemUseStimsWhenHurtLotsHpRatio = 30;
-static constexpr int kChemUseStimsHpRatio = 50;
+static const int kChemUseStimsWhenHurtLittleHpRatio = 60;
+static const int kChemUseStimsWhenHurtLotsHpRatio = 30;
+static const int kChemUseStimsHpRatio = 50;
 
-static constexpr int kChemUseSometimesChance = 25;
-static constexpr int kChemUseAnytimeChance = 75;
-static constexpr int kChemUseAlwaysChance = 100;
+static const int kChemUseSometimesChance = 25;
+static const int kChemUseAnytimeChance = 75;
+static const int kChemUseAlwaysChance = 100;
 
-static constexpr int kRandomDrugPickingArraySize = 3;
+static const int kRandomDrugPickingArraySize = 3;
 
 typedef struct AiMessageRange {
     int start;

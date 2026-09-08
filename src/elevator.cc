@@ -3,9 +3,8 @@
 #include <ctype.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "art.h"
+#include "compat_c.h"
 #include "cycle.h"
 #include "debug.h"
 #include "delay.h"
@@ -664,7 +663,7 @@ void elevatorsInit()
                     if (index >= ELEVATOR_COUNT) {
                         int levels = 0;
                         configGetInt(&elevatorsConfig, sectionKey, "ButtonCount", &levels);
-                        gElevatorLevels[index] = std::clamp(levels, 2, ELEVATOR_LEVEL_MAX);
+                        gElevatorLevels[index] = CLAMP(levels, 2, ELEVATOR_LEVEL_MAX);
                     }
 
                     configGetInt(&elevatorsConfig, sectionKey, "MainFrm", &(gElevatorBackgrounds[index].backgroundFrmId));
@@ -691,7 +690,7 @@ void elevatorsInit()
 
                     int type;
                     if (configGetInt(&elevatorsConfig, sectionKey, "Image", &type)) {
-                        type = std::clamp(type, 0, ELEVATORS_MAX - 1);
+                        type = CLAMP(type, 0, ELEVATORS_MAX - 1);
                         if (index != type) {
                             memcpy(&(gElevatorBackgrounds[index]), &(gElevatorBackgrounds[type]), sizeof(*gElevatorBackgrounds));
                             memcpy(&(gElevatorLevels[index]), &(gElevatorLevels[type]), sizeof(*gElevatorLevels));

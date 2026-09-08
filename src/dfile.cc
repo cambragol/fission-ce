@@ -7,10 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include <fpattern/fpattern.h>
 
+#include "compat_c.h"
 #include "platform_compat.h"
 
 namespace fallout {
@@ -894,8 +893,7 @@ static bool dfileReadCompressed(DFile* stream, void* ptr, size_t size)
 
         if (stream->decompressionStream->avail_in == 0) {
             // No more unprocessed data, request next chunk.
-            size_t bytesToRead = std::min(DFILE_DECOMPRESSION_BUFFER_SIZE, stream->entry->dataSize - stream->compressedBytesRead);
-
+            size_t bytesToRead = MIN(DFILE_DECOMPRESSION_BUFFER_SIZE, stream->entry->dataSize - stream->compressedBytesRead);
             if (fread(stream->decompressionBuffer, bytesToRead, 1, stream->stream) != 1) {
                 break;
             }

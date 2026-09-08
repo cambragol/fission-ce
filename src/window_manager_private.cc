@@ -18,7 +18,7 @@
 namespace fallout {
 
 /// Maximum number of timed messages.
-static constexpr int kTimedMsgs = 5;
+static const int kTimedMsgs = 5;
 
 static int get_num_i(int win, int* value, int max_chars_wcursor, bool clear, bool allow_negative, int x, int y);
 static void tm_watch_msgs();

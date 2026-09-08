@@ -4,14 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-#include <vector>
-
 #include "animation.h"
 #include "art.h"
 #include "audio.h"
 #include "audio_file.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "debug.h"
 #include "game.h"
@@ -104,7 +102,8 @@ typedef struct FloatSpeechSlot {
 // FloatAudioChannels in game.cfg (settings.mod_settings.float_audio_channels),
 // then never resized -- see AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc,
 // which reserves mixer buffer slots for this same count.
-static std::vector<FloatSpeechSlot> gFloatSpeechSlots;
+static FloatSpeechSlot* gFloatSpeechSlots = NULL;
+static int gFloatSpeechSlotsLength = 0;
 static unsigned int gFloatSpeechAllocSeq = 0;
 
 // 0x518E60
@@ -242,7 +241,17 @@ int gameSoundInit()
     if (floatAudioChannels < 1) {
         floatAudioChannels = 1;
     }
-    gFloatSpeechSlots.assign(floatAudioChannels, FloatSpeechSlot { nullptr, nullptr, 0 });
+    gFloatSpeechSlots = (FloatSpeechSlot*)internal_malloc(sizeof(FloatSpeechSlot) * floatAudioChannels);
+    if (gFloatSpeechSlots != NULL) {
+        gFloatSpeechSlotsLength = floatAudioChannels;
+        for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
+            gFloatSpeechSlots[i].sound = nullptr;
+            gFloatSpeechSlots[i].speaker = nullptr;
+            gFloatSpeechSlots[i].allocSeq = 0;
+        }
+    } else {
+        gFloatSpeechSlotsLength = 0;
+    }
 
     if (_gsound_get_music_path(&_sound_music_path1, GAME_CONFIG_MUSIC_PATH1_KEY) != 0) {
         return -1;
@@ -434,6 +443,12 @@ int gameSoundExit()
 
     internal_free(_sound_music_path1);
     internal_free(_sound_music_path2);
+
+    if (gFloatSpeechSlots != NULL) {
+        internal_free(gFloatSpeechSlots);
+        gFloatSpeechSlots = NULL;
+        gFloatSpeechSlotsLength = 0;
+    }
 
     gGameSoundInitialized = false;
 
@@ -1265,7 +1280,7 @@ static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception
     // through a [0.0, 0.5] floor/ceiling: doubling it means gain is already
     // >= 1.0 (clamped) for any distance <= refDistance/2, and only actually
     // ramps down over the second half of refDistance.
-    double gain = std::clamp(2.0 * (1.0 - (double)distance / (double)refDistance), 0.0, 1.0);
+    double gain = CLAMP(2.0 * (1.0 - (double)distance / (double)refDistance), 0.0, 1.0);
 
     // [vock-floats] ObstructionDampening in game.cfg -- 0 (default) skips the
     // raycast entirely, so players who don't opt in pay nothing extra here.
@@ -1273,7 +1288,7 @@ static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception
     // folded into the ramp -- an obstructed line inside the plateau still
     // needs to be dampened by the full percentage, not partially absorbed
     // by the plateau flattening it back out to 1.0.
-    int obstructionDampening = std::clamp(settings.mod_settings.float_obstruction_dampening, 0, 100);
+    int obstructionDampening = CLAMP(settings.mod_settings.float_obstruction_dampening, 0, 100);
     if (obstructionDampening > 0 && _gsound_float_is_obstructed(speaker)) {
         gain *= 1.0 - ((double)obstructionDampening / 100.0);
     }
@@ -1292,7 +1307,7 @@ static double _gsound_calc_float_distance_factor(Object* speaker)
 // rather than caching.
 static double _gsound_calc_float_volume_gain()
 {
-    int volume = std::clamp(settings.mod_settings.float_volume, VOLUME_MIN, VOLUME_MAX);
+    int volume = CLAMP(settings.mod_settings.float_volume, VOLUME_MIN, VOLUME_MAX);
     return (double)volume / (double)VOLUME_MAX;
 }
 
@@ -1328,7 +1343,7 @@ double gameSoundCalcFloatClarity(Object* speaker)
 // this doesn't need its own null check.
 static void floatSpeechUpdateVolumes()
 {
-    for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+    for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
         if (gFloatSpeechSlots[i].sound != nullptr) {
             if (critterIsDead(gFloatSpeechSlots[i].speaker)) {
                 // FISSION-VOCK FIX: soundDelete() synchronously invokes the sound's
@@ -1383,7 +1398,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
     // have one line playing at a time.
     int slotIndex = -1;
     if (speaker != nullptr) {
-        for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+        for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
             if (gFloatSpeechSlots[i].sound != nullptr && gFloatSpeechSlots[i].speaker == speaker) {
                 slotIndex = i;
                 break;
@@ -1396,7 +1411,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
         gFloatSpeechSlots[slotIndex].sound = nullptr;
         gFloatSpeechSlots[slotIndex].speaker = nullptr;
     } else {
-        for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+        for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
             if (gFloatSpeechSlots[i].sound == nullptr) {
                 slotIndex = i;
                 break;
@@ -1414,7 +1429,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
                 // Steal the slot with the smallest allocSeq, so a burst of
                 // floats never gets silently dropped once the pool is full.
                 unsigned int oldestSeq = UINT_MAX;
-                for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
                     if (gFloatSpeechSlots[i].allocSeq < oldestSeq) {
                         oldestSeq = gFloatSpeechSlots[i].allocSeq;
                         evictIndex = i;
@@ -1431,7 +1446,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
                 // from), it's dropped instead, same as Vanilla below.
                 if (speaker != nullptr && gDude != nullptr) {
                     int furthestDistance = objectGetDistanceBetween(speaker, gDude);
-                    for (int i = 0; i < (int)gFloatSpeechSlots.size(); i++) {
+                    for (int i = 0; i < gFloatSpeechSlotsLength; i++) {
                         int distance = objectGetDistanceBetween(gFloatSpeechSlots[i].speaker, gDude);
                         if (distance > furthestDistance) {
                             furthestDistance = distance;

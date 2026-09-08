@@ -3,11 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "art.h"
 #include "character_editor.h"
 #include "color.h"
+#include "compat_c.h"
 #include "debug.h"
 #include "delay.h"
 #include "draw.h"
@@ -180,8 +179,7 @@ int showDialogBox(const char* title, const char** body, int bodyLength, int x, i
 
     int linesCount = 0;
     for (int index = 0; index < bodyLength; index++) {
-        // NOTE: Originally there is no `max` macro.
-        maximumLineWidth = std::max(fontGetStringWidth(body[index]), maximumLineWidth);
+        maximumLineWidth = MAX(fontGetStringWidth(body[index]), maximumLineWidth);
         linesCount++;
     }
 

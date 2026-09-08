@@ -25,22 +25,22 @@ namespace fallout {
 /** This holds hex tiles which can be center tile */
 static bool visited_tiles[ELEVATION_COUNT][HEX_GRID_SIZE];
 
-static constexpr int pixels_per_horizontal_move = 32;
-static constexpr int pixels_per_vertical_move = 24;
+static const int pixels_per_horizontal_move = 32;
+static const int pixels_per_vertical_move = 24;
 
 // A overlay is actually a grid of small squares, each square is 16x12 pixels
 //  which is half of possible screen move by keyboard or mouse
-static constexpr int squares_per_horizontal_move = 2;
-static constexpr int squares_per_vertical_move = 2;
-static constexpr int square_width = pixels_per_horizontal_move / squares_per_horizontal_move;
-static constexpr int square_height = pixels_per_vertical_move / squares_per_vertical_move;
+static const int squares_per_horizontal_move = 2;
+static const int squares_per_vertical_move = 2;
+static const int square_width = pixels_per_horizontal_move / squares_per_horizontal_move;
+static const int square_height = pixels_per_vertical_move / squares_per_vertical_move;
 
 static_assert(pixels_per_horizontal_move % square_width == 0);
 static_assert(pixels_per_vertical_move % square_height == 0);
 
 // Dimensions of the grid of squares
-static constexpr int square_grid_width = 500;
-static constexpr int square_grid_height = 300;
+static const int square_grid_width = 500;
+static const int square_grid_height = 300;
 
 // This array holds information about which squares are visible
 static bool visible_squares[ELEVATION_COUNT][square_grid_width][square_grid_height];
@@ -52,12 +52,12 @@ static_assert(square_width * square_grid_width == 8000);
 static_assert(square_height * square_grid_height == 3600);
 
 // What can be seen on the screen in original resolution
-static constexpr int screen_view_width = 640;
-static constexpr int screen_view_height = 380;
+static const int screen_view_width = 640;
+static const int screen_view_height = 380;
 
 // How many squares can be seen in horizontal and vertical directions
-static constexpr int squares_screen_width_half = screen_view_width / 2 / square_width;
-static constexpr int squares_screen_height_half = screen_view_height / 2 / square_height;
+static const int squares_screen_width_half = screen_view_width / 2 / square_width;
+static const int squares_screen_height_half = screen_view_height / 2 / square_height;
 // Horizontal visibility fits hex grid perfectly
 static_assert(screen_view_width % (2 * square_width) == 0);
 // In the vertical direction we have 10+10 pixels left per each direction
