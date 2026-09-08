@@ -554,7 +554,7 @@ bool HandleHoldToHighlight()
     static bool wasHighlighting = false;
     static bool keyProcessed = false;
 
-    // Check if 'Left Shift' is currently pressed (including repeat state)
+    // Check if 'Left Control' is currently pressed (including repeat state)
     int shiftKeyScancode = SDL_SCANCODE_LCTRL;
     bool shiftKeyPressed = false;
 
