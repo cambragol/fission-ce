@@ -1,6 +1,7 @@
 #include "sfall_config.h"
 
 #include "art.h"
+#include "compat_c.h"
 #include "db.h"
 #include "file_find.h"
 #include "memory.h"
@@ -9,9 +10,11 @@
 #include "scan_unimplemented.h"
 #include "settings.h"
 #include "string_parsers.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 namespace fallout {
 
@@ -157,15 +160,24 @@ static void extractModInfo(Config* config, ModInfo* info)
     }
     char* deps = nullptr;
     if (configGetString(config, "mod_info", "dependencies", &deps) && deps) {
-        std::vector<std::string> tokens = splitString(deps, ',');
         info->dependencyCount = 0;
-        for (const auto& token : tokens) {
-            if (info->dependencyCount < MOD_INFO_MAX_DEP) {
-                strncpy(info->dependencies[info->dependencyCount], token.c_str(), MOD_INFO_MAX_DEP_NAME - 1);
+        // Make a copy because strtok modifies the string
+        char* depsCopy = internal_strdup(deps);
+        if (depsCopy != NULL) {
+            char* token = strtok(depsCopy, ",");
+            while (token != NULL && info->dependencyCount < MOD_INFO_MAX_DEP) {
+                // Trim leading/trailing whitespace
+                while (isspace((unsigned char)*token)) token++;
+                char* end = token + strlen(token) - 1;
+                while (end > token && isspace((unsigned char)*end)) end--;
+                *(end + 1) = '\0';
+                
+                strncpy(info->dependencies[info->dependencyCount], token, MOD_INFO_MAX_DEP_NAME - 1);
                 info->dependencies[info->dependencyCount][MOD_INFO_MAX_DEP_NAME - 1] = '\0';
                 info->dependencyCount++;
-            } else
-                break;
+                token = strtok(NULL, ",");
+            }
+            internal_free(depsCopy);
         }
     }
 }
@@ -621,26 +633,30 @@ bool modConfigInit(int argc, char** argv)
         ModInfo info;
         bool loaded;
     };
-    std::vector<TempMod> allMods;
+    #define MAX_TEMP_MODS MAX_LOADED_MODS
+    static TempMod allMods[MAX_TEMP_MODS];
+    int allModsCount = 0;
 
-    for (int i = 0; i < orderCount; i++) {
+    // Initialize allMods from order file
+    allModsCount = 0;
+    for (int i = 0; i < orderCount && allModsCount < MAX_TEMP_MODS; i++) {
         TempMod tm;
         tm.info = orderMods[i];
         tm.loaded = false;
-        allMods.push_back(tm);
+        allMods[allModsCount++] = tm;
     }
 
-    // Discover new mods (not in order file)
+    // Discover new mods
     for (int i = 0; i < folderCount; i++) {
         const char* datName = folderMods[i];
         bool found = false;
-        for (const auto& tm : allMods) {
-            if (compat_stricmp(tm.info.datName, datName) == 0) {
+        for (int j = 0; j < allModsCount; j++) {
+            if (compat_stricmp(allMods[j].info.datName, datName) == 0) {
                 found = true;
                 break;
             }
         }
-        if (!found && allMods.size() < MAX_LOADED_MODS) {
+        if (!found && allModsCount < MAX_TEMP_MODS) {
             char datPath[COMPAT_MAX_PATH];
             snprintf(datPath, sizeof(datPath), "mods%cmod_%s.dat", DIR_SEPARATOR, datName);
             int handle = dbOpen(datPath, nullptr);
@@ -668,14 +684,14 @@ bool modConfigInit(int argc, char** argv)
                 TempMod tm;
                 tm.info = newInfo;
                 tm.loaded = true;
-                allMods.push_back(tm);
+                allMods[allModsCount++] = tm;
             }
         }
     }
 
-    // Build global list but DO NOT load any mods here
-    gLoadedModsCount = allMods.size();
-    for (size_t i = 0; i < allMods.size(); i++) {
+    // Build global list
+    gLoadedModsCount = allModsCount;
+    for (int i = 0; i < allModsCount; i++) {
         gLoadedMods[i] = allMods[i].info;
         // Fix empty datName
         if (gLoadedMods[i].datName[0] == '\0') {

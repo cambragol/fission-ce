@@ -12,11 +12,10 @@
 #include <unistd.h>
 #endif
 
-#include <algorithm>
-
 #include <SDL.h>
 
 #include "audio_engine.h"
+#include "compat_c.h"
 #include "debug.h"
 #include "platform_compat.h"
 #include "wav_io.h"

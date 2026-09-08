@@ -9,6 +9,7 @@
 #include <array>
 #include <unordered_map>
 
+#include "compat_c.h"
 #include "debug.h"
 #include "memory.h"
 #include "platform_compat.h"
@@ -17,7 +18,6 @@
 #include "random.h"
 #include "settings.h"
 #include "sfall_config.h"
-#include "string_parsers.h"
 #include "window_manager.h"
 
 namespace fallout {
@@ -839,36 +839,53 @@ bool messageListRepositoryInit()
 
     const std::string& extraMsgLists = settings.mod_settings.extra_message_lists;
     if (extraMsgLists.empty()) {
-        return true; // Nothing to load, but success.
+        return true;
     }
 
-    std::vector<std::string> tokens = splitString(extraMsgLists);
+    // Make a copy because strtok modifies the string
+    char* listCopy = internal_strdup(extraMsgLists.c_str());
+    if (listCopy == NULL) {
+        return true;
+    }
 
     char path[COMPAT_MAX_PATH];
     int nextMessageListId = 0;
-    for (const std::string& token : tokens) {
-        std::string filePart = token;
-        int listId = nextMessageListId; // Default to auto-number
 
-        // Check for colon separator
-        size_t colonPos = token.find(':');
-        if (colonPos != std::string::npos) {
-            filePart = token.substr(0, colonPos);
-            listId = std::atoi(token.substr(colonPos + 1).c_str());
+    char* token = strtok(listCopy, ",");
+    while (token != NULL) {
+        // Trim leading/trailing whitespace
+        while (isspace((unsigned char)*token)) token++;
+        char* end = token + strlen(token) - 1;
+        while (end > token && isspace((unsigned char)*end)) end--;
+        *(end + 1) = '\0';
+
+        // Parse "filePart" or "filePart:listId"
+        char* colonPos = strchr(token, ':');
+        char* filePart = token;
+        int listId = nextMessageListId;
+
+        if (colonPos != NULL) {
+            *colonPos = '\0';
+            filePart = token;
+            listId = atoi(colonPos + 1);
         }
 
-        snprintf(path, sizeof(path), "%s\\%s.msg", "game", filePart.c_str());
+        snprintf(path, sizeof(path), "%s\\%s.msg", "game", filePart);
 
         MessageList* messageList = messageListRepositoryLoad(path);
         if (messageList != nullptr) {
             _messageListRepositoryState->persistentMessageLists[kFirstPersistentMessageListId + listId] = messageList;
         }
 
-        nextMessageListId = listId + 1; // Original increments after each token
-        if (nextMessageListId == kLastPersistentMessageListId - kFirstPersistentMessageListId + 1) {
+        nextMessageListId = listId + 1;
+        if (nextMessageListId >= (kLastPersistentMessageListId - kFirstPersistentMessageListId + 1)) {
             break;
         }
+
+        token = strtok(NULL, ",");
     }
+
+    internal_free(listCopy);
 
     return true;
 }

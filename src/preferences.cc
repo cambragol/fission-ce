@@ -2,13 +2,12 @@
 
 #include "options.h"
 
-#include <algorithm>
-
 #include "SDL.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
+#include "compat_c.h"
 #include "dbox.h"
 #include "debug.h"
 #include "delay.h"
@@ -456,7 +455,7 @@ void applyPlayAreaResolution()
             if (SDL_GetCurrentDisplayMode(displayIndex, &dm) == 0) {
                 if (gPreferencesPlayArea1 == 2) {
                     // 70% or 1100, whichever is greater, so Multidex Interface can be used for Large playarea and above
-                    float scale = std::max(0.7f, 1100.0f / dm.w);
+                    float scale = MAX(0.7f, 1100.0f / dm.w);
 
                     settings.graphics.game_width = (int)roundf(dm.w * scale);
                     settings.graphics.game_height = (int)roundf(dm.h * scale);
@@ -680,44 +679,44 @@ static void preferencesSetDefaults(bool updateUi)
 // 0x4931F8
 static void _JustUpdate_()
 {
-    gPreferencesGameDifficulty1 = std::clamp(gPreferencesGameDifficulty1, 0, 2);
-    gPreferencesCombatDifficulty1 = std::clamp(gPreferencesCombatDifficulty1, 0, 2);
-    gPreferencesViolenceLevel1 = std::clamp(gPreferencesViolenceLevel1, 0, 3);
-    gPreferencesTargetHighlight1 = std::clamp(gPreferencesTargetHighlight1, 0, 2);
-    gPreferencesCombatMessages1 = std::clamp(gPreferencesCombatMessages1, 0, 1);
-    gPreferencesCombatLooks1 = std::clamp(gPreferencesCombatLooks1, 0, 1);
-    gPreferencesCombatTaunts1 = std::clamp(gPreferencesCombatTaunts1, 0, 1);
-    gPreferencesLanguageFilter1 = std::clamp(gPreferencesLanguageFilter1, 0, 1);
-    gPreferencesRunning1 = std::clamp(gPreferencesRunning1, 0, 1);
-    gPreferencesSubtitles1 = std::clamp(gPreferencesSubtitles1, 0, 1);
+    gPreferencesGameDifficulty1 = CLAMP(gPreferencesGameDifficulty1, 0, 2);
+    gPreferencesCombatDifficulty1 = CLAMP(gPreferencesCombatDifficulty1, 0, 2);
+    gPreferencesViolenceLevel1 = CLAMP(gPreferencesViolenceLevel1, 0, 3);
+    gPreferencesTargetHighlight1 = CLAMP(gPreferencesTargetHighlight1, 0, 2);
+    gPreferencesCombatMessages1 = CLAMP(gPreferencesCombatMessages1, 0, 1);
+    gPreferencesCombatLooks1 = CLAMP(gPreferencesCombatLooks1, 0, 1);
+    gPreferencesCombatTaunts1 = CLAMP(gPreferencesCombatTaunts1, 0, 1);
+    gPreferencesLanguageFilter1 = CLAMP(gPreferencesLanguageFilter1, 0, 1);
+    gPreferencesRunning1 = CLAMP(gPreferencesRunning1, 0, 1);
+    gPreferencesSubtitles1 = CLAMP(gPreferencesSubtitles1, 0, 1);
     if (settings.enhancements.strict_vanilla) {
-        gPreferencesItemHighlight1 = std::clamp(gPreferencesItemHighlight1, 0, 1);
+        gPreferencesItemHighlight1 = CLAMP(gPreferencesItemHighlight1, 0, 1);
     } else {
-        gPreferencesItemHighlight1 = std::clamp(gPreferencesItemHighlight1, 0, 2); // adds 'containers'
+        gPreferencesItemHighlight1 = CLAMP(gPreferencesItemHighlight1, 0, 2); // adds 'containers'
     }
-    gPreferencesFullscreen1 = std::clamp(gPreferencesFullscreen1, 0, 1);
-    gPreferencesHighQuality1 = std::clamp(gPreferencesHighQuality1, 0, 1);
-    gPreferencesPreserveAspect1 = std::clamp(gPreferencesPreserveAspect1, 0, 1);
-    gPreferencesSquarePixels1 = std::clamp(gPreferencesSquarePixels1, 0, 1);
-    gPreferencesStretchEnabled1 = std::clamp(gPreferencesStretchEnabled1, 0, 1);
-    gPreferencesWidescreen1 = std::clamp(gPreferencesWidescreen1, 0, 1);
+    gPreferencesFullscreen1 = CLAMP(gPreferencesFullscreen1, 0, 1);
+    gPreferencesHighQuality1 = CLAMP(gPreferencesHighQuality1, 0, 1);
+    gPreferencesPreserveAspect1 = CLAMP(gPreferencesPreserveAspect1, 0, 1);
+    gPreferencesSquarePixels1 = CLAMP(gPreferencesSquarePixels1, 0, 1);
+    gPreferencesStretchEnabled1 = CLAMP(gPreferencesStretchEnabled1, 0, 1);
+    gPreferencesWidescreen1 = CLAMP(gPreferencesWidescreen1, 0, 1);
 
-    gPreferencesPlayArea1 = std::clamp(gPreferencesPlayArea1, 0, 3);
+    gPreferencesPlayArea1 = CLAMP(gPreferencesPlayArea1, 0, 3);
 
-    gPreferencesCombatSpeed1 = std::clamp(gPreferencesCombatSpeed1, 0, 50);
-    gPreferencesPlayerSpeedup1 = std::clamp(gPreferencesPlayerSpeedup1, 0, 1);
-    gPreferencesTextBaseDelay1 = std::clamp(gPreferencesTextBaseDelay1, 1.0, 6.0); // fixed for proper save/restore
-    gPreferencesMasterVolume1 = std::clamp(gPreferencesMasterVolume1, 0, VOLUME_MAX);
-    gPreferencesMusicVolume1 = std::clamp(gPreferencesMusicVolume1, 0, VOLUME_MAX);
-    gPreferencesSoundEffectsVolume1 = std::clamp(gPreferencesSoundEffectsVolume1, 0, VOLUME_MAX);
-    gPreferencesSpeechVolume1 = std::clamp(gPreferencesSpeechVolume1, 0, VOLUME_MAX);
-    gPreferencesBrightness1 = std::clamp(gPreferencesBrightness1, 1.0, 1.17999267578125);
-    gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
+    gPreferencesCombatSpeed1 = CLAMP(gPreferencesCombatSpeed1, 0, 50);
+    gPreferencesPlayerSpeedup1 = CLAMP(gPreferencesPlayerSpeedup1, 0, 1);
+    gPreferencesTextBaseDelay1 = CLAMP(gPreferencesTextBaseDelay1, 1.0, 6.0); // fixed for proper save/restore
+    gPreferencesMasterVolume1 = CLAMP(gPreferencesMasterVolume1, 0, VOLUME_MAX);
+    gPreferencesMusicVolume1 = CLAMP(gPreferencesMusicVolume1, 0, VOLUME_MAX);
+    gPreferencesSoundEffectsVolume1 = CLAMP(gPreferencesSoundEffectsVolume1, 0, VOLUME_MAX);
+    gPreferencesSpeechVolume1 = CLAMP(gPreferencesSpeechVolume1, 0, VOLUME_MAX);
+    gPreferencesBrightness1 = CLAMP(gPreferencesBrightness1, 1.0, 1.17999267578125);
+    gPreferencesMouseSensitivity1 = CLAMP(gPreferencesMouseSensitivity1, 1.0, 2.5);
 
     textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
 
     double textLineDelay = (gPreferencesTextBaseDelay1 + (-1.0)) * 0.2 * 2.0;
-    textLineDelay = std::clamp(textLineDelay, 0.0, 2.0);
+    textLineDelay = CLAMP(textLineDelay, 0.0, 2.0);
 
     textObjectsSetLineDelay(textLineDelay);
     aiMessageListReloadIfNeeded();
@@ -1076,7 +1075,7 @@ static void _UpdateThing(int index)
         switch (index) {
         case PREF_COMBAT_SPEED: {
             double value = *meta->valuePtr;
-            value = std::clamp(value, 0.0, 50.0);
+            value = CLAMP(value, 0.0, 50.0);
             int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
             // Use knobY from offsets instead of meta->knobY
             blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
@@ -1086,7 +1085,7 @@ static void _UpdateThing(int index)
             break;
         }
         case PREF_TEXT_BASE_DELAY: {
-            gPreferencesTextBaseDelay1 = std::clamp(gPreferencesTextBaseDelay1, 1.0, 6.0);
+            gPreferencesTextBaseDelay1 = CLAMP(gPreferencesTextBaseDelay1, 1.0, 6.0);
             int x = (int)((6.0 - gPreferencesTextBaseDelay1) * gOffsets.textBaseDelayScale + gOffsets.rangeStartX);
             // Use knobY from offsets instead of meta->knobY
             blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
@@ -1095,7 +1094,7 @@ static void _UpdateThing(int index)
                 pitch);
 
             double value = (gPreferencesTextBaseDelay1 - 1.0) * 0.2 * 2.0;
-            value = std::clamp(value, 0.0, 2.0);
+            value = CLAMP(value, 0.0, 2.0);
             textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
             textObjectsSetLineDelay(value);
             break;
@@ -1105,7 +1104,7 @@ static void _UpdateThing(int index)
         case PREF_SFX_VOLUME:
         case PREF_SPEECH_VOLUME: {
             double value = *meta->valuePtr;
-            value = std::clamp(value, meta->minValue, meta->maxValue);
+            value = CLAMP(value, meta->minValue, meta->maxValue);
             int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
             // Use knobY from offsets instead of meta->knobY
             blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
@@ -1130,7 +1129,7 @@ static void _UpdateThing(int index)
             break;
         }
         case PREF_BRIGHTNESS: {
-            gPreferencesBrightness1 = std::clamp(gPreferencesBrightness1, 1.0, 1.17999267578125);
+            gPreferencesBrightness1 = CLAMP(gPreferencesBrightness1, 1.0, 1.17999267578125);
             int x = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue)) + gOffsets.rangeStartX);
             // Use knobY from offsets instead of meta->knobY
             blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
@@ -1141,7 +1140,7 @@ static void _UpdateThing(int index)
             break;
         }
         case PREF_MOUSE_SENSITIVIY: {
-            gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
+            gPreferencesMouseSensitivity1 = CLAMP(gPreferencesMouseSensitivity1, 1.0, 2.5);
             int x = (int)((gPreferencesMouseSensitivity1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue)) + gOffsets.rangeStartX);
             // Use knobY from offsets instead of meta->knobY
             blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
@@ -2237,7 +2236,7 @@ static void _DoThing(int eventCode)
         switch (preferenceIndex) {
         case PREF_TEXT_BASE_DELAY:
             // fixed slider handling
-            value = std::clamp(6.0 - gPreferencesTextBaseDelay1 + 1, 1.0, 6.0);
+            value = CLAMP(6.0 - gPreferencesTextBaseDelay1 + 1, 1.0, 6.0);
             break;
         case PREF_BRIGHTNESS:
             value = gPreferencesBrightness1;
