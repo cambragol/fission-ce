@@ -822,7 +822,7 @@ int backgroundSoundLoad(const char* fileName, GameSoundReadLimitMode readLimitMo
 int _gsound_background_play_level_music(const char* fileName, GameSoundReadLimitMode readLimitMode)
 {
     if (backgoundSoundIsPlaying() && settings.enhancements.gapless_music && !settings.enhancements.strict_vanilla) {
-        if (!strcmp(fileName, gBackgroundSoundFileName)) {
+        if (compat_stricmp(fileName, gBackgroundSoundFileName) == 0) {
             return 0;
         }
     }
