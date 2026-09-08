@@ -1,6 +1,5 @@
 #include "interface.h"
 
-#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 
@@ -10,6 +9,7 @@
 #include "automap.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "config.h"
 #include "critter.h"
 #include "cycle.h"
@@ -3484,7 +3484,7 @@ static void sidePanelsDraw(const char* path, int win, bool isLeading)
     int windowWidth = windowGetWidth(win);
     int windowHeight = windowGetHeight(win);
 
-    int width = std::min(imageWidth, windowWidth);
+    int width = MIN(imageWidth, windowWidth);
 
     if (!settings.mod_settings.iface_bar_sides_ori && isLeading) {
         imageData += imageWidth - width;

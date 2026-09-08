@@ -2,9 +2,8 @@
 
 #include <string.h>
 
-#include <algorithm>
-
 #include "color.h"
+#include "compat_c.h"
 #include "debug.h"
 #include "memory.h"
 
@@ -49,7 +48,7 @@ unsigned char HighRGB(unsigned char color)
     int g = (rgb & 0x3E0) >> 5;
     int b = (rgb & 0x1F);
 
-    return std::max(std::max(r, g), b);
+    return MAX(MAX(r, g), b);
 }
 
 // 0x44ED98
@@ -415,10 +414,13 @@ void grayscalePaletteUpdate(int a1, int a2)
 {
     if (a1 >= 0 && a2 <= 255) {
         for (int index = a1; index <= a2; index++) {
-            // NOTE: Calls `Color2RGB` many times due to `min` and `max` macro
-            // uses.
-            int v1 = std::max((Color2RGB(index) & 0x7C00) >> 10, std::max((Color2RGB(index) & 0x3E0) >> 5, Color2RGB(index) & 0x1F));
-            int v2 = std::min((Color2RGB(index) & 0x7C00) >> 10, std::min((Color2RGB(index) & 0x3E0) >> 5, Color2RGB(index) & 0x1F));
+            int rgb = Color2RGB(index);
+            int r = (rgb & 0x7C00) >> 10;
+            int g = (rgb & 0x3E0) >> 5;
+            int b = rgb & 0x1F;
+
+            int v1 = MAX(MAX(r, g), b);
+            int v2 = MIN(MIN(r, g), b);
             int v3 = v1 + v2;
             int v4 = (int)((double)v3 * 240.0 / 510.0);
 

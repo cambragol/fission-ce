@@ -2,8 +2,7 @@
 
 #include <stdlib.h>
 
-#include <algorithm>
-
+#include "compat_c.h"
 #include "memory.h"
 
 namespace fallout {
@@ -201,10 +200,10 @@ void _rect_free(RectListNode* rectListNode)
 // 0x4C6C18
 void rectUnion(const Rect* s1, const Rect* s2, Rect* r)
 {
-    r->left = std::min(s1->left, s2->left);
-    r->top = std::min(s1->top, s2->top);
-    r->right = std::max(s1->right, s2->right);
-    r->bottom = std::max(s1->bottom, s2->bottom);
+    r->left = MIN(s1->left, s2->left);
+    r->top = MIN(s1->top, s2->top);
+    r->right = MAX(s1->right, s2->right);
+    r->bottom = MAX(s1->bottom, s2->bottom);
 }
 
 // Calculates intersection of two source rectangles and places it into third

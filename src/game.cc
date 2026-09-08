@@ -1,7 +1,6 @@
 #include "game.h"
 #include "platform/git_version.h"
 
-#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -15,6 +14,7 @@
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "cycle.h"
 #include "db.h"
