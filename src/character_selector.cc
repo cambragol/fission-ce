@@ -3,12 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-#include <vector>
-
 #include "art.h"
 #include "character_editor.h"
 #include "color.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "db.h"
 #include "debug.h"
@@ -149,7 +147,8 @@ static FrmImage _nextButtonPressedFrmImage;
 static FrmImage _previousButtonNormalFrmImage;
 static FrmImage _previousButtonPressedFrmImage;
 
-static std::vector<PremadeCharacterDescription> gCustomPremadeCharacterDescriptions;
+static PremadeCharacterDescription* gCustomPremadeCharacterDescriptions = NULL;
+static int gCustomPremadeCharacterDescriptionsLength = 0;
 
 bool characterSelectorLoadOffsetsFromConfig(CharacterSelectorOffsets* offsets, bool isWidescreen)
 {
@@ -1014,45 +1013,124 @@ static bool characterSelectorWindowFatalError(bool result)
 
 void premadeCharactersInit()
 {
-    const std::string& fileNamesStr = settings.mod_settings.premade_characters_file_names;
-    const std::string& faceFidsStr = settings.mod_settings.premade_characters_face_fids;
+    const char* fileNamesStr = settings.mod_settings.premade_characters_file_names.c_str();
+    const char* faceFidsStr = settings.mod_settings.premade_characters_face_fids.c_str();
 
-    if (!fileNamesStr.empty() && !faceFidsStr.empty()) {
-        std::vector<std::string> fileNames = splitString(fileNamesStr);
-        std::vector<std::string> faceFids = splitString(faceFidsStr);
+    int count = 0;
 
-        size_t count = std::min(fileNames.size(), faceFids.size());
-        gCustomPremadeCharacterDescriptions.resize(count);
+    // If both config strings are present, parse them
+    if (fileNamesStr != NULL && fileNamesStr[0] != '\0' &&
+        faceFidsStr != NULL && faceFidsStr[0] != '\0') {
 
-        for (size_t i = 0; i < count; ++i) {
-            const std::string& fname = fileNames[i];
-            if (fname.length() > 11) continue; // original skip
+        // Count tokens in fileNames string
+        char namesCopy[512];
+        strncpy(namesCopy, fileNamesStr, sizeof(namesCopy) - 1);
+        namesCopy[sizeof(namesCopy) - 1] = '\0';
 
-            snprintf(gCustomPremadeCharacterDescriptions[i].fileName,
-                sizeof(gCustomPremadeCharacterDescriptions[i].fileName),
-                "premade\\%s", fname.c_str());
+        int namesCount = 0;
+        char* token = strtok(namesCopy, ",");
+        while (token != NULL) {
+            namesCount++;
+            token = strtok(NULL, ",");
+        }
 
-            gCustomPremadeCharacterDescriptions[i].face = std::atoi(faceFids[i].c_str());
-            gCustomPremadeCharacterDescriptions[i].vid[0] = '\0';
+        // Count tokens in faceFids string
+        char fidsCopy[512];
+        strncpy(fidsCopy, faceFidsStr, sizeof(fidsCopy) - 1);
+        fidsCopy[sizeof(fidsCopy) - 1] = '\0';
+
+        int fidsCount = 0;
+        token = strtok(fidsCopy, ",");
+        while (token != NULL) {
+            fidsCount++;
+            token = strtok(NULL, ",");
+        }
+
+        // Use the smaller count
+        count = (namesCount < fidsCount) ? namesCount : fidsCount;
+
+        if (count > 0) {
+            // Allocate array
+            gCustomPremadeCharacterDescriptions = (PremadeCharacterDescription*)internal_malloc(
+                sizeof(PremadeCharacterDescription) * count);
+            if (gCustomPremadeCharacterDescriptions == NULL) {
+                count = 0;
+                goto fallback;
+            }
+            gCustomPremadeCharacterDescriptionsLength = count;
+
+            // Parse fileNames and faceFids simultaneously
+            char namesCopy2[512];
+            strncpy(namesCopy2, fileNamesStr, sizeof(namesCopy2) - 1);
+            namesCopy2[sizeof(namesCopy2) - 1] = '\0';
+
+            char fidsCopy2[512];
+            strncpy(fidsCopy2, faceFidsStr, sizeof(fidsCopy2) - 1);
+            fidsCopy2[sizeof(fidsCopy2) - 1] = '\0';
+
+            char* nameToken = strtok(namesCopy2, ",");
+            char* fidToken = strtok(fidsCopy2, ",");
+
+            int i = 0;
+            while (nameToken != NULL && fidToken != NULL && i < count) {
+                // Skip entries with filename > 11 characters (original behavior)
+                if (strlen(nameToken) <= 11) {
+                    snprintf(gCustomPremadeCharacterDescriptions[i].fileName,
+                        sizeof(gCustomPremadeCharacterDescriptions[i].fileName),
+                        "premade\\%s", nameToken);
+
+                    gCustomPremadeCharacterDescriptions[i].face = atoi(fidToken);
+                    gCustomPremadeCharacterDescriptions[i].vid[0] = '\0';
+                    i++;
+                }
+                nameToken = strtok(NULL, ",");
+                fidToken = strtok(NULL, ",");
+            }
+
+            // If we skipped some due to length, we may have fewer entries
+            if (i < count) {
+                count = i;
+                gCustomPremadeCharacterDescriptionsLength = count;
+                // Note: we don't realloc to shrink - this is fine
+            }
         }
     }
 
-    if (gCustomPremadeCharacterDescriptions.empty()) {
-        gCustomPremadeCharacterDescriptions.resize(PREMADE_CHARACTER_COUNT);
+fallback:
+    // If no custom entries were loaded, use the defaults
+    if (count == 0) {
+        // Free any existing allocation (shouldn't happen, but safe)
+        if (gCustomPremadeCharacterDescriptions != NULL) {
+            internal_free(gCustomPremadeCharacterDescriptions);
+            gCustomPremadeCharacterDescriptions = NULL;
+            gCustomPremadeCharacterDescriptionsLength = 0;
+        }
 
-        for (int index = 0; index < PREMADE_CHARACTER_COUNT; index++) {
-            strcpy(gCustomPremadeCharacterDescriptions[index].fileName, gPremadeCharacterDescriptions[index].fileName);
-            gCustomPremadeCharacterDescriptions[index].face = gPremadeCharacterDescriptions[index].face;
-            strcpy(gCustomPremadeCharacterDescriptions[index].vid, gPremadeCharacterDescriptions[index].vid);
+        gCustomPremadeCharacterDescriptions = (PremadeCharacterDescription*)internal_malloc(
+            sizeof(PremadeCharacterDescription) * PREMADE_CHARACTER_COUNT);
+        if (gCustomPremadeCharacterDescriptions != NULL) {
+            gCustomPremadeCharacterDescriptionsLength = PREMADE_CHARACTER_COUNT;
+            for (int index = 0; index < PREMADE_CHARACTER_COUNT; index++) {
+                strcpy(gCustomPremadeCharacterDescriptions[index].fileName,
+                    gPremadeCharacterDescriptions[index].fileName);
+                gCustomPremadeCharacterDescriptions[index].face = gPremadeCharacterDescriptions[index].face;
+                strcpy(gCustomPremadeCharacterDescriptions[index].vid,
+                    gPremadeCharacterDescriptions[index].vid);
+            }
+            count = PREMADE_CHARACTER_COUNT;
         }
     }
 
-    gPremadeCharacterCount = gCustomPremadeCharacterDescriptions.size();
+    gPremadeCharacterCount = count;
 }
 
 void premadeCharactersExit()
 {
-    gCustomPremadeCharacterDescriptions.clear();
+    if (gCustomPremadeCharacterDescriptions != NULL) {
+        internal_free(gCustomPremadeCharacterDescriptions);
+        gCustomPremadeCharacterDescriptions = NULL;
+    }
+    gCustomPremadeCharacterDescriptionsLength = 0;
 }
 
 static void premadeCharactersLocalizePath(char* path)
