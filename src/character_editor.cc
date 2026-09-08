@@ -6,12 +6,10 @@
 #include <string.h>
 #include <time.h>
 
-#include <algorithm>
-#include <vector>
-
 #include "art.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "cycle.h"
 #include "db.h"
@@ -912,8 +910,11 @@ struct CustomKarmaFolderDescription {
     int threshold;
 };
 
-static std::vector<CustomKarmaFolderDescription> gCustomKarmaFolderDescriptions;
-static std::vector<TownReputationEntry> gCustomTownReputationEntries;
+static CustomKarmaFolderDescription* gCustomKarmaFolderDescriptions = nullptr;
+static int gCustomKarmaFolderDescriptionsLength = 0;
+
+static TownReputationEntry* gCustomTownReputationEntries = nullptr;
+static int gCustomTownReputationEntriesLength = 0;
 
 static void characterEditorSyncButtonStates()
 {
@@ -4982,7 +4983,7 @@ static int characterPrintToFile(const char* fileName)
 
     bool hasTownReputationHeading = false;
     // SFALL
-    for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
+    for (int index = 0; index < gCustomTownReputationEntriesLength; index++) {
         const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
         if (wmAreaIsKnown(pair->city)) {
             if (!hasTownReputationHeading) {
@@ -5426,7 +5427,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
     for (int y = 0; y < frmImage.getHeight(); y++) {
         for (int x = 0; x < frmImage.getWidth(); x++) {
             if (HighRGB(*data) < 2) {
-                extraDescriptionWidth = std::min(extraDescriptionWidth, x);
+                extraDescriptionWidth = MIN(extraDescriptionWidth, x);
             }
             data++;
         }
@@ -6099,7 +6100,7 @@ static void characterEditorDrawKarmaFolder()
 
     bool hasTownReputationHeading = false;
     // SFALL
-    for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
+    for (int index = 0; index < gCustomTownReputationEntriesLength; index++) {
         const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
         if (wmAreaIsKnown(pair->city)) {
             if (!hasTownReputationHeading) {
@@ -7189,7 +7190,7 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
         unsigned char* stride = data;
         for (int x = 0; x < frmImage.getWidth(); x++) {
             if (HighRGB(*stride) < 2) {
-                extraDescriptionWidth = std::min(extraDescriptionWidth, x);
+                extraDescriptionWidth = MIN(extraDescriptionWidth, x);
             }
             stride++;
         }
@@ -7828,58 +7829,104 @@ static int genericReputationCompare(const void* a1, const void* a2)
 
 static void customKarmaFolderInit()
 {
-    const std::string& karmaFrmsStr = settings.mod_settings.karma_frms;
-    const std::string& karmaPointsStr = settings.mod_settings.karma_points;
+    const char* karmaFrmsStr = settings.mod_settings.karma_frms.c_str();
+    const char* karmaPointsStr = settings.mod_settings.karma_points.c_str();
 
-    if (karmaFrmsStr.empty() || karmaPointsStr.empty()) {
+    if (karmaFrmsStr == NULL || karmaFrmsStr[0] == '\0' || 
+        karmaPointsStr == NULL || karmaPointsStr[0] == '\0') {
         return;
     }
 
-    std::vector<std::string> frms = splitString(karmaFrmsStr);
-    std::vector<std::string> points = splitString(karmaPointsStr);
+    // Count tokens by copying strings (we need to split)
+    char frmsCopy[512];
+    char pointsCopy[512];
+    strncpy(frmsCopy, karmaFrmsStr, sizeof(frmsCopy) - 1);
+    frmsCopy[sizeof(frmsCopy) - 1] = '\0';
+    strncpy(pointsCopy, karmaPointsStr, sizeof(pointsCopy) - 1);
+    pointsCopy[sizeof(pointsCopy) - 1] = '\0';
 
-    gCustomKarmaFolderDescriptions.resize(frms.size());
+    int frmsCount = 0;
+    char* token = strtok(frmsCopy, ",");
+    while (token != NULL) {
+        frmsCount++;
+        token = strtok(NULL, ",");
+    }
 
-    for (size_t i = 0; i < frms.size(); ++i) {
-        gCustomKarmaFolderDescriptions[i].frmId = std::atoi(frms[i].c_str());
+    if (frmsCount == 0) {
+        return;
+    }
 
-        if (i < points.size()) {
-            gCustomKarmaFolderDescriptions[i].threshold = std::atoi(points[i].c_str());
+    // Allocate array
+    gCustomKarmaFolderDescriptions = (CustomKarmaFolderDescription*)internal_malloc(
+        sizeof(CustomKarmaFolderDescription) * frmsCount);
+    if (gCustomKarmaFolderDescriptions == NULL) {
+        return;
+    }
+    gCustomKarmaFolderDescriptionsLength = frmsCount;
+
+    // Parse points
+    int pointsArray[64];
+    int pointsCount = 0;
+    strcpy(pointsCopy, karmaPointsStr);
+    token = strtok(pointsCopy, ",");
+    while (token != NULL && pointsCount < 64) {
+        pointsArray[pointsCount] = atoi(token);
+        pointsCount++;
+        token = strtok(NULL, ",");
+    }
+
+    // Fill structs
+    strcpy(frmsCopy, karmaFrmsStr);
+    token = strtok(frmsCopy, ",");
+    for (int i = 0; i < frmsCount && token != NULL; i++) {
+        gCustomKarmaFolderDescriptions[i].frmId = atoi(token);
+        if (i < pointsCount) {
+            gCustomKarmaFolderDescriptions[i].threshold = pointsArray[i];
         } else {
             gCustomKarmaFolderDescriptions[i].threshold = INT_MAX;
         }
+        token = strtok(NULL, ",");
     }
 }
 
 static void customKarmaFolderFree()
 {
-    gCustomKarmaFolderDescriptions.clear();
+    if (gCustomKarmaFolderDescriptions != NULL) {
+        internal_free(gCustomKarmaFolderDescriptions);
+        gCustomKarmaFolderDescriptions = NULL;
+    }
+    gCustomKarmaFolderDescriptionsLength = 0;
 }
 
 static int customKarmaFolderGetFrmId()
 {
-    if (gCustomKarmaFolderDescriptions.empty()) {
+    if (gCustomKarmaFolderDescriptionsLength == 0) {
         return 47;
     }
 
     int reputation = gGameGlobalVars[GVAR_PLAYER_REPUTATION];
-    for (auto& entry : gCustomKarmaFolderDescriptions) {
-        if (reputation < entry.threshold) {
-            return entry.frmId;
+    for (int i = 0; i < gCustomKarmaFolderDescriptionsLength; i++) {
+        if (reputation < gCustomKarmaFolderDescriptions[i].threshold) {
+            return gCustomKarmaFolderDescriptions[i].frmId;
         }
     }
-    return gCustomKarmaFolderDescriptions.back().frmId;
+    return gCustomKarmaFolderDescriptions[gCustomKarmaFolderDescriptionsLength - 1].frmId;
 }
 
 static void customTownReputationInit()
 {
-    const std::string& repList = settings.mod_settings.city_reputation_list;
+    const char* repList = settings.mod_settings.city_reputation_list.c_str();
 
-    if (repList.empty()) {
+    if (repList == NULL || repList[0] == '\0') {
         // Fallback to defaults
-        if (gCustomTownReputationEntries.empty()) {
-            gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
-            for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
+        if (gCustomTownReputationEntriesLength == 0) {
+            gCustomTownReputationEntries = (TownReputationEntry*)internal_malloc(
+                sizeof(TownReputationEntry) * TOWN_REPUTATION_COUNT);
+            if (gCustomTownReputationEntries == NULL) {
+                return;
+            }
+            gCustomTownReputationEntriesLength = TOWN_REPUTATION_COUNT;
+            for (int index = 0; index < TOWN_REPUTATION_COUNT; index++) {
                 gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
                 gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
             }
@@ -7887,37 +7934,52 @@ static void customTownReputationInit()
         return;
     }
 
-    std::vector<std::string> tokens = splitString(repList); // split by comma
+    // Count tokens
+    char listCopy[512];
+    strncpy(listCopy, repList, sizeof(listCopy) - 1);
+    listCopy[sizeof(listCopy) - 1] = '\0';
 
-    for (const std::string& token : tokens) {
-        size_t colonPos = token.find(':');
-        if (colonPos == std::string::npos) {
-            // Malformed entry – skip (original would ignore)
-            continue;
-        }
-
-        std::string cityStr = token.substr(0, colonPos);
-        std::string gvarStr = token.substr(colonPos + 1);
-
-        TownReputationEntry entry;
-        entry.city = std::atoi(cityStr.c_str());
-        entry.gvar = std::atoi(gvarStr.c_str());
-        gCustomTownReputationEntries.push_back(std::move(entry));
+    int tokenCount = 0;
+    char* token = strtok(listCopy, ",");
+    while (token != NULL) {
+        tokenCount++;
+        token = strtok(NULL, ",");
     }
 
-    if (gCustomTownReputationEntries.empty()) {
-        // No valid entries loaded; fallback to defaults
-        gCustomTownReputationEntries.resize(TOWN_REPUTATION_COUNT);
-        for (int index = 0; index < TOWN_REPUTATION_COUNT; ++index) {
-            gCustomTownReputationEntries[index].gvar = gTownReputationEntries[index].gvar;
-            gCustomTownReputationEntries[index].city = gTownReputationEntries[index].city;
+    if (tokenCount == 0) {
+        return;
+    }
+
+    // Allocate array
+    gCustomTownReputationEntries = (TownReputationEntry*)internal_malloc(
+        sizeof(TownReputationEntry) * tokenCount);
+    if (gCustomTownReputationEntries == NULL) {
+        return;
+    }
+    gCustomTownReputationEntriesLength = 0;
+
+    // Parse each token
+    strcpy(listCopy, repList);
+    token = strtok(listCopy, ",");
+    while (token != NULL && gCustomTownReputationEntriesLength < tokenCount) {
+        char* colonPos = strchr(token, ':');
+        if (colonPos != NULL) {
+            *colonPos = '\0';
+            gCustomTownReputationEntries[gCustomTownReputationEntriesLength].city = atoi(token);
+            gCustomTownReputationEntries[gCustomTownReputationEntriesLength].gvar = atoi(colonPos + 1);
+            gCustomTownReputationEntriesLength++;
         }
+        token = strtok(NULL, ",");
     }
 }
 
 static void customTownReputationFree()
 {
-    gCustomTownReputationEntries.clear();
+    if (gCustomTownReputationEntries != NULL) {
+        internal_free(gCustomTownReputationEntries);
+        gCustomTownReputationEntries = NULL;
+    }
+    gCustomTownReputationEntriesLength = 0;
 }
 
 } // namespace fallout

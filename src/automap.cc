@@ -1,15 +1,14 @@
 #include "automap.h"
 
-#include <cmath>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <algorithm>
 
 #include "animation.h"
 #include "art.h"
 #include "color.h"
 #include "combat.h"
+#include "compat_c.h"
 #include "config.h"
 #include "dbox.h"
 #include "debug.h"
@@ -1974,7 +1973,7 @@ static int _copy_file_data(File* stream1, File* stream2, int length)
 
     // NOTE: Original code is slightly different, but does the same thing.
     while (length != 0) {
-        int chunkLength = std::min(length, 0xFFFF);
+        int chunkLength = MIN(length, 0xFFFF);
 
         if (fileRead(buffer, chunkLength, 1, stream1) != 1) {
             break;

@@ -3,8 +3,7 @@
 #include <math.h>
 #include <string.h>
 
-#include <algorithm>
-
+#include "compat_c.h"
 #include "db.h"
 #include "memory.h"
 #include "svga.h"
@@ -762,7 +761,7 @@ void colorSetBrightness(double value)
 
     for (int i = 0; i < 64; i++) {
         double value = pow(i, gBrightness);
-        _currentGammaTable[i] = (unsigned char)std::clamp(value, 0.0, 63.0);
+        _currentGammaTable[i] = (unsigned char)CLAMP(value, 0.0, 63.0);
     }
 
     _setSystemPalette(_systemCmap);

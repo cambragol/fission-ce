@@ -60,6 +60,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/combat_defs.h"
     "src/combat.cc"
     "src/combat.h"
+    "src/compat_c.h"
     "src/config.cc"
     "src/config.h"
     "src/credits.cc"
