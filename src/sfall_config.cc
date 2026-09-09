@@ -7,7 +7,6 @@
 #include "memory.h"
 #include "platform_compat.h"
 #include "proto.h"
-#include "scan_unimplemented.h"
 #include "settings.h"
 #include "string_parsers.h"
 #include <ctype.h>

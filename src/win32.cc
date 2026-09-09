@@ -12,8 +12,6 @@
 #include "svga.h"
 #include "window_manager.h"
 
-#include "scan_unimplemented.h"
-
 #if __APPLE__ && TARGET_OS_IOS
 #include "platform/ios/paths.h"
 #endif
@@ -29,8 +27,6 @@ HANDLE GNW95_mutex = nullptr;
 
 int main(int argc, char* argv[])
 {
-    scanUnimplementdParseCommandLineArguments(argc, argv);
-
     int rc;
 
 #if _WIN32

@@ -11,7 +11,6 @@
 #include "interface.h"
 #include "memory.h"
 #include "mouse.h"
-#include "scan_unimplemented.h"
 #include "settings.h"
 #include "sfall_config.h"
 #include "win32.h"

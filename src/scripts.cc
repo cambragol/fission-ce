@@ -33,7 +33,6 @@
 #include "proto_instance.h"
 #include "queue.h"
 #include "random.h"
-#include "scan_unimplemented.h"
 #include "settings.h"
 #include "sfall_arrays.h"
 #include "sfall_config.h"
@@ -1941,8 +1940,6 @@ int scriptsInit()
     }
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_SCRIPT, &gScrMessageList);
-
-    checkScriptsOpcodes();
 
     return 0;
 }
