@@ -67,7 +67,7 @@ int ammoGetCapacity(Object* ammoOrWeapon);
 int ammoGetQuantity(Object* ammoOrWeapon);
 int ammoGetCaliber(Object* ammoOrWeapon);
 void ammoSetQuantity(Object* ammoOrWeapon, int quantity);
-int weaponAttemptReload(Object* critter, Object* weapon);
+int weaponAttemptReload(Object* critter, Object* weapon, Object* owner = nullptr, Object* specificAmmo = nullptr);
 bool weaponCanBeReloadedWith(Object* weapon, Object* ammo);
 int weaponReload(Object* weapon, Object* ammo);
 int weaponGetRange(Object* critter, int hitMode);

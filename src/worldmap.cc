@@ -6680,7 +6680,7 @@ static int wmInterfaceInit()
     // CE: This setting affects only city names. In Sfall it's configurable via
     // WorldMapFontPatch and is turned off by default.
     wmGenData.oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(108);
 
     _map_save_in_game(true);
 

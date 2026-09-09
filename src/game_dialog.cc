@@ -23,6 +23,7 @@
 #include "game_sound.h"
 #include "input.h"
 #include "interface.h"
+#include "inventory.h"
 #include "item.h"
 #include "kb.h"
 #include "lips.h"
@@ -987,7 +988,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     _boxesWereDisabled = indicatorBarHide();
     gGameDialogSpeakerIsPartyMember = objectIsPartyMember(gGameDialogSpeaker);
     _oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(108);
     dialogSetReplyWindow(GAME_DIALOG_REPLY_WINDOW_X, GAME_DIALOG_REPLY_WINDOW_Y, GAME_DIALOG_REPLY_WINDOW_WIDTH, GAME_DIALOG_REPLY_WINDOW_HEIGHT, nullptr);
     dialogSetReplyColor(0.3f, 0.3f, 0.3f);
     dialogSetOptionWindow(GAME_DIALOG_OPTIONS_WINDOW_X, GAME_DIALOG_OPTIONS_WINDOW_Y, GAME_DIALOG_OPTIONS_WINDOW_WIDTH, GAME_DIALOG_OPTIONS_WINDOW_HEIGHT, nullptr);
@@ -3535,7 +3536,8 @@ int _gdialog_barter_create_win()
     backgroundFrmImage.unlock();
 
     // TRADE
-    _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 40, 162, 14, 14, -1, -1, -1, KEY_LOWERCASE_M, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
+    // Changed KEY_LOWERCASE_M (Make offer) to KEY_LOWERCASE_O (Offer) to avoid conflict with Inventory Filter
+    _gdialog_buttons[0] = buttonCreate(gGameDialogWindow, 40, 162, 14, 14, -1, -1, -1, KEY_LOWERCASE_O, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
     if (_gdialog_buttons[0] != -1) {
         buttonSetCallbacks(_gdialog_buttons[0], _gsound_med_butt_press, _gsound_med_butt_release);
 
@@ -3892,7 +3894,7 @@ void partyMemberControlWindowUpdate()
         int width = artGetWidth(preview, 0, ROTATION_SW);
         int height = artGetHeight(preview, 0, ROTATION_SW);
         unsigned char* buffer = artGetFrameData(preview, 0, ROTATION_SW);
-        blitBufferToBufferTrans(buffer, width, height, width, windowBuffer + windowWidth * (132 - height / 2) + 39 - width / 2, windowWidth);
+        blitBufferToBufferGreenTrans(buffer, width, height, width, windowBuffer + windowWidth * (132 - height / 2) + 39 - width / 2, windowWidth);
         artUnlock(previewHandle);
     }
 

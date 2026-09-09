@@ -45,6 +45,9 @@ bool partyMemberSupportsChemUse(Object* object, int chemUse);
 int _partyMemberIncLevels();
 bool partyIsAnyoneCanBeHealedByRest();
 int partyGetMaxWoundToHealByRest();
+bool partyMemberCanEquipArmor(Object* critter);
+bool partyMemberCanEquipWeapon(Object* critter);
+bool partyMemberCanEquipThisWeapon(Object* critter, Object* weapon);
 std::vector<Object*> get_all_party_members_objects(bool include_hidden);
 
 } // namespace fallout

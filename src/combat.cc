@@ -5623,7 +5623,7 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
     }
 
     int oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(108);
 
     for (int index = 0; index < 4; index++) {
         int probability;
