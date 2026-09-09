@@ -1570,8 +1570,8 @@ Create message files in language folders:
 Holodisks share the same message-list loading path as everything else in FISSION
 (`getmsg()`/`MessageListItem`), and that path already carries a per-line audio field --
 the middle slot of the standard `{num}{audio}{text}` `.msg` triple. Holodisk rendering
-now reads that field: put an audio filename on a page's *first* line and it plays as
-voiced narration while that page is on screen.
+reads that field once, from the holodisk's *very first* message line, and plays it as
+one continuous narration clip for the whole holodisk -- not one clip per page.
 
 ```
 {0}{}{Important Data Disk}
@@ -1582,19 +1582,28 @@ voiced narration while that page is on screen.
 {5}{}{**END-DISK**}
 ```
 
+Why one clip, not one per page: pagination (35 message IDs per page, see 11.5.2) is a
+blind count with no idea where a sentence ends. A real, longer holodisk's page breaks
+land mid-sentence as a matter of course -- there's no way to choose per-page cut points
+that don't eventually land there too, since the boundary shifts if the text is ever
+edited. A single clip sidesteps this entirely: it starts when the holodisk opens and
+keeps playing across page turns, so nothing needs to be cut to match an arbitrary
+35-line count.
+
 Rules:
 
--   Only the audio field on a page's first line is used -- one clip per page, not per
-    line. Lines after the first ignore their own audio field.
+-   Only the audio field on the holodisk's first message line is read (the ID in
+    `holodisk.txt`'s third column, i.e. page 0's first line). The field on every other
+    line, including the first line of later pages, is ignored.
 -   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
     NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
     to `sound/speech/holodisks/<name>.wav` or `.acm` (searched in that order), the same
     way dialogue always resolves under `sound/speech/<critter's head name>/<name>`.
--   Leave the audio field empty (`{}`) for a silent page. Silence is explicit --
-    it stops whatever the previous page was playing rather than leaving it running
-    under new text.
--   Turning a page, opening a different holodisk, or leaving the Pip-Boy all stop the
-    current clip; nothing needs manual cleanup from script or data.
+-   Leave the field empty (`{}`) for a silent holodisk -- no narration plays.
+-   The clip plays once, in full, regardless of how many pages the reader turns through
+    or how long they linger on one page. Opening a *different* holodisk, or leaving the
+    Pip-Boy, stops it and clears the tracking so reopening the same holodisk later
+    restarts the clip from the top. Nothing needs manual cleanup from script or data.
 -   Gated by the same switches as every other VockFloats feature: `[enhancements]
     VockFloats=1` in `fission.cfg`, `VoicedFloats=1` in `game.cfg`'s `[vock-floats]`
     section, and off entirely under `StrictVanilla=1`. With `VockFloats` off, holodisks
