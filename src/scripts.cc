@@ -35,7 +35,7 @@
 #include "random.h"
 #include "settings.h"
 #include "sfall_arrays.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "sfall_global_scripts.h"
 #include "stat.h"
 #include "svga.h"
@@ -3183,7 +3183,7 @@ char* _scr_get_msg_str(int messageListId, int messageId)
 // visible even when heavily garbled. clarity comes from
 // gameSoundCalcFloatClarity(), which shares its falloff/obstruction shape
 // with the float's audio but ramps over its own independent range (see
-// TextScrambleDistancePerPerception in sfall_config.h).
+// TextScrambleDistancePerPerception in mod_config.h).
 //
 // Called from opFloatMessage() (interpreter_extra.cc) -- the float_msg
 // opcode -- not from _scr_get_msg_str_speech()/message_str() below.

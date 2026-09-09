@@ -27,7 +27,7 @@
 #include "queue.h"
 #include "random.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "sfall_script_hooks.h"
 #include "skill.h"
 #include "stat.h"

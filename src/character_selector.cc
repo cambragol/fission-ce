@@ -25,7 +25,7 @@
 #include "preferences.h"
 #include "proto.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "skill.h"
 #include "stat.h"
 #include "string_parsers.h"

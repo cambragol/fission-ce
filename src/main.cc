@@ -34,7 +34,7 @@
 #include "scripts.h"
 #include "settings.h"
 #include "sfall_callbacks.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "sfall_global_scripts.h"
 #include "svga.h"
 #include "text_font.h"

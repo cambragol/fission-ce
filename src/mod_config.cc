@@ -1,4 +1,4 @@
-#include "sfall_config.h"
+#include "mod_config.h"
 
 #include "art.h"
 #include "compat_c.h"

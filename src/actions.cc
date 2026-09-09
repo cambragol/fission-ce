@@ -28,7 +28,7 @@
 #include "random.h"
 #include "scripts.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "skill.h"
 #include "stat.h"
 #include "text_object.h"

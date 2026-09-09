@@ -19,7 +19,7 @@
 #include "pipboy.h"
 #include "scripts.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "svga.h"
 #include "touch.h"
 #include "window_manager.h"

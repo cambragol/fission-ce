@@ -18,7 +18,7 @@
 #include "platform_compat.h"
 #include "preferences.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "svga.h"
 #include "text_font.h"
 #include "version.h"

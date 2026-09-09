@@ -35,7 +35,7 @@
 #include "random.h"
 #include "scripts.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "stat.h"
 #include "svga.h"
 #include "text_font.h"

@@ -12,7 +12,7 @@
 #include "memory.h"
 #include "mouse.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "win32.h"
 #include "window_manager.h"
 #include "window_manager_private.h"
