@@ -1,8 +1,6 @@
 #include "touch.h"
 
-#include <algorithm>
-#include <stack>
-
+#include "compat_c.h"
 #include "mouse.h"
 #include "svga.h"
 
@@ -35,7 +33,9 @@ struct Touch {
 
 static Touch touches[MAX_TOUCHES];
 static Gesture currentGesture;
-static std::stack<Gesture> gestureEventsQueue;
+#define GESTURE_QUEUE_MAX 100
+static Gesture gGestureEventsQueue[GESTURE_QUEUE_MAX];
+static int gGestureEventsQueueTop = 0;
 
 static bool gUseTouchscreenMode = false;
 static bool gUsePanMode = false;
@@ -213,10 +213,16 @@ void touch_process_gesture()
                 currentGesture.state = kChanged;
                 currentGesture.x = centroid.x;
                 currentGesture.y = centroid.y;
-                gestureEventsQueue.push(currentGesture);
+                if (gGestureEventsQueueTop < GESTURE_QUEUE_MAX) {
+    gGestureEventsQueue[gGestureEventsQueueTop] = currentGesture;
+    gGestureEventsQueueTop++;
+}
             } else {
                 currentGesture.state = kEnded;
-                gestureEventsQueue.push(currentGesture);
+                if (gGestureEventsQueueTop < GESTURE_QUEUE_MAX) {
+    gGestureEventsQueue[gGestureEventsQueueTop] = currentGesture;
+    gGestureEventsQueueTop++;
+}
             }
         }
 
@@ -234,10 +240,10 @@ void touch_process_gesture()
             Uint32 endLatestTimestamp = 0;
 
             for (int index = 0; index < endedCount; index++) {
-                startEarliestTimestamp = std::min(startEarliestTimestamp, touches[ended[index]].startTimestamp);
-                startLatestTimestamp = std::max(startLatestTimestamp, touches[ended[index]].startTimestamp);
-                endEarliestTimestamp = std::min(endEarliestTimestamp, touches[ended[index]].currentTimestamp);
-                endLatestTimestamp = std::max(endLatestTimestamp, touches[ended[index]].currentTimestamp);
+                startEarliestTimestamp = MIN(startEarliestTimestamp, touches[ended[index]].startTimestamp);
+                startLatestTimestamp = MAX(startLatestTimestamp, touches[ended[index]].startTimestamp);
+                endEarliestTimestamp = MIN(endEarliestTimestamp, touches[ended[index]].currentTimestamp);
+                endLatestTimestamp = MAX(endLatestTimestamp, touches[ended[index]].currentTimestamp);
             }
 
             if (startLatestTimestamp - startEarliestTimestamp <= TAP_MAXIMUM_DURATION
@@ -249,7 +255,10 @@ void touch_process_gesture()
                 currentGesture.numberOfTouches = endedCount;
                 currentGesture.x = currentCentroid.x;
                 currentGesture.y = currentCentroid.y;
-                gestureEventsQueue.push(currentGesture);
+                if (gGestureEventsQueueTop < GESTURE_QUEUE_MAX) {
+    gGestureEventsQueue[gGestureEventsQueueTop] = currentGesture;
+    gGestureEventsQueueTop++;
+}
 
                 // Reset tap gesture immediately.
                 currentGesture.type = kUnrecognized;
@@ -266,14 +275,20 @@ void touch_process_gesture()
                 currentGesture.numberOfTouches = activeCount;
                 currentGesture.x = currentCentroid.x;
                 currentGesture.y = currentCentroid.y;
-                gestureEventsQueue.push(currentGesture);
+                if (gGestureEventsQueueTop < GESTURE_QUEUE_MAX) {
+    gGestureEventsQueue[gGestureEventsQueueTop] = currentGesture;
+    gGestureEventsQueueTop++;
+}
             } else if (SDL_GetTicks() - touches[active[0]].startTimestamp >= LONG_PRESS_MINIMUM_DURATION) {
                 currentGesture.type = kLongPress;
                 currentGesture.state = kBegan;
                 currentGesture.numberOfTouches = activeCount;
                 currentGesture.x = currentCentroid.x;
                 currentGesture.y = currentCentroid.y;
-                gestureEventsQueue.push(currentGesture);
+                if (gGestureEventsQueueTop < GESTURE_QUEUE_MAX) {
+    gGestureEventsQueue[gGestureEventsQueueTop] = currentGesture;
+    gGestureEventsQueueTop++;
+}
             }
 
             if (gUseTouchscreenMode) {
@@ -287,12 +302,12 @@ void touch_process_gesture()
 
 bool touch_get_gesture(Gesture* gesture)
 {
-    if (gestureEventsQueue.empty()) {
+    if (gGestureEventsQueueTop <= 0) {
         return false;
     }
 
-    *gesture = gestureEventsQueue.top();
-    gestureEventsQueue.pop();
+    gGestureEventsQueueTop--;
+    *gesture = gGestureEventsQueue[gGestureEventsQueueTop];
 
     return true;
 }

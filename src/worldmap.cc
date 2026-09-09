@@ -7,14 +7,13 @@
 #include <string.h>
 #include <time.h>
 
-#include <algorithm>
-
 #include "animation.h"
 #include "art.h"
 #include "automap.h"
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
+#include "compat_c.h"
 #include "critter.h"
 #include "cycle.h"
 #include "db.h"
@@ -5505,8 +5504,8 @@ int wmCheckGameAreaEvents()
 // 0x4C05C4
 static int wmInterfaceCenterOnParty()
 {
-    wmWorldOffsetX = std::clamp(wmGenData.worldPosX - gOffsets.mapcenterX, 0, wmGenData.viewportMaxX);
-    wmWorldOffsetY = std::clamp(wmGenData.worldPosY - gOffsets.mapcenterY, 0, wmGenData.viewportMaxY);
+    wmWorldOffsetX = CLAMP(wmGenData.worldPosX - gOffsets.mapcenterX, 0, wmGenData.viewportMaxX);
+    wmWorldOffsetY = CLAMP(wmGenData.worldPosY - gOffsets.mapcenterY, 0, wmGenData.viewportMaxY);
 
     wmInterfaceRefresh();
 
@@ -6615,12 +6614,12 @@ static void wmInterfaceScrollTabsStart(int delta)
     // in the disabled state.
     if (delta >= 0) {
         if (wmGenData.tabsOffsetY < wmGenData.tabsBackgroundFrmImage.getHeight() - 230) {
-            wmGenData.oldTabsOffsetY = std::min(wmGenData.tabsOffsetY + delta, wmGenData.tabsBackgroundFrmImage.getHeight() - 230);
+            wmGenData.oldTabsOffsetY = MIN(wmGenData.tabsOffsetY + delta, wmGenData.tabsBackgroundFrmImage.getHeight() - 230);
             wmGenData.tabsScrollingDelta = delta;
         }
     } else {
         if (wmGenData.tabsOffsetY > 0) {
-            wmGenData.oldTabsOffsetY = std::max(wmGenData.tabsOffsetY + delta, 0);
+            wmGenData.oldTabsOffsetY = MAX(wmGenData.tabsOffsetY + delta, 0);
             wmGenData.tabsScrollingDelta = delta;
         }
     }
@@ -7657,8 +7656,8 @@ static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription*
     int yTextRel = circleHeight + spacing;
 
     // 2. Content Bounding Box (Relative to circle's 0,0 origin)
-    int contentMinXRel = std::min(0, xTextRel);
-    int contentMaxXRel = std::max(circleWidth, xTextRel + textWidth);
+    int contentMinXRel = MIN(0, xTextRel);
+    int contentMaxXRel = MAX(circleWidth, xTextRel + textWidth);
 
     int contentActualWidth = contentMaxXRel - contentMinXRel;
     int contentActualHeight = circleHeight + spacing + textHeight;

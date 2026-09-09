@@ -2,11 +2,10 @@
 
 #include <string.h>
 
-#include <algorithm>
-
 #include <SDL.h>
 
 #include "color.h"
+#include "compat_c.h"
 #include "debug.h"
 #include "dinput.h"
 #include "draw.h"
@@ -825,10 +824,10 @@ void _GNW_win_refresh(Window* window, Rect* rect, unsigned char* dest)
 
         refreshRectList->next = nullptr;
 
-        refreshRectList->rect.left = std::max(window->rect.left, rect->left);
-        refreshRectList->rect.top = std::max(window->rect.top, rect->top);
-        refreshRectList->rect.right = std::min(window->rect.right, rect->right);
-        refreshRectList->rect.bottom = std::min(window->rect.bottom, rect->bottom);
+        refreshRectList->rect.left = MAX(window->rect.left, rect->left);
+        refreshRectList->rect.top = MAX(window->rect.top, rect->top);
+        refreshRectList->rect.right = MIN(window->rect.right, rect->right);
+        refreshRectList->rect.bottom = MIN(window->rect.bottom, rect->bottom);
 
         if (refreshRectList->rect.right >= refreshRectList->rect.left && refreshRectList->rect.bottom >= refreshRectList->rect.top) {
             if (dest) {

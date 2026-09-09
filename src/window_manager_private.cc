@@ -3,9 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <algorithm>
-
 #include "color.h"
+#include "compat_c.h"
 #include "draw.h"
 #include "input.h"
 #include "kb.h"
@@ -634,7 +633,7 @@ int win_yes_no(const char* question, int x, int y, int color)
     }
 
     int height = 3 * fontGetLineHeight() + 16;
-    int width = std::max(fontGetStringWidth(question) + 16, 144) + 16;
+    int width = MAX(fontGetStringWidth(question) + 16, 144) + 16;
 
     int win = windowCreate(x, y, width, height, 0x100, WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
     if (win == -1) {
@@ -1601,7 +1600,7 @@ size_t _calc_max_field_chars_wcursor(int value1, int value2)
 
     internal_free(str);
 
-    return std::max(len1, len2) + 1;
+    return MAX(len1, len2) + 1;
 }
 
 // 0x4DD0AC
