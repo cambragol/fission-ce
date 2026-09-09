@@ -1,11 +1,11 @@
 #include "svga.h"
 
-#include <algorithm>
 #include <limits.h>
 #include <string.h>
 
 #include <SDL.h>
 
+#include "compat_c.h"
 #include "config.h"
 #include "draw.h"
 #include "interface.h"
@@ -559,7 +559,7 @@ void resizeContent(int width, int height)
         if (gPlayArea == 2) {
             // Use the same scale calculation as applyPlayAreaResolution()
             // centralize this later
-            float scale = std::max(0.7f, 1100.0f / static_cast<float>(windowW));
+            float scale = MAX(0.7f, 1100.0f / static_cast<float>(windowW));
 
             // Compute the offset using the effective content area width/height
             int offsetX = static_cast<int>((windowW * scale - gContentWidth) / 2);
@@ -626,7 +626,7 @@ void resizeContent(int width, int height, bool preserveAspect)
     if (gFullscreen) {
         if (gPlayArea == 2) {
             // Use the same scale calculation as applyPlayAreaResolution()
-            float scale = std::max(0.7f, 1100.0f / static_cast<float>(windowW));
+            float scale = MAX(0.7f, 1100.0f / static_cast<float>(windowW));
 
             // Compute the offset using the effective content area width/height
             int offsetX = static_cast<int>((windowW * scale - gContentWidth) / 2);

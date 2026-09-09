@@ -1,8 +1,8 @@
 #include "text_object.h"
 
-#include <algorithm>
 #include <string.h>
 
+#include "compat_c.h"
 #include "debug.h"
 #include "draw.h"
 #include "input.h"
@@ -208,7 +208,7 @@ int textObjectAdd(Object* object, char* string, int font, int color, int outline
         *ending = '\0';
 
         // NOTE: Calls `fontGetStringWidth` twice.
-        textObject->width = std::max(textObject->width, fontGetStringWidth(beginning));
+        textObject->width = MAX(textObject->width, fontGetStringWidth(beginning));
 
         *ending = c;
     }

@@ -4,11 +4,9 @@
 #include <math.h>
 #include <string.h>
 
-#include <algorithm>
-#include <stack>
-
 #include "art.h"
 #include "color.h"
+#include "compat_c.h"
 #include "config.h"
 #include "debug.h"
 #include "draw.h"
@@ -55,12 +53,15 @@ struct roof_fill_task {
     int x;
     int y;
 };
+#define ROOF_FILL_STACK_MAX 10000
+static roof_fill_task gRoofFillStack[ROOF_FILL_STACK_MAX];
+static int gRoofFillStackTop = 0;
 
 static void tileSetBorder(int windowWidth, int windowHeight, int hexGridWidth, int hexGridHeight);
 static void tileRefreshMapper(Rect* rect, int elevation);
 static void tileRefreshGame(Rect* rect, int elevation);
-static void roof_fill_push_task_if_in_bounds(std::stack<roof_fill_task>& tasks_stack, int x, int y);
-static void roof_fill_off_process_task(std::stack<roof_fill_task>& tasks_stack, int elevation, bool on);
+static void roof_fill_push_task_if_in_bounds(int x, int y);
+static void roof_fill_off_process_task(int elevation, bool on);
 static void tileRenderRoof(int fid, int x, int y, Rect* rect, int light);
 static void _draw_grid(int tile, int elevation, Rect* rect);
 static void tileRenderFloor(int fid, int x, int y, Rect* rect);
@@ -1221,17 +1222,26 @@ void tileRenderRoofsInRect(Rect* rect, int elevation)
     }
 }
 
-static void roof_fill_push_task_if_in_bounds(std::stack<roof_fill_task>& tasks_stack, int x, int y)
+static void roof_fill_push_task_if_in_bounds(int x, int y)
 {
     if (x >= 0 && x < gSquareGridWidth && y >= 0 && y < gSquareGridHeight) {
-        tasks_stack.push(roof_fill_task { x, y });
-    };
-};
+        if (gRoofFillStackTop < ROOF_FILL_STACK_MAX) {
+            gRoofFillStack[gRoofFillStackTop].x = x;
+            gRoofFillStack[gRoofFillStackTop].y = y;
+            gRoofFillStackTop++;
+        }
+    }
+}
 
-static void roof_fill_off_process_task(std::stack<roof_fill_task>& tasks_stack, int elevation, bool on)
+static void roof_fill_off_process_task(int elevation, bool on)
 {
-    auto [x, y] = tasks_stack.top();
-    tasks_stack.pop();
+    if (gRoofFillStackTop <= 0) {
+        return;
+    }
+
+    gRoofFillStackTop--;
+    int x = gRoofFillStack[gRoofFillStackTop].x;
+    int y = gRoofFillStack[gRoofFillStackTop].y;
 
     int squareTileIndex = gSquareGridWidth * y + x;
     int squareTile = gTileSquares[elevation]->field_0[squareTileIndex];
@@ -1250,10 +1260,10 @@ static void roof_fill_off_process_task(std::stack<roof_fill_task>& tasks_stack, 
 
             gTileSquares[elevation]->field_0[squareTileIndex] = (squareTile & 0xFFFF) | (((flag << 12) | id) << 16);
 
-            roof_fill_push_task_if_in_bounds(tasks_stack, x - 1, y);
-            roof_fill_push_task_if_in_bounds(tasks_stack, x + 1, y);
-            roof_fill_push_task_if_in_bounds(tasks_stack, x, y - 1);
-            roof_fill_push_task_if_in_bounds(tasks_stack, x, y + 1);
+            roof_fill_push_task_if_in_bounds(x - 1, y);
+            roof_fill_push_task_if_in_bounds(x + 1, y);
+            roof_fill_push_task_if_in_bounds(x, y - 1);
+            roof_fill_push_task_if_in_bounds(x, y + 1);
         }
     }
 }
@@ -1261,12 +1271,13 @@ static void roof_fill_off_process_task(std::stack<roof_fill_task>& tasks_stack, 
 // 0x4B23D4
 void tile_fill_roof(int x, int y, int elevation, bool on)
 {
-    std::stack<roof_fill_task> tasks_stack;
+    // Reset the global stack
+    gRoofFillStackTop = 0;
 
-    roof_fill_push_task_if_in_bounds(tasks_stack, x, y);
+    roof_fill_push_task_if_in_bounds(x, y);
 
-    while (!tasks_stack.empty()) {
-        roof_fill_off_process_task(tasks_stack, elevation, on);
+    while (gRoofFillStackTop > 0) {
+        roof_fill_off_process_task(elevation, on);
     }
 }
 
@@ -1626,7 +1637,7 @@ static void tileRenderFloor(int fid, int x, int y, Rect* rect)
         int ambientIntensity = lightGetAmbientIntensity();
         for (int i = 0; i < 10; i++) {
             // NOTE: Calls `lightGetTileIntensity` twice.
-            _verticies[i].intensity = std::max(lightGetTileIntensity(elev, tile + _verticies[i].offsets[parity]), ambientIntensity);
+            _verticies[i].intensity = MAX(lightGetTileIntensity(elev, tile + _verticies[i].offsets[parity]), ambientIntensity);
         }
 
         int v23 = 0;
