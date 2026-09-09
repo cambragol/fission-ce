@@ -1575,7 +1575,7 @@ voiced narration while that page is on screen.
 
 ```
 {0}{}{Important Data Disk}
-{1}{holodisk\myquest_intro}{This holodisk contains critical information}
+{1}{myquest_intro}{This holodisk contains critical information}
 {2}{}{about the secret facility.}
 {3}{}{**END-PAR**}
 {4}{}{The entrance is hidden behind the waterfall.}
@@ -1586,9 +1586,10 @@ Rules:
 
 -   Only the audio field on a page's first line is used -- one clip per page, not per
     line. Lines after the first ignore their own audio field.
--   The filename resolves exactly like any other speech line: `sound/speech/<name>.wav`
-    or `.acm` (searched in that order). Subfolders are fine (`holodisk\myquest_intro`
-    above resolves to `sound/speech/holodisk/myquest_intro.*`).
+-   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
+    NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
+    to `sound/speech/holodisks/<name>.wav` or `.acm` (searched in that order), the same
+    way dialogue always resolves under `sound/speech/<critter's head name>/<name>`.
 -   Leave the audio field empty (`{}`) for a silent page. Silence is explicit --
     it stops whatever the previous page was playing rather than leaving it running
     under new text.

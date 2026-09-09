@@ -2721,6 +2721,13 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 // VoicedFloats toggle dialogue floats use, so it inherits StrictVanilla and
 // the mod's opt-out without a separate setting.
 //
+// The audio field is a bare filename, same as dialogue's -- see ACERIC.MSG's
+// "{101}{fea1}{...}" or lipsLoad()'s headFileName/audioFileName split. Vanilla
+// never puts a path in a .msg field; the folder always comes from context
+// (there it's the speaking critter's head name, built in lipsLoad() as
+// SOUND\SPEECH\<headFileName>\<audioFileName>). Holodisks have no critter, so
+// the folder is simply fixed to "holodisks" here instead of per-instance.
+//
 // speechLoad() already tears down whatever was previously loaded into
 // gSpeechSound before loading the new file (see its "Delete any existing
 // speech sound" step), so switching pages or holodisks always replaces
@@ -2738,7 +2745,9 @@ static void pipboyHolodiskUpdatePageAudio(const char* audio)
     }
 
     if (audio != nullptr && audio[0] != '\0') {
-        speechLoad(audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+        char path[COMPAT_MAX_PATH];
+        snprintf(path, sizeof(path), "holodisks\\%s", audio);
+        speechLoad(path, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
     } else {
         speechDelete();
     }
@@ -4899,9 +4908,10 @@ static void generateHolodiskListReport()
         "3. BlockKey is a unique identifier for the holodisk within the mod.\n"
         "4. IDs are stable: same ModName + BlockKey gives same base ID.\n"
         "5. In scripts, set GVAR to non-zero to make holodisk appear.\n"
-        "6. Optional voiced narration: put a filename in a page's first line's\n"
-        "   audio field, e.g. {1}{holodisk\\myquest_intro}{line1}. Resolves via\n"
-        "   sound/speech/, same as other speech. Requires VockFloats+VoicedFloats.\n");
+        "6. Optional voiced narration: put a bare filename (no path) in a\n"
+        "   page's first line's audio field, e.g. {1}{myquest_intro}{line1}.\n"
+        "   Resolves to sound/speech/holodisks/myquest_intro.*. Requires\n"
+        "   VockFloats+VoicedFloats.\n");
 
     fclose(reportFile);
 }
