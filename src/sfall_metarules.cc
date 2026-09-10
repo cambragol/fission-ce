@@ -1,10 +1,8 @@
 #include "sfall_metarules.h"
 
-#include <algorithm>
 #include <math.h>
-#include <memory>
 #include <string.h>
-#include <string>
+#include <stddef.h>
 
 #include "art.h" // for buildFid, artExists, ROTATION_NE
 #include "color.h"
@@ -182,9 +180,9 @@ const MetaruleInfo kMetarules[] = {
     // {"win_fill_color",            mf_win_fill_color,            0, 5, -1, {ARG_INT, ARG_INT, ARG_INT, ARG_INT, ARG_INT}},
     { "opcode_exists", mf_opcode_exists, 1, 1 },
 };
-const std::size_t kMetarulesCount = sizeof(kMetarules) / sizeof(kMetarules[0]);
+const size_t kMetarulesCount = sizeof(kMetarules) / sizeof(kMetarules[0]);
 
-constexpr int kMetarulesMax = sizeof(kMetarules) / sizeof(kMetarules[0]);
+static const int kMetarulesMax = sizeof(kMetarules) / sizeof(kMetarules[0]);
 
 void mf_car_gas_amount(Program* program, int args)
 {
@@ -522,17 +520,31 @@ void mf_string_find(Program* program, int args)
 
 void mf_string_to_case(Program* program, int args)
 {
-    auto buf = programStackPopString(program);
-    std::string s(buf);
-    auto caseType = programStackPopInteger(program);
-    if (caseType == 1) {
-        std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-    } else if (caseType == 0) {
-        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-    } else {
-        debugPrint("string_to_case: invalid case type %d", caseType);
+    const char* buf = programStackPopString(program);
+    int caseType = programStackPopInteger(program);
+
+    // Use a static buffer; max string length is limited by script engine.
+    // We'll use a reasonable limit and copy.
+    char result[4096];
+    size_t len = strlen(buf);
+    if (len >= sizeof(result)) {
+        len = sizeof(result) - 1;
     }
-    programStackPushString(program, s.c_str());
+
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)buf[i];
+        if (caseType == 1) {
+            result[i] = toupper(c);
+        } else if (caseType == 0) {
+            result[i] = tolower(c);
+        } else {
+            debugPrint("string_to_case: invalid case type %d", caseType);
+            result[i] = c;
+        }
+    }
+    result[len] = '\0';
+
+    programStackPushString(program, result);
 }
 
 void mf_string_format(Program* program, int args)
@@ -556,15 +568,15 @@ static void mf_art_exists_by_index(Program* program, int args)
 
 void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
 {
-    auto format = programStackPopString(program); // Pop the format string
+    const char* format = programStackPopString(program);
 
-    ProgramValue formatArgs[7]; // 8 arguments total, 1 for format string
+    ProgramValue formatArgs[7];
 
     for (int index = 0; index < args - 1; index++) {
         formatArgs[index] = programStackPopValue(program);
     }
 
-    int fmtLen = static_cast<int>(strlen(format));
+    int fmtLen = (int)strlen(format);
     if (fmtLen == 0) {
         programStackPushString(program, "");
         return;
@@ -574,15 +586,18 @@ void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
         programStackPushString(program, "Error");
         return;
     }
-    int newFmtLen = fmtLen;
 
+    int newFmtLen = fmtLen;
     for (int i = 0; i < fmtLen; i++) {
-        if (format[i] == '%')
-            newFmtLen++; // will possibly be escaped, need space for that
+        if (format[i] == '%') newFmtLen++;
     }
 
-    // parse format to make it safe
-    auto newFmt = std::make_unique<char[]>(newFmtLen + 1);
+    // Use internal_malloc instead of std::make_unique
+    char* newFmt = (char*)internal_malloc(newFmtLen + 1);
+    if (newFmt == NULL) {
+        programStackPushString(program, "Error");
+        return;
+    }
 
     bool conversion = false;
     int j = 0;
@@ -592,75 +607,77 @@ void sprintf_lite(Program* program, int args, const char* infoOpcodeName)
     int bufCount = sizeof(out) - 1;
     char* outBuf = out;
 
-    int numArgs = args; // From 2 to 8
+    int numArgs = args;
 
     for (int i = 0; i < fmtLen; i++) {
         char c = format[i];
         if (!conversion) {
-            // Start conversion.
-            if (c == '%')
-                conversion = true;
+            if (c == '%') conversion = true;
         } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '%') {
             int partLen;
             if (c == '%') {
-                // escaped % sign, just copy newFmt up to (and including) the leading % sign
                 newFmt[j] = '\0';
-                // strncpy_s(outBuf, bufCount, newFmt, j);
-                strncpy(outBuf, newFmt.get(), std::min(j, bufCount - 1));
-                partLen = j;
+                int copyLen = (j < bufCount) ? j : bufCount - 1;
+                strncpy(outBuf, newFmt, copyLen);
+                outBuf[copyLen] = '\0';
+                partLen = copyLen;
             } else {
-                // ignore size prefixes
-                if (c == 'h' || c == 'l' || c == 'j' || c == 'z' || c == 't' || c == 'w' || c == 'L' || c == 'I')
+                if (c == 'h' || c == 'l' || c == 'j' || c == 'z' || c == 't' || c == 'w' || c == 'L' || c == 'I') {
                     continue;
-                // Type specifier, perform conversion.
+                }
+
                 if (++valIdx == numArgs) {
                     debugPrint("%s() - format string contains more conversions than passed arguments (%d): %s",
                         infoOpcodeName, numArgs - 1, format);
                 }
-                const auto& arg = formatArgs[std::min(valIdx - 1, numArgs - 2)];
 
-                // ctx.arg(valIdx < numArgs ? valIdx : numArgs - 1);
-                if (c == 'S' || c == 'Z') {
-                    c = 's'; // don't allow wide strings
-                }
-                if ((c == 's' && !arg.isString()) || // don't allow treating non-string values as string pointers
-                    c == 'n') // don't allow "n" specifier
-                {
+                const ProgramValue* arg = &formatArgs[valIdx - 1 < numArgs - 1 ? valIdx - 1 : numArgs - 2];
+
+                if (c == 'S' || c == 'Z') c = 's';
+                if ((c == 's' && !arg->isString()) || c == 'n') {
                     c = 'd';
                 }
+
                 newFmt[j++] = c;
                 newFmt[j] = '\0';
-                partLen = arg.isFloat()
-                    ? snprintf(outBuf, bufCount, newFmt.get(), arg.floatValue)
-                    : arg.isInt()    ? snprintf(outBuf, bufCount, newFmt.get(), arg.integerValue)
-                    : arg.isString() ? snprintf(outBuf, bufCount, newFmt.get(),
-                                           programGetString(program, arg.opcode, arg.integerValue))
-                                     : snprintf(outBuf, bufCount, newFmt.get(), "<UNSUPPORTED TYPE>");
+
+                if (arg->isFloat()) {
+                    partLen = snprintf(outBuf, bufCount, newFmt, arg->floatValue);
+                } else if (arg->isInt()) {
+                    partLen = snprintf(outBuf, bufCount, newFmt, arg->integerValue);
+                } else if (arg->isString()) {
+                    const char* str = programGetString(program, arg->opcode, arg->integerValue);
+                    partLen = snprintf(outBuf, bufCount, newFmt, str);
+                } else {
+                    partLen = snprintf(outBuf, bufCount, newFmt, "<UNSUPPORTED TYPE>");
+                }
             }
+
+            if (partLen < 0) partLen = 0;
             outBuf += partLen;
             bufCount -= partLen;
             conversion = false;
             j = 0;
-            if (bufCount <= 0) {
-                break;
-            }
+            if (bufCount <= 0) break;
             continue;
         }
         newFmt[j++] = c;
     }
-    // Copy the remainder of the string.
+
     if (bufCount > 0) {
         newFmt[j] = '\0';
-        // strcpy_s(outBuf, bufCount, newFmt);
-        if (strlen(newFmt.get()) < bufCount) {
-            strcpy(outBuf, newFmt.get());
+        size_t newFmtLenActual = strlen(newFmt);
+        if (newFmtLenActual < (size_t)bufCount) {
+            strcpy(outBuf, newFmt);
         } else {
-            strncpy(outBuf, newFmt.get(), bufCount - 1);
-            outBuf[bufCount - 1] = '\0'; // Ensure null-termination
+            strncpy(outBuf, newFmt, bufCount - 1);
+            outBuf[bufCount - 1] = '\0';
         }
     }
 
     programStackPushString(program, out);
+
+    internal_free(newFmt);
 }
 
 // message_box

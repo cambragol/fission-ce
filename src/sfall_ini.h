@@ -1,12 +1,17 @@
 #ifndef FALLOUT_SFALL_INI_H_
 #define FALLOUT_SFALL_INI_H_
 
+#include <stddef.h>
+
 #include "config.h"
 #include "dictionary.h"
 #include "interpreter.h"
-#include <cstddef>
 
 namespace fallout {
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /// Sets base directory to lookup .ini files.
 void sfall_ini_set_base_path(const char* path);
@@ -29,6 +34,10 @@ void mf_get_ini_section(Program* program, int args);
 void mf_get_ini_sections(Program* program, int args);
 void op_get_ini_setting(Program* program);
 void op_get_ini_string(Program* program);
+
+#ifdef __cplusplus
+}
+#endif
 
 } // namespace fallout
 

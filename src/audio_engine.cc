@@ -1,68 +1,44 @@
 #include "audio_engine.h"
 
+#include <stdlib.h>
 #include <string.h>
-
-#include <mutex>
-#include <vector>
 
 #include <SDL.h>
 
 #include "settings.h"
 #include "sound_effects_cache.h"
+#include "memory.h"
 
 namespace fallout {
 
-// Background music and dialogue speech are each a single scalar Sound*
-// global (gBackgroundSound/gSpeechSound in game_sound.cc), not pools -- there
-// is no allocation loop to raise, so unlike SFX and floats these aren't
-// runtime-configurable.
 #define BACKGROUND_MUSIC_MAX_COUNT (1)
 #define DIALOGUE_SPEECH_MAX_COUNT (1)
 
-struct AudioEngineSoundBuffer {
-    bool active = false;
-    unsigned int size = 0;
-    int bitsPerSample = 0;
-    int channels = 0;
-    int rate = 0;
-    void* data = nullptr;
-    int volume = 0;
-    bool playing = false;
-    bool looping = false;
-    unsigned int pos = 0;
-    SDL_AudioStream* stream = nullptr;
-    std::recursive_mutex mutex;
-};
+typedef struct AudioEngineSoundBuffer {
+    bool active;
+    unsigned int size;
+    int bitsPerSample;
+    int channels;
+    int rate;
+    void* data;
+    int volume;
+    bool playing;
+    bool looping;
+    unsigned int pos;
+    SDL_AudioStream* stream;
+    SDL_mutex* mutex;
+} AudioEngineSoundBuffer;
 
 extern bool gProgramIsActive;
+
+static AudioEngineSoundBuffer* gAudioEngineSoundBuffers = NULL;
+static int gAudioEngineSoundBufferCount = 0;
 
 static bool soundBufferIsValid(int soundBufferIndex);
 static void audioEngineMixin(void* userData, Uint8* stream, int length);
 
 static SDL_AudioSpec gAudioEngineSpec;
 static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
-
-// FISSION-VOCK FIX: was a flat #define (12, raised from 8 to fit the new
-// float-speech pool on top of the old worst-case budget of background music
-// (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) + dialogue speech (1) = 6, plus 2
-// spare). Now derived from every category's actual budget instead of a
-// hand-maintained number, so it can't silently drift out of sync with them.
-// Floats are the only category configurable at runtime (see [vock-floats]
-// FloatAudioChannels in game.cfg / settings.mod_settings.float_audio_channels),
-// so this is computed once in audioEngineInit(), before the SDL device is
-// opened and the mixer callback thread starts -- gAudioEngineSoundBuffers is
-// never resized after that.
-static int audioEngineSoundBufferCount()
-{
-    int floatAudioChannels = settings.mod_settings.float_audio_channels;
-    if (floatAudioChannels < 1) {
-        floatAudioChannels = 1;
-    }
-
-    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatAudioChannels;
-}
-
-static std::vector<AudioEngineSoundBuffer> gAudioEngineSoundBuffers;
 
 static bool audioEngineIsInitialized()
 {
@@ -71,7 +47,7 @@ static bool audioEngineIsInitialized()
 
 static bool soundBufferIsValid(int soundBufferIndex)
 {
-    return soundBufferIndex >= 0 && soundBufferIndex < (int)gAudioEngineSoundBuffers.size();
+    return soundBufferIndex >= 0 && soundBufferIndex < gAudioEngineSoundBufferCount;
 }
 
 static void audioEngineMixin(void* userData, Uint8* stream, int length)
@@ -82,9 +58,10 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
         return;
     }
 
-    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
+    for (int index = 0; index < gAudioEngineSoundBufferCount; index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
-        std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+        SDL_LockMutex(soundBuffer->mutex);
 
         if (soundBuffer->active && soundBuffer->playing) {
             int srcFrameSize = soundBuffer->bitsPerSample / 8 * soundBuffer->channels;
@@ -97,16 +74,6 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                     remaining = sizeof(buffer);
                 }
 
-                // FISSION-VOCK FIX: bounds-check *before* reading the next frame, not
-                // after. soundBuffer->size (derived from the decoded/loaded
-                // sound data) is not guaranteed to be an exact multiple of
-                // srcFrameSize -- confirmed via AddressSanitizer: a 2-byte
-                // (16-bit mono) frame read one byte past the end of a
-                // 72769-byte buffer (odd length) via SDL_AudioStreamPut,
-                // heap-buffer-overflow. The old code only checked
-                // soundBuffer->pos >= soundBuffer->size *after* already
-                // reading srcFrameSize bytes, so the last partial frame of
-                // any non-frame-aligned buffer could read past its end.
                 if (soundBuffer->pos + srcFrameSize > soundBuffer->size) {
                     if (soundBuffer->looping) {
                         soundBuffer->pos = 0;
@@ -116,7 +83,6 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                     }
                 }
 
-                // TODO: Make something better than frame-by-frame convertion.
                 SDL_AudioStreamPut(soundBuffer->stream, (unsigned char*)soundBuffer->data + soundBuffer->pos, srcFrameSize);
                 soundBuffer->pos += srcFrameSize;
 
@@ -130,15 +96,42 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                 pos += bytesRead;
             }
         }
+
+        SDL_UnlockMutex(soundBuffer->mutex);
     }
 }
 
 bool audioEngineInit()
 {
-    // FISSION-VOCK ADD: sized once, here, before SDL_OpenAudioDevice() below
-    // starts the mixer callback thread that iterates this vector -- never
-    // resized afterward.
-    gAudioEngineSoundBuffers = std::vector<AudioEngineSoundBuffer>(audioEngineSoundBufferCount());
+    int floatAudioChannels = settings.mod_settings.float_audio_channels;
+    if (floatAudioChannels < 1) {
+        floatAudioChannels = 1;
+    }
+
+    gAudioEngineSoundBufferCount = BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatAudioChannels;
+
+    // Allocate exact number of buffers (no cap)
+    gAudioEngineSoundBuffers = (AudioEngineSoundBuffer*)internal_malloc(sizeof(AudioEngineSoundBuffer) * gAudioEngineSoundBufferCount);
+    if (gAudioEngineSoundBuffers == NULL) {
+        return false;
+    }
+
+    // Initialize all buffers
+    for (int index = 0; index < gAudioEngineSoundBufferCount; index++) {
+        AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
+        soundBuffer->active = false;
+        soundBuffer->size = 0;
+        soundBuffer->bitsPerSample = 0;
+        soundBuffer->channels = 0;
+        soundBuffer->rate = 0;
+        soundBuffer->data = NULL;
+        soundBuffer->volume = 0;
+        soundBuffer->playing = false;
+        soundBuffer->looping = false;
+        soundBuffer->pos = 0;
+        soundBuffer->stream = NULL;
+        soundBuffer->mutex = SDL_CreateMutex();
+    }
 
     SDL_AudioSpec desiredSpec;
     desiredSpec.freq = 22050;
@@ -147,9 +140,10 @@ bool audioEngineInit()
     desiredSpec.samples = 1024;
     desiredSpec.callback = audioEngineMixin;
     const char* driver = SDL_GetCurrentAudioDriver();
-    // Prevent overriding channels, as some audio drivers (WASAPI) don't handle > 2 correctly in this context and play no sound.
-    gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
+    gAudioEngineDeviceId = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
     if (gAudioEngineDeviceId == -1) {
+        internal_free(gAudioEngineSoundBuffers);
+        gAudioEngineSoundBuffers = NULL;
         return false;
     }
 
@@ -164,6 +158,30 @@ void audioEngineExit()
         SDL_CloseAudioDevice(gAudioEngineDeviceId);
         gAudioEngineDeviceId = -1;
     }
+
+    // Clean up all buffers
+    for (int index = 0; index < gAudioEngineSoundBufferCount; index++) {
+        AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
+        if (soundBuffer->mutex != NULL) {
+            SDL_DestroyMutex(soundBuffer->mutex);
+            soundBuffer->mutex = NULL;
+        }
+        if (soundBuffer->data != NULL) {
+            free(soundBuffer->data);
+            soundBuffer->data = NULL;
+        }
+        if (soundBuffer->stream != NULL) {
+            SDL_FreeAudioStream(soundBuffer->stream);
+            soundBuffer->stream = NULL;
+        }
+    }
+
+    // Free the array itself
+    if (gAudioEngineSoundBuffers != NULL) {
+        internal_free(gAudioEngineSoundBuffers);
+        gAudioEngineSoundBuffers = NULL;
+    }
+    gAudioEngineSoundBufferCount = 0;
 }
 
 void audioEnginePause()
@@ -186,9 +204,10 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
         return -1;
     }
 
-    for (int index = 0; index < (int)gAudioEngineSoundBuffers.size(); index++) {
+    for (int index = 0; index < gAudioEngineSoundBufferCount; index++) {
         AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[index]);
-        std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+        SDL_LockMutex(soundBuffer->mutex);
 
         if (!soundBuffer->active) {
             soundBuffer->active = true;
@@ -202,8 +221,12 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
             soundBuffer->pos = 0;
             soundBuffer->data = malloc(size);
             soundBuffer->stream = SDL_NewAudioStream(bitsPerSample == 16 ? AUDIO_S16 : AUDIO_S8, channels, rate, gAudioEngineSpec.format, gAudioEngineSpec.channels, gAudioEngineSpec.freq);
+
+            SDL_UnlockMutex(soundBuffer->mutex);
             return index;
         }
+
+        SDL_UnlockMutex(soundBuffer->mutex);
     }
 
     return -1;
@@ -220,19 +243,27 @@ bool audioEngineSoundBufferRelease(int soundBufferIndex)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     soundBuffer->active = false;
 
-    free(soundBuffer->data);
-    soundBuffer->data = nullptr;
+    if (soundBuffer->data != NULL) {
+        free(soundBuffer->data);
+        soundBuffer->data = NULL;
+    }
 
-    SDL_FreeAudioStream(soundBuffer->stream);
-    soundBuffer->stream = nullptr;
+    if (soundBuffer->stream != NULL) {
+        SDL_FreeAudioStream(soundBuffer->stream);
+        soundBuffer->stream = NULL;
+    }
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -248,13 +279,17 @@ bool audioEngineSoundBufferSetVolume(int soundBufferIndex, int volume)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     soundBuffer->volume = volume;
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -270,13 +305,17 @@ bool audioEngineSoundBufferGetVolume(int soundBufferIndex, int* volumePtr)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     *volumePtr = soundBuffer->volume;
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -292,14 +331,18 @@ bool audioEngineSoundBufferSetPan(int soundBufferIndex, int pan)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     // NOTE: Audio engine does not support sound panning. I'm not sure it's
     // even needed. For now this value is silently ignored.
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -315,9 +358,11 @@ bool audioEngineSoundBufferPlay(int soundBufferIndex, unsigned int flags)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
@@ -326,6 +371,8 @@ bool audioEngineSoundBufferPlay(int soundBufferIndex, unsigned int flags)
     if ((flags & AUDIO_ENGINE_SOUND_BUFFER_PLAY_LOOPING) != 0) {
         soundBuffer->looping = true;
     }
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -341,13 +388,17 @@ bool audioEngineSoundBufferStop(int soundBufferIndex)
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     soundBuffer->playing = false;
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -363,17 +414,19 @@ bool audioEngineSoundBufferGetCurrentPosition(int soundBufferIndex, unsigned int
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
-    if (readPosPtr != nullptr) {
+    if (readPosPtr != NULL) {
         *readPosPtr = soundBuffer->pos;
     }
 
-    if (writePosPtr != nullptr) {
+    if (writePosPtr != NULL) {
         *writePosPtr = soundBuffer->pos;
 
         if (soundBuffer->playing) {
@@ -383,6 +436,8 @@ bool audioEngineSoundBufferGetCurrentPosition(int soundBufferIndex, unsigned int
             *writePosPtr %= soundBuffer->size;
         }
     }
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -398,13 +453,17 @@ bool audioEngineSoundBufferSetCurrentPosition(int soundBufferIndex, unsigned int
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     soundBuffer->pos = pos % soundBuffer->size;
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -420,18 +479,22 @@ bool audioEngineSoundBufferLock(int soundBufferIndex, unsigned int writePos, uns
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
-    if (audioBytes1 == nullptr) {
+    if (audioBytes1 == NULL) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
     if ((flags & AUDIO_ENGINE_SOUND_BUFFER_LOCK_FROM_WRITE_POS) != 0) {
-        if (!audioEngineSoundBufferGetCurrentPosition(soundBufferIndex, nullptr, &writePos)) {
+        if (!audioEngineSoundBufferGetCurrentPosition(soundBufferIndex, NULL, &writePos)) {
+            SDL_UnlockMutex(soundBuffer->mutex);
             return false;
         }
     }
@@ -444,11 +507,11 @@ bool audioEngineSoundBufferLock(int soundBufferIndex, unsigned int writePos, uns
         *(unsigned char**)audioPtr1 = (unsigned char*)soundBuffer->data + writePos;
         *audioBytes1 = writeBytes;
 
-        if (audioPtr2 != nullptr) {
-            *audioPtr2 = nullptr;
+        if (audioPtr2 != NULL) {
+            *audioPtr2 = NULL;
         }
 
-        if (audioBytes2 != nullptr) {
+        if (audioBytes2 != NULL) {
             *audioBytes2 = 0;
         }
     } else {
@@ -456,16 +519,16 @@ bool audioEngineSoundBufferLock(int soundBufferIndex, unsigned int writePos, uns
         *(unsigned char**)audioPtr1 = (unsigned char*)soundBuffer->data + writePos;
         *audioBytes1 = soundBuffer->size - writePos;
 
-        if (audioPtr2 != nullptr) {
+        if (audioPtr2 != NULL) {
             *(unsigned char**)audioPtr2 = (unsigned char*)soundBuffer->data;
         }
 
-        if (audioBytes2 != nullptr) {
+        if (audioBytes2 != NULL) {
             *audioBytes2 = writeBytes - (soundBuffer->size - writePos);
         }
     }
 
-    // TODO: Mark range as locked.
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -481,13 +544,15 @@ bool audioEngineSoundBufferUnlock(int soundBufferIndex, void* audioPtr1, unsigne
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
-    // TODO: Mark range as unlocked.
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }
@@ -503,13 +568,16 @@ bool audioEngineSoundBufferGetStatus(int soundBufferIndex, unsigned int* statusP
     }
 
     AudioEngineSoundBuffer* soundBuffer = &(gAudioEngineSoundBuffers[soundBufferIndex]);
-    std::lock_guard<std::recursive_mutex> lock(soundBuffer->mutex);
+
+    SDL_LockMutex(soundBuffer->mutex);
 
     if (!soundBuffer->active) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
-    if (statusPtr == nullptr) {
+    if (statusPtr == NULL) {
+        SDL_UnlockMutex(soundBuffer->mutex);
         return false;
     }
 
@@ -522,6 +590,8 @@ bool audioEngineSoundBufferGetStatus(int soundBufferIndex, unsigned int* statusP
             *statusPtr |= AUDIO_ENGINE_SOUND_BUFFER_STATUS_LOOPING;
         }
     }
+
+    SDL_UnlockMutex(soundBuffer->mutex);
 
     return true;
 }

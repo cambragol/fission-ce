@@ -7,8 +7,7 @@
 #include <string.h>
 #include <zlib.h>
 
-#include <vector>
-
+#include "memory.h"
 #include "platform_compat.h"
 
 namespace fallout {
@@ -152,14 +151,14 @@ static void fileCopy(const char* existingFilePath, const char* newFilePath)
 {
     FILE* in = compat_fopen(existingFilePath, "rb");
     FILE* out = compat_fopen(newFilePath, "wb");
-    if (in != nullptr && out != nullptr) {
-        std::vector<unsigned char> buffer(0xFFFF);
+    if (in != NULL && out != NULL) {
+        unsigned char buffer[0xFFFF];
 
         size_t bytesRead;
-        while ((bytesRead = fread(buffer.data(), sizeof(*buffer.data()), buffer.size(), in)) > 0) {
+        while ((bytesRead = fread(buffer, sizeof(unsigned char), sizeof(buffer), in)) > 0) {
             size_t bytesWritten;
             size_t offset = 0;
-            while ((bytesWritten = fwrite(buffer.data() + offset, sizeof(*buffer.data()), bytesRead, out)) > 0) {
+            while ((bytesWritten = fwrite(buffer + offset, sizeof(unsigned char), bytesRead, out)) > 0) {
                 bytesRead -= bytesWritten;
                 offset += bytesWritten;
             }
@@ -171,11 +170,11 @@ static void fileCopy(const char* existingFilePath, const char* newFilePath)
         }
     }
 
-    if (in != nullptr) {
+    if (in != NULL) {
         fclose(in);
     }
 
-    if (out != nullptr) {
+    if (out != NULL) {
         fclose(out);
     }
 }

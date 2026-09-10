@@ -1,8 +1,7 @@
 #include "sfall_ini.h"
 
-#include <algorithm>
-#include <cstdio> // for snprintf
-#include <cstring> // for strncpy, strlen
+#include <stdio.h>
+#include <string.h>
 
 #include "config.h"
 #include "debug.h"
@@ -12,14 +11,9 @@
 
 namespace fallout {
 
-/// The max length of `fileName` chunk in the triplet.
-static constexpr size_t kFileNameMaxSize = 63;
-
-/// The max length of `section` chunk in the triplet.
-static constexpr size_t kSectionMaxSize = 32;
-
-/// Special .ini file names which are accessed without adding base path.
-static constexpr const char* kSystemConfigFileNames[] = {
+static const size_t kFileNameMaxSize = 63;
+static const size_t kSectionMaxSize = 32;
+static const char* const kSystemConfigFileNames[] = {
     "ddraw.ini",
     "f2_res.ini",
 };
@@ -63,12 +57,11 @@ static const char* parse_ini_triplet(const char* triplet, char* fileName, char* 
 /// Returns `true` if given `fileName` is a special system .ini file name.
 static bool is_system_file_name(const char* fileName)
 {
-    for (auto& systemFileName : kSystemConfigFileNames) {
-        if (compat_stricmp(systemFileName, fileName) == 0) {
+    for (int i = 0; i < sizeof(kSystemConfigFileNames) / sizeof(kSystemConfigFileNames[0]); i++) {
+        if (compat_stricmp(kSystemConfigFileNames[i], fileName) == 0) {
             return true;
         }
     }
-
     return false;
 }
 
@@ -227,7 +220,7 @@ static const ConfigSection* sfall_find_section_in_config(Config* config, const c
     }
 
     DictionaryEntry* sectionEntry = &(config->entries[sectionIndex]);
-    return static_cast<const ConfigSection*>(sectionEntry->value);
+    return (const ConfigSection*)sectionEntry->value;
 }
 
 // set_ini_setting
@@ -284,7 +277,7 @@ void mf_get_ini_section(Program* program, int args)
             for (int i = 0; i < section->entriesLength; ++i) {
                 DictionaryEntry* entry = &(section->entries[i]);
                 const char* key = entry->key;
-                const char* value = *(static_cast<char**>(entry->value));
+                const char* value = *(char**)entry->value;
 
                 if (key != nullptr && value != nullptr) {
                     SetArray(arrayId, programMakeString(program, key), programMakeString(program, value), false, program);

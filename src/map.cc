@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <vector>
-
 #include "animation.h"
 #include "art.h"
 #include "automap.h"
@@ -175,13 +173,15 @@ static char _scratchStr[40];
 // CE: Basically the same problem described in |gMapLocalPointers|, but this
 // time Olympus folks use global map variables to store objects (looks like
 // only `self_obj`).
-static std::vector<void*> gMapGlobalPointers;
+static void** gMapGlobalPointers = NULL;
+static int gMapGlobalPointersLength = 0;
 
 // CE: There is a bug in the user-space scripting where they want to store
 // pointers to |Object| instances in local vars. This is obviously wrong as it's
 // meaningless to save these pointers in file. As a workaround use second array
 // to store these pointers.
-static std::vector<void*> gMapLocalPointers;
+static void** gMapLocalPointers = NULL;
+static int gMapLocalPointersLength = 0;
 
 // Scroll blocking 'Camera' functions
 static void mapAdjustCameraToValidArea(void)
@@ -568,14 +568,23 @@ int mapAllocLocalVars(const int numNewVars)
     gMapLocalVarsLength += numNewVars;
 
     int* vars = (int*)internal_realloc(gMapLocalVars, sizeof(*vars) * gMapLocalVarsLength);
-    if (vars == nullptr) {
+    if (vars == NULL) {
         debugPrint("\nError: Ran out of memory!");
     }
 
     gMapLocalVars = vars;
     memset((unsigned char*)vars + sizeof(*vars) * oldMapLocalVarsLength, 0, sizeof(*vars) * numNewVars);
 
-    gMapLocalPointers.resize(gMapLocalVarsLength);
+    // Resize pointer array to match (preserving existing entries)
+    void** pointers = (void**)internal_realloc(gMapLocalPointers, sizeof(void*) * gMapLocalVarsLength);
+    if (pointers == NULL) {
+        debugPrint("\nError: Ran out of memory!");
+    } else {
+        // Zero-init new slots (vector::resize behavior)
+        memset((unsigned char*)pointers + sizeof(void*) * oldMapLocalVarsLength, 0, sizeof(void*) * numNewVars);
+        gMapLocalPointers = pointers;
+        gMapLocalPointersLength = gMapLocalVarsLength;
+    }
 
     return oldMapLocalVarsLength;
 }
@@ -1183,8 +1192,17 @@ static int mapLoad(File* stream)
         strcat(path, ".GAM");
         globalVarsRead(path, "MAP_GLOBAL_VARS:", &gMapGlobalVarsLength, &gMapGlobalVars);
         if (gMapHeader.globalVariablesCount != gMapGlobalVarsLength) {
-            assert(gMapHeader.globalVariablesCount == gMapGlobalPointers.size());
-            gMapGlobalPointers.resize(gMapGlobalVarsLength);
+            assert(gMapHeader.globalVariablesCount == gMapGlobalPointersLength);
+
+            void** pointers = (void**)internal_realloc(gMapGlobalPointers, sizeof(void*) * gMapGlobalVarsLength);
+            if (pointers != NULL) {
+                if (gMapGlobalVarsLength > gMapGlobalPointersLength) {
+                    // Zero-init new slots
+                    memset((unsigned char*)pointers + sizeof(void*) * gMapGlobalPointersLength, 0, sizeof(void*) * (gMapGlobalVarsLength - gMapGlobalPointersLength));
+                }
+                gMapGlobalPointers = pointers;
+                gMapGlobalPointersLength = gMapGlobalVarsLength;
+            }
         }
         gMapHeader.globalVariablesCount = gMapGlobalVarsLength;
     }
@@ -1870,11 +1888,20 @@ static int mapGlobalVariablesInit(int count)
 
     if (count != 0) {
         gMapGlobalVars = (int*)internal_malloc(sizeof(*gMapGlobalVars) * count);
-        if (gMapGlobalVars == nullptr) {
+        if (gMapGlobalVars == NULL) {
             return -1;
         }
 
-        gMapGlobalPointers.resize(count);
+        gMapGlobalPointers = (void**)internal_malloc(sizeof(void*) * count);
+        if (gMapGlobalPointers == NULL) {
+            internal_free(gMapGlobalVars);
+            gMapGlobalVars = NULL;
+            return -1;
+        }
+
+        // vector::resize() zero-initializes; do the same
+        memset(gMapGlobalPointers, 0, sizeof(void*) * count);
+        gMapGlobalPointersLength = count;
     }
 
     gMapGlobalVarsLength = count;
@@ -1885,13 +1912,17 @@ static int mapGlobalVariablesInit(int count)
 // 0x484038
 static void mapGlobalVariablesFree()
 {
-    if (gMapGlobalVars != nullptr) {
+    if (gMapGlobalVars != NULL) {
         internal_free(gMapGlobalVars);
-        gMapGlobalVars = nullptr;
+        gMapGlobalVars = NULL;
         gMapGlobalVarsLength = 0;
     }
 
-    gMapGlobalPointers.clear();
+    if (gMapGlobalPointers != NULL) {
+        internal_free(gMapGlobalPointers);
+        gMapGlobalPointers = NULL;
+        gMapGlobalPointersLength = 0;
+    }
 }
 
 // NOTE: Inlined.
@@ -1915,11 +1946,19 @@ static int mapLocalVariablesInit(int count)
 
     if (count != 0) {
         gMapLocalVars = (int*)internal_malloc(sizeof(*gMapLocalVars) * count);
-        if (gMapLocalVars == nullptr) {
+        if (gMapLocalVars == NULL) {
             return -1;
         }
 
-        gMapLocalPointers.resize(count);
+        gMapLocalPointers = (void**)internal_malloc(sizeof(void*) * count);
+        if (gMapLocalPointers == NULL) {
+            internal_free(gMapLocalVars);
+            gMapLocalVars = NULL;
+            return -1;
+        }
+
+        memset(gMapLocalPointers, 0, sizeof(void*) * count);
+        gMapLocalPointersLength = count;
     }
 
     gMapLocalVarsLength = count;
@@ -1930,13 +1969,17 @@ static int mapLocalVariablesInit(int count)
 // 0x4840D4
 static void mapLocalVariablesFree()
 {
-    if (gMapLocalVars != nullptr) {
+    if (gMapLocalVars != NULL) {
         internal_free(gMapLocalVars);
-        gMapLocalVars = nullptr;
+        gMapLocalVars = NULL;
         gMapLocalVarsLength = 0;
     }
 
-    gMapLocalPointers.clear();
+    if (gMapLocalPointers != NULL) {
+        internal_free(gMapLocalPointers);
+        gMapLocalPointers = NULL;
+        gMapLocalPointersLength = 0;
+    }
 }
 
 // NOTE: Inlined.
