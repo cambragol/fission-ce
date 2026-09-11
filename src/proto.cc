@@ -16,6 +16,8 @@
 #include "dialog.h"
 #include "game.h"
 #include "game_movie.h"
+#include "game_content.h"
+#include "game_version.h"
 #include "interface.h"
 #include "map.h"
 #include "memory.h"
@@ -1943,10 +1945,9 @@ int _proto_dude_update_gender()
         return -1;
     }
 
-    int nativeLook = DUDE_NATIVE_LOOK_TRIBAL;
-    if (gameMovieIsSeen(MOVIE_VSUIT)) {
-        nativeLook = DUDE_NATIVE_LOOK_JUMPSUIT;
-    }
+    int nativeLook = (IS_FALLOUT_1() || gameMovieIsSeen(gMovieVsuit))
+        ? DUDE_NATIVE_LOOK_JUMPSUIT
+        : DUDE_NATIVE_LOOK_TRIBAL;
 
     int frmId;
     if (critterGetStat(gDude, STAT_GENDER) == GENDER_MALE) {
@@ -3082,22 +3083,22 @@ int protoInit()
     _mp_critter_stats_list = _aDrugStatSpecia;
     _critter_stats_list = _critter_stats_list_strs;
     _critter_stats_list_None = _aNone_1;
-    for (i = 0; i < STAT_COUNT; i++) {
+
+    for (i = 0; i < gStatCount; i++) {
         _critter_stats_list_strs[i] = statGetName(i);
-        if (_critter_stats_list_strs[i] == nullptr) {
-            debugPrint("\nError: Finding stat names!");
-            return -1;
-        }
+    }
+    for (i = gStatCount; i < STAT_COUNT; i++) {
+        _critter_stats_list_strs[i] = _aNone_1;
     }
 
     _mp_perk_code_None = _aNone_1;
     _perk_code_strs = _mp_perk_code_strs;
-    for (i = 0; i < PERK_COUNT; i++) {
+
+    for (i = 0; i < gPerkCount; i++) {
         _mp_perk_code_strs[i] = perkGetName(i);
-        if (_mp_perk_code_strs[i] == nullptr) {
-            debugPrint("\nError: Finding perk names!");
-            return -1;
-        }
+    }
+    for (i = gPerkCount; i < PERK_COUNT; i++) {
+        _mp_perk_code_strs[i] = _aNone_1;
     }
 
     if (!messageListInit(&gProtoMessageList)) {

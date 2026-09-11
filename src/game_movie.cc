@@ -9,6 +9,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "mouse.h"
 #include "movie.h"
@@ -31,47 +32,36 @@ static char* gameMovieBuildSubtitlesFilePath(char* movieFilePath);
 // 0x50352A
 static const float flt_50352A = 0.032258064f;
 
-// 0x518DA0
-static const char* gMovieFileNames[MOVIE_COUNT] = {
-    "iplogo.mve",
-    "intro.mve",
-    "elder.mve",
-    "vsuit.mve",
-    "afailed.mve",
-    "adestroy.mve",
-    "car.mve",
-    "cartucci.mve",
-    "timeout.mve",
-    "tanker.mve",
-    "enclave.mve",
-    "derrick.mve",
-    "artimer1.mve",
-    "artimer2.mve",
-    "artimer3.mve",
-    "artimer4.mve",
-    "credits.mve",
-};
+// Defaults match Fallout 2 (FISSION's native behavior). gameMoviesInit
+// overrides them for Fallout 1.
+int gMovieIplogo   = 0;
+int gMovieIntro    = 1;
+int gMovieElder    = 2;
+int gMovieVsuit    = 3;
+int gMovieAfailed  = 4;
+int gMovieAdestroy = 5;
+int gMovieCar      = 6;
+int gMovieCartucci = 7;
+int gMovieTimeout  = 8;
+int gMovieTanker   = 9;
+int gMovieEnclave  = 10;
+int gMovieDerrick  = 11;
+int gMovieArtimer1 = 12;
+int gMovieArtimer2 = 13;
+int gMovieArtimer3 = 14;
+int gMovieArtimer4 = 15;
+int gMovieCredits  = 16;
+int gMovieNewGameBriefing = 2;   // F2 default: elder
 
-// 0x518DE4
-static const char* gMoviePaletteFilePaths[MOVIE_COUNT] = {
-    nullptr,
-    "art\\cuts\\introsub.pal",
-    "art\\cuts\\eldersub.pal",
-    nullptr,
-    "art\\cuts\\artmrsub.pal",
-    nullptr,
-    nullptr,
-    nullptr,
-    "art\\cuts\\artmrsub.pal",
-    nullptr,
-    nullptr,
-    nullptr,
-    "art\\cuts\\artmrsub.pal",
-    "art\\cuts\\artmrsub.pal",
-    "art\\cuts\\artmrsub.pal",
-    "art\\cuts\\artmrsub.pal",
-    "art\\cuts\\crdtssub.pal",
-};
+// 0x518DA0
+// Populated by gameMoviesInit. In F1 mode these hold F1's list; in F2 mode
+// F2's. Slot count is always MOVIE_COUNT so the seen bitmap in save files
+// stays the same shape.
+static const char* gMovieFileNames[MOVIE_COUNT];
+
+// Subtitle palettes, same indexing as gMovieFileNames. nullptr means
+// fall back to the default subtitle palette.
+static const char* gMoviePaletteFilePaths[MOVIE_COUNT];
 
 // 0x518E28
 static bool gGameMovieIsPlaying = false;
@@ -95,8 +85,112 @@ int gameMoviesInit()
     }
 
     movieSetVolume(volume);
-
     movieSetBuildSubtitleFilePathProc(gameMovieBuildSubtitlesFilePath);
+
+    // Populate movie tables for the loaded game version.
+    if (IS_FALLOUT_1()) {
+        // Fallout 1's list, at F1's native indices.
+        gMovieFileNames[0]  = "iplogo.mve";
+        gMovieFileNames[1]  = "mplogo.mve";
+        gMovieFileNames[2]  = "intro.mve";
+        gMovieFileNames[3]  = "vexpld.mve";
+        gMovieFileNames[4]  = "cathexp.mve";
+        gMovieFileNames[5]  = "ovrintro.mve";
+        gMovieFileNames[6]  = "boil3.mve";
+        gMovieFileNames[7]  = "ovrrun.mve";
+        gMovieFileNames[8]  = "walkm.mve";
+        gMovieFileNames[9]  = "walkw.mve";
+        gMovieFileNames[10] = "dipedv.mve";
+        gMovieFileNames[11] = "boil1.mve";
+        gMovieFileNames[12] = "boil2.mve";
+        gMovieFileNames[13] = "raekills.mve";
+        // F1 has no equivalent of F2's movies; leave slots 14-16 null.
+        for (int i = 14; i < MOVIE_COUNT; i++) {
+            gMovieFileNames[i] = nullptr;
+        }
+
+        // F1 subtitle palettes. Known values are filled in; unknown ones
+        // fall back to the default subtitle.pal. Can be tuned later.
+        for (int i = 0; i < MOVIE_COUNT; i++) {
+            gMoviePaletteFilePaths[i] = nullptr;
+        }
+        // F1 has no elder/artimer/crdtssub palettes; those are F2-specific.
+
+        // Re-point the semantic identifiers to F1's indices.
+        gMovieIplogo   = 0;
+        gMovieIntro    = 2;
+        gMovieNewGameBriefing    = 5;   // F1 has overseer briefing
+        gMovieVsuit    = -1;   // F1 has no vault-suit cutscene
+        gMovieAfailed  = -1;
+        gMovieAdestroy = -1;
+        gMovieCar      = -1;
+        gMovieCartucci = -1;
+        gMovieTimeout  = -1;
+        gMovieTanker   = -1;
+        gMovieEnclave  = -1;
+        gMovieDerrick  = -1;
+        gMovieArtimer1 = -1;
+        gMovieArtimer2 = -1;
+        gMovieArtimer3 = -1;
+        gMovieArtimer4 = -1;
+        gMovieCredits  = -1;   // F1 credits are text-only
+
+    } else {
+        // Fallout 2 (unchanged from original).
+        gMovieFileNames[0]  = "iplogo.mve";
+        gMovieFileNames[1]  = "intro.mve";
+        gMovieFileNames[2]  = "elder.mve";
+        gMovieFileNames[3]  = "vsuit.mve";
+        gMovieFileNames[4]  = "afailed.mve";
+        gMovieFileNames[5]  = "adestroy.mve";
+        gMovieFileNames[6]  = "car.mve";
+        gMovieFileNames[7]  = "cartucci.mve";
+        gMovieFileNames[8]  = "timeout.mve";
+        gMovieFileNames[9]  = "tanker.mve";
+        gMovieFileNames[10] = "enclave.mve";
+        gMovieFileNames[11] = "derrick.mve";
+        gMovieFileNames[12] = "artimer1.mve";
+        gMovieFileNames[13] = "artimer2.mve";
+        gMovieFileNames[14] = "artimer3.mve";
+        gMovieFileNames[15] = "artimer4.mve";
+        gMovieFileNames[16] = "credits.mve";
+
+        gMoviePaletteFilePaths[0]  = nullptr;
+        gMoviePaletteFilePaths[1]  = "art\\cuts\\introsub.pal";
+        gMoviePaletteFilePaths[2]  = "art\\cuts\\eldersub.pal";
+        gMoviePaletteFilePaths[3]  = nullptr;
+        gMoviePaletteFilePaths[4]  = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[5]  = nullptr;
+        gMoviePaletteFilePaths[6]  = nullptr;
+        gMoviePaletteFilePaths[7]  = nullptr;
+        gMoviePaletteFilePaths[8]  = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[9]  = nullptr;
+        gMoviePaletteFilePaths[10] = nullptr;
+        gMoviePaletteFilePaths[11] = nullptr;
+        gMoviePaletteFilePaths[12] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[13] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[14] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[15] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[16] = "art\\cuts\\crdtssub.pal";
+
+        gMovieIplogo   = 0;
+        gMovieIntro    = 1;
+        gMovieNewGameBriefing    = 2;
+        gMovieVsuit    = 3;
+        gMovieAfailed  = 4;
+        gMovieAdestroy = 5;
+        gMovieCar      = 6;
+        gMovieCartucci = 7;
+        gMovieTimeout  = 8;
+        gMovieTanker   = 9;
+        gMovieEnclave  = 10;
+        gMovieDerrick  = 11;
+        gMovieArtimer1 = 12;
+        gMovieArtimer2 = 13;
+        gMovieArtimer3 = 14;
+        gMovieArtimer4 = 15;
+        gMovieCredits  = 16;
+    }
 
     memset(gGameMoviesSeen, 0, sizeof(gGameMoviesSeen));
 
@@ -139,9 +233,17 @@ int gameMoviesSave(File* stream)
 // 0x44E690
 int gameMoviePlay(int movie, int flags)
 {
-    gGameMovieIsPlaying = true;
+    if (movie < 0 || movie >= MOVIE_COUNT) {
+        return 0;   // Not present in this game.
+    }
 
     const char* movieFileName = gMovieFileNames[movie];
+    if (movieFileName == nullptr) {
+        return 0;   // Same.
+    }
+
+    gGameMovieIsPlaying = true;
+
     debugPrint("\nPlaying movie: %s\n", movieFileName);
 
     const char* language = settings.system.language.c_str();
@@ -343,6 +445,9 @@ void gameMovieFadeOut()
 // 0x44EB04
 bool gameMovieIsSeen(int movie)
 {
+    if (movie < 0 || movie >= MOVIE_COUNT) {
+        return false;
+    }
     return gGameMoviesSeen[movie] == 1;
 }
 

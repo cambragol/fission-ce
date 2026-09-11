@@ -714,9 +714,14 @@ int interfaceInit()
     // Add an extra shift right for wide interfaces (more room for ammometre)
     extraShift = gInterfaceBarIsWide ? 4 : 0;
 
+    int backgroundHeight = backgroundFrmImage.getHeight();
+    if (backgroundHeight > INTERFACE_BAR_HEIGHT) {
+        backgroundHeight = INTERFACE_BAR_HEIGHT;
+    }
+
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
-        backgroundFrmImage.getHeight(),
+        backgroundHeight,
         backgroundFrmImage.getWidth(),
         gInterfaceWindowBuffer,
         gInterfaceBarWidth);
