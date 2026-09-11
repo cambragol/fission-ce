@@ -205,6 +205,15 @@ void characterSelectorWriteDefaultOffsetsToConfig(bool isWidescreen, const Chara
     configSetInt(&gGameConfig, section, "bioMaxY", defaults->bioMaxY);
 }
 
+static const char* safeName(const char* s, const char* what, int index)
+{
+    if (s == nullptr) {
+        fprintf(stderr, "[CS] NULL name from %s (index=%d)\n", what, index);
+        return "(null)";
+    }
+    return s;
+}
+
 // 0x4A71D0
 int characterSelectorOpen()
 {
@@ -694,7 +703,7 @@ static bool characterSelectorWindowRenderFace()
 
 static bool characterSelectorWindowRenderStats()
 {
-    char* str;
+const char* str;
     char text[260];
     int length;
     int value;
@@ -728,7 +737,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -747,7 +758,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -766,7 +779,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -785,7 +800,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -804,7 +821,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -823,7 +842,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -842,7 +863,9 @@ static bool characterSelectorWindowRenderStats()
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    str = statGetValueDescription(value);
+    //str = statGetValueDescription(value);
+    str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
+
     snprintf(text, sizeof(text), "  %s", str);
 
     length = fontGetStringWidth(text);
@@ -935,7 +958,9 @@ static bool characterSelectorWindowRenderStats()
     for (int index = 0; index < DEFAULT_TAGGED_SKILLS; index++) {
         y += vh;
 
-        str = skillGetName(skills[index]);
+        str = safeName(skillGetName(skills[index]), "skillGetName", skills[index]);
+strcpy(text, str);
+        //str = skillGetName(skills[index]);
         strcpy(text, str);
 
         length = fontGetStringWidth(text);
@@ -957,7 +982,9 @@ static bool characterSelectorWindowRenderStats()
     for (int index = 0; index < TRAITS_MAX_SELECTED_COUNT; index++) {
         y += vh;
 
-        str = traitGetName(traits[index]);
+        str = safeName(traitGetName(traits[index]), "traitGetName", traits[index]);
+strcpy(text, str);
+        //str = traitGetName(traits[index]);
         strcpy(text, str);
 
         length = fontGetStringWidth(text);

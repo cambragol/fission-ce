@@ -447,13 +447,13 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
     int day = gGameTime / GAME_TIME_TICKS_PER_DAY;
 
     if (gameGetGlobalVar(GVAR_ENEMY_ARROYO)) {
-        movie = MOVIE_AFAILED;
+        movie = gMovieAfailed;
         movieFlags = GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC;
         endgame = true;
     } else {
         if (day >= settings.mod_settings.movie_timer_artimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
-            movie = MOVIE_ARTIMER4;
-            if (!gameMovieIsSeen(MOVIE_ARTIMER4)) {
+            movie = gMovieArtimer4;
+            if (!gameMovieIsSeen(gMovieArtimer4)) {
                 adjustRep = true;
                 wmAreaSetVisibleState(CITY_ARROYO, 0, 1);
                 wmAreaSetVisibleState(CITY_DESTROYED_ARROYO, 1, 1);
@@ -461,13 +461,13 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
             }
         } else if (day >= settings.mod_settings.movie_timer_artimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
-            movie = MOVIE_ARTIMER3;
+            movie = gMovieArtimer3;
         } else if (day >= settings.mod_settings.movie_timer_artimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
-            movie = MOVIE_ARTIMER2;
+            movie = gMovieArtimer2;
         } else if (day >= settings.mod_settings.movie_timer_artimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
             adjustRep = true;
-            movie = MOVIE_ARTIMER1;
+            movie = gMovieArtimer1;
         }
     }
 

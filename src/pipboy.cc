@@ -1413,7 +1413,7 @@ static void _pip_init_()
     // SFALL: Make the pipboy available at the start of the game.
     // CE: The implementation is slightly different. SFALL has two values for
     // making the pipboy available at the start of the game. When the option is
-    // set to (1), the `MOVIE_VSUIT` is automatically marked as viewed (the suit
+    // set to (1), the `gMovieVsuit` is automatically marked as viewed (the suit
     // grants the pipboy, see `wmMapPipboyActive`). Doing so exposes that movie
     // in the "Video Archives" section of the pipboy, which is likely an
     // undesired side effect. When the option is set to (2), the check is simply

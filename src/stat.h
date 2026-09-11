@@ -3,6 +3,7 @@
 
 #include "db.h"
 #include "obj_types.h"
+#include "game_content.h"
 #include "proto_types.h"
 #include "stat_defs.h"
 
@@ -43,7 +44,7 @@ int pcSetExperience(int xp);
 
 static inline bool statIsValid(int stat)
 {
-    return stat >= 0 && stat < STAT_COUNT;
+    return stat >= 0 && stat < gStatCount;
 }
 
 static inline bool pcStatIsValid(int pcStat)

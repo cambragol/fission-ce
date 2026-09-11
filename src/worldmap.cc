@@ -26,6 +26,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -5025,7 +5026,7 @@ bool wmMapCanRestHere(int elevation)
 // 0x4BFAFC
 bool wmMapPipboyActive()
 {
-    return gameMovieIsSeen(MOVIE_VSUIT);
+    return IS_FALLOUT_1() || gameMovieIsSeen(gMovieVsuit);
 }
 
 // 0x4BFB08

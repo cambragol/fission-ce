@@ -138,18 +138,38 @@ int skillsInit()
         messageListItem.num = 100 + skill;
         if (messageListGetItem(&gSkillsMessageList, &messageListItem)) {
             gSkillDescriptions[skill].name = messageListItem.text;
+        } else {
+            gSkillDescriptions[skill].name = nullptr;
         }
 
         messageListItem.num = 200 + skill;
         if (messageListGetItem(&gSkillsMessageList, &messageListItem)) {
             gSkillDescriptions[skill].description = messageListItem.text;
+        } else {
+            gSkillDescriptions[skill].description = nullptr;
         }
 
         messageListItem.num = 300 + skill;
         if (messageListGetItem(&gSkillsMessageList, &messageListItem)) {
             gSkillDescriptions[skill].attributes = messageListItem.text;
+        } else {
+            gSkillDescriptions[skill].attributes = nullptr;
         }
     }
+
+    gSkillCount = 0;
+    for (int skill = 0; skill < SKILL_COUNT; skill++) {
+        if (gSkillDescriptions[skill].name == nullptr) {
+            break;
+        }
+        gSkillCount = skill + 1;
+    }
+
+    if (gSkillCount == 0) {
+        gSkillCount = SKILL_COUNT;
+    }
+
+    debugPrint("[GAME] Discovered %d skills (engine max %d)\n", gSkillCount, SKILL_COUNT);
 
     for (int index = 0; index < NUM_TAGGED_SKILLS; index++) {
         gTaggedSkills[index] = -1;
