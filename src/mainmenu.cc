@@ -9,6 +9,7 @@
 #include "draw.h"
 #include "game.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "kb.h"
 #include "memory.h"
@@ -172,6 +173,16 @@ static FrmImage _mainMenuFissionModLogoFrmImage;
 
 bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
 {
+    if (IS_FALLOUT_1()) {
+        return loadOffsetsFromConfig<MainMenuOffsets>(
+            offsets,
+            isWidescreen,
+            "f1_mainmenu",
+            gMainMenuOffsetsF1_640,
+            gMainMenuOffsetsF1_800,
+            applyConfigToMainMenuOffsets);
+    }
+
     return loadOffsetsFromConfig<MainMenuOffsets>(
         offsets,
         isWidescreen,
@@ -182,11 +193,8 @@ bool mainMenuLoadOffsetsFromConfig(MainMenuOffsets* offsets, bool isWidescreen)
 }
 
 // move to seperate widescreen.cc file later?
-void mainMenuWriteDefaultOffsetsToConfig(bool isWidescreen, const MainMenuOffsets* defaults)
+void mainMenuWriteDefaultOffsetsToConfig(const char* section, const MainMenuOffsets* defaults)
 {
-    const char* section = isWidescreen ? "mainmenu800" : "mainmenu640";
-
-    // Write all default values to config
     configSetInt(&gGameConfig, section, "copyrightX", defaults->copyrightX);
     configSetInt(&gGameConfig, section, "copyrightY", defaults->copyrightY);
     configSetInt(&gGameConfig, section, "versionX", defaults->versionX);
@@ -268,11 +276,11 @@ int mainMenuWindowInit()
     // Check if we should write defaults or not
     int writeOffsets = 0;
     if (configGetInt(&gGameConfig, "debug", "write_offsets", &writeOffsets) && writeOffsets) {
-        // Write BOTH sets of defaults
-        mainMenuWriteDefaultOffsetsToConfig(false, &gMainMenuOffsets640); // 640x480 defaults
-        mainMenuWriteDefaultOffsetsToConfig(true, &gMainMenuOffsets800); // 800x600 defaults
+        mainMenuWriteDefaultOffsetsToConfig("mainmenu640",   &gMainMenuOffsets640);
+        mainMenuWriteDefaultOffsetsToConfig("mainmenu800",   &gMainMenuOffsets800);
+        mainMenuWriteDefaultOffsetsToConfig("f1_mainmenu640", &gMainMenuOffsetsF1_640);
+        mainMenuWriteDefaultOffsetsToConfig("f1_mainmenu800", &gMainMenuOffsetsF1_800);
 
-        // Disable writing and save
         configSetInt(&gGameConfig, "debug", "write_offsets", 0);
         gameConfigSave();
     }
@@ -320,7 +328,12 @@ int mainMenuWindowInit()
     //        0x010000 - change the color for version string only
     //        0x020000 - underline text (only for the version string)
     //        0x040000 - monospace font (only for the version string)
-    int fontSettings = _colorTable[COL_OLIVE_YELLOW];
+    int fontSettings;
+    if(!IS_FALLOUT_1()) {
+        fontSettings = _colorTable[COL_OLIVE_YELLOW];
+    } else {
+        fontSettings = _colorTable[COL_MEDIUM_GRAY];
+    }
     int fontSettingsSFall = settings.mod_settings.main_menu_font_color;
     if (fontSettingsSFall && !(fontSettingsSFall & 0x010000))
         fontSettings = fontSettingsSFall & 0xFF;
@@ -330,7 +343,11 @@ int mainMenuWindowInit()
     int offsetY = settings.mod_settings.main_menu_credits_offset_y;
 
     // Copyright.
-    msg.num = 20;
+    if(!IS_FALLOUT_1()) {
+        msg.num = 20;
+    } else {
+        msg.num = 14;
+    }
     if (messageListGetItem(&gMiscMessageList, &msg)) {
         windowDrawText(gMainMenuWindow, msg.text, 0, offsetX + gOffsets.copyrightX, offsetY + gOffsets.copyrightY, fontSettings | 0x06000000);
     }
@@ -430,9 +447,21 @@ int mainMenuWindowInit()
     offsetY = settings.mod_settings.main_menu_offset_y;
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
+        // Fallout 1 has no Options button.
+        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS) {
+            gMainMenuButtons[index] = -1;
+            continue;
+        }
+
+        // Close the gap left by hidden buttons above this one.
+        int visualIndex = index;
+        if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+            visualIndex--;
+        }
+
         gMainMenuButtons[index] = buttonCreate(gMainMenuWindow,
             offsetX + gOffsets.buttonBaseX,
-            offsetY + gOffsets.buttonBaseY + index * 42 - index,
+            offsetY + gOffsets.buttonBaseY + visualIndex * 42 - visualIndex,
             26,
             26,
             -1,
@@ -461,10 +490,25 @@ int mainMenuWindowInit()
     }
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
-        msg.num = 9 + index;
+        // Fallout 1 has no Options button (and therefore no Options string in misc.msg).
+        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS) {
+            continue;
+        }
+
+        // Fallout 1's misc.msg is missing the Options entry, so strings after it shift down by one.
+        msg.num = 9 + index; // Intro
+        if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+            msg.num--;
+        }
+
         if (messageListGetItem(&gMiscMessageList, &msg)) {
+            int visualIndex = index;
+            if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+                visualIndex--;
+            }
+
             len = fontGetStringWidth(msg.text);
-            fontDrawText(gMainMenuWindowBuffer + gOffsets.buttonTextOffsetX + offsetX + gOffsets.width * (gOffsets.buttonTextOffsetY + offsetY + 42 * index - index + 20) + 126 - (len / 2), msg.text, gOffsets.width - (126 - (len / 2)) - 1, gOffsets.width, fontSettings);
+            fontDrawText(gMainMenuWindowBuffer + gOffsets.buttonTextOffsetX + offsetX + gOffsets.width * (gOffsets.buttonTextOffsetY + offsetY + 42 * visualIndex - visualIndex + 20) + 126 - (len / 2), msg.text, gOffsets.width - (126 - (len / 2)) - 1, gOffsets.width, fontSettings);
         }
     }
 
@@ -484,8 +528,7 @@ void mainMenuWindowFree()
     }
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
-        // FIXME: Why it tries to free only invalid buttons?
-        if (gMainMenuButtons[index] == -1) {
+        if (gMainMenuButtons[index] != -1) {
             buttonDestroy(gMainMenuButtons[index]);
         }
     }
@@ -599,6 +642,11 @@ int mainMenuWindowHandleEvents()
         int keyCode = inputGetInput();
 
         for (int buttonIndex = 0; buttonIndex < MAIN_MENU_BUTTON_COUNT; buttonIndex++) {
+            // Fallout 1 has no Options button.
+            if (IS_FALLOUT_1() && buttonIndex == MAIN_MENU_BUTTON_OPTIONS) {
+                continue;
+            }
+
             if (keyCode == gMainMenuButtonKeyBindings[buttonIndex] || keyCode == toupper(gMainMenuButtonKeyBindings[buttonIndex])) {
                 // NOTE: Uninline.
                 main_menu_play_sound("nmselec1");
