@@ -2935,6 +2935,9 @@ static void pipboyWindowHandleAutomaps(int userInput)
             gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_CONTENT_VIEW_Y + PIPBOY_WINDOW_CONTENT_VIEW_X,
             PIPBOY_WINDOW_WIDTH);
 
+        if (gPipboyLinesCount >= 0) {
+            gPipboyCurrentLine = 0;
+        }
         const char* title = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 205);
         pipboyDrawText(title, PIPBOY_TEXT_ALIGNMENT_CENTER | PIPBOY_TEXT_STYLE_UNDERLINE, _colorTable[COL_LIME_GREEN]);
 
