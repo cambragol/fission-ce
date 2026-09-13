@@ -253,6 +253,7 @@ typedef struct CityInfo {
     int visitedState;
     int mapFid;
     int labelFid;
+    int labelSrcY;
     int entrancesLength;
     EntranceInfo entrances[ENTRANCE_LIST_CAPACITY];
     int firstEntranceOffset; // global offset within mod's message block (-1 = not used)
@@ -479,6 +480,137 @@ float gScriptWorldMapMulti = 1.0f;
 void wmSetScriptWorldMapMulti(float value)
 {
     gScriptWorldMapMulti = value;
+}
+
+// FIDs and capability flags for world map interface elements.
+// Selected at runtime by |wmElements()| based on which game is running.
+typedef struct WorldmapElements {
+    // FIDs. -1 = element does not exist for this game.
+    int backgroundFid;
+    int citySizeFid[CITY_SIZE_COUNT];
+    int hotspotNormalFid;
+    int hotspotPressedFid;
+    int destinationMarkerFid;
+    int locationMarkerFid;
+    int encounterCursorFid[WORLD_MAP_ENCOUNTER_FRM_COUNT];
+    int tabsBackgroundFid;
+    int tabsBorderFid;
+    int dialFid;
+    int carOverlayFid;
+    int globeOverlayFid;
+    int redButtonNormalFid;
+    int redButtonPressedFid;
+    int monthsFid;
+    int numbersFid;
+    int scrollUpFid[WORLDMAP_ARROW_FRM_COUNT];
+    int scrollDownFid[WORLDMAP_ARROW_FRM_COUNT];
+    int carMovieFid;
+    int labelRowHeight;
+    int widescreenBorderFid[4];
+    // Base message ID for the "Short City names" block in map.msg.
+    // F1: 500, F2: 1500.
+
+    // Which elements are drawn/created for this game.
+    bool hasTownTabs;
+    bool hasDayNightDial;
+    bool hasCar;
+    bool hasGlobeOverlay;
+    bool hasScrollButtons;
+    bool hasQuickDestinations;
+    bool hasTownWorldSwitchButton;
+    bool hasWidescreenBorder;
+    bool hasCitySizeCircles;
+    bool hasDateDisplay;
+} WorldmapElements;
+
+static const WorldmapElements gWorldmapElementsF2 = {
+    .backgroundFid        = 136,
+    .citySizeFid          = { 336, 337, 338 },
+    .hotspotNormalFid     = 168,
+    .hotspotPressedFid    = 223,
+    .destinationMarkerFid = 139,
+    .locationMarkerFid    = 138,
+    .encounterCursorFid   = { 154, 155, 438, 439 },
+    .tabsBackgroundFid    = 364,
+    .tabsBorderFid        = 367,
+    .dialFid              = 365,
+    .carOverlayFid        = 363,
+    .globeOverlayFid      = 366,
+    .redButtonNormalFid   = 8,
+    .redButtonPressedFid  = 9,
+    .monthsFid            = 129,
+    .numbersFid           = 82,
+    .scrollUpFid          = { 199, 200 },
+    .scrollDownFid        = { 181, 182 },
+    .carMovieFid          = 433,
+    .labelRowHeight       = 18,
+    .widescreenBorderFid  = { /* fill in with F2's wminfce fids */ },
+
+    .hasTownTabs              = true,
+    .hasDayNightDial          = true,
+    .hasCar                   = true,
+    .hasGlobeOverlay          = true,
+    .hasScrollButtons         = true,
+    .hasQuickDestinations     = true,
+    .hasTownWorldSwitchButton = true,
+    .hasWidescreenBorder      = true,
+    .hasCitySizeCircles       = true,
+    .hasDateDisplay           = true,
+};
+
+// Capability flags are all true: this is the full FISSION/F2 interface
+// layout, just addressed through the F1 data pack's FID numbering.
+static const WorldmapElements gWorldmapElementsFissionF1 = {
+    .backgroundFid        = 136,
+    .citySizeFid          = { 4700, 4701, 4702 },
+    .hotspotNormalFid     = 168,
+    .hotspotPressedFid    = 223,
+    .destinationMarkerFid = 139,
+    .locationMarkerFid    = 138,
+    .encounterCursorFid   = { 154, 155, 7774, 7775 },
+    .tabsBackgroundFid    = 8072,
+    .tabsBorderFid        = 6814,
+    .dialFid              = 5085,
+    .carOverlayFid        = 7599,
+    .globeOverlayFid      = 5722,
+    .redButtonNormalFid   = 8,
+    .redButtonPressedFid  = 9,
+    .monthsFid            = 129,
+    .numbersFid           = 82,
+    .scrollUpFid          = { 199, 200 },
+    .scrollDownFid        = { 181, 182 },
+    .carMovieFid          = 5770,
+    .labelRowHeight       = 18,
+    .widescreenBorderFid  = { -1, -1, -1, -1 },
+
+    .hasTownTabs              = true,
+    .hasDayNightDial          = true,
+    .hasCar                   = true,
+    .hasGlobeOverlay          = true,
+    .hasScrollButtons         = true,
+    .hasQuickDestinations     = true,
+    .hasTownWorldSwitchButton = true,
+    .hasWidescreenBorder      = false,
+    .hasCitySizeCircles       = true,
+    .hasDateDisplay           = true,
+};
+
+static const WorldmapElements gWorldmapElementsVanillaF1 = gWorldmapElementsFissionF1;
+
+static inline const WorldmapElements* wmElements()
+{
+    if (!IS_FALLOUT_1()) {
+        return &gWorldmapElementsF2;
+    }
+
+    // Fallout 1. FISSION interface by default; pure F1 interface only when
+    // strict_vanilla is on and we're at the vanilla viewport (strict_vanilla
+    // never overrides the widescreen view).
+    if (settings.enhancements.strict_vanilla && !gameIsWidescreen()) {
+        return &gWorldmapElementsVanillaF1;
+    }
+
+    return &gWorldmapElementsFissionF1;
 }
 
 static void wmSetFlags(int* flagsPtr, int flag, int value);
@@ -767,14 +899,6 @@ static const char* wmFormationStrs[ENCOUNTER_FORMATION_TYPE_COUNT] = {
     "huddle",
 };
 
-// 0x51DE84
-static const int wmRndCursorFids[WORLD_MAP_ENCOUNTER_FRM_COUNT] = {
-    154,
-    155,
-    438,
-    439,
-};
-
 #define MAX_TRAIL_LENGTH 1000
 
 typedef struct {
@@ -854,6 +978,8 @@ static int wmTownMapSubButtonIds[7];
 
 // 0x672FF8
 static CitySizeDescription wmSphereData[CITY_SIZE_COUNT];
+
+bool gSuppressMapEnterScript = false;
 
 // Fixed array sizes for worldmap encounter data (mod support)
 #define TOTAL_ENCOUNTER_TABLE_MAX 2048
@@ -1194,7 +1320,10 @@ int wmWorldMap_init()
     // initialize it.
     for (int citySize = 0; citySize < CITY_SIZE_COUNT; citySize++) {
         CitySizeDescription* citySizeDescription = &(wmSphereData[citySize]);
-        citySizeDescription->fid = buildFid(OBJ_TYPE_INTERFACE, 336 + citySize, 0, 0, 0);
+        int fidIdx = wmElements()->citySizeFid[citySize];
+        citySizeDescription->fid = (fidIdx != -1)
+            ? buildFid(OBJ_TYPE_INTERFACE, fidIdx, 0, 0, 0)
+            : -1;
     }
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_WORLDMAP, &wmMsgFile);
@@ -1319,6 +1448,22 @@ static uint16_t wmHashLookupName(const char* lookupName)
         p++;
     }
     return MOD_MAP_START + (hash % (MOD_MAP_MAX - MOD_MAP_START));
+}
+
+static void wmBlitCityLabel(FrmImage& labelFrm, CityInfo* city,
+                            unsigned char* dest, int destPitch,
+                            int clipTop, int clipBottom)
+{
+    int labelH = wmElements()->labelRowHeight;
+    int srcY   = city->labelSrcY + clipTop;
+    int srcH   = labelH - clipTop - clipBottom;
+
+    if (srcH <= 0) return;
+
+    blitBufferToBuffer(
+        labelFrm.getData() + labelFrm.getWidth() * srcY,
+        labelFrm.getWidth(), srcH, labelFrm.getWidth(),
+        dest, destPitch);
 }
 
 // 0x4BCE00
@@ -3260,6 +3405,7 @@ static int wmAreaSlotInit(CityInfo* area)
     area->visitedState = 0;
     area->mapFid = -1;
     area->labelFid = -1;
+    area->labelSrcY = 0;
     area->entrancesLength = 0;
     area->firstEntranceOffset = -1;
 
@@ -3367,6 +3513,11 @@ static void wmAreaInitFromConfig(CityInfo* city, Config* config, const char* sec
         city->labelFid = num;
     }
 
+    debugPrint("[WM] %s labelFid=%d", city->name, city->labelFid);
+
+
+    configGetInt(config, section, "label_art_y", &city->labelSrcY);
+
     // Optional field: lock_state
     if (configGetString(config, section, "lock_state", &str)) {
         if (strParseStrFromList(&str, &(city->lockState), wmStateStrs, 2) == -1) return;
@@ -3449,6 +3600,8 @@ static void wmAreaUpdateFromConfig(CityInfo* city, Config* config, const char* s
         city->labelFid = num;
         debugPrint("\nwmAreaUpdateFromConfig: Updated townmap_label_art_idx");
     }
+
+    configGetInt(config, section, "label_art_y", &city->labelSrcY);
 
     // Optional field: lock_state
     if (configGetString(config, section, "lock_state", &str)) {
@@ -5150,6 +5303,16 @@ static int wmWorldMapFunc(int a1)
 {
     ScopedGameMode gm(GameMode::kWorldmap);
 
+    // Clear stale encounter state. Without this, returning to the
+    // worldmap after an encounterand clicking the marker on empty
+    // terrain when using Fallout 1 would reload the previous encounter's critters
+    // (F2's marker click path hardcodes map 0, whose script re-runs
+    // wmSetupRandomEncounter against leftover state from the last encounter).
+    wmGenData.encounterMapId = -1;
+    wmGenData.encounterTableId = -1;
+    wmGenData.encounterEntryId = -1;
+    wmGenData.encounterIconIsVisible = false;
+
     wmFadeOut();
 
     restoreUserAspectPreference();
@@ -5348,7 +5511,29 @@ static int wmWorldMapFunc(int a1)
                             city->visitedState = 2;
                         }
                     } else {
-                        map = 0;
+                        // F1 fidelity: pick a map from the current terrain's pool, not the
+                        // hardcoded F2 map 0.
+                        if (IS_FALLOUT_1()) {
+                            wmPartyFindCurSubTile();
+                            if (wmGenData.currentSubtile != nullptr) {
+                                Terrain* terrain = &(wmTerrainTypeList[wmGenData.currentSubtile->terrain]);
+                                if (terrain->mapsLength > 0) {
+                                    map = terrain->maps[randomBetween(0, terrain->mapsLength - 1)];
+                                } else {
+                                    map = 0;
+                                }
+                            } else {
+                                map = 0;
+                            }
+
+                            // Marker click on empty terrain: no encounter was fired, so the
+                            // destination map's script must not spawn anything. F1's terrain
+                            // maps spawn in their map_enter proc based on GVAR_WORLD_TERRAIN,
+                            // which we don't set here. Flag the loader to skip that proc.
+                            gSuppressMapEnterScript = true;
+                        } else {
+                            map = 0;
+                        }
                     }
 
                     if (map != -1) {
@@ -5546,7 +5731,7 @@ static int wmRndEncounterOccurred()
         return 0;
     }
 
-    if (!wmGenData.didMeetFrankHorrigan) {
+    if (!IS_FALLOUT_1() && !wmGenData.didMeetFrankHorrigan) {
         unsigned int gameTime = gameTimeGetTime();
         if (gameTime / GAME_TIME_TICKS_PER_DAY > 35) {
             // SFALL: Add a flashing icon to the Horrigan encounter.
@@ -5631,17 +5816,20 @@ static int wmRndEncounterOccurred()
 
     EncounterTable* encounterTable = &(wmEncounterTableList[wmGenData.encounterTableId]);
     EncounterTableEntry* encounterTableEntry = &(encounterTable->entries[wmGenData.encounterEntryId]);
-    if ((encounterTableEntry->flags & ENCOUNTER_ENTRY_SPECIAL) != 0) {
-        wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &areaIdx);
 
-        CityInfo* city = &(wmAreaInfoList[areaIdx]);
-        CitySizeDescription* citySizeDescription = &(wmSphereData[city->size]);
-        int worldmapX = wmGenData.worldPosX + wmGenData.hotspotNormalFrmImage.getWidth() / 2 + citySizeDescription->frmImage.getWidth() / 2;
-        int worldmapY = wmGenData.worldPosY + wmGenData.hotspotNormalFrmImage.getHeight() / 2 + citySizeDescription->frmImage.getHeight() / 2;
-        wmAreaSetWorldPos(areaIdx, worldmapX, worldmapY);
-
-        if (areaIdx >= 0 && areaIdx < wmMaxAreaNum) {
+    if (!IS_FALLOUT_1() && (encounterTableEntry->flags & ENCOUNTER_ENTRY_SPECIAL) != 0) {
+        // F2's design: a special encounter reveals the location it contains at
+        // the party's current worldmap position (Bridgekeeper, Cafe of Broken
+        // Dreams, etc.). But if the encounter map isn't an entrance of any
+        // area — which is the case for all F1 specials and for any mod map
+        // not tied to an area — don't move anything.
+        if (wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &areaIdx) == 0) {
             CityInfo* city = &(wmAreaInfoList[areaIdx]);
+            CitySizeDescription* citySizeDescription = &(wmSphereData[city->size]);
+            int worldmapX = wmGenData.worldPosX + wmGenData.hotspotNormalFrmImage.getWidth() / 2 + citySizeDescription->frmImage.getWidth() / 2;
+            int worldmapY = wmGenData.worldPosY + wmGenData.hotspotNormalFrmImage.getHeight() / 2 + citySizeDescription->frmImage.getHeight() / 2;
+            wmAreaSetWorldPos(areaIdx, worldmapX, worldmapY);
+
             if (city->lockState != LOCK_STATE_LOCKED) {
                 city->state = CITY_STATE_KNOWN;
             }
@@ -5711,28 +5899,30 @@ static int wmRndEncounterOccurred()
     wmGenData.oldWorldPosY = wmGenData.worldPosY;
 
     if (randomEncounterIsDetected) {
-        MessageListItem messageListItem;
-        const char* title = gWorldmapEncDefaultMsg[0];
-        const char* body = gWorldmapEncDefaultMsg[1];
+        if (!IS_FALLOUT_1()) {
+            MessageListItem messageListItem;
+            const char* title = gWorldmapEncDefaultMsg[0];
+            const char* body = gWorldmapEncDefaultMsg[1];
 
-        title = getmsg(&wmMsgFile, &messageListItem, 2999);
-        EncounterTable* table = &wmEncounterTableList[wmGenData.encounterTableId];
-        int msgId;
-        if (table->msgBaseId == 3000) {
-            // Vanilla table
-            msgId = 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId;
-        } else {
-            // Mod table
-            msgId = table->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + table->localModIndex * 50 + wmGenData.encounterEntryId;
+            title = getmsg(&wmMsgFile, &messageListItem, 2999);
+            EncounterTable* table = &wmEncounterTableList[wmGenData.encounterTableId];
+            int msgId;
+            if (table->msgBaseId == 3000) {
+                msgId = 3000 + 50 * wmGenData.encounterTableId + wmGenData.encounterEntryId;
+            } else {
+                msgId = table->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + table->localModIndex * 50 + wmGenData.encounterEntryId;
+            }
+            body = getmsg(&wmMsgFile, &messageListItem, msgId);
+            if (showDialogBox(title, &body, 1, 169, 116, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
+                wmGenData.encounterIconIsVisible = false;
+                wmGenData.encounterMapId = -1;
+                wmGenData.encounterTableId = -1;
+                wmGenData.encounterEntryId = -1;
+                return 0;
+            }
         }
-        body = getmsg(&wmMsgFile, &messageListItem, msgId);
-        if (showDialogBox(title, &body, 1, 169, 116, _colorTable[COL_ORANGE], nullptr, _colorTable[COL_ORANGE], DIALOG_BOX_LARGE | DIALOG_BOX_YES_NO) == 0) {
-            wmGenData.encounterIconIsVisible = false;
-            wmGenData.encounterMapId = -1;
-            wmGenData.encounterTableId = -1;
-            wmGenData.encounterEntryId = -1;
-            return 0;
-        }
+        // F1 mode and "yes" case both fall through to here, which is the
+        // original F1 behaviour: encounter fires immediately.
     }
 
     return 1;
@@ -5892,12 +6082,18 @@ int wmSetupRandomEncounter()
         msgId = encounterTable->msgBaseId + ENCOUNTER_TABLE_MSG_OFFSET + encounterTable->localModIndex * 50 + wmGenData.encounterEntryId;
     }
 
-    char formattedText[512];
-    snprintf(formattedText, sizeof(formattedText),
-        "%s %s",
-        getmsg(&wmMsgFile, &messageListItem, 2998),
-        getmsg(&wmMsgFile, &messageListItem, msgId));
-    displayMonitorAddMessage(formattedText);
+    // The 2998 + msgId message pair is F2 encounter flavour text.
+    // F1 worldmap.msg doesn't have those entries, so getmsg returns error
+    // placeholders and both get concatenated into the info window. F1's map
+    // scripts already produce their own encounter text via display_msg.
+    if (!IS_FALLOUT_1()) {
+        char formattedText[512];
+        snprintf(formattedText, sizeof(formattedText),
+            "%s %s",
+            getmsg(&wmMsgFile, &messageListItem, 2998),
+            getmsg(&wmMsgFile, &messageListItem, msgId));
+        displayMonitorAddMessage(formattedText);
+    }
 
     int gameDifficulty = settings.preferences.game_difficulty;
     switch (encounterTableEntry->scenery) {
@@ -6612,6 +6808,8 @@ static void wmPartyWalkingStep()
 // 0x4C219C
 static void wmInterfaceScrollTabsStart(int delta)
 {
+    if (!wmElements()->hasTownTabs || !wmElements()->hasScrollButtons) return;
+
     // SFALL: Fix world map cities list scrolling bug that might leave buttons
     // in the disabled state.
     if (delta >= 0) {
@@ -6640,6 +6838,8 @@ static void wmInterfaceScrollTabsStart(int delta)
 // 0x4C2270
 static void wmInterfaceScrollTabsStop()
 {
+    if (!wmElements()->hasTownTabs || !wmElements()->hasScrollButtons) return;
+
     wmGenData.tabsScrollingDelta = 0;
 
     for (int index = 0; index < 7; index++) {
@@ -6652,6 +6852,8 @@ static void wmInterfaceScrollTabsStop()
 // 0x4C2290
 static void wmInterfaceScrollTabsUpdate()
 {
+    if (!wmElements()->hasTownTabs || !wmElements()->hasScrollButtons) return;
+
     if (wmGenData.tabsScrollingDelta != 0) {
         wmGenData.tabsOffsetY += wmGenData.tabsScrollingDelta;
         wmRefreshInterfaceOverlay(true);
@@ -6720,8 +6922,8 @@ static int wmInterfaceInit()
     }
 
     fid = gameIsWidescreen()
-        ? artGetFidWithVariant(OBJ_TYPE_INTERFACE, 136, true)
-        : buildFid(OBJ_TYPE_INTERFACE, 136, 0, 0, 0);
+        ? artGetFidWithVariant(OBJ_TYPE_INTERFACE, wmElements()->backgroundFid, true)
+        : buildFid(OBJ_TYPE_INTERFACE, wmElements()->backgroundFid, 0, 0, 0);
 
     if (!_backgroundFrmImage.lock(fid)) {
         return -1;
@@ -6745,39 +6947,41 @@ static int wmInterfaceInit()
         wmBkWinBuf,
         gOffsets.windowWidth);
 
-    for (int citySize = 0; citySize < CITY_SIZE_COUNT; citySize++) {
-        CitySizeDescription* citySizeDescription = &(wmSphereData[citySize]);
-        if (!citySizeDescription->frmImage.lock(citySizeDescription->fid)) {
-            return -1;
+    if (wmElements()->hasCitySizeCircles) {
+        for (int citySize = 0; citySize < CITY_SIZE_COUNT; citySize++) {
+            CitySizeDescription* citySizeDescription = &(wmSphereData[citySize]);
+            if (!citySizeDescription->frmImage.lock(citySizeDescription->fid)) {
+                return -1;
+            }
         }
     }
 
     // hotspot1.frm - town map selector shape #1
-    fid = buildFid(OBJ_TYPE_INTERFACE, 168, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->hotspotNormalFid, 0, 0, 0);
     if (!wmGenData.hotspotNormalFrmImage.lock(fid)) {
         return -1;
     }
 
     // hotspot2.frm - town map selector shape #2
-    fid = buildFid(OBJ_TYPE_INTERFACE, 223, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->hotspotPressedFid, 0, 0, 0);
     if (!wmGenData.hotspotPressedFrmImage.lock(fid)) {
         return -1;
     }
 
     // wmaptarg.frm - world map move target maker #1
-    fid = buildFid(OBJ_TYPE_INTERFACE, 139, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->destinationMarkerFid, 0, 0, 0);
     if (!wmGenData.destinationMarkerFrmImage.lock(fid)) {
         return -1;
     }
 
     // wmaploc.frm - world map location marker
-    fid = buildFid(OBJ_TYPE_INTERFACE, 138, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->locationMarkerFid, 0, 0, 0);
     if (!wmGenData.locationMarkerFrmImage.lock(fid)) {
         return -1;
     }
 
     for (int index = 0; index < WORLD_MAP_ENCOUNTER_FRM_COUNT; index++) {
-        fid = buildFid(OBJ_TYPE_INTERFACE, wmRndCursorFids[index], 0, 0, 0);
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->encounterCursorFid[index], 0, 0, 0);
         if (!wmGenData.encounterCursorFrmImages[index].lock(fid)) {
             return -1;
         }
@@ -6787,164 +6991,176 @@ static int wmInterfaceInit()
         wmTileInfoList[index].handle = INVALID_CACHE_ENTRY;
     }
 
-    // wmtabs.frm - worldmap town tabs underlay
-    fid = buildFid(OBJ_TYPE_INTERFACE, 364, 0, 0, 0);
-    if (!wmGenData.tabsBackgroundFrmImage.lock(fid)) {
-        return -1;
+    if (wmElements()->hasTownTabs) {
+        // wmtabs.frm - worldmap town tabs underlay
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->tabsBackgroundFid, 0, 0, 0);
+        if (!wmGenData.tabsBackgroundFrmImage.lock(fid)) {
+            return -1;
+        }
+
+        // wmtbedge.frm - worldmap town tabs edging overlay
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->tabsBorderFid, 0, 0, 0);
+        if (!wmGenData.tabsBorderFrmImage.lock(fid)) {
+            return -1;
+        }
     }
 
-    // wmtbedge.frm - worldmap town tabs edging overlay
-    fid = buildFid(OBJ_TYPE_INTERFACE, 367, 0, 0, 0);
-    if (!wmGenData.tabsBorderFrmImage.lock(fid)) {
-        return -1;
+    if (wmElements()->hasDayNightDial) {
+        // wmdial.frm - worldmap night/day dial
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->dialFid, 0, 0, 0);
+        wmGenData.dialFrm = artLock(fid, &(wmGenData.dialFrmHandle));
+        if (wmGenData.dialFrm == nullptr) {
+            return -1;
+        }
+
+        wmGenData.dialFrmWidth = artGetWidth(wmGenData.dialFrm, 0, 0);
+        wmGenData.dialFrmHeight = artGetHeight(wmGenData.dialFrm, 0, 0);
     }
 
-    // wmdial.frm - worldmap night/day dial
-    fid = buildFid(OBJ_TYPE_INTERFACE, 365, 0, 0, 0);
-    wmGenData.dialFrm = artLock(fid, &(wmGenData.dialFrmHandle));
-    if (wmGenData.dialFrm == nullptr) {
-        return -1;
+    if (wmElements()->hasCar) {
+        // wmscreen - worldmap overlay screen
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->carOverlayFid, 0, 0, 0);
+        if (!wmGenData.carOverlayFrmImage.lock(fid)) {
+            return -1;
+        }
     }
 
-    wmGenData.dialFrmWidth = artGetWidth(wmGenData.dialFrm, 0, 0);
-    wmGenData.dialFrmHeight = artGetHeight(wmGenData.dialFrm, 0, 0);
-
-    // wmscreen - worldmap overlay screen
-    fid = buildFid(OBJ_TYPE_INTERFACE, 363, 0, 0, 0);
-    if (!wmGenData.carOverlayFrmImage.lock(fid)) {
-        return -1;
-    }
-
-    // wmglobe.frm - worldmap globe stamp overlay
-    fid = buildFid(OBJ_TYPE_INTERFACE, 366, 0, 0, 0);
-    if (!wmGenData.globeOverlayFrmImage.lock(fid)) {
-        return -1;
+    if (wmElements()->hasGlobeOverlay) {
+        // wmglobe.frm - worldmap globe stamp overlay
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->globeOverlayFid, 0, 0, 0);
+        if (!wmGenData.globeOverlayFrmImage.lock(fid)) {
+            return -1;
+        }
     }
 
     // lilredup.frm - little red button up
-    fid = buildFid(OBJ_TYPE_INTERFACE, 8, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->redButtonNormalFid, 0, 0, 0);
     wmGenData.redButtonNormalFrmImage.lock(fid);
 
     // lilreddn.frm - little red button down
-    fid = buildFid(OBJ_TYPE_INTERFACE, 9, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->redButtonPressedFid, 0, 0, 0);
     wmGenData.redButtonPressedFrmImage.lock(fid);
 
     // months.frm - month strings for pip boy
-    fid = buildFid(OBJ_TYPE_INTERFACE, 129, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->monthsFid, 0, 0, 0);
     if (!wmGenData.monthsFrmImage.lock(fid)) {
         return -1;
     }
 
     // numbers.frm - numbers for the hit points and fatigue counters
-    fid = buildFid(OBJ_TYPE_INTERFACE, 82, 0, 0, 0);
+    fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->numbersFid, 0, 0, 0);
     if (!wmGenData.numbersFrmImage.lock(fid)) {
         return -1;
     }
 
-    // create town/world switch button
-    int switchBtn = buttonCreate(wmBkWin,
-        gOffsets.townWorldSwitchX,
-        gOffsets.townWorldSwitchY,
-        wmGenData.redButtonNormalFrmImage.getWidth(),
-        wmGenData.redButtonNormalFrmImage.getHeight(),
-        -1,
-        -1,
-        -1,
-        KEY_UPPERCASE_T,
-        wmGenData.redButtonNormalFrmImage.getData(),
-        wmGenData.redButtonPressedFrmImage.getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
-
-    // SFALL: Add missing button sounds.
-    if (switchBtn != -1) {
-        buttonSetCallbacks(switchBtn, _gsound_red_butt_press, _gsound_red_butt_release);
-    }
-
-    for (int index = 0; index < 7; index++) {
-        wmTownMapSubButtonIds[index] = buttonCreate(wmBkWin,
-            gOffsets.destListX,
-            gOffsets.destListFirstY + gOffsets.destListSpacing * index,
+    if (wmElements()->hasTownWorldSwitchButton) {
+        // create town/world switch button
+        int switchBtn = buttonCreate(wmBkWin,
+            gOffsets.townWorldSwitchX,
+            gOffsets.townWorldSwitchY,
             wmGenData.redButtonNormalFrmImage.getWidth(),
             wmGenData.redButtonNormalFrmImage.getHeight(),
             -1,
             -1,
             -1,
-            KEY_CTRL_F1 + index,
+            KEY_UPPERCASE_T,
             wmGenData.redButtonNormalFrmImage.getData(),
             wmGenData.redButtonPressedFrmImage.getData(),
             nullptr,
             BUTTON_FLAG_TRANSPARENT);
 
         // SFALL: Add missing button sounds.
-        if (wmTownMapSubButtonIds[index] != -1) {
-            buttonSetCallbacks(wmTownMapSubButtonIds[index], _gsound_red_butt_press, _gsound_red_butt_release);
+        if (switchBtn != -1) {
+            buttonSetCallbacks(switchBtn, _gsound_red_butt_press, _gsound_red_butt_release);
         }
     }
 
-    for (int index = 0; index < WORLDMAP_ARROW_FRM_COUNT; index++) {
-        // 200 - uparwon.frm - character editor
-        // 199 - uparwoff.frm - character editor
-        // SFALL: Fix images for scroll buttons.
-        fid = buildFid(OBJ_TYPE_INTERFACE, 199 + index, 0, 0, 0);
-        if (!wmGenData.scrollUpButtonFrmImages[index].lock(fid)) {
-            return -1;
+    if (wmElements()->hasQuickDestinations) {
+        for (int index = 0; index < 7; index++) {
+            wmTownMapSubButtonIds[index] = buttonCreate(wmBkWin,
+                gOffsets.destListX,
+                gOffsets.destListFirstY + gOffsets.destListSpacing * index,
+                wmGenData.redButtonNormalFrmImage.getWidth(),
+                wmGenData.redButtonNormalFrmImage.getHeight(),
+                -1,
+                -1,
+                -1,
+                KEY_CTRL_F1 + index,
+                wmGenData.redButtonNormalFrmImage.getData(),
+                wmGenData.redButtonPressedFrmImage.getData(),
+                nullptr,
+                BUTTON_FLAG_TRANSPARENT);
+
+            // SFALL: Add missing button sounds.
+            if (wmTownMapSubButtonIds[index] != -1) {
+                buttonSetCallbacks(wmTownMapSubButtonIds[index], _gsound_red_butt_press, _gsound_red_butt_release);
+            }
+        }
+    } else {
+        for (int index = 0; index < 7; index++) {
+            wmTownMapSubButtonIds[index] = -1;
         }
     }
 
-    for (int index = 0; index < WORLDMAP_ARROW_FRM_COUNT; index++) {
-        // 182 - dnarwon.frm - character editor
-        // 181 - dnarwoff.frm - character editor
-        // SFALL: Fix images for scroll buttons.
-        fid = buildFid(OBJ_TYPE_INTERFACE, 181 + index, 0, 0, 0);
-        if (!wmGenData.scrollDownButtonFrmImages[index].lock(fid)) {
-            return -1;
+    if (wmElements()->hasScrollButtons) {
+        for (int index = 0; index < WORLDMAP_ARROW_FRM_COUNT; index++) {
+            fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->scrollUpFid[index], 0, 0, 0);
+            if (!wmGenData.scrollUpButtonFrmImages[index].lock(fid)) {
+                return -1;
+            }
+        }
+
+        for (int index = 0; index < WORLDMAP_ARROW_FRM_COUNT; index++) {
+            fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->scrollDownFid[index], 0, 0, 0);
+            if (!wmGenData.scrollDownButtonFrmImages[index].lock(fid)) {
+                return -1;
+            }
+        }
+
+        // Scroll up button.
+        int scrollUpBtn = buttonCreate(wmBkWin,
+            gOffsets.scrollUpX,
+            gOffsets.scrollUpY,
+            wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getWidth(),
+            wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getHeight(),
+            -1,
+            -1,
+            -1,
+            KEY_CTRL_ARROW_UP,
+            wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getData(),
+            wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_PRESSED].getData(),
+            nullptr,
+            BUTTON_FLAG_TRANSPARENT);
+
+        // SFALL: Add missing button sounds.
+        if (scrollUpBtn != -1) {
+            buttonSetCallbacks(scrollUpBtn, _gsound_red_butt_press, _gsound_red_butt_release);
+        }
+
+        // Scroll down button.
+        int scrollDownBtn = buttonCreate(wmBkWin,
+            gOffsets.scrollDownX,
+            gOffsets.scrollDownY,
+            wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getWidth(),
+            wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getHeight(),
+            -1,
+            -1,
+            -1,
+            KEY_CTRL_ARROW_DOWN,
+            wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getData(),
+            wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_PRESSED].getData(),
+            nullptr,
+            BUTTON_FLAG_TRANSPARENT);
+
+        // SFALL: Add missing button sounds.
+        if (scrollDownBtn != -1) {
+            buttonSetCallbacks(scrollDownBtn, _gsound_red_butt_press, _gsound_red_butt_release);
         }
     }
 
-    // Scroll up button.
-    int scrollUpBtn = buttonCreate(wmBkWin,
-        gOffsets.scrollUpX,
-        gOffsets.scrollUpY,
-        wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getWidth(),
-        wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getHeight(),
-        -1,
-        -1,
-        -1,
-        KEY_CTRL_ARROW_UP,
-        wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getData(),
-        wmGenData.scrollUpButtonFrmImages[WORLDMAP_ARROW_FRM_PRESSED].getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
-
-    // SFALL: Add missing button sounds.
-    if (scrollUpBtn != -1) {
-        buttonSetCallbacks(scrollUpBtn, _gsound_red_butt_press, _gsound_red_butt_release);
-    }
-
-    // Scroll down button.
-    int scrollDownBtn = buttonCreate(wmBkWin,
-        gOffsets.scrollDownX,
-        gOffsets.scrollDownY,
-        wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getWidth(),
-        wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getHeight(),
-        -1,
-        -1,
-        -1,
-        KEY_CTRL_ARROW_DOWN,
-        wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_NORMAL].getData(),
-        wmGenData.scrollDownButtonFrmImages[WORLDMAP_ARROW_FRM_PRESSED].getData(),
-        nullptr,
-        BUTTON_FLAG_TRANSPARENT);
-
-    // SFALL: Add missing button sounds.
-    if (scrollDownBtn != -1) {
-        buttonSetCallbacks(scrollDownBtn, _gsound_red_butt_press, _gsound_red_butt_release);
-    }
-
-    if (wmGenData.isInCar) {
+    if (wmElements()->hasCar && wmGenData.isInCar) {
         // wmcarmve.frm - worldmap car movie
-        fid = buildFid(OBJ_TYPE_INTERFACE, 433, 0, 0, 0);
+        fid = buildFid(OBJ_TYPE_INTERFACE, wmElements()->carMovieFid, 0, 0, 0);
         wmGenData.carImageFrm = artLock(fid, &(wmGenData.carImageFrmHandle));
         if (wmGenData.carImageFrm == nullptr) {
             return -1;
@@ -8024,22 +8240,19 @@ static int wmGetAreaName(CityInfo* city, char* name)
 {
     MessageListItem messageListItem;
 
-    // Check if this is a mod area (message ID in mod range)
     if (city->areaId < BASE_AREA_MAX) {
-        // Vanilla area
-        if (getmsg(&gMapMessageList, &messageListItem, city->areaId + 1500)) {
+        const int base = IS_FALLOUT_1() ? 500 : 1500;
+        if (getmsg(&gMapMessageList, &messageListItem, base + city->areaId)) {
             strncpy(name, messageListItem.text, 40);
             return 0;
         }
     } else {
-        // Mod area - areaId is already the correct message ID
         if (getmsg(&gMapMessageList, &messageListItem, city->areaId)) {
             strncpy(name, messageListItem.text, 40);
             return 0;
         }
     }
 
-    // Fallback for both mod and vanilla: use the raw name from area config
     strncpy(name, city->name, 40);
     name[39] = '\0';
     return 0;
@@ -8709,14 +8922,18 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
         wmBkWinBuf,
         gOffsets.windowWidth);
 
-    wmRefreshTabs();
+    if (wmElements()->hasTownTabs) {
+        wmRefreshTabs();
+    }
 
-    // NOTE: Uninline.
-    wmInterfaceDialSyncTime(false);
+    if (wmElements()->hasDayNightDial) {
+        // NOTE: Uninline.
+        wmInterfaceDialSyncTime(false);
 
-    wmRefreshInterfaceDial(false);
+        wmRefreshInterfaceDial(false);
+    }
 
-    if (wmGenData.isInCar) {
+    if (wmElements()->hasCar && wmGenData.isInCar) {
         unsigned char* data = artGetFrameData(wmGenData.carImageFrm, wmGenData.carImageCurrentFrameIndex, 0);
         if (data == nullptr) {
             return -1;
@@ -8737,7 +8954,7 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
             gOffsets.windowWidth);
 
         wmInterfaceRefreshCarFuel();
-    } else {
+    } else if (wmElements()->hasGlobeOverlay) {
         blitBufferToBufferTrans(wmGenData.globeOverlayFrmImage.getData(),
             wmGenData.globeOverlayFrmImage.getWidth(),
             wmGenData.globeOverlayFrmImage.getHeight(),
@@ -8746,7 +8963,9 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
             gOffsets.windowWidth);
     }
 
-    wmInterfaceRefreshDate(false);
+    if (wmElements()->hasDateDisplay) {
+        wmInterfaceRefreshDate(false);
+    }
 
     if (shouldRefreshWindow) {
         windowRefresh(wmBkWin);
@@ -8758,6 +8977,8 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
 // 0x4C5244
 static void wmInterfaceRefreshCarFuel()
 {
+    if (!wmElements()->hasCar) return;
+
     int ratio = (gOffsets.carFuelBarHeight * wmGenData.carFuel) / CAR_FUEL_MAX;
     if ((ratio & 1) != 0) {
         ratio -= 1;
@@ -8784,6 +9005,8 @@ static void wmInterfaceRefreshCarFuel()
 // 0x4C52B0
 static int wmRefreshTabs()
 {
+    if (!wmElements()->hasTownTabs) return 0;
+
     unsigned char* v30;
     unsigned char* v0;
     int v31;
@@ -8812,70 +9035,43 @@ static int wmRefreshTabs()
     v0 = v30 - gOffsets.windowWidth * (wmGenData.tabsOffsetY % gOffsets.destListSpacing);
     v31 = wmGenData.tabsOffsetY / gOffsets.destListSpacing;
 
+    // Top-clipped row.
     if (v31 < wmLabelCount) {
         city = &(wmAreaInfoList[wmLabelList[v31]]);
         if (city->labelFid != -1) {
-            if (!labelFrm.lock(city->labelFid)) {
-                return -1;
+            if (!labelFrm.lock(city->labelFid)) return -1;
+
+            int clipTop = wmGenData.tabsOffsetY % gOffsets.destListSpacing;
+            unsigned char* dst = v0;
+            if (dst < v30 - gOffsets.windowWidth) {
+                dst = v30 - gOffsets.windowWidth;
             }
-
-            v10 = labelFrm.getHeight() - wmGenData.tabsOffsetY % gOffsets.destListSpacing;
-            v11 = labelFrm.getData() + labelFrm.getWidth() * (wmGenData.tabsOffsetY % gOffsets.destListSpacing);
-
-            v12 = v0;
-            if (v0 < v30 - gOffsets.windowWidth) {
-                v12 = v30 - gOffsets.windowWidth;
-            }
-
-            blitBufferToBuffer(v11,
-                labelFrm.getWidth(),
-                v10,
-                labelFrm.getWidth(),
-                v12,
-                gOffsets.windowWidth);
-
+            wmBlitCityLabel(labelFrm, city, dst, gOffsets.windowWidth, clipTop, 0);
             labelFrm.unlock();
         }
     }
 
+    // Middle rows.
     v13 = v0 + gOffsets.windowWidth * gOffsets.destListSpacing;
     v32 = v31 + 6;
-
     for (int v14 = v31 + 1; v14 < v32; v14++) {
         if (v14 < wmLabelCount) {
             city = &(wmAreaInfoList[wmLabelList[v14]]);
             if (city->labelFid != -1) {
-                if (!labelFrm.lock(city->labelFid)) {
-                    return -1;
-                }
-
-                blitBufferToBuffer(labelFrm.getData(),
-                    labelFrm.getWidth(),
-                    labelFrm.getHeight(),
-                    labelFrm.getWidth(),
-                    v13,
-                    gOffsets.windowWidth);
-
+                if (!labelFrm.lock(city->labelFid)) return -1;
+                wmBlitCityLabel(labelFrm, city, v13, gOffsets.windowWidth, 0, 0);
                 labelFrm.unlock();
             }
         }
         v13 += gOffsets.windowWidth * gOffsets.destListSpacing;
     }
 
+    // Bottom-clipped row.
     if (v31 + 6 < wmLabelCount) {
         city = &(wmAreaInfoList[wmLabelList[v31 + 6]]);
         if (city->labelFid != -1) {
-            if (!labelFrm.lock(city->labelFid)) {
-                return -1;
-            }
-
-            blitBufferToBuffer(labelFrm.getData(),
-                labelFrm.getWidth(),
-                labelFrm.getHeight() - 5,
-                labelFrm.getWidth(),
-                v13,
-                gOffsets.windowWidth);
-
+            if (!labelFrm.lock(city->labelFid)) return -1;
+            wmBlitCityLabel(labelFrm, city, v13, gOffsets.windowWidth, 0, 5);
             labelFrm.unlock();
         }
     }
@@ -8895,6 +9091,12 @@ static int wmRefreshTabs()
 // 0x4C55D4
 static int wmMakeTabsLabelList(int** quickDestinationsPtr, int* quickDestinationsLengthPtr)
 {
+    if (!wmElements()->hasTownTabs) {
+        *quickDestinationsPtr = nullptr;
+        *quickDestinationsLengthPtr = 0;
+        return 0;
+    }
+
     int* quickDestinations = *quickDestinationsPtr;
 
     // NOTE: Uninline.
@@ -8965,6 +9167,8 @@ static int wmFreeTabsLabelList(int** quickDestinationsListPtr, int* quickDestina
 // 0x4C5734
 static void wmRefreshInterfaceDial(bool shouldRefreshWindow)
 {
+    if (!wmElements()->hasDayNightDial || wmGenData.dialFrm == nullptr) return;
+
     unsigned char* data = artGetFrameData(wmGenData.dialFrm, wmGenData.dialFrmCurrentFrameIndex, 0);
     blitBufferToBufferTrans(data,
         wmGenData.dialFrmWidth,
@@ -9090,7 +9294,7 @@ int wmSetMapMusic(int mapIdx, const char* name)
 // 0x4C59A4
 int wmMatchAreaContainingMapIdx(int mapIdx, int* areaIdxPtr)
 {
-    *areaIdxPtr = 0;
+    *areaIdxPtr = -1;
 
     for (int areaIdx = 0; areaIdx < wmMaxAreaNum; areaIdx++) {
         CityInfo* cityInfo = &(wmAreaInfoList[areaIdx]);

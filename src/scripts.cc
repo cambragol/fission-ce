@@ -23,6 +23,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "memory.h"
 #include "message.h"
@@ -446,55 +447,66 @@ int _scriptsCheckGameEvents(int* moviePtr, int window)
 
     int day = gGameTime / GAME_TIME_TICKS_PER_DAY;
 
-    if (gameGetGlobalVar(GVAR_ENEMY_ARROYO)) {
-        movie = gMovieAfailed;
-        movieFlags = GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC;
-        endgame = true;
-    } else {
-        if (day >= settings.mod_settings.movie_timer_artimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
-            movie = gMovieArtimer4;
-            if (!gameMovieIsSeen(gMovieArtimer4)) {
-                adjustRep = true;
-                wmAreaSetVisibleState(CITY_ARROYO, 0, 1);
-                wmAreaSetVisibleState(CITY_DESTROYED_ARROYO, 1, 1);
-                wmAreaMarkVisitedState(CITY_DESTROYED_ARROYO, 2);
-            }
-        } else if (day >= settings.mod_settings.movie_timer_artimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
-            adjustRep = true;
-            movie = gMovieArtimer3;
-        } else if (day >= settings.mod_settings.movie_timer_artimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
-            adjustRep = true;
-            movie = gMovieArtimer2;
-        } else if (day >= settings.mod_settings.movie_timer_artimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
-            adjustRep = true;
-            movie = gMovieArtimer1;
-        }
-    }
-
-    if (movie != -1) {
-        if (gameMovieIsSeen(movie)) {
-            movie = -1;
+    // FISSION: The artimer/Afailed movie sequence is Fallout 2's Enclave
+    // storyline (Arroyo destroyed, Vault 13 taken, etc.). It loads F2-only
+    // backdrop maps by index - notably map 149, which does not exist in F1's
+    // converted maps.txt and previously caused a "MAPS\.MAP" black screen.
+    // In F1 mode, none of these cutscenes should fire.
+    if (!IS_FALLOUT_1()) {
+        if (gameGetGlobalVar(GVAR_ENEMY_ARROYO)) {
+            movie = gMovieAfailed;
+            movieFlags = GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC;
+            endgame = true;
         } else {
-            if (window != -1) {
-                windowHide(window);
+            if (day >= settings.mod_settings.movie_timer_artimer4 || gameGetGlobalVar(GVAR_FALLOUT_2) >= 3) {
+                movie = gMovieArtimer4;
+                if (!gameMovieIsSeen(gMovieArtimer4)) {
+                    adjustRep = true;
+                    wmAreaSetVisibleState(CITY_ARROYO, 0, 1);
+                    wmAreaSetVisibleState(CITY_DESTROYED_ARROYO, 1, 1);
+                    wmAreaMarkVisitedState(CITY_DESTROYED_ARROYO, 2);
+                }
+            } else if (day >= settings.mod_settings.movie_timer_artimer3 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+                adjustRep = true;
+                movie = gMovieArtimer3;
+            } else if (day >= settings.mod_settings.movie_timer_artimer2 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+                adjustRep = true;
+                movie = gMovieArtimer2;
+            } else if (day >= settings.mod_settings.movie_timer_artimer1 && gameGetGlobalVar(GVAR_FALLOUT_2) != 3) {
+                adjustRep = true;
+                movie = gMovieArtimer1;
             }
+        }
 
-            gameMoviePlay(movie, movieFlags);
+        if (movie != -1) {
+            if (gameMovieIsSeen(movie)) {
+                movie = -1;
+            } else {
+                if (window != -1) {
+                    windowHide(window);
+                }
 
-            if (window != -1) {
-                windowShow(window);
+                gameMoviePlay(movie, movieFlags);
+
+                if (window != -1) {
+                    windowShow(window);
+                }
+
+                if (adjustRep) {
+                    int rep = gameGetGlobalVar(GVAR_TOWN_REP_ARROYO);
+                    gameSetGlobalVar(GVAR_TOWN_REP_ARROYO, rep - 15);
+                }
             }
+        }
 
-            if (adjustRep) {
-                int rep = gameGetGlobalVar(GVAR_TOWN_REP_ARROYO);
-                gameSetGlobalVar(GVAR_TOWN_REP_ARROYO, rep - 15);
-            }
+        if (endgame) {
+            _game_user_wants_to_quit = 2;
         }
     }
 
-    if (endgame) {
-        _game_user_wants_to_quit = 2;
-    } else {
+    // tileWindowRefresh runs in both modes when not ending the game.
+    // In F1 mode we never enter the endgame branch, so this is always safe.
+    if (!endgame) {
         tileWindowRefresh();
     }
 
