@@ -114,6 +114,13 @@ namespace fallout {
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
 
+// F1 CE defines GVAR_WORLD_TERRAIN at index 65 of its GameGlobalVar enum.
+// FISSION compiles against Fallout 2's enum (where index 65 is
+// GVAR_TOWN_REP_PRIMITIVE_TRIBE), so we can't reference F1's name directly.
+// When running F1 data, index 65 is the slot F1 scripts read; when running
+// F2 data, we don't touch it (see the IS_FALLOUT_1() gate below).
+#define F1_GVAR_WORLD_TERRAIN 65
+
 typedef enum EncounterFormationType {
     ENCOUNTER_FORMATION_TYPE_SURROUNDING,
     ENCOUNTER_FORMATION_TYPE_STRAIGHT_LINE,
@@ -1307,6 +1314,17 @@ int wmWorldMap_init()
         return -1;
     }
 
+    // F1 starts at Vault 13, F2 at Arroyo - but the convention is
+    // the same: the game's start position is area 0's world_pos. Read it
+    // from the loaded data instead of the hardcoded (173, 122) default,
+    // which was F2's Arroyo position baked into wmGenDataInit.
+    if (wmMaxAreaNum > 0 && wmAreaInfoList[0].name[0] != '\0') {
+        wmGenData.worldPosX = wmAreaInfoList[0].x;
+        wmGenData.worldPosY = wmAreaInfoList[0].y;
+        debugPrint("\nwmWorldMap_init: start position set from area 0 -> (%d, %d)",
+            wmGenData.worldPosX, wmGenData.worldPosY);
+    }
+
     wmGenData.viewportMaxX = WM_TILE_WIDTH * wmNumHorizontalTiles - gOffsets.viewWidth;
     wmGenData.viewportMaxY = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles) - gOffsets.viewHeight;
     circleBlendTable = _getColorBlendTable(_colorTable[COL_LIME_GREEN]);
@@ -1314,8 +1332,14 @@ int wmWorldMap_init()
     wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
 
+    // Center the initial viewport on the party. wmGenDataReset no
+    // longer overwrites position, but the viewport (wmWorldOffsetX/Y) is only
+    // centered by wmInterfaceCenterOnParty, which nothing calls on a fresh
+    // worldmap entry.
+    wmInterfaceCenterOnParty();
+
     // CE: City size fids should be initialized during startup. They are used
-    // during |wmTeleportToArea| to calculate worldmap position when jumping
+    // during 'wmTeleportToArea' to calculate worldmap position when jumping
     // from Temple to Arroyo - before giving a chance to |wmInterfaceInit| to
     // initialize it.
     for (int citySize = 0; citySize < CITY_SIZE_COUNT; citySize++) {
@@ -1336,8 +1360,8 @@ static int wmGenDataInit()
 {
     wmGenData.didMeetFrankHorrigan = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
+    //wmGenData.worldPosX = 173;
+    //wmGenData.worldPosY = 122;
     wmGenData.currentSubtile = nullptr;
     wmGenData.dword_672E18 = 0;
     wmGenData.isWalking = false;
@@ -1402,8 +1426,8 @@ static int wmGenDataReset()
     wmGenData.encounterIconIsVisible = false;
     wmGenData.mousePressed = false;
     wmGenData.currentAreaId = -1;
-    wmGenData.worldPosX = 173;
-    wmGenData.worldPosY = 122;
+    //wmGenData.worldPosX = 173;
+    //wmGenData.worldPosY = 122;
     wmGenData.walkDestinationX = -1;
     wmGenData.walkDestinationY = -1;
     wmGenData.encounterMapId = -1;
@@ -5458,6 +5482,15 @@ static int wmWorldMapFunc(int a1)
                             wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &(wmGenData.currentCarAreaId));
                         }
 
+                        // F1 fidelity - set the terrain-type global before the
+                        // map loads, so the destination map's F1 script can spawn
+                        // critters appropriate to the tile we walked on. F2's engine
+                        // has no equivalent (its encounter tables drive spawning), so
+                        // this is only meaningful when running F1 data.
+                        if (IS_FALLOUT_1() && wmGenData.currentSubtile != nullptr) {
+                            gameSetGlobalVar(F1_GVAR_WORLD_TERRAIN, wmGenData.currentSubtile->encounterType);
+                        }
+
                         wmFadeOut();
 
                         resizeContent(screenGetWidth(), screenGetHeight(), true);
@@ -5821,8 +5854,8 @@ static int wmRndEncounterOccurred()
         // F2's design: a special encounter reveals the location it contains at
         // the party's current worldmap position (Bridgekeeper, Cafe of Broken
         // Dreams, etc.). But if the encounter map isn't an entrance of any
-        // area — which is the case for all F1 specials and for any mod map
-        // not tied to an area — don't move anything.
+        // area - which is the case for all F1 specials and for any mod map
+        // not tied to an area - don't move anything.
         if (wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &areaIdx) == 0) {
             CityInfo* city = &(wmAreaInfoList[areaIdx]);
             CitySizeDescription* citySizeDescription = &(wmSphereData[city->size]);
@@ -5972,6 +6005,48 @@ static int wmRndEncounterPick()
 
     EncounterTable* encounterTable = &(wmEncounterTableList[wmGenData.encounterTableId]);
 
+    // F1 fidelity: run F1's special-encounter roll up front.
+    //
+    // F1's world_map() does:
+    //   roll = 3d6 - 5 + Luck + 2*Explorer
+    //   fires when roll >= 18
+    // If it fires, force-pick a not-yet-found special and skip the normal
+    // weighted pick. Counter:1 on each special entry provides the per-
+    // savegame "already found" state that F1 tracks in a 6-bit bitmask.
+    if (IS_FALLOUT_1()) {
+        int luck = critterGetStat(gDude, STAT_LUCK);
+        int explorer = perkGetRank(gDude, PERK_EXPLORER);
+        int specialRoll = randomBetween(1, 6) + randomBetween(1, 6) + randomBetween(1, 6);
+        specialRoll = specialRoll - 5 + luck + 2 * explorer;
+
+        int specialCandidates[40];
+        int specialCount = 0;
+        for (int index = 0; index < encounterTable->entriesLength; index++) {
+            EncounterTableEntry* entry = &(encounterTable->entries[index]);
+            if ((entry->flags & ENCOUNTER_ENTRY_SPECIAL) && entry->counter != 0) {
+                specialCandidates[specialCount++] = index;
+            }
+        }
+
+        debugPrint("\n>>> F1 special roll: 3d6 - 5 + %d (Luck) + 2*%d (Explorer) = %d, need >= 18; %d specials left",
+            luck, explorer, specialRoll, specialCount);
+
+        if (specialRoll >= 18 && specialCount > 0) {
+            int pick = specialCandidates[randomBetween(0, specialCount - 1)];
+            EncounterTableEntry* entry = &encounterTable->entries[pick];
+
+            if (entry->counter > 0) {
+                entry->counter--;
+            }
+
+            wmGenData.encounterEntryId = pick;
+            wmGenData.encounterMapId = entry->map;
+
+            debugPrint("\n>>> F1 special picked entryId=%d mapId=%d", pick, wmGenData.encounterMapId);
+            return 0;
+        }
+    }
+
     int candidates[41];
     int candidatesLength = 0;
     int totalChance = 0;
@@ -5979,6 +6054,13 @@ static int wmRndEncounterPick()
         EncounterTableEntry* encounterTableEntry = &(encounterTable->entries[index]);
 
         bool selected = true;
+
+        // F1 mode: specials are handled by the pre-pass above. Exclude them
+        // from the weighted pick so they never fire without the F1 roll.
+        if (IS_FALLOUT_1() && (encounterTableEntry->flags & ENCOUNTER_ENTRY_SPECIAL)) {
+            selected = false;
+        }
+
         if (wmEvalConditional(&(encounterTableEntry->condition), nullptr) == 0) {
             selected = false;
         }
@@ -5993,19 +6075,27 @@ static int wmRndEncounterPick()
         }
     }
 
-    int effectiveLuck = critterGetStat(gDude, STAT_LUCK) - 5;
-    int chance = randomBetween(0, totalChance) + effectiveLuck;
+    int chance;
+    if (IS_FALLOUT_1()) {
+        // F1 has no per-entry luck bonus. The influence of Luck/Explorer is
+        // already handled in the special roll above, and F1's terrain-based
+        // encounter frequency is handled elsewhere in F1 CE's world_map().
+        chance = randomBetween(0, totalChance);
+    } else {
+        int effectiveLuck = critterGetStat(gDude, STAT_LUCK) - 5;
+        chance = randomBetween(0, totalChance) + effectiveLuck;
 
-    if (perkHasRank(gDude, PERK_EXPLORER)) {
-        chance += 2;
-    }
+        if (perkHasRank(gDude, PERK_EXPLORER)) {
+            chance += 2;
+        }
 
-    if (perkHasRank(gDude, PERK_RANGER)) {
-        chance += 1;
-    }
+        if (perkHasRank(gDude, PERK_RANGER)) {
+            chance += 1;
+        }
 
-    if (perkHasRank(gDude, PERK_SCOUT)) {
-        chance += 1;
+        if (perkHasRank(gDude, PERK_SCOUT)) {
+            chance += 1;
+        }
     }
 
     switch (settings.preferences.game_difficulty) {
