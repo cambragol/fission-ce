@@ -1609,10 +1609,10 @@ Rules:
     and NPC floats -- holodisk narration can't be interrupted by, or interrupt, either one.
 -   Gated by `[enhancements] VockFeatures=1` in `fission.cfg` plus its own
     `[vock-features] PipboyAudio=1` toggle in `game.cfg`, and off entirely under
-    `StrictVanilla=1`. Independent of `VoicedFloats` -- floats and holodisk narration can
+    `StrictVanilla=1`. Independent of `FloatAudio` -- floats and holodisk narration can
     be switched on/off separately. Volume is `[vock-features] PipboyVolume` (own knob,
-    layered on the Speech slider, separate from floats' `Volume`). With `PipboyAudio` off,
-    holodisks behave exactly as before -- text only.
+    layered on the Speech slider, separate from floats' `FloatVolume`). With `PipboyAudio`
+    off, holodisks behave exactly as before -- text only.
 -   Applies identically to vanilla holodisks (`data/holodisk.txt` +
     `text/english/game/PIPBOY.msg`) and mod holodisks (`holodisk_<ModName>_<BlockKey>.msg`,
     see 11.3) -- both load through the same message-list parser.
