@@ -3159,7 +3159,7 @@ static void opFloatMessage(Program* program)
     // scripts.cc for the full story).
     bool vockFeaturesGateOpen = settings.enhancements.vock_features && !settings.enhancements.strict_vanilla;
     bool inOwnDialogue = gameDialogWindowActive() && obj == gGameDialogSpeaker;
-    if (vockFeaturesGateOpen && !inOwnDialogue && settings.mod_settings.float_text_scramble) {
+    if (vockFeaturesGateOpen && !inOwnDialogue && settings.mod_settings.text_scramble) {
         double clarity = gameSoundCalcFloatClarity(obj);
         string = _scr_scramble_float_text(string, clarity);
     }

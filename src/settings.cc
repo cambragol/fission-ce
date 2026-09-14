@@ -209,12 +209,17 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.float_distance_per_perception);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.float_obstruction_dampening);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, settings.mod_settings.float_eviction_policy);
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY, settings.mod_settings.float_text_scramble);
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.float_text_scramble_distance_per_perception);
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY, settings.mod_settings.float_text_scramble_chars);
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_VOICED_FLOATS_KEY, settings.mod_settings.voiced_floats);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_AUDIO_KEY, settings.mod_settings.float_audio);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, settings.mod_settings.float_censor_bleep);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, settings.mod_settings.float_volume);
+    // FISSION-VOCK ADD: TextScramble is its own feature, not a flavor of
+    // float audio -- own on/off, own independent distance/obstruction
+    // range (see MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY's
+    // comment in sfall_config.h), own character pool.
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_KEY, settings.mod_settings.text_scramble);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.text_scramble_distance_per_perception);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.text_scramble_obstruction_dampening);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_CHARS_KEY, settings.mod_settings.text_scramble_chars);
     // FISSION-VOCK ADD: dedicated Pip-Boy holodisk-narration channel's own
     // on/off and volume, independent of the NPC float pool above.
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_AUDIO_KEY, settings.mod_settings.pipboy_audio);

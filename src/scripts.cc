@@ -3214,10 +3214,10 @@ char* _scr_scramble_float_text(const char* text, double clarity)
     // [vock-features] TextScrambleChars in game.cfg -- falls back to the
     // built-in pool if left empty, since an empty pool would leave nothing
     // for randomBetween() below to index into.
-    const char* noise = settings.mod_settings.float_text_scramble_chars.c_str();
+    const char* noise = settings.mod_settings.text_scramble_chars.c_str();
     int noiseLength = (int)strlen(noise);
     if (noiseLength == 0) {
-        noise = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
+        noise = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
         noiseLength = (int)strlen(noise);
     }
 
@@ -3298,9 +3298,9 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
 
     // FISSION-VOCK ADD: [enhancements] VockFeatures is the master switch for the
     // whole VOCK feature set below (voiced audio, censor bleep, distance
-    // text scramble). The individual toggles it gates -- VoicedFloats,
-    // CensorBleep, TextScramble -- live in game.cfg [vock-features] and are
-    // independent of each other: none of them implies any other.
+    // text scramble). The individual toggles it gates -- FloatAudio,
+    // FloatCensorBleep, TextScramble -- live in game.cfg [vock-features] and
+    // are independent of each other: none of them implies any other.
     // inOwnDialogue lines never consult this gate at all, since a real
     // dialogue window's own line is always fully voiced/lip-synced.
     bool vockFeaturesGateOpen = settings.enhancements.vock_features && !settings.enhancements.strict_vanilla;
@@ -3314,8 +3314,8 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 if (inOwnDialogue) {
                     gameDialogStartLips(nullptr);
                 } else if (vockFeaturesGateOpen && settings.mod_settings.float_censor_bleep) {
-                    // FISSION-VOCK FIX: gated on CensorBleep specifically, not
-                    // VoicedFloats -- a filtered line never plays its real
+                    // FISSION-VOCK FIX: gated on FloatCensorBleep specifically,
+                    // not FloatAudio -- a filtered line never plays its real
                     // audio either way, so whether it bleeps instead is its
                     // own decision, independent of whether clean floats are
                     // voiced at all.
@@ -3336,7 +3336,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // start_gdialog() has actually created a window with a real
                 // head to lip-sync against.
                 gameDialogStartLips(messageListItem.audio);
-            } else if (vockFeaturesGateOpen && settings.mod_settings.voiced_floats) {
+            } else if (vockFeaturesGateOpen && settings.mod_settings.float_audio) {
                 // FISSION-VOCK FIX: message_str()/mstr() is also called from outside
                 // gdialog (float_msg, combat, timed_event_p_proc, etc), or
                 // from a script that isn't the one whose window is currently
