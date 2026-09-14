@@ -15,6 +15,7 @@
 #include "draw.h"
 #include "game.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "kb.h"
 #include "memory.h"
@@ -681,18 +682,78 @@ static bool characterSelectorWindowRenderFace()
 {
     bool success = false;
 
+    // F1 ships no widescreen art variants for now. Request the base fid in F1
+    // mode regardless of resolution so we don't ask the cache for a
+    // frame that doesn't exist in the F1 dat.
+    bool widescreenVariant = !IS_FALLOUT_1() && gameIsWidescreen();
+
     FrmImage faceFrmImage;
-    int faceFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, gCustomPremadeCharacterDescriptions[gCurrentPremadeCharacter].face, gameIsWidescreen());
+    int faceFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE,
+        gCustomPremadeCharacterDescriptions[gCurrentPremadeCharacter].face,
+        widescreenVariant);
+
     if (faceFrmImage.lock(faceFid)) {
         unsigned char* data = faceFrmImage.getData();
-        if (data != nullptr) {
+        if (data != NULL) {
             int width = faceFrmImage.getWidth();
             int height = faceFrmImage.getHeight();
-            // Use offset-based position
-            int offset = gOffsets.width * gOffsets.faceY + gOffsets.faceX;
-            blitBufferToBufferTrans(data, width, height, width,
-                gCharacterSelectorWindowBuffer + offset,
-                gOffsets.width);
+
+            if (IS_FALLOUT_1()) {
+                // Base the position off the Fallout2 values
+                int anchorX = gOffsets.faceX + 123;
+                int anchorY = gOffsets.faceY + 217;
+
+                // Widescreen-only nudge. 0,0 means "same relative
+                // position as 640"; tweak these to shift the F1 portrait
+                // on the 800 layout without touching the 640 defaults.
+                int wsFaceDX = 35;
+                int wsFaceDY = 0;
+                if (gameIsWidescreen()) {
+                    anchorX += wsFaceDX;
+                    anchorY += wsFaceDY;
+                }
+
+                int dstX = anchorX - (width / 2);
+                int dstY = anchorY - height;
+
+                // Odd-row scanline mask 'mutates' pixels. F1 got away with
+                // in-place mutation because it locked/unlocked per visit;
+                // the FISSION art cache is shared across visits and
+                // resolutions, so work on a scratch copy.
+                unsigned char* scratch = (unsigned char*)internal_malloc(width * height);
+                if (scratch != NULL) {
+                    memcpy(scratch, data, width * height);
+                    for (int y = 1; y < height; y += 2) {
+                        memset(scratch + y * width, 0, width);
+                    }
+
+                    blitBufferToBufferTrans(scratch, width, height, width,
+                        gCharacterSelectorWindowBuffer + gOffsets.width * dstY + dstX,
+                        gOffsets.width);
+
+                    internal_free(scratch);
+                }
+
+                // VID serial number, 12px below the portrait's bottom
+                // edge and centered on the same anchor. Lands on row 252
+                // at 640, matching F1.
+                const char* vid = gCustomPremadeCharacterDescriptions[gCurrentPremadeCharacter].vid;
+                if (vid != NULL && vid[0] != '\0') {
+                    int oldFont = fontGetCurrent();
+                    fontSetCurrent(101);
+
+                    int idWidth = fontGetStringWidth(vid);
+                    fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * (anchorY + 12) + anchorX - idWidth / 2,
+                        vid, idWidth, gOffsets.width, _colorTable[992]);
+
+                    fontSetCurrent(oldFont);
+                }
+            } else {
+                blitBufferToBufferTrans(data, width, height, width,
+                    gCharacterSelectorWindowBuffer + gOffsets.width * gOffsets.faceY + gOffsets.faceX,
+                    gOffsets.width);
+            }
+
             success = true;
         }
         faceFrmImage.unlock();
