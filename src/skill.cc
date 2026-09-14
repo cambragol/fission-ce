@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "display_monitor.h"
 #include "game.h"
+#include "game_version.h"
 #include "interface.h"
 #include "item.h"
 #include "message.h"
@@ -96,6 +97,31 @@ static SkillDescription gSkillDescriptions[SKILL_COUNT] = {
     { nullptr, nullptr, nullptr, 45, 0, 2, STAT_ENDURANCE, STAT_INTELLIGENCE, 1, 100, 0 },
 };
 
+// Fallout 1's skill table, from F1 CE's skill.c. Same slot order as
+// gSkillDescriptions below, but F1's base values and stat modifiers.
+// F1's formula halves the two-stat contribution while F2's does not,
+// so the two tables are not interchangeable.
+static SkillDescription gF1SkillDescriptions[SKILL_COUNT] = {
+    { NULL, NULL, NULL, 28, 35, 1, STAT_AGILITY, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 29, 10, 1, STAT_AGILITY, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 30, 10, 1, STAT_AGILITY, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 31, 65, 1, STAT_AGILITY, STAT_STRENGTH, 1, 0, 0 },
+    { NULL, NULL, NULL, 32, 55, 1, STAT_AGILITY, STAT_STRENGTH, 1, 0, 0 },
+    { NULL, NULL, NULL, 33, 40, 1, STAT_AGILITY, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 34, 30, 1, STAT_PERCEPTION, STAT_INTELLIGENCE, 1, 25, 0 },
+    { NULL, NULL, NULL, 35, 15, 1, STAT_PERCEPTION, STAT_INTELLIGENCE, 1, 50, 0 },
+    { NULL, NULL, NULL, 36, 25, 1, STAT_AGILITY, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 37, 20, 1, STAT_PERCEPTION, STAT_AGILITY, 1, 25, 1 },
+    { NULL, NULL, NULL, 38, 20, 1, STAT_AGILITY, STAT_INVALID, 1, 25, 1 },
+    { NULL, NULL, NULL, 39, 20, 1, STAT_PERCEPTION, STAT_AGILITY, 1, 25, 1 },
+    { NULL, NULL, NULL, 40, 25, 2, STAT_INTELLIGENCE, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 41, 20, 1, STAT_INTELLIGENCE, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 42, 25, 2, STAT_CHARISMA, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 43, 20, 2, STAT_CHARISMA, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 44, 20, 3, STAT_LUCK, STAT_INVALID, 1, 0, 0 },
+    { NULL, NULL, NULL, 45, 5, 1, STAT_ENDURANCE, STAT_INTELLIGENCE, 1, 100, 0 },
+};
+
 // 0x51D430
 int _gIsSteal = 0;
 
@@ -117,6 +143,16 @@ static int gTaggedSkills[NUM_TAGGED_SKILLS];
 //
 // 0x668080
 static MessageList gSkillsMessageList;
+
+static bool useF1SkillData()
+{
+    return IS_FALLOUT_1() && settings.enhancements.strict_vanilla;
+}
+
+static SkillDescription* skillGetDescriptionData(int skill)
+{
+    return useF1SkillData() ? &gF1SkillDescriptions[skill] : &gSkillDescriptions[skill];
+}
 
 // 0x4AA318
 int skillsInit()
@@ -155,6 +191,11 @@ int skillsInit()
         } else {
             gSkillDescriptions[skill].attributes = nullptr;
         }
+
+        // F1 table shares the same localized strings.
+        gF1SkillDescriptions[skill].name = gSkillDescriptions[skill].name;
+        gF1SkillDescriptions[skill].description = gSkillDescriptions[skill].description;
+        gF1SkillDescriptions[skill].attributes = gSkillDescriptions[skill].attributes;
     }
 
     gSkillCount = 0;
@@ -258,14 +299,32 @@ int skillGetValue(Object* critter, int skill)
         return baseValue;
     }
 
-    SkillDescription* skillDescription = &(gSkillDescriptions[skill]);
+    SkillDescription* skillDescription = skillGetDescriptionData(skill);
 
-    int statValueSum = critterGetStat(critter, skillDescription->stat1);
-    if (skillDescription->stat2 != -1) {
-        statValueSum += critterGetStat(critter, skillDescription->stat2);
+    int value;
+    if (useF1SkillData()) {
+        // F1's formula: two-stat skills average their contribution.
+        int statValue;
+        if (skillDescription->stat2 != -1) {
+            statValue = (critterGetStat(critter, skillDescription->stat1)
+                + critterGetStat(critter, skillDescription->stat2))
+                * skillDescription->statModifier / 2;
+        } else {
+            statValue = critterGetStat(critter, skillDescription->stat1)
+                * skillDescription->statModifier;
+        }
+        value = skillDescription->defaultValue + statValue
+            + baseValue * skillDescription->baseValueMult;
+    } else {
+        // F2's formula: no halving.
+        int statValueSum = critterGetStat(critter, skillDescription->stat1);
+        if (skillDescription->stat2 != -1) {
+            statValueSum += critterGetStat(critter, skillDescription->stat2);
+        }
+        value = skillDescription->defaultValue
+            + skillDescription->statModifier * statValueSum
+            + baseValue * skillDescription->baseValueMult;
     }
-
-    int value = skillDescription->defaultValue + skillDescription->statModifier * statValueSum + baseValue * skillDescription->baseValueMult;
 
     if (critter == gDude) {
         if (skillIsTagged(skill)) {
@@ -281,8 +340,10 @@ int skillGetValue(Object* critter, int skill)
         value += skillGetGameDifficultyModifier(skill);
     }
 
-    if (value > 300) {
-        value = 300;
+    // 200 for strict Fallout 1 - could raise this later?
+    int max = useF1SkillData() ? 200 : 300;
+    if (value > max) {
+        value = max;
     }
 
     return value;
@@ -291,7 +352,7 @@ int skillGetValue(Object* critter, int skill)
 // 0x4AA654
 int skillGetDefaultValue(int skill)
 {
-    return skillIsValid(skill) ? gSkillDescriptions[skill].defaultValue : -5;
+    return skillIsValid(skill) ? skillGetDescriptionData(skill)->defaultValue : -5;
 }
 
 // 0x4AA680
@@ -381,6 +442,12 @@ int skillAddForce(Object* obj, int skill)
 // 0x4AA87C
 int skillsGetCost(int skillValue)
 {
+    // F1 charges a flat 1 point per skill point regardless of current
+    // level; F2 tiers the cost upward as the skill grows.
+    if (useF1SkillData()) {
+        return 1;
+    }
+
     if (skillValue >= 201) {
         return 6;
     } else if (skillValue >= 176) {

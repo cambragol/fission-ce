@@ -26,6 +26,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_vars.h"
 #include "game_version.h"
 #include "input.h"
 #include "interface.h"
@@ -113,13 +114,6 @@ namespace fallout {
 #define WM_VIEW_Y (21)
 #define WM_VIEW_WIDTH (450)
 #define WM_VIEW_HEIGHT (443)
-
-// F1 CE defines GVAR_WORLD_TERRAIN at index 65 of its GameGlobalVar enum.
-// FISSION compiles against Fallout 2's enum (where index 65 is
-// GVAR_TOWN_REP_PRIMITIVE_TRIBE), so we can't reference F1's name directly.
-// When running F1 data, index 65 is the slot F1 scripts read; when running
-// F2 data, we don't touch it (see the IS_FALLOUT_1() gate below).
-#define F1_GVAR_WORLD_TERRAIN 65
 
 typedef enum EncounterFormationType {
     ENCOUNTER_FORMATION_TYPE_SURROUNDING,
