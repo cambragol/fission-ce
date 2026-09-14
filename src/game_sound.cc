@@ -52,6 +52,13 @@ static char _aSoundMusic_0[] = "sound\\music\\";
 // 0x5035D8
 static char _aSoundSpeech_0[] = "sound\\speech\\";
 
+// FISSION-VOCK ADD: loose-file base path for the dedicated Pip-Boy channel
+// -- sound/pipboy/, a sibling of sound/speech/ rather than a subfolder of
+// it. Pip-Boy narration isn't a critter's spoken line (no head, no
+// lip-sync), so it doesn't belong under the same root dialogue and floats
+// share -- see gameSoundFindPipboySoundPath() below.
+static char _aSoundPipboy_0[] = "sound\\pipboy\\";
+
 // 0x518E30
 static bool gGameSoundInitialized = false;
 
@@ -148,6 +155,10 @@ static char* _sound_music_path2 = nullptr;
 // 0x518E80
 static char* _sound_speech_path = _aSoundSpeech_0;
 
+// FISSION-VOCK ADD: loose-file base path for pipboySpeechLoad(), parallel
+// to _sound_speech_path above but rooted at sound/pipboy/.
+static char* _sound_pipboy_path = _aSoundPipboy_0;
+
 // 0x518E84
 static int gMasterVolume = VOLUME_MAX;
 
@@ -205,6 +216,7 @@ static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
 static int gameSoundFindBackgroundSoundPath(char* dest, const char* src);
+static int gameSoundFindPipboySoundPath(char* dest, const char* src);
 static int gameSoundFindWavEffectPath(char* dest, const char* src);
 static int backgroundSoundPlay();
 static int speechPlay();
@@ -1207,10 +1219,11 @@ static int _gsound_calc_pipboy_volume()
 // mirroring speechLoad() but against gPipboySound instead of gSpeechSound
 // so a holodisk's audio can't be interrupted by, or interrupt, dialogue --
 // see PIPBOY_SPEECH_MAX_COUNT in audio_engine.cc for the extra mixer buffer
-// this reserves. Resolves fileName under sound/speech/ exactly like
-// dialogue speech (gameSoundFindSpeechSoundPath() is path-agnostic), so
-// callers pass a path already rooted under that folder -- see
-// pipboyHolodiskUpdateAudio() in pipboy.cc, which roots it at "pipboy\\".
+// this reserves. Resolves fileName under sound/pipboy/ via
+// gameSoundFindPipboySoundPath() -- a sibling of sound/speech/, not a
+// subfolder of it, since Pip-Boy narration isn't dialogue. Callers pass a
+// bare filename with no folder prefix -- see pipboyHolodiskUpdateAudio()
+// in pipboy.cc.
 int pipboySpeechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode)
 {
     char path[COMPAT_MAX_PATH + 1];
@@ -1239,7 +1252,7 @@ int pipboySpeechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode,
         return -1;
     }
 
-    if (gameSoundFindSpeechSoundPath(path, fileName) != 0) {
+    if (gameSoundFindPipboySoundPath(path, fileName) != 0) {
         if (gGameSoundDebugEnabled) {
             debugPrint("failed because the file could not be found.\n");
         }
@@ -2573,6 +2586,73 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     }
 
     if (gGameSoundDebugEnabled) debugPrint("-- speech find failed ");
+    return -1;
+}
+
+// FISSION-VOCK ADD: mirrors gameSoundFindSpeechSoundPath() above, but
+// rooted at sound/pipboy/ instead of sound/speech/ -- Pip-Boy narration is
+// a sibling category, not a subfolder of dialogue/float speech (see
+// _aSoundPipboy_0's comment). Kept as its own function rather than
+// parameterizing the root into gameSoundFindSpeechSoundPath() so neither
+// caller pays for a branch it doesn't need.
+static int gameSoundFindPipboySoundPath(char* dest, const char* src)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    char upperSrc[COMPAT_MAX_PATH + 1];
+    int fileSize;
+
+    strcpy(upperSrc, src);
+    compat_strupr(upperSrc);
+
+    // VFS - .WAV (uppercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.WAV", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .WAV (lowercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.WAV", src);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Loose: .WAV using config path
+    snprintf(path, sizeof(path), "%s%s%s", _sound_pipboy_path, src, ".WAV");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .ACM (uppercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.ACM", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .ACM (lowercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.ACM", src);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Loose - .ACM using config path (original fallback)
+    snprintf(path, sizeof(path), "%s%s%s", _sound_pipboy_path, src, ".ACM");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    if (gGameSoundDebugEnabled) debugPrint("-- pipboy find failed ");
     return -1;
 }
 

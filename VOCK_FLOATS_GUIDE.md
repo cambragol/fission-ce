@@ -155,7 +155,9 @@ Master toggle for voiced Pip-Boy holodisk narration specifically. Independent of
 `VoicedFloats` above — you can have voiced NPC floats without voiced holodisks, or vice
 versa. Holodisk narration plays on its own dedicated audio channel, separate from both NPC
 floats and dialogue speech, so it can't be interrupted by (or interrupt) either one. Audio
-files for this feature live under `sound/speech/pipboy/`.
+files for this feature live under `sound/pipboy/`, a sibling of `sound/speech/`
+rather than a subfolder of it, since holodisk narration has no critter/head
+behind it and isn't dialogue.
 
 ### PipboyVolume
 **Default: `32767`** (max, i.e. 100% — no reduction on top of your Speech slider)
