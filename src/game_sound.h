@@ -83,6 +83,15 @@ bool speechLoadFloat(const char* fileName, Object* speaker);
 double gameSoundCalcFloatClarity(Object* speaker);
 int _gsound_speech_play_preloaded();
 void speechDelete();
+// FISSION-VOCK ADD: dedicated single-slot channel for Pip-Boy holodisk
+// narration, parallel to gSpeechSound above but independently gated
+// (PipboyAudio) and volumed (PipboyVolume) -- see [vock-features] in
+// game.cfg and pipboyHolodiskUpdateAudio() in pipboy.cc. Kept separate from
+// gSpeechSound rather than reusing it so a holodisk playing under the
+// Pip-Boy can't be interrupted by, or interrupt, an unrelated NPC's
+// dialogue line if the two ever overlap.
+int pipboySpeechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
+void pipboySpeechDelete();
 int _gsound_play_sfx_file_volume(const char* name, int volume);
 Sound* soundEffectLoad(const char* name, Object* object);
 Sound* soundEffectLoadWithVolume(const char* name, Object* object, int volume);

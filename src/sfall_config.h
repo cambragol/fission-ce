@@ -61,10 +61,12 @@ namespace fallout {
 #define MOD_CONFIG_GAME_DIALOG_FIX_KEY "DialogueFix"
 #define MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY "BonusHtHDamageFix"
 
-// Own section: number of NPC floats that can play voiced audio at once. See
-// AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which reserves this many
-// mixer buffer slots in addition to its fixed music/SFX/dialogue budget.
-#define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
+// Own section: covers both NPC floats and Pip-Boy holodisk narration. See
+// AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which reserves buffer slots
+// for the float pool (FloatAudioChannels below) and the dedicated Pip-Boy
+// channel (PIPBOY_SPEECH_MAX_COUNT) in addition to its fixed
+// music/SFX/dialogue budget.
+#define MOD_CONFIG_VOCK_FEATURES_KEY "vock-features"
 #define MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY "FloatAudioChannels"
 // Float volume stays full out to half of refDistance, then ramps linearly
 // down to an exact 0.0 at refDistance itself, silent beyond it: gain =
@@ -130,7 +132,7 @@ namespace fallout {
 #define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY "TextScrambleChars"
 // On by default: play a float's real voice file when it has one and the
 // line is clean. Sibling of CensorBleep below -- split out so either can be
-// switched off independently under the [enhancements] VockFloats master
+// switched off independently under the [enhancements] VockFeatures master
 // gate (see game_config.h).
 #define MOD_CONFIG_VOICED_FLOATS_KEY "VoicedFloats"
 // On by default: play a censor tone in place of a badword-filtered float's
@@ -144,6 +146,19 @@ namespace fallout {
 // (gain = Volume / VOLUME_MAX), rather than a replacement for it. Linear,
 // not logarithmic -- see _gsound_calc_float_volume() in game_sound.cc.
 #define MOD_CONFIG_FLOAT_VOLUME_KEY "Volume"
+// On by default: master on/off for voiced Pip-Boy holodisk narration,
+// independent of VoicedFloats -- lets a mod (or player) keep NPC floats
+// voiced while muting holodisks, or vice versa, without touching the
+// [enhancements] VockFeatures master gate. See pipboyHolodiskUpdateAudio()
+// in pipboy.cc.
+#define MOD_CONFIG_PIPBOY_AUDIO_KEY "PipboyAudio"
+// 0-32767 (VOLUME_MIN-VOLUME_MAX), default 32767: volume knob for the
+// dedicated Pip-Boy narration channel, layered multiplicatively on top of
+// the Speech Volume Preferences slider (gain = PipboyVolume / VOLUME_MAX),
+// same relationship Volume above has to the Sound Effects slider for
+// floats. See pipboySpeechLoad()/_gsound_calc_pipboy_volume() in
+// game_sound.cc.
+#define MOD_CONFIG_PIPBOY_VOLUME_KEY "PipboyVolume"
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
@@ -200,7 +215,7 @@ namespace fallout {
 // Game fixes
 #define MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE 5
 
-// vock-floats
+// vock-features
 #define MOD_CONFIG_DEFAULT_FLOAT_AUDIO_CHANNELS 8
 #define MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION 2
 #define MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING 50
@@ -211,6 +226,8 @@ namespace fallout {
 #define MOD_CONFIG_DEFAULT_VOICED_FLOATS 1
 #define MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP 1
 #define MOD_CONFIG_DEFAULT_FLOAT_VOLUME 32767
+#define MOD_CONFIG_DEFAULT_PIPBOY_AUDIO 1
+#define MOD_CONFIG_DEFAULT_PIPBOY_VOLUME 32767
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""

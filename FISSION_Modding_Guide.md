@@ -1597,17 +1597,21 @@ Rules:
     line, including the first line of later pages, is ignored.
 -   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
     NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
-    to `sound/speech/holodisks/<name>.wav` or `.acm` (searched in that order), the same
+    to `sound/speech/pipboy/<name>.wav` or `.acm` (searched in that order), the same
     way dialogue always resolves under `sound/speech/<critter's head name>/<name>`.
 -   Leave the field empty (`{}`) for a silent holodisk -- no narration plays.
 -   The clip plays once, in full, regardless of how many pages the reader turns through
     or how long they linger on one page. Opening a *different* holodisk, or leaving the
     Pip-Boy, stops it and clears the tracking so reopening the same holodisk later
     restarts the clip from the top. Nothing needs manual cleanup from script or data.
--   Gated by the same switches as every other VockFloats feature: `[enhancements]
-    VockFloats=1` in `fission.cfg`, `VoicedFloats=1` in `game.cfg`'s `[vock-floats]`
-    section, and off entirely under `StrictVanilla=1`. With `VockFloats` off, holodisks
-    behave exactly as before -- text only.
+-   Plays on its own dedicated Pip-Boy audio channel, separate from both dialogue speech
+    and NPC floats -- holodisk narration can't be interrupted by, or interrupt, either one.
+-   Gated by `[enhancements] VockFeatures=1` in `fission.cfg` plus its own
+    `[vock-features] PipboyAudio=1` toggle in `game.cfg`, and off entirely under
+    `StrictVanilla=1`. Independent of `VoicedFloats` -- floats and holodisk narration can
+    be switched on/off separately. Volume is `[vock-features] PipboyVolume` (own knob,
+    layered on the Speech slider, separate from floats' `Volume`). With `PipboyAudio` off,
+    holodisks behave exactly as before -- text only.
 -   Applies identically to vanilla holodisks (`data/holodisk.txt` +
     `text/english/game/PIPBOY.msg`) and mod holodisks (`holodisk_<ModName>_<BlockKey>.msg`,
     see 11.3) -- both load through the same message-list parser.
