@@ -1597,8 +1597,9 @@ Rules:
     line, including the first line of later pages, is ignored.
 -   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
     NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
-    to `sound/speech/pipboy/<name>.wav` or `.acm` (searched in that order), the same
-    way dialogue always resolves under `sound/speech/<critter's head name>/<name>`.
+    to `sound/pipboy/<name>.wav` or `.acm` (searched in that order) -- a sibling of
+    `sound/speech/`, not a subfolder of it, unlike dialogue's
+    `sound/speech/<critter's head name>/<name>`.
 -   Leave the field empty (`{}`) for a silent holodisk -- no narration plays.
 -   The clip plays once, in full, regardless of how many pages the reader turns through
     or how long they linger on one page. Opening a *different* holodisk, or leaving the

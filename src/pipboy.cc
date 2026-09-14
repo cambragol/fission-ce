@@ -2764,9 +2764,9 @@ static void pipboyHolodiskUpdateAudio(const char* audio)
     }
 
     if (audio != nullptr && audio[0] != '\0') {
-        char path[COMPAT_MAX_PATH];
-        snprintf(path, sizeof(path), "pipboy\\%s", audio);
-        pipboySpeechLoad(path, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+        // Bare filename -- gameSoundFindPipboySoundPath() already roots
+        // the lookup at sound/pipboy/, so no folder prefix belongs here.
+        pipboySpeechLoad(audio, GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
     } else {
         pipboySpeechDelete();
     }
@@ -4933,7 +4933,7 @@ static void generateHolodiskListReport()
         "   holodisk's FIRST line's audio field, e.g. {1}{myquest_intro}{line1}.\n"
         "   One clip for the whole holodisk, not per page (pages break mid-\n"
         "   sentence, so per-page audio can't be cut cleanly). Resolves to\n"
-        "   sound/speech/pipboy/myquest_intro.*. Requires [enhancements]\n"
+        "   sound/pipboy/myquest_intro.*. Requires [enhancements]\n"
         "   VockFeatures=1 and [vock-features] PipboyAudio=1 (both on by\n"
         "   default); volume is [vock-features] PipboyVolume.\n");
 
