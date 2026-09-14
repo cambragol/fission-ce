@@ -126,7 +126,7 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
-    bool vock_floats = false;
+    bool vock_features = false;
 };
 
 struct ModSettings {
@@ -202,6 +202,8 @@ struct ModSettings {
     bool voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
     bool float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
     int float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
+    bool pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
+    int pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 };
 
 struct ModScriptsSettings {

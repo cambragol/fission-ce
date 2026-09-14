@@ -1,4 +1,4 @@
-# VockFloats config guide
+# VockFeatures config guide
 
 What each setting does, in plain terms. For the technical design record (why things work
 this way internally, code references, commit history) see `VOCK_FLOATS.md` instead — this
@@ -9,8 +9,9 @@ file is just "what does turning this knob do."
 "Floats" are the text lines that pop up over an NPC's head — combat barks, ambient chatter,
 flavor lines from NPCs without a full dialogue window. Normally they're silent text only.
 This adds: real voice-over audio for floats that have it, volume that fades with distance,
-walls/scenery muffling a float, a censor bleep for filtered lines, and optional text garbling
-for lines you can barely hear.
+walls/scenery muffling a float, a censor bleep for filtered lines, optional text garbling
+for lines you can barely hear, and voiced narration for Pip-Boy holodisks on their own
+dedicated audio channel.
 
 ## Turning it on
 
@@ -19,17 +20,17 @@ for lines you can barely hear.
 ```ini
 [enhancements]
 StrictVanilla=0
-VockFloats=0
+VockFeatures=0
 ```
 
-`VockFloats` is **off by default** — `VockFloats=1` turns the whole thing on, `VockFloats=0`
-turns it all off. If `StrictVanilla=1` is set, that overrides `VockFloats` off no matter what
-it's set to.
+`VockFeatures` is **off by default** — `VockFeatures=1` turns the whole feature set on
+(floats and Pip-Boy narration alike), `VockFeatures=0` turns it all off. If `StrictVanilla=1`
+is set, that overrides `VockFeatures` off no matter what it's set to.
 
-**`data/game.cfg`**, under `[vock-floats]` — the individual settings:
+**`data/game.cfg`**, under `[vock-features]` — the individual settings:
 
 ```ini
-[vock-floats]
+[vock-features]
 FloatAudioChannels=8
 DistancePerPerception=2
 ObstructionDampening=50
@@ -40,6 +41,8 @@ TextScramble=0
 TextScrambleDistancePerPerception=4
 TextScrambleChars=#%&*~^
 Volume=32767
+PipboyAudio=1
+PipboyVolume=32767
 ```
 
 ## Each setting
@@ -144,3 +147,19 @@ falls back to the default set above.
 A volume multiplier applied on top of your normal Sound Effects volume slider. This can't
 make floats louder than your SFX volume allows, and if you mute SFX entirely, floats go
 silent too — it's a multiplier on that slider, not a separate volume channel.
+
+### PipboyAudio
+**Default: `1` (on)**
+
+Master toggle for voiced Pip-Boy holodisk narration specifically. Independent of
+`VoicedFloats` above — you can have voiced NPC floats without voiced holodisks, or vice
+versa. Holodisk narration plays on its own dedicated audio channel, separate from both NPC
+floats and dialogue speech, so it can't be interrupted by (or interrupt) either one. Audio
+files for this feature live under `sound/speech/pipboy/`.
+
+### PipboyVolume
+**Default: `32767`** (max, i.e. 100% — no reduction on top of your Speech slider)
+
+A volume multiplier applied on top of your normal Speech volume slider, just for Pip-Boy
+holodisk narration. Same relationship `Volume` above has to the SFX slider, but layered onto
+Speech instead since holodisk narration is spoken dialogue, not an ambient effect.
