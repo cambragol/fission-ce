@@ -8170,7 +8170,7 @@ static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription*
     // party marker (that path is in wmWorldMapFunc's hover block and stays
     // untouched). F2 draws a static label under every circle; suppress it
     // in strict-vanilla F1 mode.
-    if (IS_FALLOUT_1()) {
+    if (!IS_FALLOUT_1()) {
         if (textDrawAbsX >= 0 && textDrawAbsY >= 0 && textDrawAbsX + textWidth <= WM_OVERLAY_BUFFER_SIZE && textDrawAbsY + textHeight <= WM_OVERLAY_BUFFER_SIZE) {
             fontDrawText(
                 wmOverlayOffscreenBuf + textDrawAbsY * WM_OVERLAY_BUFFER_SIZE + textDrawAbsX,
