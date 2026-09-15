@@ -1120,6 +1120,14 @@ int gcdSave(const char* path)
         return -1;
     }
 
+    if (IS_FALLOUT_1()) {
+        // gcdLoad rewinds 4 bytes in F1 mode to skip F2's damageType field,
+        // which F1's .gcd format doesn't have. Rewind here after writing so
+        // the field is overwritten by the name that follows, keeping the
+        // file in F1's layout.
+        fileSeek(stream, -4, SEEK_CUR);
+    }
+
     fileWrite(gDudeName, DUDE_NAME_MAX_LENGTH, 1, stream);
 
     if (skillsSave(stream) == -1) {
