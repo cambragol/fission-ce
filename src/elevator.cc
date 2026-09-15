@@ -12,6 +12,7 @@
 #include "draw.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "input.h"
 #include "interface.h"
@@ -300,6 +301,119 @@ static char gElevatorLevelLabels[ELEVATORS_MAX][ELEVATOR_LEVEL_MAX] = {
     { '1', '2', '\0', '\0' },
 };
 
+// F1 CE's elevator data, from game/elevator.cc. Used when IS_FALLOUT_1().
+// Twelve elevators, same enum order as FISSION's first twelve slots.
+// Map IDs are F1 MAP_COUNT indices, which match our converted maps.txt.
+
+static const ElevatorBackground gElevatorBackgroundsF1[12] = {
+    { 143, -1 },  // BROTHERHOOD_OF_STEEL_MAIN
+    { 143, 150 }, // BROTHERHOOD_OF_STEEL_SURFACE
+    { 144, -1 },  // MASTER_UPPER
+    { 144, 145 }, // MASTER_LOWER
+    { 146, -1 },  // MILITARY_BASE_UPPER
+    { 146, 147 }, // MILITARY_BASE_LOWER
+    { 146, -1 },  // GLOW_UPPER
+    { 146, 151 }, // GLOW_LOWER
+    { 148, -1 },  // VAULT_13
+    { 148, -1 },  // NECROPOLIS
+    { 148, -1 },  // SIERRA_1
+    { 146, 152 }, // SIERRA_2
+};
+
+static const int gElevatorLevelsF1[12] = {
+    4, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3,
+};
+
+static const ElevatorDescription gElevatorDescriptionsF1[12][ELEVATOR_LEVEL_MAX] = {
+    {
+        { 14, 0, 18940 },
+        { 14, 1, 18936 },
+        { 15, 0, 21340 },
+        { 15, 1, 21340 },
+    },
+    {
+        { 13, 0, 20502 },
+        { 14, 0, 14912 },
+        { 0, 0, -1 },
+        { 0, 0, -1 },
+    },
+    {
+        { 33, 0, 12498 },
+        { 33, 1, 20094 },
+        { 34, 0, 17312 },
+        { 0, 0, -1 },
+    },
+    {
+        { 34, 0, 16140 },
+        { 34, 1, 16140 },
+        { 0, 0, -1 },
+        { 0, 0, -1 },
+    },
+    {
+        { 31, 0, 14920 },
+        { 31, 1, 14920 },
+        { 32, 0, 12944 },
+        { 0, 0, -1 },
+    },
+    {
+        { 32, 0, 24520 },
+        { 32, 1, 24520 },
+        { 0, 0, -1 },
+        { 0, 0, -1 },
+    },
+    {
+        { 42, 0, 22526 },
+        { 42, 1, 22526 },
+        { 42, 2, 22526 },
+        { 0, 0, -1 },
+    },
+    {
+        { 42, 2, 14086 },
+        { 43, 0, 14086 },
+        { 43, 2, 14086 },
+        { 0, 0, -1 },
+    },
+    {
+        { 6, 0, 14104 },
+        { 6, 1, 22504 },
+        { 6, 2, 17312 },
+        { 0, 0, -1 },
+    },
+    {
+        { 9, 0, 13704 },
+        { 9, 1, 23302 },
+        { 9, 2, 17308 },
+        { 0, 0, -1 },
+    },
+    {
+        { 9, 0, 13704 },
+        { 9, 1, 23302 },
+        { 9, 2, 17308 },
+        { 0, 0, -1 },
+    },
+    {
+        { 43, 0, 14130 },
+        { 43, 1, 14130 },
+        { 43, 2, 14130 },
+        { 0, 0, -1 },
+    },
+};
+
+static const char gElevatorLevelLabelsF1[12][ELEVATOR_LEVEL_MAX] = {
+    { '1', '2', '3', '4' },
+    { 'G', '1', '\0', '\0' },
+    { '1', '2', '3', '\0' },
+    { '3', '4', '\0', '\0' },
+    { '1', '2', '3', '\0' },
+    { '3', '4', '\0', '\0' },
+    { '1', '2', '3', '\0' },
+    { '3', '4', '6', '\0' },
+    { '1', '2', '3', '\0' },
+    { '1', '2', '3', '\0' },
+    { '1', '2', '3', '\0' },
+    { '4', '5', '6', '\0' },
+};
+
 // 0x51862C
 static const char* gElevatorSoundEffects[ELEVATOR_LEVEL_MAX - 1][ELEVATOR_LEVEL_MAX] = {
     {
@@ -365,22 +479,29 @@ int elevatorSelectLevel(int elevator, int* mapPtr, int* elevationPtr, int* tileP
         }
     }
 
-    if (elevator == ELEVATOR_SIERRA_2) {
-        if (*elevationPtr <= 2) {
+    if (IS_FALLOUT_1()) {
+        // F1 CE's elevator_select adjustment.
+        if (elevator == ELEVATOR_GLOW_LOWER && *mapPtr == 42) {
             *elevationPtr -= 2;
-        } else {
+        }
+    } else {
+        if (elevator == ELEVATOR_SIERRA_2) {
+            if (*elevationPtr <= 2) {
+                *elevationPtr -= 2;
+            } else {
+                *elevationPtr -= 3;
+            }
+        } else if (elevator == ELEVATOR_MILITARY_BASE_LOWER) {
+            if (*elevationPtr >= 2) {
+                *elevationPtr -= 2;
+            }
+        } else if (elevator == ELEVATOR_MILITARY_BASE_UPPER && *elevationPtr == 4) {
+            *elevationPtr -= 2;
+        }
+
+        if (*elevationPtr > 3) {
             *elevationPtr -= 3;
         }
-    } else if (elevator == ELEVATOR_MILITARY_BASE_LOWER) {
-        if (*elevationPtr >= 2) {
-            *elevationPtr -= 2;
-        }
-    } else if (elevator == ELEVATOR_MILITARY_BASE_UPPER && *elevationPtr == 4) {
-        *elevationPtr -= 2;
-    }
-
-    if (*elevationPtr > 3) {
-        *elevationPtr -= 3;
     }
 
     debugPrint("\n the start elev level %d\n", *elevationPtr);
@@ -476,6 +597,13 @@ int elevatorSelectLevel(int elevator, int* mapPtr, int* elevationPtr, int* tileP
         *mapPtr = description->map;
         *elevationPtr = description->elevation;
         *tilePtr = description->tile;
+    } else {
+        // F1 CE: the Glow lower elevator adjusts the elevation on entry
+        // (above). Undo that adjustment on cancel so the caller sees the
+        // original elevation and the player stays on their current floor.
+        if (IS_FALLOUT_1() && elevator == ELEVATOR_GLOW_LOWER) {
+            *elevationPtr += 2;
+        }
     }
 
     return 0;
@@ -649,8 +777,26 @@ static int elevatorGetLevelFromKeyCode(int elevator, int keyCode)
     return 0;
 }
 
+static void elevatorsInitFallout1()
+{
+    for (int i = 0; i < 12; i++) {
+        gElevatorBackgrounds[i] = gElevatorBackgroundsF1[i];
+        gElevatorLevels[i] = gElevatorLevelsF1[i];
+        memcpy(gElevatorDescriptions[i], gElevatorDescriptionsF1[i], sizeof(gElevatorDescriptionsF1[i]));
+        memcpy(gElevatorLevelLabels[i], gElevatorLevelLabelsF1[i], sizeof(gElevatorLevelLabelsF1[i]));
+    }
+}
+
 void elevatorsInit()
 {
+    // F1 CE hardcodes its elevator data. Swap in F1's tables
+    // before considering the ini file. Mods can still override via
+    // elevators.ini if they set one - the F1 defaults are just the
+    // baseline.
+    if (IS_FALLOUT_1()) {
+        elevatorsInitFallout1();
+    }
+
     const char* elevatorsFileName = settings.mod_settings.elevators_file.empty() ? nullptr : settings.mod_settings.elevators_file.c_str();
     if (elevatorsFileName != nullptr) {
         Config elevatorsConfig;
