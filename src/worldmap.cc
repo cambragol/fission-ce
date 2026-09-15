@@ -524,6 +524,30 @@ typedef struct WorldmapElements {
     bool hasDateDisplay;
 } WorldmapElements;
 
+// F1 CE's cityXgvar[]. Each of F1's twelve towns becomes "known" on the
+// worldmap when its corresponding game global is set to 1 by a script.
+// Order matches F1's TOWN_* enum, which is the same order as our
+// city.txt and F1_MAP_LIST.
+//
+// FISSION compiles against F2's global enum, but F1 scripts were compiled
+// against F1's indices. When F1 scripts run under FISSION they write into
+// game_global_vars[] using F1's indices; this table reads them back by
+// the same indices. Guarded by IS_FALLOUT_1() at the call site.
+static const short f1CityXgvar[12] = {
+    67,  //  0 Vault 13
+    70,  //  1 Vault 15
+    68,  //  2 Shady Sands
+    71,  //  3 Junktown
+    69,  //  4 Raiders
+    72,  //  5 Necropolis
+    73,  //  6 The Hub
+    74,  //  7 Brotherhood
+    78,  //  8 Military Base
+    76,  //  9 The Glow
+    75,  // 10 Boneyard
+    77,  // 11 Cathedral
+};
+
 static const WorldmapElements gWorldmapElementsF2 = {
     .backgroundFid        = 136,
     .citySizeFid          = { 336, 337, 338 },
@@ -1321,7 +1345,13 @@ int wmWorldMap_init()
 
     wmGenData.viewportMaxX = WM_TILE_WIDTH * wmNumHorizontalTiles - gOffsets.viewWidth;
     wmGenData.viewportMaxY = WM_TILE_HEIGHT * (wmMaxTileNum / wmNumHorizontalTiles) - gOffsets.viewHeight;
-    circleBlendTable = _getColorBlendTable(_colorTable[COL_LIME_GREEN]);
+
+    // Set circle color for Fallout 1 (darker)
+    int circleColorIdx = COL_LIME_GREEN;
+    if (IS_FALLOUT_1()) {
+        circleColorIdx = COL_MEDIUM_GREEN;
+    }
+    circleBlendTable = _getColorBlendTable(_colorTable[circleColorIdx]);
 
     wmMarkSubTileRadiusVisited(wmGenData.worldPosX, wmGenData.worldPosY);
     wmWorldMapSaveTempData();
@@ -5310,6 +5340,38 @@ int wmMapMarkMapEntranceState(int mapIdx, int elevation, int state)
     return 0;
 }
 
+// FISSION: F1's town-discovery model. Each of F1's towns is revealed when
+// its GVAR is set to 1 by a script. F2's discovery model is proximity-based
+// and reads a different set of globals, so we sync from F1's globals here.
+//
+// Vault 13 (index 0) is always known - F1's init_world_map() hardcodes
+// this, and no script ever needs to reveal it.
+//
+// Called on every worldmap entry so scripts that fire between visits take
+// effect immediately.
+static void wmUpdateF1TownDiscovery()
+{
+    if (!IS_FALLOUT_1()) return;
+
+    for (int city = 0; city < 12 && city < wmMaxAreaNum; city++) {
+        CityInfo* info = &wmAreaInfoList[city];
+
+        bool shouldBeKnown = false;
+
+        if (city == 0) {
+            shouldBeKnown = true;   // Vault 13 always known
+        } else if (gameGetGlobalVar(f1CityXgvar[city]) == 1) {
+            shouldBeKnown = true;
+        }
+
+        if (shouldBeKnown && info->visitedState == 0) {
+            // Sets visitedState = 1, marks the tile KNOWN, and clears the
+            // surrounding fog radius - matching F1's "town revealed" state.
+            wmAreaMarkVisitedState(city, 1);
+        }
+    }
+}
+
 // 0x4BFE0C
 void wmWorldMap()
 {
@@ -5339,6 +5401,9 @@ static int wmWorldMapFunc(int a1)
     } else {
         resizeContent(640, 480);
     }
+
+    // Sync town visibility from F1 script globals on every entry when in Fallout 1.
+    wmUpdateF1TownDiscovery();
 
     if (wmInterfaceInit() == -1) {
         wmInterfaceExit();
@@ -5371,6 +5436,20 @@ static int wmWorldMapFunc(int a1)
 
         int worldX = wmWorldOffsetX + mouseX - gOffsets.viewX;
         int worldY = wmWorldOffsetY + mouseY - gOffsets.viewY;
+
+        static bool wmPrevHover = false;
+        bool wmHover = false;
+
+        if (IS_FALLOUT_1() && !wmGenData.isWalking) {
+            int markerWinX = gOffsets.viewX - wmWorldOffsetX + wmGenData.worldPosX;
+            int markerWinY = gOffsets.viewY - wmWorldOffsetY + wmGenData.worldPosY;
+            wmHover = (abs(mouseX - markerWinX) < 12 && abs(mouseY - markerWinY) < 12);
+        }
+
+        if (wmHover != wmPrevHover) {
+            wmInterfaceRefresh();
+            wmPrevHover = wmHover;
+        }
 
         if (keyCode == KEY_CTRL_Q || keyCode == KEY_CTRL_X || keyCode == KEY_F10) {
             showQuitConfirmationDialog();
@@ -5683,6 +5762,50 @@ static int wmWorldMapFunc(int a1)
 
         if (map != -1 || rc == -1) {
             break;
+        }
+
+        if (IS_FALLOUT_1() && wmHover) {
+            char hoverText[80] = { 0 };
+
+            if (wmGenData.currentAreaId != -1) {
+                // On a town (known or not).
+                if (wmAreaIsKnown(wmAreaInfoList[wmGenData.currentAreaId].areaId)) {
+                    wmGetAreaName(&wmAreaInfoList[wmGenData.currentAreaId], hoverText);
+                } else {
+                    MessageListItem msgItem;
+                    const char* msg = getmsg(&wmMsgFile, &msgItem, 1004);
+                    if (msg != nullptr) {
+                        strncpy(hoverText, msg, sizeof(hoverText) - 1);
+                        hoverText[sizeof(hoverText) - 1] = '\0';
+                    }
+                }
+            } else {
+                // On terrain.
+                int terrain = wmGenData.currentSubtile ? wmGenData.currentSubtile->terrain : 0;
+                MessageListItem msgItem;
+                const char* msg = getmsg(&wmMsgFile, &msgItem, 1000 + terrain);
+                if (msg != nullptr) {
+                    strncpy(hoverText, msg, sizeof(hoverText) - 1);
+                    hoverText[sizeof(hoverText) - 1] = '\0';
+                }
+            }
+
+            if (hoverText[0] != '\0') {
+                int markerWinX = gOffsets.viewX - wmWorldOffsetX + wmGenData.worldPosX;
+                int markerWinY = gOffsets.viewY - wmWorldOffsetY + wmGenData.worldPosY;
+
+                int textW = fontGetStringWidth(hoverText);
+                int textX = markerWinX - textW / 2;
+                int textY = markerWinY - 20;
+
+                if (textX >= gOffsets.viewX && textX + textW <= gOffsets.viewX + gOffsets.viewWidth
+                    && textY >= gOffsets.viewY && textY + 12 <= gOffsets.viewY + gOffsets.viewHeight) {
+                    fontDrawText(wmBkWinBuf + gOffsets.windowWidth * textY + textX,
+                        hoverText, textW, gOffsets.windowWidth,
+                        _colorTable[COL_LIME_GREEN] | FONT_SHADOW);
+                    windowRefresh(wmBkWin);
+                }
+            }
         }
 
         renderPresent();
@@ -8042,12 +8165,18 @@ static int wmInterfaceDrawCircleOverlaySafe(CityInfo* city, CitySizeDescription*
             0x10000, circleBlendTable, _commonGrayTable);
     }
 
-    // Draw text onto offscreen buffer
-    if (textDrawAbsX >= 0 && textDrawAbsY >= 0 && textDrawAbsX + textWidth <= WM_OVERLAY_BUFFER_SIZE && textDrawAbsY + textHeight <= WM_OVERLAY_BUFFER_SIZE) {
-        fontDrawText(
-            wmOverlayOffscreenBuf + textDrawAbsY * WM_OVERLAY_BUFFER_SIZE + textDrawAbsX,
-            name, textWidth, WM_OVERLAY_BUFFER_SIZE,
-            _colorTable[COL_LIME_GREEN] | FONT_SHADOW);
+    // F1 vanilla has no permanent city labels on the worldmap.
+    // The name appears only as a hover tooltip when the mouse is over the
+    // party marker (that path is in wmWorldMapFunc's hover block and stays
+    // untouched). F2 draws a static label under every circle; suppress it
+    // in strict-vanilla F1 mode.
+    if (IS_FALLOUT_1()) {
+        if (textDrawAbsX >= 0 && textDrawAbsY >= 0 && textDrawAbsX + textWidth <= WM_OVERLAY_BUFFER_SIZE && textDrawAbsY + textHeight <= WM_OVERLAY_BUFFER_SIZE) {
+            fontDrawText(
+                wmOverlayOffscreenBuf + textDrawAbsY * WM_OVERLAY_BUFFER_SIZE + textDrawAbsX,
+                name, textWidth, WM_OVERLAY_BUFFER_SIZE,
+                _colorTable[COL_LIME_GREEN] | FONT_SHADOW);
+        }
     }
 
     // 5. Final Blit to Screen (dest buffer)
