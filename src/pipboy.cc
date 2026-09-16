@@ -20,6 +20,8 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_vars.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "input.h"
 #include "interface.h"
@@ -73,6 +75,11 @@ namespace fallout {
 #define PIPBOY_RAND_MAX (32767)
 
 #define PIPBOY_BOMB_COUNT (16)
+
+// Fallout 1 pipboy "sticky note" (water-chip countdown). Position on the
+// pipboy body, in pixels. Fallout 1 only.
+#define PIPBOY_WINDOW_NOTE_X (32)
+#define PIPBOY_WINDOW_NOTE_Y (83)
 
 // Pipboy pagination defines
 #define PIPBOY_KEY_UP 1030
@@ -261,6 +268,7 @@ static void pipboyWindowFree();
 static void _pip_init_();
 static void pipboyDrawNumber(int value, int digits, int x, int y);
 static void pipboyDrawDate();
+static void pipboyDrawNote();
 static void pipboyDrawText(const char* text, int a2, int a3);
 static int _save_pipboy(File* stream);
 static void pipboyWindowHandleStatus(int userInput);
@@ -1218,6 +1226,7 @@ static int pipboyWindowInit(int intent)
     gPipboyWindowBuffer = windowGetBuffer(gPipboyWindow);
     memcpy(gPipboyWindowBuffer, _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData(), PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_HEIGHT);
 
+    pipboyDrawNote();
     pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
     pipboyDrawDate();
 
@@ -1462,6 +1471,76 @@ static void pipboyDrawDate()
     blitBufferToBuffer(_pipboyFrmImages[PIPBOY_FRM_MONTHS].getData() + 435 * (month - 1), 29, 14, 29, gPipboyWindowBuffer + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_MONTH_Y + PIPBOY_WINDOW_MONTH_X, PIPBOY_WINDOW_WIDTH);
 
     pipboyDrawNumber(year, 4, PIPBOY_WINDOW_YEAR_X, PIPBOY_WINDOW_YEAR_Y);
+}
+
+// Draws the "days until the vault runs out of water" number on top of the
+// note FRM. Digits are drawn diagonally, right-to-left and top-to-bottom,
+// to look hand-written. Fallout 1 only.
+//
+// Mirrors F1 CE src/game/pipboy.cc: pip_days_left.
+static void pipboyDrawDaysLeft(int days)
+{
+    int x = 92;
+    int y = PIPBOY_WINDOW_WIDTH * 180;
+
+    while (days != 0) {
+        blitBufferToBufferTrans(
+            _pipboyFrmImages[PIPBOY_FRM_NOTE_NUMBERS].getData() + 12 * (days % 10),
+            12,
+            _pipboyFrmImages[PIPBOY_FRM_NOTE_NUMBERS].getHeight(),
+            _pipboyFrmImages[PIPBOY_FRM_NOTE_NUMBERS].getWidth(),
+            gPipboyWindowBuffer + y + x,
+            PIPBOY_WINDOW_WIDTH);
+
+        // '1' is narrower than the other digits; nudge the next slot right
+        // so the spacing looks right.
+        if (days % 10 == 1) {
+            x += 6;
+        }
+
+        days /= 10;
+
+        x -= 12;
+        y += PIPBOY_WINDOW_WIDTH * 2;
+    }
+}
+
+// Draws (or erases) the water-chip countdown note stuck to the pipboy.
+// No-op in Fallout 2 mode; the note is a Fallout 1-only feature.
+//
+// Mirrors F1 CE src/game/pipboy.cc: pip_note.
+static void pipboyDrawNote()
+{
+    if (!IS_FALLOUT_1()) {
+        return;
+    }
+
+    if (gGameGlobalVars[F1_GVAR_FIND_WATER_CHIP] == 2
+        || gGameGlobalVars[F1_GVAR_VAULT_WATER] == 0) {
+        // Water chip found, or the vault's water is gone. Erase the note
+        // by copying the background over the region.
+        // We need to do this in case GVAR flips while resting.
+        blitBufferToBuffer(
+            _pipboyFrmImages[PIPBOY_FRM_BACKGROUND].getData()
+                + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_NOTE_Y + PIPBOY_WINDOW_NOTE_X,
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getWidth(),
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getHeight(),
+            PIPBOY_WINDOW_WIDTH,
+            gPipboyWindowBuffer
+                + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_NOTE_Y + PIPBOY_WINDOW_NOTE_X,
+            PIPBOY_WINDOW_WIDTH);
+    } else {
+        blitBufferToBuffer(
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getData(),
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getWidth(),
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getHeight(),
+            _pipboyFrmImages[PIPBOY_FRM_NOTE].getWidth(),
+            gPipboyWindowBuffer
+                + PIPBOY_WINDOW_WIDTH * PIPBOY_WINDOW_NOTE_Y + PIPBOY_WINDOW_NOTE_X,
+            PIPBOY_WINDOW_WIDTH);
+
+        pipboyDrawDaysLeft(gGameGlobalVars[F1_GVAR_VAULT_WATER]);
+    }
 }
 
 // 0x497A40
@@ -3992,6 +4071,7 @@ static bool pipboyRest(int hours, int minutes, int duration)
                         rc = true;
                     }
 
+                    pipboyDrawNote();
                     pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
                     pipboyDrawDate();
                     windowRefresh(gPipboyWindow);
@@ -4014,6 +4094,7 @@ static bool pipboyRest(int hours, int minutes, int duration)
                 }
             }
 
+            pipboyDrawNote();
             pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
             pipboyDrawDate();
             pipboyDrawHitPoints();
@@ -4063,6 +4144,7 @@ static bool pipboyRest(int hours, int minutes, int duration)
                         _AddHealth();
                     }
 
+                    pipboyDrawNote();
                     pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
                     pipboyDrawDate();
                     pipboyDrawHitPoints();
@@ -4081,6 +4163,7 @@ static bool pipboyRest(int hours, int minutes, int duration)
                 gameTimeSetTime(gameTime + GAME_TIME_TICKS_PER_HOUR * hours);
             }
 
+            pipboyDrawNote();
             pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
             pipboyDrawDate();
             pipboyDrawHitPoints();
@@ -4148,6 +4231,7 @@ static bool pipboyRest(int hours, int minutes, int duration)
         }
     }
 
+    pipboyDrawNote();
     pipboyDrawNumber(gameTimeGetHour(), 4, PIPBOY_WINDOW_TIME_X, PIPBOY_WINDOW_TIME_Y);
     pipboyDrawDate();
     windowRefresh(gPipboyWindow);
