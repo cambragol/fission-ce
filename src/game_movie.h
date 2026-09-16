@@ -46,6 +46,11 @@ extern int gMovieCredits;
 // plays the overseer intro. -1 means no briefing in this game.
 extern int gMovieNewGameBriefing;
 
+// F1-only: the Vault Dweller walking away from the Overseer. -1 in F2
+// mode, where F2's endgame flow uses a different set of movies.
+extern int gMovieWalkm;
+extern int gMovieWalkw;
+
 int gameMoviesInit();
 void gameMoviesReset();
 int gameMoviesLoad(File* stream);
