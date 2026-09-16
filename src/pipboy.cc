@@ -128,6 +128,12 @@ static int gCluesDistortionAmplitude = 100;
 static unsigned char* gCluesDistortionBuffer = nullptr;
 static bool gCluesFirstEntry = true;
 
+// F1 CE's Movie enum. In F2 the archive starts at 2 (elder); in F1 it
+// starts at 3 (vexpld). Indices 0..2 in F1 are iplogo, mplogo, intro
+// and are not archive entries. F1 has 14 movies total (0..13).
+static const int F1_MOVIE_ARCHIVE_START = 3;
+static const int F1_MOVIE_ARCHIVE_END   = 14;
+
 int lineCount = 0;
 
 typedef enum PipboyColumn {
@@ -3688,8 +3694,11 @@ static void pipboyHandleVideoArchive(int userInput)
             pipboyRenderVideoArchive(a1); // highlight the selected one
 
             // Find the actual movie ID by walking the list of seen movies
+            int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
+            int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+
             int movie;
-            for (movie = 2; movie < 16; movie++) {
+            for (movie = firstMovie; movie < lastMovie; movie++) {
                 if (gameMovieIsSeen(movie)) {
                     a1--;
                     if (a1 <= 0) break;
@@ -3730,8 +3739,11 @@ static void pipboyHandleVideoArchive(int userInput)
 
         // Find and play the movie
         int a1 = userInput;
+        int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
+        int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+
         int movie;
-        for (movie = 2; movie < 16; movie++) {
+        for (movie = firstMovie; movie < lastMovie; movie++) {
             if (gameMovieIsSeen(movie)) {
                 a1--;
                 if (a1 <= 0) break;
@@ -3784,15 +3796,13 @@ static int pipboyRenderVideoArchive(int a1)
         gPipboyCurrentLine = 2;
     }
 
+    int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
+    int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+
     v5 = 0;
     v12 = a1 - 1;
 
-    // 502 - Elder Speech
-    // ...
-    // 516 - Credits
-    msg_num = 502;
-
-    for (i = 2; i < 16; i++) {
+    for (i = firstMovie; i < lastMovie; i++) {
         if (gameMovieIsSeen(i)) {
             v8 = v5++;
             if (v8 == v12) {
@@ -3801,13 +3811,11 @@ static int pipboyRenderVideoArchive(int a1)
                 v9 = _colorTable[COL_LIME_GREEN];
             }
 
-            text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, msg_num);
+            text = getmsg(&gPipboyMessageList, &gPipboyMessageListItem, 500 + i);
             pipboyDrawText(text, 0, v9);
 
             gPipboyCurrentLine++;
         }
-
-        msg_num++;
     }
 
     windowRefreshRect(gPipboyWindow, &gPipboyWindowContentRect);

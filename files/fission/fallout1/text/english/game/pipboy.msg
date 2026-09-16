@@ -85,16 +85,17 @@
 # Movie archive titles
 # Order must match the list (see gmovie.h)
 #
-{501}{}{Intro}
-{502}{}{Elder Speech}
+{500}{}{InterPlay Logo}               # Not show in Pipboy
+{501}{}{MacPlay Logo}                 # MacPlay version ,Not show in Pipboy
+{502}{}{Intro}                        # Not show in Pipboy
 {503}{}{Vat Destruction}
 {504}{}{Cathedral Destruction}
 {505}{}{Overseer Briefing}
-{506}{}{Starting the Car}
-{507}{}{Family Cartucci}
-{508}{}{Deathclaw Leader}
-{509}{}{Tanker to Derrick}
-{510}{}{Prisoners in Enclave}
+{506}{}{Vault 13 Water Deprivation}   # Death
+{507}{}{Vault 13 Invasion}            # Death
+{508}{}{Leaving Vault}                # Man end
+{509}{}{Leaving Vault}                # Woman end
+{510}{}{Dipped in the Vats}           # Death
 {511}{}{Vault 13 Water}
 {512}{}{Vault 13 Water Running Low}
 {513}{}{Rae Kills the Master}
