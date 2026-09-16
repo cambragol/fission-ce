@@ -420,14 +420,51 @@ int gameTimeEventProcess(Object* obj, void* data)
 
     objectUnjamAll();
 
-    if (!_gdialogActive()) {
-        _scriptsCheckGameEvents(&movie_index, -1);
+    if (IS_FALLOUT_1()) {
+        // F1 ENDGAME - water chip countdown. Mirrors gtime_q_process from
+        // F1's scripts.cc. Runs once per in-game day, from the midnight
+        // queue handler.
+        int waterChipFound = gameGetGlobalVar(F1_GVAR_FIND_WATER_CHIP);
+        int water = gameGetGlobalVar(F1_GVAR_VAULT_WATER);
+
+        if (waterChipFound != 2 && water > 0) {
+            water -= 1;
+            gameSetGlobalVar(F1_GVAR_VAULT_WATER, water);
+
+            if (!_gdialogActive()) {
+                if (water <= 100 && !gameMovieIsSeen(gMovieBoil1)) {
+                    movie_index = gMovieBoil1;
+                } else if (water <= 50 && !gameMovieIsSeen(gMovieBoil2)) {
+                    movie_index = gMovieBoil2;
+                } else if (water == 0) {
+                    movie_index = gMovieBoil3;
+                }
+            }
+        }
+
+        if (movie_index != -1) {
+            int flags = (movie_index == gMovieBoil3)
+                ? GAME_MOVIE_FADE_IN | GAME_MOVIE_STOP_MUSIC
+                : GAME_MOVIE_FADE_IN | GAME_MOVIE_FADE_OUT | GAME_MOVIE_STOP_MUSIC;
+
+            gameMoviePlay(movie_index, flags);
+            tileWindowRefresh();
+
+            if (movie_index == gMovieBoil3) {
+                _game_user_wants_to_quit = 2;
+            } else {
+                movie_index = -1;
+            }
+        }
+    } else {
+        if (!_gdialogActive()) {
+            _scriptsCheckGameEvents(&movie_index, -1);
+        }
     }
 
     stopProcess = critterCheckRadiationEvent(gDude);
 
-    queueClearByEventType(4, nullptr);
-
+    queueClearByEventType(EVENT_TYPE_GAME_TIME, nullptr);
     gameTimeScheduleUpdateEvent();
 
     if (movie_index != -1) {

@@ -54,6 +54,9 @@ int gMovieCredits  = 16;
 int gMovieNewGameBriefing = 2;   // F2 default: elder
 int gMovieWalkm   = -1;
 int gMovieWalkw   = -1;
+int gMovieBoil1   = -1;
+int gMovieBoil2   = -1;
+int gMovieBoil3   = -1;
 
 // 0x518DA0
 // Populated by gameMoviesInit. In F1 mode these hold F1's list; in F2 mode
@@ -139,6 +142,10 @@ int gameMoviesInit()
         gMovieCredits  = -1;   // F1 credits are text-only
         gMovieWalkm    = 8;   // gMovieFileNames[8] == "walkm.mve"
         gMovieWalkw    = 9;   // gMovieFileNames[9] == "walkw.mve"
+        // F1's original GameMovie enum places BOIL3 at 6 and BOIL1/BOIL2 at 11/12.
+        gMovieBoil1 = 11;   // gMovieFileNames[11] == "boil1.mve"
+        gMovieBoil2 = 12;   // gMovieFileNames[12] == "boil2.mve"
+        gMovieBoil3 = 6;    // gMovieFileNames[6]  == "boil3.mve"
 
     } else {
         // Fallout 2 (unchanged from original).
@@ -197,6 +204,9 @@ int gameMoviesInit()
         gMovieCredits  = 16;
         gMovieWalkm    = -1;
         gMovieWalkw    = -1;
+        gMovieBoil1    = -1;
+        gMovieBoil2    = -1;
+        gMovieBoil3    = -1;
     }
 
     memset(gGameMoviesSeen, 0, sizeof(gGameMoviesSeen));

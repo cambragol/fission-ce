@@ -1591,6 +1591,29 @@ int endgameDeathEndingExit()
 // 0x440BD0
 void endgameSetupDeathEnding(int reason)
 {
+    // F1 ENDGAME
+    // F1's main_death_scene() had no data file and no timeout-specific
+    // behavior: on death it picked uniformly at random from four narrator
+    // files. Reproduce that when no enddeath.txt override is present.
+    if (IS_FALLOUT_1()
+        && reason == ENDGAME_DEATH_ENDING_REASON_DEATH
+        && gEndgameDeathEndingsLength == 0) {
+        // Could other 'cut' deaths later - for now pure vanilla
+        static const char* f1DeathNarrators[] = {
+            "narrator\\nar_3",
+            "narrator\\nar_4",
+            "narrator\\nar_5",
+            "narrator\\nar_6",
+        };
+
+        int index = randomBetween(0, 3);
+        strcpy(gEndgameDeathEndingFileName, f1DeathNarrators[index]);
+
+        debugPrint("\nendgameSetupDeathEnding: F1 default narrator %s\n",
+            gEndgameDeathEndingFileName);
+        return;
+    }
+
     if (!gEndgameDeathEndingsLength) {
         debugPrint("\nError: endgameSetupDeathEnding: No endgame death info!");
         return;
@@ -1617,7 +1640,7 @@ void endgameSetupDeathEnding(int reason)
 
     switch (reason) {
     case ENDGAME_DEATH_ENDING_REASON_DEATH:
-        if (gameGetGlobalVar(GVAR_MODOC_SHITTY_DEATH) != 0) {
+        if (!IS_FALLOUT_1() && gameGetGlobalVar(GVAR_MODOC_SHITTY_DEATH) != 0) {
             selectedEnding = 12;
             specialEndingSelected = true;
         }
