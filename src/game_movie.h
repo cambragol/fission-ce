@@ -51,6 +51,13 @@ extern int gMovieNewGameBriefing;
 extern int gMovieWalkm;
 extern int gMovieWalkw;
 
+// F1-only: the three Vault 13 water-supply status movies. Triggered by the
+// midnight tick as the water level crosses 100/50/0. -1 in F2 mode, where
+// the water-chip plot does not exist.
+extern int gMovieBoil1;
+extern int gMovieBoil2;
+extern int gMovieBoil3;
+
 int gameMoviesInit();
 void gameMoviesReset();
 int gameMoviesLoad(File* stream);
