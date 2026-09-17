@@ -522,6 +522,7 @@ typedef struct WorldmapElements {
     bool hasWidescreenBorder;
     bool hasCitySizeCircles;
     bool hasDateDisplay;
+    bool useF1Chrome; 
 } WorldmapElements;
 
 // F1 CE's cityXgvar[]. Each of F1's twelve towns becomes "known" on the
@@ -581,6 +582,7 @@ static const WorldmapElements gWorldmapElementsF2 = {
     .hasWidescreenBorder      = true,
     .hasCitySizeCircles       = true,
     .hasDateDisplay           = true,
+    .useF1Chrome              = false,
 };
 
 // Capability flags are all true: this is the full FISSION/F2 interface
@@ -618,9 +620,44 @@ static const WorldmapElements gWorldmapElementsFissionF1 = {
     .hasWidescreenBorder      = false,
     .hasCitySizeCircles       = true,
     .hasDateDisplay           = true,
+    .useF1Chrome              = false,
 };
 
-static const WorldmapElements gWorldmapElementsVanillaF1 = gWorldmapElementsFissionF1;
+static const WorldmapElements gWorldmapElementsVanillaF1 = {
+    .backgroundFid        = 136,
+    .citySizeFid          = { 4700, 4701, 4702 },
+    .hotspotNormalFid     = 168,
+    .hotspotPressedFid    = 223,
+    .destinationMarkerFid = 139,
+    .locationMarkerFid    = 138,
+    .encounterCursorFid   = { 154, 155, 7774, 7775 },
+    .tabsBackgroundFid    = -1,
+    .tabsBorderFid        = -1,
+    .dialFid              = -1,
+    .carOverlayFid        = -1,
+    .globeOverlayFid      = -1,
+    .redButtonNormalFid   = 8,
+    .redButtonPressedFid  = 9,
+    .monthsFid            = 129,
+    .numbersFid           = 82,
+    .scrollUpFid          = { -1, -1 },
+    .scrollDownFid        = { -1, -1 },
+    .carMovieFid          = -1,
+    .labelRowHeight       = 18,
+    .widescreenBorderFid  = { -1, -1, -1, -1 },
+
+    .hasTownTabs              = false,
+    .hasDayNightDial          = false,
+    .hasCar                   = false,
+    .hasGlobeOverlay          = false,
+    .hasScrollButtons         = false,
+    .hasQuickDestinations     = false,
+    .hasTownWorldSwitchButton = true,
+    .hasWidescreenBorder      = false,
+    .hasCitySizeCircles       = false,
+    .hasDateDisplay           = true,
+    .useF1Chrome              = true,
+};
 
 static inline const WorldmapElements* wmElements()
 {
@@ -728,6 +765,7 @@ static int wmTownMapExit();
 static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow);
 static void wmInterfaceRefreshCarFuel();
 static int wmRefreshTabs();
+static int wmRefreshTabsF1();
 static int wmMakeTabsLabelList(int** quickDestinationsPtr, int* quickDestinationsLengthPtr);
 static int wmTabsCompareNames(const void* a1, const void* a2);
 static int wmFreeTabsLabelList(int** quickDestinationsListPtr, int* quickDestinationsLengthPtr);
@@ -1001,6 +1039,11 @@ static Config* pConfigCfg;
 // 0x672FD8
 static int wmTownMapSubButtonIds[7];
 
+static int wmF1TownButtonIds[12] = {
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1,
+};
+
 // 0x672FF8
 static CitySizeDescription wmSphereData[CITY_SIZE_COUNT];
 
@@ -1012,6 +1055,19 @@ bool gSuppressMapEnterScript = false;
 
 #define TOTAL_NAMED_ENCOUNTER_MAX 2048
 #define MOD_NAMED_ENCOUNTER_START 1024
+
+// F1's fixed 12-button town layout. Buttons at x=508, each 15x15.
+// Labels at x=531, each 82x18, drawn from the shared label strip (art 137)
+// sliced at labelSrcY = index*18.
+static const short wmF1BttnYtab[12] = {
+    61, 88, 115, 143, 171, 200, 228, 256, 283, 310, 338, 367,
+};
+
+#define WM_F1_BUTTON_X    508
+#define WM_F1_BUTTON_SIZE 15
+#define WM_F1_LABEL_X     531
+#define WM_F1_LABEL_W     82
+#define WM_F1_LABEL_H     18
 
 // Fixed arrays for all encounter tables and named encounters
 static EncounterTable wmFixedEncounterTableList[TOTAL_ENCOUNTER_TABLE_MAX];
@@ -5672,6 +5728,40 @@ static int wmWorldMapFunc(int a1)
         // NOTE: Uninline.
         wmInterfaceScrollTabsUpdate();
 
+        // F1 chrome: town buttons generate input codes 500..511. If the target
+        // city is known: if we're already standing on it, enter it (same path as
+        // the T key); otherwise walk to it.
+        if (wmElements()->useF1Chrome && keyCode >= 500 && keyCode < 512) {
+            int areaIdx = keyCode - 500;
+            if (areaIdx < wmMaxAreaNum) {
+                CityInfo* city = &(wmAreaInfoList[areaIdx]);
+                if (wmAreaIsKnown(city->areaId)) {
+                    if (wmGenData.currentAreaId == areaIdx && !wmGenData.isWalking) {
+                        if (city->visitedState == 2 && city->mapFid != -1) {
+                            if (wmTownMapFunc(&map) == -1) {
+                                rc = -1;
+                            }
+                            if (map != -1) {
+                                if (wmGenData.isInCar) {
+                                    wmGenData.isInCar = false;
+                                    wmMatchAreaContainingMapIdx(map, &(wmGenData.currentCarAreaId));
+                                }
+                                wmFadeOut();
+                                resizeContent(screenGetWidth(), screenGetHeight(), true);
+                                mapLoadById(map);
+                            }
+                        }
+                    } else if (wmGenData.currentAreaId != areaIdx) {
+                        CitySizeDescription* citySizeDescription = &(wmSphereData[city->size]);
+                        int destX = city->x + citySizeDescription->frmImage.getWidth() / 2 - gOffsets.viewX;
+                        int destY = city->y + citySizeDescription->frmImage.getHeight() / 2 - gOffsets.viewY;
+                        wmPartyInitWalking(destX, destY);
+                        wmGenData.mousePressed = false;
+                    }
+                }
+            }
+        }
+
         if (keyCode == KEY_UPPERCASE_T || keyCode == KEY_LOWERCASE_T) {
             if (!wmGenData.isWalking && wmGenData.currentAreaId != -1) {
                 CityInfo* city = &(wmAreaInfoList[wmGenData.currentAreaId]);
@@ -7287,6 +7377,26 @@ static int wmInterfaceInit()
         }
     }
 
+    if (wmElements()->useF1Chrome) {
+        for (int index = 0; index < 12; index++) {
+            wmF1TownButtonIds[index] = buttonCreate(wmBkWin,
+                WM_F1_BUTTON_X,
+                wmF1BttnYtab[index],
+                WM_F1_BUTTON_SIZE,
+                WM_F1_BUTTON_SIZE,
+                -1, -1, -1,
+                500 + index,
+                wmGenData.redButtonNormalFrmImage.getData(),
+                wmGenData.redButtonPressedFrmImage.getData(),
+                nullptr,
+                BUTTON_FLAG_TRANSPARENT);
+
+            if (wmF1TownButtonIds[index] != -1) {
+                buttonSetCallbacks(wmF1TownButtonIds[index], _gsound_red_butt_press, _gsound_red_butt_release);
+            }
+        }
+    }
+
     if (wmElements()->hasQuickDestinations) {
         for (int index = 0; index < 7; index++) {
             wmTownMapSubButtonIds[index] = buttonCreate(wmBkWin,
@@ -7408,6 +7518,15 @@ static int wmInterfaceExit()
     TileInfo* tile;
 
     tickersRemove(wmMouseBkProc);
+
+    if (wmElements()->useF1Chrome) {
+        for (int index = 0; index < 12; index++) {
+            if (wmF1TownButtonIds[index] != -1) {
+                buttonDestroy(wmF1TownButtonIds[index]);
+                wmF1TownButtonIds[index] = -1;
+            }
+        }
+    }
 
     _backgroundFrmImage.unlock();
 
@@ -9140,7 +9259,9 @@ static int wmRefreshInterfaceOverlay(bool shouldRefreshWindow)
         wmBkWinBuf,
         gOffsets.windowWidth);
 
-    if (wmElements()->hasTownTabs) {
+    if (wmElements()->useF1Chrome) {
+        wmRefreshTabsF1();
+    } else if (wmElements()->hasTownTabs) {
         wmRefreshTabs();
     }
 
@@ -9218,6 +9339,41 @@ static void wmInterfaceRefreshCarFuel()
 
         ratio -= 2;
     }
+}
+
+// F1's DrawTownLabels: draws each known city's label at a fixed
+// position from the shared label strip. Called from wmRefreshInterfaceOverlay
+// when in F1 chrome mode.
+static int wmRefreshTabsF1()
+{
+    FrmImage labelFrm;
+
+    for (int index = 0; index < 12 && index < wmMaxAreaNum; index++) {
+        CityInfo* city = &(wmAreaInfoList[index]);
+        if (city->labelFid == -1) {
+            continue;
+        }
+
+        if (!wmAreaIsKnown(city->areaId)) {
+            continue;
+        }
+
+        if (!labelFrm.lock(city->labelFid)) {
+            return -1;
+        }
+
+        blitBufferToBufferTrans(
+            labelFrm.getData() + labelFrm.getWidth() * city->labelSrcY,
+            WM_F1_LABEL_W,
+            WM_F1_LABEL_H,
+            labelFrm.getWidth(),
+            wmBkWinBuf + gOffsets.windowWidth * wmF1BttnYtab[index] + WM_F1_LABEL_X,
+            gOffsets.windowWidth);
+
+        labelFrm.unlock();
+    }
+
+    return 0;
 }
 
 // 0x4C52B0
