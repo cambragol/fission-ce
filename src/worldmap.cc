@@ -550,7 +550,7 @@ static const short f1CityXgvar[12] = {
 };
 
 static const WorldmapElements gWorldmapElementsF2 = {
-    .backgroundFid        = 136,
+    .backgroundFid        = 469,
     .citySizeFid          = { 336, 337, 338 },
     .hotspotNormalFid     = 168,
     .hotspotPressedFid    = 223,
@@ -588,25 +588,25 @@ static const WorldmapElements gWorldmapElementsF2 = {
 // Capability flags are all true: this is the full FISSION/F2 interface
 // layout, just addressed through the F1 data pack's FID numbering.
 static const WorldmapElements gWorldmapElementsFissionF1 = {
-    .backgroundFid        = 136,
-    .citySizeFid          = { 4700, 4701, 4702 },
+   .backgroundFid        = 469,
+    .citySizeFid          = { 336, 337, 338 },
     .hotspotNormalFid     = 168,
     .hotspotPressedFid    = 223,
     .destinationMarkerFid = 139,
     .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 7774, 7775 },
-    .tabsBackgroundFid    = 8072,
-    .tabsBorderFid        = 6814,
-    .dialFid              = 5085,
-    .carOverlayFid        = 7599,
-    .globeOverlayFid      = 5722,
+    .encounterCursorFid   = { 154, 155, 438, 439 },
+    .tabsBackgroundFid    = 364,
+    .tabsBorderFid        = 367,
+    .dialFid              = 365,
+    .carOverlayFid        = 363,
+    .globeOverlayFid      = 366,
     .redButtonNormalFid   = 8,
     .redButtonPressedFid  = 9,
     .monthsFid            = 129,
     .numbersFid           = 82,
     .scrollUpFid          = { 199, 200 },
     .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 5770,
+    .carMovieFid          = 433,
     .labelRowHeight       = 18,
     .widescreenBorderFid  = { -1, -1, -1, -1 },
 
@@ -624,25 +624,25 @@ static const WorldmapElements gWorldmapElementsFissionF1 = {
 };
 
 static const WorldmapElements gWorldmapElementsVanillaF1 = {
-    .backgroundFid        = 136,
-    .citySizeFid          = { 4700, 4701, 4702 },
+   .backgroundFid        = 136,
+    .citySizeFid          = { 336, 337, 338 },
     .hotspotNormalFid     = 168,
     .hotspotPressedFid    = 223,
     .destinationMarkerFid = 139,
     .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 7774, 7775 },
-    .tabsBackgroundFid    = -1,
-    .tabsBorderFid        = -1,
-    .dialFid              = -1,
-    .carOverlayFid        = -1,
-    .globeOverlayFid      = -1,
+    .encounterCursorFid   = { 154, 155, 438, 439 },
+    .tabsBackgroundFid    = 364,
+    .tabsBorderFid        = 367,
+    .dialFid              = 365,
+    .carOverlayFid        = 363,
+    .globeOverlayFid      = 366,
     .redButtonNormalFid   = 8,
     .redButtonPressedFid  = 9,
     .monthsFid            = 129,
     .numbersFid           = 82,
-    .scrollUpFid          = { -1, -1 },
-    .scrollDownFid        = { -1, -1 },
-    .carMovieFid          = -1,
+    .scrollUpFid          = { 199, 200 },
+    .scrollDownFid        = { 181, 182 },
+    .carMovieFid          = 433,
     .labelRowHeight       = 18,
     .widescreenBorderFid  = { -1, -1, -1, -1 },
 
@@ -734,6 +734,7 @@ static int wmGrabTileWalkMask(int tileIdx);
 static bool wmWorldPosInvalid(int x, int y);
 static void wmPartyInitWalking(int x, int y);
 static void wmPartyWalkingStep();
+static void wmCalcF1RollThreshold();
 static void wmInterfaceScrollTabsStart(int delta);
 static void wmInterfaceScrollTabsStop();
 static void wmInterfaceScrollTabsUpdate();
@@ -980,6 +981,17 @@ static int wmTownMapCurArea = -1;
 
 // 0x51DEA0
 static unsigned int wmLastRndTime = 0;
+
+// F1's encounter rate model: sub-steps of movement counted, roll
+// fires every wm_day sub-steps (60 at Outdoorsman 0, 120 at Outdoorsman 100).
+// Reset on worldmap entry, matching F1's `wmap_mile = 0` in world_map().
+static int wmF1MilesSinceRoll = 0;
+static int wmF1RollThreshold = 60;
+
+// F1's `move_counter` from world_map(). Counts down across movement
+// iterations to gate steps for mountain (every 2) and city (bonus every 5).
+// Reset when walking starts.
+static int wmF1MoveCounter = 0;
 
 // 0x51DEA4
 static int wmRndIndex = 0;
@@ -5472,6 +5484,12 @@ static int wmWorldMapFunc(int a1)
 
     wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &(wmGenData.currentAreaId));
 
+    // FISSION: F1's encounter rate depends on current Outdoorsman, recomputed
+    // each worldmap entry (F1 does this in world_map() via CalcTimeAdder).
+    if (IS_FALLOUT_1()) {
+        wmCalcF1RollThreshold();
+    }
+
     unsigned int partyHealTime = 0;
     int map = -1;
     int rc = 0;
@@ -5598,7 +5616,11 @@ static int wmWorldMapFunc(int a1)
 
             wmInterfaceRefresh();
 
-            if (wmGameTimeIncrement(18000)) {
+            int timeIncrement = 18000;
+            if (IS_FALLOUT_1() && wmF1RollThreshold > 0) {
+                timeIncrement = 864000 / wmF1RollThreshold;
+            }
+            if (wmGameTimeIncrement(timeIncrement)) {
                 if (_game_user_wants_to_quit != 0) {
                     break;
                 }
@@ -5947,28 +5969,59 @@ static void wmCheckGameEvents()
     _scriptsCheckGameEvents(nullptr, wmBkWin);
 }
 
+// F1's CalcTimeAdder(): recompute the sub-step interval based on the
+// player's current Outdoorsman skill. Called on worldmap entry so a skill
+// change (level-up, drug, book) is picked up on the next visit.
+static void wmCalcF1RollThreshold()
+{
+    int outdoorsman = partyGetBestSkillValue(SKILL_OUTDOORSMAN);
+    if (outdoorsman > 100) outdoorsman = 100;
+    if (outdoorsman < 0) outdoorsman = 0;
+    wmF1RollThreshold = (outdoorsman * 60) / 100 + 60;
+    wmF1MilesSinceRoll = 0;
+    debugPrint("\n>>> wmCalcF1RollThreshold: outdoorsman=%d, threshold=%d",
+        outdoorsman, wmF1RollThreshold);
+}
+
 // 0x4C0634
 static int wmRndEncounterOccurred()
 {
-    unsigned int now = getTicks();
-    if (getTicksBetween(now, wmLastRndTime) < 1500) {
-        return 0;
-    }
+    if (IS_FALLOUT_1()) {
+        // F1 encoutners: only roll when we've accumulated enough sub-steps.
+        // wmF1MilesSinceRoll is incremented in wmPartyWalkingStep.
+        if (wmF1MilesSinceRoll < wmF1RollThreshold) {
+            return 0;
+        }
+        wmF1MilesSinceRoll = 0;
 
-    wmLastRndTime = now;
+        // Still check "am I in a city" - F1 skips the roll when InCity() matches.
+        int areaIdx;
+        wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &areaIdx);
+        if (areaIdx != -1) {
+            return 0;
+        }
+    } else {
+        // F2 encounters: unchanged.
+        unsigned int now = getTicks();
+        if (getTicksBetween(now, wmLastRndTime) < 1500) {
+            return 0;
+        }
 
-    if (abs(wmGenData.oldWorldPosX - wmGenData.worldPosX) < 3) {
-        return 0;
-    }
+        wmLastRndTime = now;
 
-    if (abs(wmGenData.oldWorldPosY - wmGenData.worldPosY) < 3) {
-        return 0;
-    }
+        if (abs(wmGenData.oldWorldPosX - wmGenData.worldPosX) < 3) {
+            return 0;
+        }
 
-    int areaIdx;
-    wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &areaIdx);
-    if (areaIdx != -1) {
-        return 0;
+        if (abs(wmGenData.oldWorldPosY - wmGenData.worldPosY) < 3) {
+            return 0;
+        }
+
+        int areaIdx;
+        wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &areaIdx);
+        if (areaIdx != -1) {
+            return 0;
+        }
     }
 
     if (!IS_FALLOUT_1() && !wmGenData.didMeetFrankHorrigan) {
@@ -6063,12 +6116,13 @@ static int wmRndEncounterOccurred()
         // Dreams, etc.). But if the encounter map isn't an entrance of any
         // area - which is the case for all F1 specials and for any mod map
         // not tied to an area - don't move anything.
-        if (wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &areaIdx) == 0) {
-            CityInfo* city = &(wmAreaInfoList[areaIdx]);
+        int specialAreaIdx;
+        if (wmMatchAreaContainingMapIdx(wmGenData.encounterMapId, &specialAreaIdx) == 0) {
+            CityInfo* city = &(wmAreaInfoList[specialAreaIdx]);
             CitySizeDescription* citySizeDescription = &(wmSphereData[city->size]);
             int worldmapX = wmGenData.worldPosX + wmGenData.hotspotNormalFrmImage.getWidth() / 2 + citySizeDescription->frmImage.getWidth() / 2;
             int worldmapY = wmGenData.worldPosY + wmGenData.hotspotNormalFrmImage.getHeight() / 2 + citySizeDescription->frmImage.getHeight() / 2;
-            wmAreaSetWorldPos(areaIdx, worldmapX, worldmapY);
+            wmAreaSetWorldPos(specialAreaIdx, worldmapX, worldmapY);
 
             if (city->lockState != LOCK_STATE_LOCKED) {
                 city->state = CITY_STATE_KNOWN;
@@ -6985,6 +7039,11 @@ static bool wmWorldPosInvalid(int x, int y)
 // 0x4C1E54
 static void wmPartyInitWalking(int x, int y)
 {
+    // Reset F1's terrain move counter when a new walk begins.
+    // F1 starts move_counter at 0 in world_map(), which triggers the
+    // first-iteration step for all terrains.
+    wmF1MoveCounter = 0;
+
     wmGenData.walkDestinationX = x;
     wmGenData.walkDestinationY = y;
     wmGenData.currentAreaId = -1;
@@ -7028,6 +7087,62 @@ static void wmPartyInitWalking(int x, int y)
     }
 }
 
+// Performs one sub-step of movement: advances the party along the line,
+// handles collisions, decrements remaining distance. Returns 0 to
+// continue, 1 to stop (edge hit or arrived).
+static int wmDoMoveStep()
+{
+    if (wmGenData.walkLineDelta >= 0) {
+        if (wmWorldPosInvalid(wmGenData.walkWorldPosCrossAxisStepX + wmGenData.worldPosX,
+                              wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
+            wmGenData.walkDestinationX = 0;
+            wmGenData.walkDestinationY = 0;
+            wmGenData.isWalking = false;
+            wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &(wmGenData.currentAreaId));
+            wmGenData.walkDistance = 0;
+            return 1;
+        }
+
+        wmGenData.walkLineDelta += wmGenData.walkLineDeltaCrossAxisStep;
+        wmGenData.worldPosX += wmGenData.walkWorldPosCrossAxisStepX;
+        wmGenData.worldPosY += wmGenData.walkWorldPosCrossAxisStepY;
+
+        wmInterfaceScrollPixel(1, 1,
+            wmGenData.walkWorldPosCrossAxisStepX,
+            wmGenData.walkWorldPosCrossAxisStepY,
+            nullptr, false);
+    } else {
+        if (wmWorldPosInvalid(wmGenData.walkWorldPosMainAxisStepX + wmGenData.worldPosX,
+                              wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY)) {
+            wmGenData.walkDestinationX = 0;
+            wmGenData.walkDestinationY = 0;
+            wmGenData.isWalking = false;
+            wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosY, &(wmGenData.currentAreaId));
+            wmGenData.walkDistance = 0;
+            return 1;
+        }
+
+        wmGenData.walkLineDelta += wmGenData.walkLineDeltaMainAxisStep;
+        wmGenData.worldPosY += wmGenData.walkWorldPosMainAxisStepY;
+        wmGenData.worldPosX += wmGenData.walkWorldPosMainAxisStepX;
+
+        wmInterfaceScrollPixel(1, 1,
+            wmGenData.walkWorldPosMainAxisStepX,
+            wmGenData.walkWorldPosMainAxisStepY,
+            nullptr, false);
+    }
+
+    wmGenData.walkDistance -= 1;
+    if (wmGenData.walkDistance == 0) {
+        wmGenData.walkDestinationY = 0;
+        wmGenData.isWalking = false;
+        wmGenData.walkDestinationX = 0;
+        return 1;
+    }
+
+    return 0;
+}
+
 // 0x4C1F90
 static void wmPartyWalkingStep()
 {
@@ -7035,70 +7150,60 @@ static void wmPartyWalkingStep()
         return;
     }
 
+    if (IS_FALLOUT_1()) {
+        // F1 encounters - count sub-steps of movement, roll every
+        // wmF1RollThreshold steps. F1 increments wmap_mile once per outer
+        // loop iteration in world_map(), which corresponds to one call of
+        // this function.
+        wmF1MilesSinceRoll++;
+
+        // F1's terrain-dependent movement model, from world_map():
+        //   Mountain:     step every 2 iterations
+        //   City:         step every iteration + bonus every 5
+        //   Desert/Coast: step every iteration
+        wmPartyFindCurSubTile();
+        int terrainType = wmGenData.currentSubtile ? wmGenData.currentSubtile->terrain : 0;
+
+        int stepsThisIteration = 1;
+        if (terrainType == 1) {
+            // Mountain
+            if (--wmF1MoveCounter <= 0) {
+                wmF1MoveCounter = 2;
+            } else {
+                stepsThisIteration = 0;
+            }
+        } else if (terrainType == 2) {
+            // City
+            if (--wmF1MoveCounter <= 0) {
+                wmF1MoveCounter = 4;
+                stepsThisIteration = 2;
+            }
+        }
+
+        for (int i = 0; i < stepsThisIteration; i++) {
+            if (wmDoMoveStep() != 0) {
+                return;
+            }
+        }
+        return;
+    }
+
+    // F2 path unchanged
     _terrainCounter++;
     if (_terrainCounter > 4) {
         _terrainCounter = 1;
     }
 
-    // NOTE: Uninline.
     wmPartyFindCurSubTile();
 
     Terrain* terrain = &(wmTerrainTypeList[wmGenData.currentSubtile->terrain]);
-    // SFALL: Fix Pathfinder perk.
     int terrainDifficulty = terrain->difficulty;
     if (terrainDifficulty < 1) {
         terrainDifficulty = 1;
     }
 
     if (_terrainCounter / terrainDifficulty >= 1) {
-        if (wmGenData.walkLineDelta >= 0) {
-            if (wmWorldPosInvalid(wmGenData.walkWorldPosCrossAxisStepX + wmGenData.worldPosX, wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
-                wmGenData.walkDestinationX = 0;
-                wmGenData.walkDestinationY = 0;
-                wmGenData.isWalking = false;
-                wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosX, &(wmGenData.currentAreaId));
-                wmGenData.walkDistance = 0;
-                return;
-            }
-
-            wmGenData.walkLineDelta += wmGenData.walkLineDeltaCrossAxisStep;
-            wmGenData.worldPosX += wmGenData.walkWorldPosCrossAxisStepX;
-            wmGenData.worldPosY += wmGenData.walkWorldPosCrossAxisStepY;
-
-            wmInterfaceScrollPixel(1,
-                1,
-                wmGenData.walkWorldPosCrossAxisStepX,
-                wmGenData.walkWorldPosCrossAxisStepY,
-                nullptr,
-                false);
-        } else {
-            if (wmWorldPosInvalid(wmGenData.walkWorldPosMainAxisStepX + wmGenData.worldPosX, wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY) == 1) {
-                wmGenData.walkDestinationX = 0;
-                wmGenData.walkDestinationY = 0;
-                wmGenData.isWalking = false;
-                wmMatchWorldPosToArea(wmGenData.worldPosX, wmGenData.worldPosX, &(wmGenData.currentAreaId));
-                wmGenData.walkDistance = 0;
-                return;
-            }
-
-            wmGenData.walkLineDelta += wmGenData.walkLineDeltaMainAxisStep;
-            wmGenData.worldPosY += wmGenData.walkWorldPosMainAxisStepY;
-            wmGenData.worldPosX += wmGenData.walkWorldPosMainAxisStepX;
-
-            wmInterfaceScrollPixel(1,
-                1,
-                wmGenData.walkWorldPosMainAxisStepX,
-                wmGenData.walkWorldPosMainAxisStepY,
-                nullptr,
-                false);
-        }
-
-        wmGenData.walkDistance -= 1;
-        if (wmGenData.walkDistance == 0) {
-            wmGenData.walkDestinationY = 0;
-            wmGenData.isWalking = false;
-            wmGenData.walkDestinationX = 0;
-        }
+        wmDoMoveStep();
     }
 }
 
