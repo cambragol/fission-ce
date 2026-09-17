@@ -9,7 +9,7 @@ Frequent=38%
 Forced=100%
 
 ; Terrain types (value = walk-cost multiplier):
-terrain_types=Desert:1, Mountain:2, City:4, Coast:1
+terrain_types=Desert:1, Mountain:3, City:1, Coast:1
 terrain_short_names=DES, MNT, CTY, CST
 
 [Random Maps: Desert]
@@ -214,7 +214,7 @@ enc_06=Chance:1%,Counter:1,Special,Map:COLATRUK
 num_horizontal_tiles=4
 
 [Tile 0]
-art_idx=6416
+art_idx=339
 encounter_difficulty=-70
 walk_mask_name=wrldmp00
 0_0=Mountain,No_Fill,Frequent,Frequent,Frequent,11
@@ -263,7 +263,7 @@ walk_mask_name=wrldmp00
 
 
 [Tile 1]
-art_idx=6417
+art_idx=340
 encounter_difficulty=-70
 walk_mask_name=wrldmp01
 0_0=Desert,No_Fill,Frequent,Frequent,Frequent,11
@@ -313,7 +313,7 @@ walk_mask_name=wrldmp01
 
 
 [Tile 2]
-art_idx=6418
+art_idx=341
 encounter_difficulty=-70
 walk_mask_name=wrldmp02
 0_0=Mountain,No_Fill,Rare,Rare,Rare,2
@@ -362,7 +362,7 @@ walk_mask_name=wrldmp02
 
 
 [Tile 3]
-art_idx=6419
+art_idx=342
 encounter_difficulty=-70
 walk_mask_name=wrldmp03
 0_0=Desert,No_Fill,Common,Common,Common,5
@@ -411,7 +411,7 @@ walk_mask_name=wrldmp03
 
 
 [Tile 4]
-art_idx=6420
+art_idx=343
 encounter_difficulty=-70
 walk_mask_name=wrldmp04
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -460,7 +460,7 @@ walk_mask_name=wrldmp04
 
 
 [Tile 5]
-art_idx=6421
+art_idx=344
 encounter_difficulty=-70
 walk_mask_name=wrldmp05
 0_0=Desert,No_Fill,Rare,Rare,Rare,0
@@ -509,7 +509,7 @@ walk_mask_name=wrldmp05
 
 
 [Tile 6]
-art_idx=6422
+art_idx=345
 encounter_difficulty=-70
 walk_mask_name=wrldmp06
 0_0=Mountain,No_Fill,Common,Common,Common,2
@@ -558,7 +558,7 @@ walk_mask_name=wrldmp06
 
 
 [Tile 7]
-art_idx=6423
+art_idx=346
 encounter_difficulty=-70
 walk_mask_name=wrldmp07
 0_0=Desert,No_Fill,Uncommon,Uncommon,Uncommon,0
@@ -607,7 +607,7 @@ walk_mask_name=wrldmp07
 
 
 [Tile 8]
-art_idx=6424
+art_idx=347
 encounter_difficulty=-70
 walk_mask_name=wrldmp08
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -656,7 +656,7 @@ walk_mask_name=wrldmp08
 
 
 [Tile 9]
-art_idx=6425
+art_idx=348
 encounter_difficulty=-70
 walk_mask_name=wrldmp09
 0_0=Desert,No_Fill,Rare,Rare,Rare,0
@@ -705,7 +705,7 @@ walk_mask_name=wrldmp09
 
 
 [Tile 10]
-art_idx=6452
+art_idx=349
 encounter_difficulty=-70
 walk_mask_name=wrldmp10
 0_0=Mountain,No_Fill,Uncommon,Uncommon,Uncommon,2
@@ -754,7 +754,7 @@ walk_mask_name=wrldmp10
 
 
 [Tile 11]
-art_idx=6453
+art_idx=350
 encounter_difficulty=-70
 walk_mask_name=wrldmp11
 0_0=Desert,No_Fill,Common,Common,Common,9
@@ -803,7 +803,7 @@ walk_mask_name=wrldmp11
 
 
 [Tile 12]
-art_idx=6454
+art_idx=351
 encounter_difficulty=-70
 walk_mask_name=wrldmp12
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -852,7 +852,7 @@ walk_mask_name=wrldmp12
 
 
 [Tile 13]
-art_idx=6455
+art_idx=352
 encounter_difficulty=-70
 walk_mask_name=wrldmp13
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -901,7 +901,7 @@ walk_mask_name=wrldmp13
 
 
 [Tile 14]
-art_idx=6456
+art_idx=353
 encounter_difficulty=-70
 walk_mask_name=wrldmp14
 0_0=City,No_Fill,Common,Common,Common,13
@@ -950,7 +950,7 @@ walk_mask_name=wrldmp14
 
 
 [Tile 15]
-art_idx=6457
+art_idx=354
 encounter_difficulty=-70
 walk_mask_name=wrldmp15
 0_0=Mountain,No_Fill,Uncommon,Uncommon,Uncommon,3
@@ -999,7 +999,7 @@ walk_mask_name=wrldmp15
 
 
 [Tile 16]
-art_idx=6458
+art_idx=355
 encounter_difficulty=-70
 walk_mask_name=wrldmp16
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -1048,7 +1048,7 @@ walk_mask_name=wrldmp16
 
 
 [Tile 17]
-art_idx=6459
+art_idx=356
 encounter_difficulty=-70
 walk_mask_name=wrldmp17
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -1097,7 +1097,7 @@ walk_mask_name=wrldmp17
 
 
 [Tile 18]
-art_idx=6460
+art_idx=357
 encounter_difficulty=-70
 walk_mask_name=wrldmp18
 0_0=Coast,No_Fill,Common,Common,Common,15
@@ -1146,7 +1146,7 @@ walk_mask_name=wrldmp18
 
 
 [Tile 19]
-art_idx=6461
+art_idx=358
 encounter_difficulty=-70
 walk_mask_name=wrldmp19
 0_0=Mountain,No_Fill,Common,Common,Common,3
