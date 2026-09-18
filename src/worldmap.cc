@@ -654,7 +654,7 @@ static const WorldmapElements gWorldmapElementsVanillaF1 = {
     .hasQuickDestinations     = false,
     .hasTownWorldSwitchButton = true,
     .hasWidescreenBorder      = false,
-    .hasCitySizeCircles       = false,
+    .hasCitySizeCircles       = true,
     .hasDateDisplay           = true,
     .useF1Chrome              = true,
 };
@@ -1963,7 +1963,7 @@ static int wmConfigInit()
         return -1;
     }
 
-    if (configRead(&config, "data\\worldmap.txt", true)) {
+    if (configRead(&config, GAME_DATA_PATH("worldmap.txt"), true)) {
         for (int index = 0; index < ENCOUNTER_FREQUENCY_TYPE_COUNT; index++) {
             if (!configGetInt(&config, "data", wmFreqStrs[index], &(wmFreqValues[index]))) {
                 break;
@@ -4384,7 +4384,7 @@ static int wmAreaInit()
     debugPrint("\nwmAreaInit: Pre-allocated %d area slots", wmMaxAreaNum);
 
     // Load base city.txt into slots 0-199 sequentially
-    if (wmAreaLoadBaseFile("data\\city.txt") == -1) {
+    if (wmAreaLoadBaseFile(GAME_DATA_PATH("city.txt")) == -1) {
         return -1;
     }
     debugPrint("\nwmAreaInit: Base areas loaded");
@@ -5170,7 +5170,7 @@ static int wmMapInit()
     debugPrint("\nwmMapInit: Pre-allocated %d map slots", wmMaxMapNum);
 
     // Load base maps.txt into slots 0-199 sequentially
-    if (wmMapLoadBaseFile("data\\maps.txt") == -1) {
+    if (wmMapLoadBaseFile(GAME_DATA_PATH("maps.txt")) == -1) {
         return -1;
     }
 
@@ -6996,7 +6996,7 @@ static int wmGrabTileWalkMask(int tileIdx)
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "data\\%s.msk", tileInfo->walkMaskName);
+    snprintf(path, sizeof(path), GAME_DATA_PATH("%s.msk"), tileInfo->walkMaskName);
 
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {

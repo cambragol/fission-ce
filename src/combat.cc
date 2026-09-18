@@ -19,6 +19,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -2019,7 +2020,7 @@ int combatInit()
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "combat.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("combat.msg"));
 
     if (!(messageListLoad(&gCombatMessageList, path))) {
         return -1;

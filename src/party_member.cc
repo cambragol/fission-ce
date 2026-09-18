@@ -20,6 +20,7 @@
 #include "display_monitor.h"
 #include "game.h"
 #include "game_dialog.h"
+#include "game_version.h"
 #include "item.h"
 #include "loadsave.h"
 #include "map.h"
@@ -221,7 +222,7 @@ int partyMembersInit()
         return -1;
     }
 
-    if (!configRead(&config, "data\\party.txt", true)) {
+    if (!configRead(&config, GAME_DATA_PATH("party.txt"), true)) {
         goto err;
     }
 

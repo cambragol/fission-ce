@@ -1147,7 +1147,7 @@ int pipboyMessageListInit()
     pipboyMessageListFree();
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "pipboy.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("pipboy.msg"));
 
     if (!(messageListLoad(&gPipboyMessageList, path))) {
         return -1;
@@ -4764,7 +4764,7 @@ static int questInit()
     }
 
     // Load base and mod quest messages
-    if (!messageListLoad(&gQuestsMessageList, "game\\quests.msg")) {
+    if (!messageListLoad(&gQuestsMessageList, GAME_MSG_PATH("quests.msg"))) {
         return -1;
     }
 
@@ -4777,7 +4777,7 @@ static int questInit()
     // Initialize all quest descriptions to zero
     memset(gQuestDescriptions, 0, sizeof(QuestDescription) * TOTAL_QUEST_MAX);
 
-    File* stream = fileOpen("data\\quests.txt", "rt");
+    File* stream = fileOpen(GAME_DATA_PATH("quests.txt"), "rt");
     if (stream == nullptr) {
         return -1;
     }
@@ -4966,7 +4966,7 @@ static int holodiskInit()
     gHolodisksCount = 0;
 
     // Load vanilla holodisks first
-    File* stream = fileOpen("data\\holodisk.txt", "rt");
+    File* stream = fileOpen(GAME_DATA_PATH("holodisk.txt"), "rt");
     if (stream != nullptr) {
         char str[256];
         while (fileReadString(str, sizeof(str), stream)) {

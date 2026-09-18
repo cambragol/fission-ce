@@ -15,6 +15,7 @@
 #include "display_monitor.h"
 #include "game.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -812,7 +813,7 @@ int aiInit()
     if (!configInit(&config)) {
         return -1;
     }
-    if (!configRead(&config, "data\\ai.txt", true)) {
+    if (!configRead(&config, GAME_DATA_PATH("ai.txt"), true)) {
         configFree(&config);
         return -1;
     }

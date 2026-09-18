@@ -22,6 +22,20 @@ bool falloutVersionIsFallout1();
 #define IS_FALLOUT_1() (falloutVersionGet() == FALLOUT_VERSION_1)
 #define IS_FALLOUT_2() (falloutVersionGet() == FALLOUT_VERSION_2)
 
+// Resolves a game-data path to the mode-appropriate location.
+// F2, Sonora, Nevada, and other total conversions keep their data at
+// data/<name>, matching the path modders expect when they drop
+// data/<name>_<mod>.txt alongside the base file.
+#define GAME_DATA_PATH(name) \
+    (IS_FALLOUT_1() ? "data\\fallout1\\" name : "data\\" name)
+
+// Resolves a game message path to the mode-appropriate location.
+// F2/Sonora/Nevada messages live at game/<name>.msg. F1-specific
+// overrides and additions live at game/fallout1/<name>.msg inside
+// fission.dat so they don't overwrite other games' message files.
+#define GAME_MSG_PATH(name) \
+    (IS_FALLOUT_1() ? "game\\fallout1\\" name : "game\\" name)
+
 } // namespace fallout
 
 #endif
