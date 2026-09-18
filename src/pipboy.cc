@@ -428,9 +428,10 @@ int gPipboyWindow;
 // 0x6644F4
 int _holodisk;
 
-// Index of the holodisk whose audio is currently loaded (-1 if none). Lets
-// pipboyRenderHolodiskText() start a holodisk's narration once, on open,
-// without restarting it on every page turn -- see pipboyHolodiskUpdateAudio().
+// Index of the holodisk whose audio is currently loaded (-1 if none).
+// pipboyRenderHolodiskText() uses this to start a holodisk's narration once,
+// on open, and skip restarting it on every page turn. See
+// pipboyHolodiskUpdateAudio().
 static int gPipboyHolodiskAudioIndex = -1;
 
 // 0x6644F8
@@ -1703,11 +1704,10 @@ static void pipboyWindowHandleStatus(int userInput)
 
         _holo_flag = 0;
         _holodisk = -1;
-        // Leaving the holodisk detail view for the status list -- stop the
-        // narration rather than leaving it playing under a screen it no
-        // longer belongs to, and clear the tracker so reopening the same
-        // holodisk later restarts it from the top instead of treating it as
-        // "already playing".
+        // Leaving the holodisk detail view for the status list. Stop the
+        // narration so it doesn't keep playing under the status list, and
+        // clear the tracker so reopening the same holodisk later restarts
+        // its narration from the top.
         speechDelete();
         gPipboyHolodiskAudioIndex = -1;
         gPipboyWindowHolodisksCount = 0;
@@ -2722,31 +2722,30 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 
 // 0x4988A0
 // Starts the voiced-holodisk speech for a holodisk when it's first opened.
-// `audio` is the raw audio field of the holodisk's very first message line
-// (holodisk->description -- same `{num}{audio}{text}` field VockFloats
-// already reads for dialogue), resolved through speechLoad() exactly like
-// any other speech file under sound/speech/. Gated behind the same VockFloats
-// master switch and VoicedFloats toggle dialogue floats use, so it inherits
+// `audio` is the raw audio field of the holodisk's first message line
+// (holodisk->description, the same `{num}{audio}{text}` field VockFloats
+// reads for dialogue). It resolves through speechLoad() like any other
+// speech file under sound/speech/. Gated behind the same VockFloats master
+// switch and VoicedFloats toggle dialogue floats use, so it inherits
 // StrictVanilla and the mod's opt-out without a separate setting.
 //
-// This is deliberately one clip for the whole holodisk, not one per page.
-// Pagination (PIPBOY_HOLODISK_LINES_MAX below) is a blind 35-message-ID
-// counter with no idea where a sentence or paragraph ends -- confirmed
-// against real content, e.g. the Hubologist Teachings holodisk's page 1
-// starts mid-sentence ("sightings of Extra-Terrestrial Vehicles..."). Tying
-// a separate clip to each page would mean cutting a recording at whatever
-// arbitrary point the 35-count lands on, and re-cutting it every time the
-// text is edited. One clip that just keeps playing while the reader flips
-// pages has no such seam: pipboyRenderHolodiskText() calls this only when
-// _holodisk changes (see gPipboyHolodiskAudioIndex there), not on every page
-// turn, so speechLoad() is never re-triggered by paging within the same disk.
+// This plays one clip for the whole holodisk, not one per page.
+// PIPBOY_HOLODISK_LINES_MAX paginates by a blind 35-message-ID count that
+// doesn't track sentence or paragraph boundaries: the Hubologist Teachings
+// holodisk's page 1 starts mid-sentence ("sightings of Extra-Terrestrial
+// Vehicles..."). A per-page clip would need cutting a recording at whatever
+// point the 35-count lands on, and re-cutting it whenever the text changed.
+// pipboyRenderHolodiskText() calls this only when _holodisk changes (see
+// gPipboyHolodiskAudioIndex), so speechLoad() never re-triggers on a page
+// turn within the same disk; the clip just keeps playing while the reader
+// flips pages.
 //
-// The audio field is a bare filename, same as dialogue's -- see ACERIC.MSG's
-// "{101}{fea1}{...}" or lipsLoad()'s headFileName/audioFileName split. Vanilla
-// never puts a path in a .msg field; the folder always comes from context
-// (there it's the speaking critter's head name, built in lipsLoad() as
-// SOUND\SPEECH\<headFileName>\<audioFileName>). Holodisks have no critter, so
-// the folder is simply fixed to "holodisks" here instead of per-instance.
+// The audio field holds a bare filename, same as dialogue (see ACERIC.MSG's
+// "{101}{fea1}{...}" or lipsLoad()'s headFileName/audioFileName split).
+// Vanilla never puts a path in a .msg field; the folder comes from context
+// instead (for dialogue, the speaking critter's head name, built in
+// lipsLoad() as SOUND\SPEECH\<headFileName>\<audioFileName>). Holodisks have
+// no critter, so this fixes the folder to "holodisks" in code.
 static void pipboyHolodiskUpdateAudio(const char* audio)
 {
     bool voicedHolodisksEnabled = settings.enhancements.vock_floats
@@ -2785,10 +2784,9 @@ static void pipboyRenderHolodiskText()
     HolodiskDescription* holodisk = &(gHolodiskDescriptions[_holodisk]);
 
     if (_holodisk != gPipboyHolodiskAudioIndex) {
-        // Newly opened holodisk, not just a page turn within the one whose
-        // narration is already playing -- (re)start it from the top. See
-        // pipboyHolodiskUpdateAudio() for why this is once per holodisk
-        // rather than once per page.
+        // _holodisk changed, so this is a newly opened holodisk, not a page
+        // turn within one already playing. (Re)start narration from the top.
+        // See pipboyHolodiskUpdateAudio() for why it's once per holodisk.
         getmsg(&gPipboyMessageList, &gPipboyMessageListItem, holodisk->description);
         pipboyHolodiskUpdateAudio(gPipboyMessageListItem.audio);
         gPipboyHolodiskAudioIndex = _holodisk;
