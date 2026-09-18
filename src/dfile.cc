@@ -186,15 +186,24 @@ static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath
             if (f1ReadBE32(stream, &fieldC) != 0) goto err_entries;
 
             // Compose "<DIR>\\<NAME>".
-            size_t dirLen = strlen(dirNames[i]);
-            size_t totalLen = dirLen + 1 + (size_t)nameLen;
-            char* path = (char*)malloc(totalLen + 1);
-            if (path == nullptr) goto err_entries;
-
-            memcpy(path, dirNames[i], dirLen);
-            path[dirLen] = '\\';
-            memcpy(path + dirLen + 1, nameBuf, nameLen);
-            path[totalLen] = '\0';
+            char* path;
+            if (strcmp(dirNames[i], ".") == 0) {
+                // F1's top-level container is named ".". Its files live at the
+                // DAT root and are looked up by bare name.
+                path = (char*)malloc((size_t)nameLen + 1);
+                if (path == nullptr) goto err_entries;
+                memcpy(path, nameBuf, nameLen);
+                path[nameLen] = '\0';
+            } else {
+                size_t dirLen = strlen(dirNames[i]);
+                size_t totalLen = dirLen + 1 + (size_t)nameLen;
+                path = (char*)malloc(totalLen + 1);
+                if (path == nullptr) goto err_entries;
+                memcpy(path, dirNames[i], dirLen);
+                path[dirLen] = '\\';
+                memcpy(path + dirLen + 1, nameBuf, nameLen);
+                path[totalLen] = '\0';
+            }
 
             if (count >= cap) {
                 int newCap = cap * 2;

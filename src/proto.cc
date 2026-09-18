@@ -3106,7 +3106,7 @@ int protoInit()
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%sproto.msg", asc_5186C8);
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("proto.msg"));
 
     if (!messageListLoad(&gProtoMessageList, path)) {
         debugPrint("\nError: Loading main proto message file!");

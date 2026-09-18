@@ -30,6 +30,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "inventory.h"
@@ -901,7 +902,7 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
             MessageList messageList;
             if (messageListInit(&messageList)) {
                 char path[COMPAT_MAX_PATH];
-                snprintf(path, sizeof(path), "%s%s", asc_5186C8, "editor.msg");
+                snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("editor.msg"));
 
                 if (messageListLoad(&messageList, path)) {
                     MessageListItem messageListItem;
@@ -1179,7 +1180,7 @@ int gameSetGlobalVar(int var, int value)
 // 0x443CC8
 static int gameLoadGlobalVars()
 {
-    if (globalVarsRead("data\\vault13.gam", "GAME_GLOBAL_VARS:", &gGameGlobalVarsLength, &gGameGlobalVars) != 0) {
+    if (globalVarsRead(GAME_DATA_PATH("vault13.gam"), "GAME_GLOBAL_VARS:", &gGameGlobalVarsLength, &gGameGlobalVars) != 0) {
         return -1;
     }
 

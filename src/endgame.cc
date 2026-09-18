@@ -1532,7 +1532,7 @@ int endgameDeathEndingInit()
     }
 
     // Load vanilla enddeath.txt
-    parseEnddeathFile("data\\enddeath.txt", "vanilla");
+    parseEnddeathFile(GAME_DATA_PATH("enddeath.txt"), "vanilla");
 
     // Find and load enddeath mod files (enddeath_*.txt etc.)
     char searchPattern[COMPAT_MAX_PATH];

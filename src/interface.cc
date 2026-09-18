@@ -21,6 +21,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "input.h"
 #include "item.h"
@@ -3083,7 +3084,7 @@ static int indicatorBarInit()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "intrface.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("intrface.msg"));
 
     if (rc != -1) {
         if (!messageListLoad(&messageList, path)) {
