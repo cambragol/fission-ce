@@ -84,9 +84,9 @@ static int f1ReadBE32(FILE* stream, unsigned int* out)
     unsigned char b[4];
     if (fread(b, 1, 4, stream) != 4) return -1;
     *out = ((unsigned int)b[0] << 24)
-         | ((unsigned int)b[1] << 16)
-         | ((unsigned int)b[2] << 8)
-         |  (unsigned int)b[3];
+        | ((unsigned int)b[1] << 16)
+        | ((unsigned int)b[2] << 8)
+        | (unsigned int)b[3];
     return 0;
 }
 
@@ -165,7 +165,7 @@ static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath
         if (f1ReadBE32(stream, &subDataSize) != 0) goto err_entries;
         if (f1ReadBE32(stream, &subListPtr) != 0) goto err_entries;
 
-        if (subDataSize != 16) goto err_entries;   // sizeof(dir_entry)
+        if (subDataSize != 16) goto err_entries; // sizeof(dir_entry)
         if (subCount > 1000000) goto err_entries;
 
         for (unsigned int j = 0; j < subCount; j++) {
@@ -208,7 +208,10 @@ static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath
             if (count >= cap) {
                 int newCap = cap * 2;
                 DBaseEntry* grown = (DBaseEntry*)realloc(entries, sizeof(DBaseEntry) * newCap);
-                if (grown == nullptr) { free(path); goto err_entries; }
+                if (grown == nullptr) {
+                    free(path);
+                    goto err_entries;
+                }
                 entries = grown;
                 cap = newCap;
             }
@@ -220,10 +223,20 @@ static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath
             e->dataSize = (int)fieldC;
 
             switch (flags & 0xF0) {
-            case 0x10: e->compressionType = 2; e->compressed = 1; break; // LZSS
-            case 0x20: e->compressionType = 0; e->compressed = 0; break; // raw
-            case 0x40: e->compressionType = 3; e->compressed = 1; break; // chunked LZSS
-            default: goto err_entries;
+            case 0x10:
+                e->compressionType = 2;
+                e->compressed = 1;
+                break; // LZSS
+            case 0x20:
+                e->compressionType = 0;
+                e->compressed = 0;
+                break; // raw
+            case 0x40:
+                e->compressionType = 3;
+                e->compressed = 1;
+                break; // chunked LZSS
+            default:
+                goto err_entries;
             }
 
             // For raw entries the two sizes are equal; normalize for safety.
@@ -240,23 +253,30 @@ static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath
     memset(dbase, 0, sizeof(*dbase));
 
     dbase->path = compat_strdup(filePath);
-    if (dbase->path == nullptr) { free(dbase); dbase = nullptr; goto err_entries; }
+    if (dbase->path == nullptr) {
+        free(dbase);
+        dbase = nullptr;
+        goto err_entries;
+    }
     dbase->dataOffset = 0;
     dbase->entriesLength = count;
     dbase->entries = entries;
     dbase->dfileHead = nullptr;
 
-    for (i = 0; i < rootCount; i++) free(dirNames[i]);
+    for (i = 0; i < rootCount; i++)
+        free(dirNames[i]);
     free(dirNames);
 
     falloutVersionSet(FALLOUT_VERSION_1);
     return dbase;
 
 err_entries:
-    for (int k = 0; k < count; k++) free(entries[k].path);
+    for (int k = 0; k < count; k++)
+        free(entries[k].path);
     free(entries);
 err_names:
-    for (i = 0; i < rootCount; i++) free(dirNames[i]);
+    for (i = 0; i < rootCount; i++)
+        free(dirNames[i]);
     free(dirNames);
     return nullptr;
 }
@@ -294,12 +314,12 @@ DBase* dbaseOpen(const char* filePath)
         unsigned char sig[4];
         if (fseek(stream, 0, SEEK_SET) == 0 && fread(sig, 1, 4, stream) == 4) {
             unsigned int rootCount = ((unsigned int)sig[0] << 24)
-                                   | ((unsigned int)sig[1] << 16)
-                                   | ((unsigned int)sig[2] << 8)
-                                   |  (unsigned int)sig[3];
+                | ((unsigned int)sig[1] << 16)
+                | ((unsigned int)sig[2] << 8)
+                | (unsigned int)sig[3];
 
             fprintf(stderr, "[DB] first4=%02X %02X %02X %02X  BE_rootCount=%u\n",
-                    sig[0], sig[1], sig[2], sig[3], rootCount);
+                sig[0], sig[1], sig[2], sig[3], rootCount);
 
             if (rootCount > 0 && rootCount < 10000) {
                 if (fseek(stream, 0, SEEK_SET) == 0) {
@@ -791,10 +811,17 @@ int dfileSeek(DFile* stream, long offset, int origin)
     if ((stream->flags & DFILE_PREDECODED) != 0) {
         long offsetFromBeginning;
         switch (origin) {
-        case SEEK_SET: offsetFromBeginning = offset; break;
-        case SEEK_CUR: offsetFromBeginning = stream->position + offset; break;
-        case SEEK_END: offsetFromBeginning = stream->entry->uncompressedSize + offset; break;
-        default: return 1;
+        case SEEK_SET:
+            offsetFromBeginning = offset;
+            break;
+        case SEEK_CUR:
+            offsetFromBeginning = stream->position + offset;
+            break;
+        case SEEK_END:
+            offsetFromBeginning = stream->entry->uncompressedSize + offset;
+            break;
+        default:
+            return 1;
         }
 
         if (offsetFromBeginning < 0 || offsetFromBeginning >= stream->entry->uncompressedSize) {
@@ -1042,7 +1069,7 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
             int decoded = f1LzssDecode(dfile->stream, dfile->decompressionBuffer, entry->dataSize);
             if (decoded != entry->uncompressedSize) {
                 fprintf(stderr, "[DFO] LZSS short: '%s' got %d, want %d\n",
-                        entry->path, decoded, entry->uncompressedSize);
+                    entry->path, decoded, entry->uncompressedSize);
                 goto err;
             }
         } else {

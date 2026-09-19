@@ -1897,7 +1897,7 @@ static int gameDbInit()
     bool useMasterOverride;
 
     // Fallout 1 must use master_override to force load of custom Fallout 2 assets
-    if(FALLOUT_VERSION_1){
+    if (FALLOUT_VERSION_1) {
         useMasterOverride = true;
     } else {
         useMasterOverride = settings.system.master_override;
