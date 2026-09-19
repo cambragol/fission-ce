@@ -522,7 +522,7 @@ typedef struct WorldmapElements {
     bool hasWidescreenBorder;
     bool hasCitySizeCircles;
     bool hasDateDisplay;
-    bool useF1Chrome; 
+    bool useF1Chrome;
 } WorldmapElements;
 
 // F1 CE's cityXgvar[]. Each of F1's twelve towns becomes "known" on the
@@ -535,128 +535,128 @@ typedef struct WorldmapElements {
 // game_global_vars[] using F1's indices; this table reads them back by
 // the same indices. Guarded by IS_FALLOUT_1() at the call site.
 static const short f1CityXgvar[12] = {
-    67,  //  0 Vault 13
-    70,  //  1 Vault 15
-    68,  //  2 Shady Sands
-    71,  //  3 Junktown
-    69,  //  4 Raiders
-    72,  //  5 Necropolis
-    73,  //  6 The Hub
-    74,  //  7 Brotherhood
-    78,  //  8 Military Base
-    76,  //  9 The Glow
-    75,  // 10 Boneyard
-    77,  // 11 Cathedral
+    67, //  0 Vault 13
+    70, //  1 Vault 15
+    68, //  2 Shady Sands
+    71, //  3 Junktown
+    69, //  4 Raiders
+    72, //  5 Necropolis
+    73, //  6 The Hub
+    74, //  7 Brotherhood
+    78, //  8 Military Base
+    76, //  9 The Glow
+    75, // 10 Boneyard
+    77, // 11 Cathedral
 };
 
 static const WorldmapElements gWorldmapElementsF2 = {
-    .backgroundFid        = 469,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
+    .backgroundFid = 469,
+    .citySizeFid = { 336, 337, 338 },
+    .hotspotNormalFid = 168,
+    .hotspotPressedFid = 223,
     .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { /* fill in with F2's wminfce fids */ },
+    .locationMarkerFid = 138,
+    .encounterCursorFid = { 154, 155, 438, 439 },
+    .tabsBackgroundFid = 364,
+    .tabsBorderFid = 367,
+    .dialFid = 365,
+    .carOverlayFid = 363,
+    .globeOverlayFid = 366,
+    .redButtonNormalFid = 8,
+    .redButtonPressedFid = 9,
+    .monthsFid = 129,
+    .numbersFid = 82,
+    .scrollUpFid = { 199, 200 },
+    .scrollDownFid = { 181, 182 },
+    .carMovieFid = 433,
+    .labelRowHeight = 18,
+    .widescreenBorderFid = { /* fill in with F2's wminfce fids */ },
 
-    .hasTownTabs              = true,
-    .hasDayNightDial          = true,
-    .hasCar                   = true,
-    .hasGlobeOverlay          = true,
-    .hasScrollButtons         = true,
-    .hasQuickDestinations     = true,
+    .hasTownTabs = true,
+    .hasDayNightDial = true,
+    .hasCar = true,
+    .hasGlobeOverlay = true,
+    .hasScrollButtons = true,
+    .hasQuickDestinations = true,
     .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = true,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = false,
+    .hasWidescreenBorder = true,
+    .hasCitySizeCircles = true,
+    .hasDateDisplay = true,
+    .useF1Chrome = false,
 };
 
 // Capability flags are all true: this is the full FISSION/F2 interface
 // layout, just addressed through the F1 data pack's FID numbering.
 static const WorldmapElements gWorldmapElementsFissionF1 = {
-   .backgroundFid        = 469,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
+    .backgroundFid = 469,
+    .citySizeFid = { 336, 337, 338 },
+    .hotspotNormalFid = 168,
+    .hotspotPressedFid = 223,
     .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { -1, -1, -1, -1 },
+    .locationMarkerFid = 138,
+    .encounterCursorFid = { 154, 155, 438, 439 },
+    .tabsBackgroundFid = 364,
+    .tabsBorderFid = 367,
+    .dialFid = 365,
+    .carOverlayFid = 363,
+    .globeOverlayFid = 366,
+    .redButtonNormalFid = 8,
+    .redButtonPressedFid = 9,
+    .monthsFid = 129,
+    .numbersFid = 82,
+    .scrollUpFid = { 199, 200 },
+    .scrollDownFid = { 181, 182 },
+    .carMovieFid = 433,
+    .labelRowHeight = 18,
+    .widescreenBorderFid = { -1, -1, -1, -1 },
 
-    .hasTownTabs              = true,
-    .hasDayNightDial          = true,
-    .hasCar                   = true,
-    .hasGlobeOverlay          = true,
-    .hasScrollButtons         = true,
-    .hasQuickDestinations     = true,
+    .hasTownTabs = true,
+    .hasDayNightDial = true,
+    .hasCar = true,
+    .hasGlobeOverlay = true,
+    .hasScrollButtons = true,
+    .hasQuickDestinations = true,
     .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = false,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = false,
+    .hasWidescreenBorder = false,
+    .hasCitySizeCircles = true,
+    .hasDateDisplay = true,
+    .useF1Chrome = false,
 };
 
 static const WorldmapElements gWorldmapElementsVanillaF1 = {
-   .backgroundFid        = 136,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
+    .backgroundFid = 136,
+    .citySizeFid = { 336, 337, 338 },
+    .hotspotNormalFid = 168,
+    .hotspotPressedFid = 223,
     .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { -1, -1, -1, -1 },
+    .locationMarkerFid = 138,
+    .encounterCursorFid = { 154, 155, 438, 439 },
+    .tabsBackgroundFid = 364,
+    .tabsBorderFid = 367,
+    .dialFid = 365,
+    .carOverlayFid = 363,
+    .globeOverlayFid = 366,
+    .redButtonNormalFid = 8,
+    .redButtonPressedFid = 9,
+    .monthsFid = 129,
+    .numbersFid = 82,
+    .scrollUpFid = { 199, 200 },
+    .scrollDownFid = { 181, 182 },
+    .carMovieFid = 433,
+    .labelRowHeight = 18,
+    .widescreenBorderFid = { -1, -1, -1, -1 },
 
-    .hasTownTabs              = false,
-    .hasDayNightDial          = false,
-    .hasCar                   = false,
-    .hasGlobeOverlay          = false,
-    .hasScrollButtons         = false,
-    .hasQuickDestinations     = false,
+    .hasTownTabs = false,
+    .hasDayNightDial = false,
+    .hasCar = false,
+    .hasGlobeOverlay = false,
+    .hasScrollButtons = false,
+    .hasQuickDestinations = false,
     .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = false,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = true,
+    .hasWidescreenBorder = false,
+    .hasCitySizeCircles = true,
+    .hasDateDisplay = true,
+    .useF1Chrome = true,
 };
 
 static inline const WorldmapElements* wmElements()
@@ -1052,8 +1052,18 @@ static Config* pConfigCfg;
 static int wmTownMapSubButtonIds[7];
 
 static int wmF1TownButtonIds[12] = {
-    -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
 };
 
 // 0x672FF8
@@ -1072,14 +1082,25 @@ bool gSuppressMapEnterScript = false;
 // Labels at x=531, each 82x18, drawn from the shared label strip (art 137)
 // sliced at labelSrcY = index*18.
 static const short wmF1BttnYtab[12] = {
-    61, 88, 115, 143, 171, 200, 228, 256, 283, 310, 338, 367,
+    61,
+    88,
+    115,
+    143,
+    171,
+    200,
+    228,
+    256,
+    283,
+    310,
+    338,
+    367,
 };
 
-#define WM_F1_BUTTON_X    508
+#define WM_F1_BUTTON_X 508
 #define WM_F1_BUTTON_SIZE 15
-#define WM_F1_LABEL_X     531
-#define WM_F1_LABEL_W     82
-#define WM_F1_LABEL_H     18
+#define WM_F1_LABEL_X 531
+#define WM_F1_LABEL_W 82
+#define WM_F1_LABEL_H 18
 
 // Fixed arrays for all encounter tables and named encounters
 static EncounterTable wmFixedEncounterTableList[TOTAL_ENCOUNTER_TABLE_MAX];
@@ -1452,8 +1473,8 @@ static int wmGenDataInit()
 {
     wmGenData.didMeetFrankHorrigan = false;
     wmGenData.currentAreaId = -1;
-    //wmGenData.worldPosX = 173;
-    //wmGenData.worldPosY = 122;
+    // wmGenData.worldPosX = 173;
+    // wmGenData.worldPosY = 122;
     wmGenData.currentSubtile = nullptr;
     wmGenData.dword_672E18 = 0;
     wmGenData.isWalking = false;
@@ -1518,8 +1539,8 @@ static int wmGenDataReset()
     wmGenData.encounterIconIsVisible = false;
     wmGenData.mousePressed = false;
     wmGenData.currentAreaId = -1;
-    //wmGenData.worldPosX = 173;
-    //wmGenData.worldPosY = 122;
+    // wmGenData.worldPosX = 173;
+    // wmGenData.worldPosY = 122;
     wmGenData.walkDestinationX = -1;
     wmGenData.walkDestinationY = -1;
     wmGenData.encounterMapId = -1;
@@ -1567,12 +1588,12 @@ static uint16_t wmHashLookupName(const char* lookupName)
 }
 
 static void wmBlitCityLabel(FrmImage& labelFrm, CityInfo* city,
-                            unsigned char* dest, int destPitch,
-                            int clipTop, int clipBottom)
+    unsigned char* dest, int destPitch,
+    int clipTop, int clipBottom)
 {
     int labelH = wmElements()->labelRowHeight;
-    int srcY   = city->labelSrcY + clipTop;
-    int srcH   = labelH - clipTop - clipBottom;
+    int srcY = city->labelSrcY + clipTop;
+    int srcH = labelH - clipTop - clipBottom;
 
     if (srcH <= 0) return;
 
@@ -3631,7 +3652,6 @@ static void wmAreaInitFromConfig(CityInfo* city, Config* config, const char* sec
 
     debugPrint("[WM] %s labelFid=%d", city->name, city->labelFid);
 
-
     configGetInt(config, section, "label_art_y", &city->labelSrcY);
 
     // Optional field: lock_state
@@ -5427,7 +5447,7 @@ static void wmUpdateF1TownDiscovery()
         bool shouldBeKnown = false;
 
         if (city == 0) {
-            shouldBeKnown = true;   // Vault 13 always known
+            shouldBeKnown = true; // Vault 13 always known
         } else if (gameGetGlobalVar(f1CityXgvar[city]) == 1) {
             shouldBeKnown = true;
         }
@@ -7094,7 +7114,7 @@ static int wmDoMoveStep()
 {
     if (wmGenData.walkLineDelta >= 0) {
         if (wmWorldPosInvalid(wmGenData.walkWorldPosCrossAxisStepX + wmGenData.worldPosX,
-                              wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
+                wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
             wmGenData.walkDestinationX = 0;
             wmGenData.walkDestinationY = 0;
             wmGenData.isWalking = false;
@@ -7113,7 +7133,7 @@ static int wmDoMoveStep()
             nullptr, false);
     } else {
         if (wmWorldPosInvalid(wmGenData.walkWorldPosMainAxisStepX + wmGenData.worldPosX,
-                              wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY)) {
+                wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY)) {
             wmGenData.walkDestinationX = 0;
             wmGenData.walkDestinationY = 0;
             wmGenData.isWalking = false;

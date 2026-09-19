@@ -276,8 +276,8 @@ int mainMenuWindowInit()
     // Check if we should write defaults or not
     int writeOffsets = 0;
     if (configGetInt(&gGameConfig, "debug", "write_offsets", &writeOffsets) && writeOffsets) {
-        mainMenuWriteDefaultOffsetsToConfig("mainmenu640",   &gMainMenuOffsets640);
-        mainMenuWriteDefaultOffsetsToConfig("mainmenu800",   &gMainMenuOffsets800);
+        mainMenuWriteDefaultOffsetsToConfig("mainmenu640", &gMainMenuOffsets640);
+        mainMenuWriteDefaultOffsetsToConfig("mainmenu800", &gMainMenuOffsets800);
         mainMenuWriteDefaultOffsetsToConfig("f1_mainmenu640", &gMainMenuOffsetsF1_640);
         mainMenuWriteDefaultOffsetsToConfig("f1_mainmenu800", &gMainMenuOffsetsF1_800);
 
@@ -329,7 +329,7 @@ int mainMenuWindowInit()
     //        0x020000 - underline text (only for the version string)
     //        0x040000 - monospace font (only for the version string)
     int fontSettings;
-    if(!IS_FALLOUT_1()) {
+    if (!IS_FALLOUT_1()) {
         fontSettings = _colorTable[COL_OLIVE_YELLOW];
     } else {
         fontSettings = _colorTable[COL_MEDIUM_GRAY];
@@ -343,7 +343,7 @@ int mainMenuWindowInit()
     int offsetY = settings.mod_settings.main_menu_credits_offset_y;
 
     // Copyright.
-    if(!IS_FALLOUT_1()) {
+    if (!IS_FALLOUT_1()) {
         msg.num = 20;
     } else {
         msg.num = 14;

@@ -34,29 +34,29 @@ static const float flt_50352A = 0.032258064f;
 
 // Defaults match Fallout 2 (FISSION's native behavior). gameMoviesInit
 // overrides them for Fallout 1.
-int gMovieIplogo   = 0;
-int gMovieIntro    = 1;
-int gMovieElder    = 2;
-int gMovieVsuit    = 3;
-int gMovieAfailed  = 4;
+int gMovieIplogo = 0;
+int gMovieIntro = 1;
+int gMovieElder = 2;
+int gMovieVsuit = 3;
+int gMovieAfailed = 4;
 int gMovieAdestroy = 5;
-int gMovieCar      = 6;
+int gMovieCar = 6;
 int gMovieCartucci = 7;
-int gMovieTimeout  = 8;
-int gMovieTanker   = 9;
-int gMovieEnclave  = 10;
-int gMovieDerrick  = 11;
+int gMovieTimeout = 8;
+int gMovieTanker = 9;
+int gMovieEnclave = 10;
+int gMovieDerrick = 11;
 int gMovieArtimer1 = 12;
 int gMovieArtimer2 = 13;
 int gMovieArtimer3 = 14;
 int gMovieArtimer4 = 15;
-int gMovieCredits  = 16;
-int gMovieNewGameBriefing = 2;   // F2 default: elder
-int gMovieWalkm   = -1;
-int gMovieWalkw   = -1;
-int gMovieBoil1   = -1;
-int gMovieBoil2   = -1;
-int gMovieBoil3   = -1;
+int gMovieCredits = 16;
+int gMovieNewGameBriefing = 2; // F2 default: elder
+int gMovieWalkm = -1;
+int gMovieWalkw = -1;
+int gMovieBoil1 = -1;
+int gMovieBoil2 = -1;
+int gMovieBoil3 = -1;
 
 // 0x518DA0
 // Populated by gameMoviesInit. In F1 mode these hold F1's list; in F2 mode
@@ -95,21 +95,21 @@ int gameMoviesInit()
     // Populate movie tables for the loaded game version.
     if (IS_FALLOUT_1()) {
         // Fallout 1's list, at F1's native indices.
-        gMovieFileNames[0]  = "iplogo.mve";
-        gMovieFileNames[1]  = "mplogo.mve";
-        gMovieFileNames[2]  = "intro.mve";
-        gMovieFileNames[3]  = "vexpld.mve";
-        gMovieFileNames[4]  = "cathexp.mve";
-        gMovieFileNames[5]  = "ovrintro.mve";
-        gMovieFileNames[6]  = "boil3.mve";
-        gMovieFileNames[7]  = "ovrrun.mve";
-        gMovieFileNames[8]  = "walkm.mve";
-        gMovieFileNames[9]  = "walkw.mve";
+        gMovieFileNames[0] = "iplogo.mve";
+        gMovieFileNames[1] = "mplogo.mve";
+        gMovieFileNames[2] = "intro.mve";
+        gMovieFileNames[3] = "vexpld.mve";
+        gMovieFileNames[4] = "cathexp.mve";
+        gMovieFileNames[5] = "ovrintro.mve";
+        gMovieFileNames[6] = "boil3.mve";
+        gMovieFileNames[7] = "ovrrun.mve";
+        gMovieFileNames[8] = "walkm.mve";
+        gMovieFileNames[9] = "walkw.mve";
         gMovieFileNames[10] = "dipedv.mve";
         gMovieFileNames[11] = "boil1.mve";
         gMovieFileNames[12] = "boil2.mve";
         gMovieFileNames[13] = "raekills.mve";
-        
+
         // F1 has no equivalent of F2's movies; leave slots 14-16 null.
         for (int i = 14; i < MOVIE_COUNT; i++) {
             gMovieFileNames[i] = nullptr;
@@ -123,42 +123,42 @@ int gameMoviesInit()
         // F1 has no elder/artimer/crdtssub palettes; those are F2-specific.
 
         // Re-point the semantic identifiers to F1's indices.
-        gMovieIplogo   = 0;
-        gMovieIntro    = 2;
-        gMovieNewGameBriefing    = 5;   // F1 has overseer briefing
-        gMovieVsuit    = -1;   // F1 has no vault-suit cutscene
-        gMovieAfailed  = -1;
+        gMovieIplogo = 0;
+        gMovieIntro = 2;
+        gMovieNewGameBriefing = 5; // F1 has overseer briefing
+        gMovieVsuit = -1; // F1 has no vault-suit cutscene
+        gMovieAfailed = -1;
         gMovieAdestroy = -1;
-        gMovieCar      = -1;
+        gMovieCar = -1;
         gMovieCartucci = -1;
-        gMovieTimeout  = -1;
-        gMovieTanker   = -1;
-        gMovieEnclave  = -1;
-        gMovieDerrick  = -1;
+        gMovieTimeout = -1;
+        gMovieTanker = -1;
+        gMovieEnclave = -1;
+        gMovieDerrick = -1;
         gMovieArtimer1 = -1;
         gMovieArtimer2 = -1;
         gMovieArtimer3 = -1;
         gMovieArtimer4 = -1;
-        gMovieCredits  = -1;   // F1 credits are text-only
-        gMovieWalkm    = 8;   // gMovieFileNames[8] == "walkm.mve"
-        gMovieWalkw    = 9;   // gMovieFileNames[9] == "walkw.mve"
+        gMovieCredits = -1; // F1 credits are text-only
+        gMovieWalkm = 8; // gMovieFileNames[8] == "walkm.mve"
+        gMovieWalkw = 9; // gMovieFileNames[9] == "walkw.mve"
         // F1's original GameMovie enum places BOIL3 at 6 and BOIL1/BOIL2 at 11/12.
-        gMovieBoil1 = 11;   // gMovieFileNames[11] == "boil1.mve"
-        gMovieBoil2 = 12;   // gMovieFileNames[12] == "boil2.mve"
-        gMovieBoil3 = 6;    // gMovieFileNames[6]  == "boil3.mve"
+        gMovieBoil1 = 11; // gMovieFileNames[11] == "boil1.mve"
+        gMovieBoil2 = 12; // gMovieFileNames[12] == "boil2.mve"
+        gMovieBoil3 = 6; // gMovieFileNames[6]  == "boil3.mve"
 
     } else {
         // Fallout 2 (unchanged from original).
-        gMovieFileNames[0]  = "iplogo.mve";
-        gMovieFileNames[1]  = "intro.mve";
-        gMovieFileNames[2]  = "elder.mve";
-        gMovieFileNames[3]  = "vsuit.mve";
-        gMovieFileNames[4]  = "afailed.mve";
-        gMovieFileNames[5]  = "adestroy.mve";
-        gMovieFileNames[6]  = "car.mve";
-        gMovieFileNames[7]  = "cartucci.mve";
-        gMovieFileNames[8]  = "timeout.mve";
-        gMovieFileNames[9]  = "tanker.mve";
+        gMovieFileNames[0] = "iplogo.mve";
+        gMovieFileNames[1] = "intro.mve";
+        gMovieFileNames[2] = "elder.mve";
+        gMovieFileNames[3] = "vsuit.mve";
+        gMovieFileNames[4] = "afailed.mve";
+        gMovieFileNames[5] = "adestroy.mve";
+        gMovieFileNames[6] = "car.mve";
+        gMovieFileNames[7] = "cartucci.mve";
+        gMovieFileNames[8] = "timeout.mve";
+        gMovieFileNames[9] = "tanker.mve";
         gMovieFileNames[10] = "enclave.mve";
         gMovieFileNames[11] = "derrick.mve";
         gMovieFileNames[12] = "artimer1.mve";
@@ -167,16 +167,16 @@ int gameMoviesInit()
         gMovieFileNames[15] = "artimer4.mve";
         gMovieFileNames[16] = "credits.mve";
 
-        gMoviePaletteFilePaths[0]  = nullptr;
-        gMoviePaletteFilePaths[1]  = "art\\cuts\\introsub.pal";
-        gMoviePaletteFilePaths[2]  = "art\\cuts\\eldersub.pal";
-        gMoviePaletteFilePaths[3]  = nullptr;
-        gMoviePaletteFilePaths[4]  = "art\\cuts\\artmrsub.pal";
-        gMoviePaletteFilePaths[5]  = nullptr;
-        gMoviePaletteFilePaths[6]  = nullptr;
-        gMoviePaletteFilePaths[7]  = nullptr;
-        gMoviePaletteFilePaths[8]  = "art\\cuts\\artmrsub.pal";
-        gMoviePaletteFilePaths[9]  = nullptr;
+        gMoviePaletteFilePaths[0] = nullptr;
+        gMoviePaletteFilePaths[1] = "art\\cuts\\introsub.pal";
+        gMoviePaletteFilePaths[2] = "art\\cuts\\eldersub.pal";
+        gMoviePaletteFilePaths[3] = nullptr;
+        gMoviePaletteFilePaths[4] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[5] = nullptr;
+        gMoviePaletteFilePaths[6] = nullptr;
+        gMoviePaletteFilePaths[7] = nullptr;
+        gMoviePaletteFilePaths[8] = "art\\cuts\\artmrsub.pal";
+        gMoviePaletteFilePaths[9] = nullptr;
         gMoviePaletteFilePaths[10] = nullptr;
         gMoviePaletteFilePaths[11] = nullptr;
         gMoviePaletteFilePaths[12] = "art\\cuts\\artmrsub.pal";
@@ -185,28 +185,28 @@ int gameMoviesInit()
         gMoviePaletteFilePaths[15] = "art\\cuts\\artmrsub.pal";
         gMoviePaletteFilePaths[16] = "art\\cuts\\crdtssub.pal";
 
-        gMovieIplogo   = 0;
-        gMovieIntro    = 1;
-        gMovieNewGameBriefing    = 2;
-        gMovieVsuit    = 3;
-        gMovieAfailed  = 4;
+        gMovieIplogo = 0;
+        gMovieIntro = 1;
+        gMovieNewGameBriefing = 2;
+        gMovieVsuit = 3;
+        gMovieAfailed = 4;
         gMovieAdestroy = 5;
-        gMovieCar      = 6;
+        gMovieCar = 6;
         gMovieCartucci = 7;
-        gMovieTimeout  = 8;
-        gMovieTanker   = 9;
-        gMovieEnclave  = 10;
-        gMovieDerrick  = 11;
+        gMovieTimeout = 8;
+        gMovieTanker = 9;
+        gMovieEnclave = 10;
+        gMovieDerrick = 11;
         gMovieArtimer1 = 12;
         gMovieArtimer2 = 13;
         gMovieArtimer3 = 14;
         gMovieArtimer4 = 15;
-        gMovieCredits  = 16;
-        gMovieWalkm    = -1;
-        gMovieWalkw    = -1;
-        gMovieBoil1    = -1;
-        gMovieBoil2    = -1;
-        gMovieBoil3    = -1;
+        gMovieCredits = 16;
+        gMovieWalkm = -1;
+        gMovieWalkw = -1;
+        gMovieBoil1 = -1;
+        gMovieBoil2 = -1;
+        gMovieBoil3 = -1;
     }
 
     memset(gGameMoviesSeen, 0, sizeof(gGameMoviesSeen));
@@ -251,12 +251,12 @@ int gameMoviesSave(File* stream)
 int gameMoviePlay(int movie, int flags)
 {
     if (movie < 0 || movie >= MOVIE_COUNT) {
-        return 0;   // Not present in this game.
+        return 0; // Not present in this game.
     }
 
     const char* movieFileName = gMovieFileNames[movie];
     if (movieFileName == nullptr) {
-        return 0;   // Same.
+        return 0; // Same.
     }
 
     gGameMovieIsPlaying = true;

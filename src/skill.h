@@ -2,8 +2,8 @@
 #define SKILL_H
 
 #include "db.h"
-#include "obj_types.h"
 #include "game_content.h"
+#include "obj_types.h"
 #include "proto_types.h"
 #include "skill_defs.h"
 

@@ -14,8 +14,8 @@ int f1LzssDecode(FILE* in, unsigned char* dest, unsigned int length)
     unsigned char decodeBuffer[1024];
     unsigned char* decodePos = decodeBuffer;
     unsigned char* decodeEnd = decodeBuffer;
-    unsigned int bytesLeft = length;   // compressed bytes left to READ from file
-    unsigned int consumed = 0;         // compressed bytes CONSUMED from buffer
+    unsigned int bytesLeft = length; // compressed bytes left to READ from file
+    unsigned int consumed = 0; // compressed bytes CONSUMED from buffer
 
     memset(ringBuffer, ' ', 4078);
     ringBufferIndex = 4078;

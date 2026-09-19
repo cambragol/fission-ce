@@ -764,7 +764,7 @@ static bool characterSelectorWindowRenderFace()
 
 static bool characterSelectorWindowRenderStats()
 {
-const char* str;
+    const char* str;
     char text[260];
     int length;
     int value;
@@ -798,7 +798,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -819,7 +819,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -840,7 +840,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -861,7 +861,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -882,7 +882,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -903,7 +903,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -924,7 +924,7 @@ const char* str;
     fontDrawText(gCharacterSelectorWindowBuffer + gOffsets.width * y + gOffsets.primaryStatMidX - length,
         text, length, gOffsets.width, _colorTable[COL_LIME_GREEN]);
 
-    //str = statGetValueDescription(value);
+    // str = statGetValueDescription(value);
     str = safeName(statGetValueDescription(value), "statGetValueDescription", value);
 
     snprintf(text, sizeof(text), "  %s", str);
@@ -1020,8 +1020,8 @@ const char* str;
         y += vh;
 
         str = safeName(skillGetName(skills[index]), "skillGetName", skills[index]);
-strcpy(text, str);
-        //str = skillGetName(skills[index]);
+        strcpy(text, str);
+        // str = skillGetName(skills[index]);
         strcpy(text, str);
 
         length = fontGetStringWidth(text);
@@ -1044,8 +1044,8 @@ strcpy(text, str);
         y += vh;
 
         str = safeName(traitGetName(traits[index]), "traitGetName", traits[index]);
-strcpy(text, str);
-        //str = traitGetName(traits[index]);
+        strcpy(text, str);
+        // str = traitGetName(traits[index]);
         strcpy(text, str);
 
         length = fontGetStringWidth(text);
