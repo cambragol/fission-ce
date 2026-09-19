@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "draw.h"
 #include "game.h"
+#include "game_version.h"
 #include "memory.h"
 #include "object.h"
 #include "proto.h"
@@ -1533,8 +1534,33 @@ int artInit()
         }
 
         // 1. Load VANILLA assets
-        snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\",
-            gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
+        // Fallout 1 override: for the interface category, prefer the list stored in
+        // art/intrface/fallout1/intrface.lst when running Fallout 1 content.
+        // If it is not present, we silently fall back to the normal intrface.lst.
+        bool loadedOverrideList = false;
+
+        if (objectType == OBJ_TYPE_INTERFACE && IS_FALLOUT_1()) {
+            char f1Path[COMPAT_MAX_PATH];
+            snprintf(f1Path, sizeof(f1Path), "%sart\\%s\\fallout1\\%s.lst",
+                _cd_path_base,
+                gArtListDescriptions[objectType].name,
+                gArtListDescriptions[objectType].name);
+
+            int f1Size = 0;
+            if (dbGetFileSize(f1Path, &f1Size) != -1) {
+                snprintf(path, sizeof(path), "%s", f1Path);
+                debugPrint("art_init: Using Fallout 1 interface list: %s\n", f1Path);
+                loadedOverrideList = true;
+            } else {
+                debugPrint("art_init: Fallout 1 interface list not found (%s); "
+                        "falling back to vanilla intrface.lst\n", f1Path);
+            }
+        }
+
+        if (!loadedOverrideList) {
+            snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\",
+                gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
+        }
 
         if (artReadList(path, &(desc->fileNames), &(desc->fileNamesLength)) != 0) {
             debugPrint("art_read_lst failed in art_init\n");
