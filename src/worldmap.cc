@@ -549,116 +549,155 @@ static const short f1CityXgvar[12] = {
     77,  // 11 Cathedral
 };
 
-static const WorldmapElements gWorldmapElementsF2 = {
-    .backgroundFid        = 469,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
-    .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { /* fill in with F2's wminfce fids */ },
+static const WorldmapElements gWorldmapElementsF2 = [] {
+    WorldmapElements e{};
 
-    .hasTownTabs              = true,
-    .hasDayNightDial          = true,
-    .hasCar                   = true,
-    .hasGlobeOverlay          = true,
-    .hasScrollButtons         = true,
-    .hasQuickDestinations     = true,
-    .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = true,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = false,
-};
+    e.backgroundFid          = 136;
+    e.citySizeFid[0]         = 336;
+    e.citySizeFid[1]         = 337;
+    e.citySizeFid[2]         = 338;
+    e.hotspotNormalFid       = 168;
+    e.hotspotPressedFid      = 223;
+    e.destinationMarkerFid   = 139;
+    e.locationMarkerFid      = 138;
+    e.encounterCursorFid[0]  = 154;
+    e.encounterCursorFid[1]  = 155;
+    e.encounterCursorFid[2]  = 438;
+    e.encounterCursorFid[3]  = 439;
+    e.tabsBackgroundFid      = 364;
+    e.tabsBorderFid          = 367;
+    e.dialFid                = 365;
+    e.carOverlayFid          = 363;
+    e.globeOverlayFid        = 366;
+    e.redButtonNormalFid     = 8;
+    e.redButtonPressedFid    = 9;
+    e.monthsFid              = 129;
+    e.numbersFid             = 82;
+    e.scrollUpFid[0]         = 199;
+    e.scrollUpFid[1]         = 200;
+    e.scrollDownFid[0]       = 181;
+    e.scrollDownFid[1]       = 182;
+    e.carMovieFid            = 433;
+    e.labelRowHeight         = 18;
+    e.widescreenBorderFid[0] = -1;
+    e.widescreenBorderFid[1] = -1;
+    e.widescreenBorderFid[2] = -1;
+    e.widescreenBorderFid[3] = -1;
 
-// Capability flags are all true: this is the full FISSION/F2 interface
-// layout, just addressed through the F1 data pack's FID numbering.
-static const WorldmapElements gWorldmapElementsFissionF1 = {
-   .backgroundFid        = 469,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
-    .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { -1, -1, -1, -1 },
+    e.hasTownTabs              = true;
+    e.hasDayNightDial          = true;
+    e.hasCar                   = true;
+    e.hasGlobeOverlay          = true;
+    e.hasScrollButtons         = true;
+    e.hasQuickDestinations     = true;
+    e.hasTownWorldSwitchButton = true;
+    e.hasWidescreenBorder      = true;
+    e.hasCitySizeCircles       = true;
+    e.hasDateDisplay           = true;
+    e.useF1Chrome              = false;
 
-    .hasTownTabs              = true,
-    .hasDayNightDial          = true,
-    .hasCar                   = true,
-    .hasGlobeOverlay          = true,
-    .hasScrollButtons         = true,
-    .hasQuickDestinations     = true,
-    .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = false,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = false,
-};
+    return e;
+}();
 
-static const WorldmapElements gWorldmapElementsVanillaF1 = {
-   .backgroundFid        = 136,
-    .citySizeFid          = { 336, 337, 338 },
-    .hotspotNormalFid     = 168,
-    .hotspotPressedFid    = 223,
-    .destinationMarkerFid = 139,
-    .locationMarkerFid    = 138,
-    .encounterCursorFid   = { 154, 155, 438, 439 },
-    .tabsBackgroundFid    = 364,
-    .tabsBorderFid        = 367,
-    .dialFid              = 365,
-    .carOverlayFid        = 363,
-    .globeOverlayFid      = 366,
-    .redButtonNormalFid   = 8,
-    .redButtonPressedFid  = 9,
-    .monthsFid            = 129,
-    .numbersFid           = 82,
-    .scrollUpFid          = { 199, 200 },
-    .scrollDownFid        = { 181, 182 },
-    .carMovieFid          = 433,
-    .labelRowHeight       = 18,
-    .widescreenBorderFid  = { -1, -1, -1, -1 },
+static const WorldmapElements gWorldmapElementsFissionF1 = [] {
+    WorldmapElements e{};
 
-    .hasTownTabs              = false,
-    .hasDayNightDial          = false,
-    .hasCar                   = false,
-    .hasGlobeOverlay          = false,
-    .hasScrollButtons         = false,
-    .hasQuickDestinations     = false,
-    .hasTownWorldSwitchButton = true,
-    .hasWidescreenBorder      = false,
-    .hasCitySizeCircles       = true,
-    .hasDateDisplay           = true,
-    .useF1Chrome              = true,
-};
+    e.backgroundFid          = 469;
+    e.citySizeFid[0]         = 336;
+    e.citySizeFid[1]         = 337;
+    e.citySizeFid[2]         = 338;
+    e.hotspotNormalFid       = 168;
+    e.hotspotPressedFid      = 223;
+    e.destinationMarkerFid   = 139;
+    e.locationMarkerFid      = 138;
+    e.encounterCursorFid[0]  = 154;
+    e.encounterCursorFid[1]  = 155;
+    e.encounterCursorFid[2]  = 438;
+    e.encounterCursorFid[3]  = 439;
+    e.tabsBackgroundFid      = 364;
+    e.tabsBorderFid          = 367;
+    e.dialFid                = 365;
+    e.carOverlayFid          = 363;
+    e.globeOverlayFid        = 366;
+    e.redButtonNormalFid     = 8;
+    e.redButtonPressedFid    = 9;
+    e.monthsFid              = 129;
+    e.numbersFid             = 82;
+    e.scrollUpFid[0]         = 199;
+    e.scrollUpFid[1]         = 200;
+    e.scrollDownFid[0]       = 181;
+    e.scrollDownFid[1]       = 182;
+    e.carMovieFid            = 433;
+    e.labelRowHeight         = 18;
+    e.widescreenBorderFid[0] = -1;
+    e.widescreenBorderFid[1] = -1;
+    e.widescreenBorderFid[2] = -1;
+    e.widescreenBorderFid[3] = -1;
 
+    e.hasTownTabs              = true;
+    e.hasDayNightDial          = true;
+    e.hasCar                   = true;
+    e.hasGlobeOverlay          = true;
+    e.hasScrollButtons         = true;
+    e.hasQuickDestinations     = true;
+    e.hasTownWorldSwitchButton = true;
+    e.hasWidescreenBorder      = false;
+    e.hasCitySizeCircles       = true;
+    e.hasDateDisplay           = true;
+    e.useF1Chrome              = false;
+
+    return e;
+}();
+
+static const WorldmapElements gWorldmapElementsVanillaF1 = [] {
+    WorldmapElements e{};
+
+    e.backgroundFid          = 136;
+    e.citySizeFid[0]         = 336;
+    e.citySizeFid[1]         = 337;
+    e.citySizeFid[2]         = 338;
+    e.hotspotNormalFid       = 168;
+    e.hotspotPressedFid      = 223;
+    e.destinationMarkerFid   = 139;
+    e.locationMarkerFid      = 138;
+    e.encounterCursorFid[0]  = 154;
+    e.encounterCursorFid[1]  = 155;
+    e.encounterCursorFid[2]  = 438;
+    e.encounterCursorFid[3]  = 439;
+    e.tabsBackgroundFid      = 364;
+    e.tabsBorderFid          = 367;
+    e.dialFid                = 365;
+    e.carOverlayFid          = 363;
+    e.globeOverlayFid        = 366;
+    e.redButtonNormalFid     = 8;
+    e.redButtonPressedFid    = 9;
+    e.monthsFid              = 129;
+    e.numbersFid             = 82;
+    e.scrollUpFid[0]         = 199;
+    e.scrollUpFid[1]         = 200;
+    e.scrollDownFid[0]       = 181;
+    e.scrollDownFid[1]       = 182;
+    e.carMovieFid            = 433;
+    e.labelRowHeight         = 18;
+    e.widescreenBorderFid[0] = -1;
+    e.widescreenBorderFid[1] = -1;
+    e.widescreenBorderFid[2] = -1;
+    e.widescreenBorderFid[3] = -1;
+
+    e.hasTownTabs              = false;
+    e.hasDayNightDial          = false;
+    e.hasCar                   = false;
+    e.hasGlobeOverlay          = false;
+    e.hasScrollButtons         = false;
+    e.hasQuickDestinations     = false;
+    e.hasTownWorldSwitchButton = true;
+    e.hasWidescreenBorder      = false;
+    e.hasCitySizeCircles       = true;
+    e.hasDateDisplay           = true;
+    e.useF1Chrome              = true;
+
+    return e;
+}();
 static inline const WorldmapElements* wmElements()
 {
     if (!IS_FALLOUT_1()) {
