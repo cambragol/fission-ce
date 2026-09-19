@@ -334,29 +334,29 @@ SCRSEX.FRM     ; Mouse cursor - invalid scroll southeast
 SCRSWX.FRM     ; Mouse cursor - invalid scroll southwest
 SCRSX.FRM      ; Mouse cursor - invalid scroll south
 SCRWX.FRM      ; Mouse cursor - invalid scroll west
-WRLDSPR0.FRM   ; World Sphere Overlay 0
-WRLDSPR1.FRM   ; World Sphere Overlay 1
-WRLDSPR2.FRM   ; World Sphere Overlay 2
-WRLDMP00.FRM   ; World Tile 0
-WRLDMP01.FRM   ; World Tile 1
-WRLDMP02.FRM   ; World Tile 2
-WRLDMP03.FRM   ; World Tile 3
-WRLDMP04.FRM   ; World Tile 4
-WRLDMP05.FRM   ; World Tile 5
-WRLDMP06.FRM   ; World Tile 6
-WRLDMP07.FRM   ; World Tile 7
-WRLDMP08.FRM   ; World Tile 8
-WRLDMP09.FRM   ; World Tile 9
-WRLDMP10.FRM   ; World Tile 10
-WRLDMP11.FRM   ; World Tile 11
-WRLDMP12.FRM   ; World Tile 12
-WRLDMP13.FRM   ; World Tile 13
-WRLDMP14.FRM   ; World Tile 14
-WRLDMP15.FRM   ; World Tile 15
-WRLDMP16.FRM   ; World Tile 16
-WRLDMP17.FRM   ; World Tile 17
-WRLDMP18.FRM   ; World Tile 18
-WRLDMP19.FRM   ; World Tile 19
+fallout1/WRLDSPR0.FRM   ; World Sphere Overlay 0
+fallout1/WRLDSPR1.FRM   ; World Sphere Overlay 1
+fallout1/WRLDSPR2.FRM   ; World Sphere Overlay 2
+fallout1/WRLDMP00.FRM   ; World Tile 0
+fallout1/WRLDMP01.FRM   ; World Tile 1
+fallout1/WRLDMP02.FRM   ; World Tile 2
+fallout1/WRLDMP03.FRM   ; World Tile 3
+fallout1/WRLDMP04.FRM   ; World Tile 4
+fallout1/WRLDMP05.FRM   ; World Tile 5
+fallout1/WRLDMP06.FRM   ; World Tile 6
+fallout1/WRLDMP07.FRM   ; World Tile 7
+fallout1/WRLDMP08.FRM   ; World Tile 8
+fallout1/WRLDMP09.FRM   ; World Tile 9
+fallout1/WRLDMP10.FRM   ; World Tile 10
+fallout1/WRLDMP11.FRM   ; World Tile 11
+fallout1/WRLDMP12.FRM   ; World Tile 12
+fallout1/WRLDMP13.FRM   ; World Tile 13
+fallout1/WRLDMP14.FRM   ; World Tile 14
+fallout1/WRLDMP15.FRM   ; World Tile 15
+fallout1/WRLDMP16.FRM   ; World Tile 16
+fallout1/WRLDMP17.FRM   ; World Tile 17
+fallout1/WRLDMP18.FRM   ; World Tile 18
+fallout1/WRLDMP19.FRM   ; World Tile 19
 WMINFCE0.FRM   ; Worldmap Background Top
 WMINFCE1.FRM   ; Worldmap Background Left
 WMINFCE2.FRM   ; Worldmap Background Right

@@ -1180,7 +1180,7 @@ int gameSetGlobalVar(int var, int value)
 // 0x443CC8
 static int gameLoadGlobalVars()
 {
-    if (globalVarsRead(GAME_DATA_PATH("vault13.gam"), "GAME_GLOBAL_VARS:", &gGameGlobalVarsLength, &gGameGlobalVars) != 0) {
+    if (globalVarsRead("data\\vault13.gam", "GAME_GLOBAL_VARS:", &gGameGlobalVarsLength, &gGameGlobalVars) != 0) {
         return -1;
     }
 
@@ -1895,13 +1895,6 @@ static int gameDbInit()
 
     bool hasFission = !settings.system.fission_dat_path.empty();
     bool useMasterOverride;
-
-    // Fallout 1 must use master_override to force load of custom Fallout 2 assets
-    if (FALLOUT_VERSION_1) {
-        useMasterOverride = true;
-    } else {
-        useMasterOverride = settings.system.master_override;
-    }
 
     // If master.dat is *not* the “original” AND override is *not* set,
     // then load fission.dat *before* master.dat.
