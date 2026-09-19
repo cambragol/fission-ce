@@ -37,7 +37,7 @@ typedef struct DBaseEntry {
     int uncompressedSize;
     int dataSize;
     int dataOffset;
-    int compressionType;  // NEW: 0=raw, 1=zlib(F2), 2=lzss(F1), 3=lzss-chunked(F1)
+    int compressionType; // NEW: 0=raw, 1=zlib(F2), 2=lzss(F1), 3=lzss-chunked(F1)
 } DBaseEntry;
 
 // A handle to open entry in .DAT file.

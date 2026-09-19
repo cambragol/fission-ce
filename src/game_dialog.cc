@@ -107,8 +107,8 @@ typedef enum GameDialogMode {
     GAME_DIALOG_MODE_PARTY_CUSTOMIZATION = 13,
 
     // Fallout 1 exclusive
-    GAME_DIALOG_MODE_SWITCH_TO_ABOUT = 5,   // F1 only
-    GAME_DIALOG_MODE_ABOUT_ACTIVE = 6,      // F1 only
+    GAME_DIALOG_MODE_SWITCH_TO_ABOUT = 5, // F1 only
+    GAME_DIALOG_MODE_ABOUT_ACTIVE = 6, // F1 only
 
     // possible values for dialogSwitchMode (in addition to TALK)
     GAME_DIALOG_MODE_SWITCH_TO_BARTER = 2,
@@ -593,7 +593,7 @@ static int aboutWin = -1;
 static unsigned char* aboutWinBuf = nullptr;
 static int aboutWinWidth = 0;
 static FrmImage aboutBackgroundFrmImage;
-static FrmImage aboutButtonUpFrmImage;   // 8.frm - little red button up
+static FrmImage aboutButtonUpFrmImage; // 8.frm - little red button up
 static FrmImage aboutButtonDownFrmImage; // 9.frm - little red button down
 static char* aboutInputString = nullptr;
 static char aboutInputCursor = '_';

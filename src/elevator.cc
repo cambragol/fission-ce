@@ -306,22 +306,33 @@ static char gElevatorLevelLabels[ELEVATORS_MAX][ELEVATOR_LEVEL_MAX] = {
 // Map IDs are F1 MAP_COUNT indices, which match our converted maps.txt.
 
 static const ElevatorBackground gElevatorBackgroundsF1[12] = {
-    { 143, -1 },  // BROTHERHOOD_OF_STEEL_MAIN
+    { 143, -1 }, // BROTHERHOOD_OF_STEEL_MAIN
     { 143, 150 }, // BROTHERHOOD_OF_STEEL_SURFACE
-    { 144, -1 },  // MASTER_UPPER
+    { 144, -1 }, // MASTER_UPPER
     { 144, 145 }, // MASTER_LOWER
-    { 146, -1 },  // MILITARY_BASE_UPPER
+    { 146, -1 }, // MILITARY_BASE_UPPER
     { 146, 147 }, // MILITARY_BASE_LOWER
-    { 146, -1 },  // GLOW_UPPER
+    { 146, -1 }, // GLOW_UPPER
     { 146, 151 }, // GLOW_LOWER
-    { 148, -1 },  // VAULT_13
-    { 148, -1 },  // NECROPOLIS
-    { 148, -1 },  // SIERRA_1
+    { 148, -1 }, // VAULT_13
+    { 148, -1 }, // NECROPOLIS
+    { 148, -1 }, // SIERRA_1
     { 146, 152 }, // SIERRA_2
 };
 
 static const int gElevatorLevelsF1[12] = {
-    4, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3,
+    4,
+    2,
+    3,
+    2,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
 };
 
 static const ElevatorDescription gElevatorDescriptionsF1[12][ELEVATOR_LEVEL_MAX] = {

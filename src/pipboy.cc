@@ -132,7 +132,7 @@ static bool gCluesFirstEntry = true;
 // starts at 3 (vexpld). Indices 0..2 in F1 are iplogo, mplogo, intro
 // and are not archive entries. F1 has 14 movies total (0..13).
 static const int F1_MOVIE_ARCHIVE_START = 3;
-static const int F1_MOVIE_ARCHIVE_END   = 14;
+static const int F1_MOVIE_ARCHIVE_END = 14;
 
 int lineCount = 0;
 
@@ -3695,7 +3695,7 @@ static void pipboyHandleVideoArchive(int userInput)
 
             // Find the actual movie ID by walking the list of seen movies
             int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
-            int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+            int lastMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END : MOVIE_COUNT;
 
             int movie;
             for (movie = firstMovie; movie < lastMovie; movie++) {
@@ -3740,7 +3740,7 @@ static void pipboyHandleVideoArchive(int userInput)
         // Find and play the movie
         int a1 = userInput;
         int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
-        int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+        int lastMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END : MOVIE_COUNT;
 
         int movie;
         for (movie = firstMovie; movie < lastMovie; movie++) {
@@ -3797,7 +3797,7 @@ static int pipboyRenderVideoArchive(int a1)
     }
 
     int firstMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_START : 2;
-    int lastMovie  = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END   : MOVIE_COUNT;
+    int lastMovie = IS_FALLOUT_1() ? F1_MOVIE_ARCHIVE_END : MOVIE_COUNT;
 
     v5 = 0;
     v12 = a1 - 1;

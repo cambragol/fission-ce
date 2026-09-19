@@ -307,7 +307,7 @@ int skillGetValue(Object* critter, int skill)
         int statValue;
         if (skillDescription->stat2 != -1) {
             statValue = (critterGetStat(critter, skillDescription->stat1)
-                + critterGetStat(critter, skillDescription->stat2))
+                            + critterGetStat(critter, skillDescription->stat2))
                 * skillDescription->statModifier / 2;
         } else {
             statValue = critterGetStat(critter, skillDescription->stat1)
