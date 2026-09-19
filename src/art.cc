@@ -1553,7 +1553,8 @@ int artInit()
                 loadedOverrideList = true;
             } else {
                 debugPrint("art_init: Fallout 1 interface list not found (%s); "
-                        "falling back to vanilla intrface.lst\n", f1Path);
+                           "falling back to vanilla intrface.lst\n",
+                    f1Path);
             }
         }
 
