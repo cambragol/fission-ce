@@ -1894,7 +1894,14 @@ static int gameDbInit()
     };
 
     bool hasFission = !settings.system.fission_dat_path.empty();
-    bool useMasterOverride = settings.system.master_override;
+    bool useMasterOverride;
+
+    // Fallout 1 must use master_override to force load of custom Fallout 2 assets
+    if(FALLOUT_VERSION_1){
+        useMasterOverride = true;
+    } else {
+        useMasterOverride = settings.system.master_override;
+    }
 
     // If master.dat is *not* the “original” AND override is *not* set,
     // then load fission.dat *before* master.dat.
