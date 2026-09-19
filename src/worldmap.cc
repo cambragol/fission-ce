@@ -522,7 +522,7 @@ typedef struct WorldmapElements {
     bool hasWidescreenBorder;
     bool hasCitySizeCircles;
     bool hasDateDisplay;
-    bool useF1Chrome; 
+    bool useF1Chrome;
 } WorldmapElements;
 
 // F1 CE's cityXgvar[]. Each of F1's twelve towns becomes "known" on the
@@ -535,18 +535,18 @@ typedef struct WorldmapElements {
 // game_global_vars[] using F1's indices; this table reads them back by
 // the same indices. Guarded by IS_FALLOUT_1() at the call site.
 static const short f1CityXgvar[12] = {
-    67,  //  0 Vault 13
-    70,  //  1 Vault 15
-    68,  //  2 Shady Sands
-    71,  //  3 Junktown
-    69,  //  4 Raiders
-    72,  //  5 Necropolis
-    73,  //  6 The Hub
-    74,  //  7 Brotherhood
-    78,  //  8 Military Base
-    76,  //  9 The Glow
-    75,  // 10 Boneyard
-    77,  // 11 Cathedral
+    67, //  0 Vault 13
+    70, //  1 Vault 15
+    68, //  2 Shady Sands
+    71, //  3 Junktown
+    69, //  4 Raiders
+    72, //  5 Necropolis
+    73, //  6 The Hub
+    74, //  7 Brotherhood
+    78, //  8 Military Base
+    76, //  9 The Glow
+    75, // 10 Boneyard
+    77, // 11 Cathedral
 };
 
 static const WorldmapElements gWorldmapElementsF2 = [] {
@@ -1091,8 +1091,18 @@ static Config* pConfigCfg;
 static int wmTownMapSubButtonIds[7];
 
 static int wmF1TownButtonIds[12] = {
-    -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
 };
 
 // 0x672FF8
@@ -1111,14 +1121,25 @@ bool gSuppressMapEnterScript = false;
 // Labels at x=531, each 82x18, drawn from the shared label strip (art 137)
 // sliced at labelSrcY = index*18.
 static const short wmF1BttnYtab[12] = {
-    61, 88, 115, 143, 171, 200, 228, 256, 283, 310, 338, 367,
+    61,
+    88,
+    115,
+    143,
+    171,
+    200,
+    228,
+    256,
+    283,
+    310,
+    338,
+    367,
 };
 
-#define WM_F1_BUTTON_X    508
+#define WM_F1_BUTTON_X 508
 #define WM_F1_BUTTON_SIZE 15
-#define WM_F1_LABEL_X     531
-#define WM_F1_LABEL_W     82
-#define WM_F1_LABEL_H     18
+#define WM_F1_LABEL_X 531
+#define WM_F1_LABEL_W 82
+#define WM_F1_LABEL_H 18
 
 // Fixed arrays for all encounter tables and named encounters
 static EncounterTable wmFixedEncounterTableList[TOTAL_ENCOUNTER_TABLE_MAX];
@@ -1491,8 +1512,8 @@ static int wmGenDataInit()
 {
     wmGenData.didMeetFrankHorrigan = false;
     wmGenData.currentAreaId = -1;
-    //wmGenData.worldPosX = 173;
-    //wmGenData.worldPosY = 122;
+    // wmGenData.worldPosX = 173;
+    // wmGenData.worldPosY = 122;
     wmGenData.currentSubtile = nullptr;
     wmGenData.dword_672E18 = 0;
     wmGenData.isWalking = false;
@@ -1557,8 +1578,8 @@ static int wmGenDataReset()
     wmGenData.encounterIconIsVisible = false;
     wmGenData.mousePressed = false;
     wmGenData.currentAreaId = -1;
-    //wmGenData.worldPosX = 173;
-    //wmGenData.worldPosY = 122;
+    // wmGenData.worldPosX = 173;
+    // wmGenData.worldPosY = 122;
     wmGenData.walkDestinationX = -1;
     wmGenData.walkDestinationY = -1;
     wmGenData.encounterMapId = -1;
@@ -1606,12 +1627,12 @@ static uint16_t wmHashLookupName(const char* lookupName)
 }
 
 static void wmBlitCityLabel(FrmImage& labelFrm, CityInfo* city,
-                            unsigned char* dest, int destPitch,
-                            int clipTop, int clipBottom)
+    unsigned char* dest, int destPitch,
+    int clipTop, int clipBottom)
 {
     int labelH = wmElements()->labelRowHeight;
-    int srcY   = city->labelSrcY + clipTop;
-    int srcH   = labelH - clipTop - clipBottom;
+    int srcY = city->labelSrcY + clipTop;
+    int srcH = labelH - clipTop - clipBottom;
 
     if (srcH <= 0) return;
 
@@ -3670,7 +3691,6 @@ static void wmAreaInitFromConfig(CityInfo* city, Config* config, const char* sec
 
     debugPrint("[WM] %s labelFid=%d", city->name, city->labelFid);
 
-
     configGetInt(config, section, "label_art_y", &city->labelSrcY);
 
     // Optional field: lock_state
@@ -5466,7 +5486,7 @@ static void wmUpdateF1TownDiscovery()
         bool shouldBeKnown = false;
 
         if (city == 0) {
-            shouldBeKnown = true;   // Vault 13 always known
+            shouldBeKnown = true; // Vault 13 always known
         } else if (gameGetGlobalVar(f1CityXgvar[city]) == 1) {
             shouldBeKnown = true;
         }
@@ -7133,7 +7153,7 @@ static int wmDoMoveStep()
 {
     if (wmGenData.walkLineDelta >= 0) {
         if (wmWorldPosInvalid(wmGenData.walkWorldPosCrossAxisStepX + wmGenData.worldPosX,
-                              wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
+                wmGenData.walkWorldPosCrossAxisStepY + wmGenData.worldPosY)) {
             wmGenData.walkDestinationX = 0;
             wmGenData.walkDestinationY = 0;
             wmGenData.isWalking = false;
@@ -7152,7 +7172,7 @@ static int wmDoMoveStep()
             nullptr, false);
     } else {
         if (wmWorldPosInvalid(wmGenData.walkWorldPosMainAxisStepX + wmGenData.worldPosX,
-                              wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY)) {
+                wmGenData.walkWorldPosMainAxisStepY + wmGenData.worldPosY)) {
             wmGenData.walkDestinationX = 0;
             wmGenData.walkDestinationY = 0;
             wmGenData.isWalking = false;
