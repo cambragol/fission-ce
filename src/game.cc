@@ -30,6 +30,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "inventory.h"
@@ -901,7 +902,7 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
             MessageList messageList;
             if (messageListInit(&messageList)) {
                 char path[COMPAT_MAX_PATH];
-                snprintf(path, sizeof(path), "%s%s", asc_5186C8, "editor.msg");
+                snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("editor.msg"));
 
                 if (messageListLoad(&messageList, path)) {
                     MessageListItem messageListItem;
@@ -1893,7 +1894,7 @@ static int gameDbInit()
     };
 
     bool hasFission = !settings.system.fission_dat_path.empty();
-    bool useMasterOverride = settings.system.master_override;
+    bool useMasterOverride;
 
     // If master.dat is *not* the “original” AND override is *not* set,
     // then load fission.dat *before* master.dat.

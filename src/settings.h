@@ -17,7 +17,7 @@ struct SystemSettings {
     std::string fission_dat_path = "fission.dat";
     std::string fission_patches_path = "data";
     std::string language = ENGLISH;
-    bool master_override;
+    bool master_override = false;
     int scroll_lock = 0;
     bool interrupt_walk = true;
     int art_cache_size = 32;

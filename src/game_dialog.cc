@@ -21,11 +21,13 @@
 #include "game_config.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
 #include "kb.h"
 #include "lips.h"
+#include "map.h"
 #include "memory.h"
 #include "mouse.h"
 #include "object.h"
@@ -33,6 +35,7 @@
 #include "perk.h"
 #include "proto.h"
 #include "random.h"
+#include "reaction.h"
 #include "scripts.h"
 #include "settings.h"
 #include "sfall_config.h"
@@ -102,6 +105,10 @@ typedef enum GameDialogMode {
     GAME_DIALOG_MODE_BARTER = 4,
     GAME_DIALOG_MODE_PARTY_CONTROL = 10,
     GAME_DIALOG_MODE_PARTY_CUSTOMIZATION = 13,
+
+    // Fallout 1 exclusive
+    GAME_DIALOG_MODE_SWITCH_TO_ABOUT = 5, // F1 only
+    GAME_DIALOG_MODE_ABOUT_ACTIVE = 6, // F1 only
 
     // possible values for dialogSwitchMode (in addition to TALK)
     GAME_DIALOG_MODE_SWITCH_TO_BARTER = 2,
@@ -581,6 +588,21 @@ static int gdOptionsVisibleCount = 0; // how many options currently fit
 static int gdOptionsScrollUpBtn = -1;
 static int gdOptionsScrollDownBtn = -1;
 
+// F1 "Ask About" window state.
+static int aboutWin = -1;
+static unsigned char* aboutWinBuf = nullptr;
+static int aboutWinWidth = 0;
+static FrmImage aboutBackgroundFrmImage;
+static FrmImage aboutButtonUpFrmImage; // 8.frm - little red button up
+static FrmImage aboutButtonDownFrmImage; // 9.frm - little red button down
+static char* aboutInputString = nullptr;
+static char aboutInputCursor = '_';
+static int aboutInputIndex = 0;
+static unsigned int aboutLastTime = 0;
+static char aboutRestoreString[900];
+static int aboutOldFont = 0;
+static const Rect aboutInputRect = { 22, 32, 265, 45 };
+
 static FrmImage _reviewBackgroundFrmImage;
 static FrmImage _reviewFrmImages[GAME_DIALOG_REVIEW_WINDOW_BUTTON_FRM_COUNT];
 static FrmImage _reviewButtonNormalFrmImage;
@@ -678,6 +700,19 @@ static void _options_scroll_up(int btn, int keyCode);
 static void _options_scroll_down(int btn, int keyCode);
 
 static void _gdProcessOptionsUpdate();
+
+static void gdUnhideReply();
+static void gameDialogAboutButtonOnMouseUp(int btn, int keyCode);
+static int aboutInit();
+static void aboutExit();
+static void aboutLoop();
+static int aboutProcessInput(int input);
+static void aboutUpdateDisplay(bool shouldRedraw);
+static void aboutClearDisplay(bool shouldRedraw);
+static void aboutResetString();
+static void aboutProcessString();
+static int aboutLookupWord(const char* search);
+static int aboutLookupName(const char* search);
 
 // gdialog_init
 // 0x444D1C
@@ -1328,6 +1363,13 @@ void _gdialogUpdatePartyStatus()
 
     // NOTE: Uninline.
     gdUnhide();
+}
+
+static void gdUnhideReply()
+{
+    if (_gd_replyWin != -1) {
+        windowShow(_gd_replyWin);
+    }
 }
 
 // NOTE: Inlined.
@@ -2048,6 +2090,9 @@ int _gdProcess()
                 dialogMode = GAME_DIALOG_MODE_PARTY_CUSTOMIZATION;
                 partyMemberCustomizationWindowHandleEvents();
                 partyMemberCustomizationWindowFree();
+                continue;
+            } else if (dialogSwitchMode == GAME_DIALOG_MODE_ABOUT_ACTIVE) {
+                aboutLoop();
                 continue;
             }
 
@@ -3131,6 +3176,10 @@ void gameDialogTicker()
         dialogSwitchMode = GAME_DIALOG_MODE_PARTY_CUSTOMIZATION_ACTIVE;
         _gdialog_window_destroy();
         partyMemberCustomizationWindowInit();
+        break;
+    case GAME_DIALOG_MODE_SWITCH_TO_ABOUT:
+        _loop_cnt = -1;
+        dialogSwitchMode = GAME_DIALOG_MODE_ABOUT_ACTIVE;
         break;
     default:
         break;
@@ -4687,23 +4736,44 @@ int _gdialog_window_create()
                             buttonSetMouseCallbacks(_gdialog_buttons[1], nullptr, nullptr, nullptr, gameDialogReviewButtonOnMouseUp);
                             buttonSetCallbacks(_gdialog_buttons[1], _gsound_red_butt_press, _gsound_red_butt_release);
 
-                            if (!gGameDialogSpeakerIsPartyMember) {
-                                _gdialog_window_created = true;
-                                return 0;
+                            // Fallout 2 only for the moment
+                            if (gGameDialogSpeakerIsPartyMember && (!IS_FALLOUT_1())) {
+                                // COMBAT CONTROL (party members, both games)
+                                _gdialog_buttons[2] = buttonCreate(gGameDialogWindow,
+                                    593, 116, 14, 14, -1, -1, -1, -1,
+                                    _redButtonNormalFrmImage.getData(),
+                                    _redButtonPressedFrmImage.getData(),
+                                    nullptr, BUTTON_FLAG_TRANSPARENT);
+                                if (_gdialog_buttons[2] != -1) {
+                                    buttonSetMouseCallbacks(_gdialog_buttons[2], nullptr, nullptr, nullptr,
+                                        gameDialogCombatControlButtonOnMouseUp);
+                                    buttonSetCallbacks(_gdialog_buttons[2],
+                                        _gsound_med_butt_press, _gsound_med_butt_release);
+                                } else {
+                                    debugPrint(">>> combat control button [2] failed\n");
+                                }
+                            } else if (IS_FALLOUT_1()) {
+                                // ASK ABOUT (F1 non-party)
+                                _gdialog_buttons[2] = buttonCreate(gGameDialogWindow,
+                                    593, 116, 14, 14, -1, -1, -1, -1,
+                                    _redButtonNormalFrmImage.getData(),
+                                    _redButtonPressedFrmImage.getData(),
+                                    nullptr, BUTTON_FLAG_TRANSPARENT);
+                                if (_gdialog_buttons[2] != -1) {
+                                    buttonSetMouseCallbacks(_gdialog_buttons[2], nullptr, nullptr, nullptr,
+                                        gameDialogAboutButtonOnMouseUp);
+                                    buttonSetCallbacks(_gdialog_buttons[2],
+                                        _gsound_med_butt_press, _gsound_med_butt_release);
+                                } else {
+                                    debugPrint(">>> ask-about button [2] failed\n");
+                                }
                             }
+                            // F2 non-party: no third button, and that's fine.
 
-                            // COMBAT CONTROL
-                            _gdialog_buttons[2] = buttonCreate(gGameDialogWindow, 593, 116, 14, 14, -1, -1, -1, -1, _redButtonNormalFrmImage.getData(), _redButtonPressedFrmImage.getData(), nullptr, BUTTON_FLAG_TRANSPARENT);
-                            if (_gdialog_buttons[2] != -1) {
-                                buttonSetMouseCallbacks(_gdialog_buttons[2], nullptr, nullptr, nullptr, gameDialogCombatControlButtonOnMouseUp);
-                                buttonSetCallbacks(_gdialog_buttons[2], _gsound_med_butt_press, _gsound_med_butt_release);
-
-                                _gdialog_window_created = true;
-                                return 0;
-                            }
-
-                            buttonDestroy(_gdialog_buttons[1]);
-                            _gdialog_buttons[1] = -1;
+                            // Reached in every case where the review button was created successfully.
+                            // The window is valid regardless of whether button [2] succeeded.
+                            _gdialog_window_created = true;
+                            return 0;
                         }
 
                         _reviewButtonPressedFrmImage.unlock();
@@ -5068,6 +5138,564 @@ static void gameDialogRedButtonsExit()
 {
     _redButtonNormalFrmImage.unlock();
     _redButtonPressedFrmImage.unlock();
+}
+
+// F1 gdialog.cc: talk_to_pressed_about()
+// F1 gdialog.cc: talk_to_pressed_about()
+void gameDialogAboutButtonOnMouseUp(int btn, int keyCode)
+{
+    if (!IS_FALLOUT_1()) {
+        return;
+    }
+
+    if (PID_TYPE(gGameDialogSpeaker->pid) != OBJ_TYPE_CRITTER) {
+        return;
+    }
+
+    int reaction = reactionGetValue(gGameDialogSpeaker);
+    int reactionLevel = reactionTranslateValue(reaction);
+
+    if (reactionLevel != NPC_REACTION_BAD) {
+        // F1 disables Ask About on map 35 (V13ENT, Overseer endgame).
+        if (mapGetCurrentMap() != 35) {
+            if (gGameDialogLipSyncStarted) {
+                if (soundIsPlaying(gLipsData.sound)) {
+                    gameDialogEndLips();
+                }
+            }
+
+            dialogSwitchMode = GAME_DIALOG_MODE_SWITCH_TO_ABOUT;
+            // NOTE: dialogMode intentionally stays GAME_DIALOG_MODE_TALK so
+            // _gdDestroyHeadWindow() tears the dialog subwindow down normally
+            // when the conversation ends. F1 CE does the same -- the about
+            // window is tracked by dialogSwitchMode only.
+            gdHide();
+        } else {
+            MessageListItem mesg;
+            mesg.num = 904; // This person has nothing to tell you about.
+            if (messageListGetItem(&gProtoMessageList, &mesg)) {
+                gameDialogRenderSupplementaryMessage(mesg.text);
+            } else {
+                debugPrint("\nError: gdialog: Can't find message!");
+            }
+        }
+    } else {
+        // F1 looks up msg 904 but does not display it.
+        MessageListItem mesg;
+        mesg.num = 904; // This person has nothing to tell you about.
+        if (!messageListGetItem(&gProtoMessageList, &mesg)) {
+            debugPrint("\nError: gdialog: Can't find message!");
+        }
+    }
+}
+
+static int aboutInit()
+{
+    int backgroundFid;
+    int backgroundWidth;
+    int backgroundHeight;
+    int buttonUpFid;
+    int buttonDownFid;
+    int buttonWidth;
+    int buttonHeight;
+    int btn;
+
+    if (aboutWin != -1) {
+        return 0;
+    }
+
+    aboutOldFont = fontGetCurrent();
+
+    backgroundFid = buildFid(OBJ_TYPE_INTERFACE, 238, 0, 0, 0);
+    if (!aboutBackgroundFrmImage.lock(backgroundFid)) {
+        goto err;
+    }
+
+    backgroundWidth = aboutBackgroundFrmImage.getWidth();
+    backgroundHeight = aboutBackgroundFrmImage.getHeight();
+    aboutWinWidth = backgroundWidth;
+
+    aboutWin = windowCreate((screenGetWidth() - backgroundWidth) / 2,
+        (screenGetHeight() - GAME_DIALOG_WINDOW_HEIGHT) / 2 + 356,
+        backgroundWidth,
+        backgroundHeight,
+        _colorTable[COL_BLACK],
+        WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+    if (aboutWin == -1) {
+        goto err;
+    }
+
+    aboutWinBuf = windowGetBuffer(aboutWin);
+    if (aboutWinBuf == nullptr) {
+        windowDestroy(aboutWin);
+        aboutWin = -1;
+        goto err;
+    }
+
+    blitBufferToBuffer(aboutBackgroundFrmImage.getData(),
+        backgroundWidth, backgroundHeight, backgroundWidth,
+        aboutWinBuf, backgroundWidth);
+
+    fontSetCurrent(103);
+
+    {
+        MessageList msgFile;
+        if (messageListInit(&msgFile) && messageListLoad(&msgFile, "game\\misc.msg")) {
+            MessageListItem mesg;
+            mesg.num = 6000;
+            if (messageListGetItem(&msgFile, &mesg)) {
+                int width = fontGetStringWidth(mesg.text);
+                fontDrawText(aboutWinBuf + backgroundWidth * 7 + (backgroundWidth - width) / 2,
+                    mesg.text,
+                    backgroundWidth - (backgroundWidth - width) / 2,
+                    backgroundWidth,
+                    _colorTable[18979]);
+            }
+            messageListFree(&msgFile);
+        }
+    }
+
+    fontSetCurrent(103);
+
+    {
+        MessageList msgFile;
+        if (messageListInit(&msgFile) && messageListLoad(&msgFile, "game\\dbox.msg")) {
+            MessageListItem mesg;
+            mesg.num = 100;
+            if (messageListGetItem(&msgFile, &mesg)) {
+                fontDrawText(aboutWinBuf + backgroundWidth * 57 + 56,
+                    mesg.text,
+                    backgroundWidth - 56,
+                    backgroundWidth,
+                    _colorTable[18979]);
+            }
+            mesg.num = 103;
+            if (messageListGetItem(&msgFile, &mesg)) {
+                fontDrawText(aboutWinBuf + backgroundWidth * 57 + 181,
+                    mesg.text,
+                    backgroundWidth - 181,
+                    backgroundWidth,
+                    _colorTable[18979]);
+            }
+            messageListFree(&msgFile);
+        }
+    }
+
+    buttonUpFid = buildFid(OBJ_TYPE_INTERFACE, 8, 0, 0, 0);
+    if (!aboutButtonUpFrmImage.lock(buttonUpFid)) {
+        goto err1;
+    }
+
+    buttonDownFid = buildFid(OBJ_TYPE_INTERFACE, 9, 0, 0, 0);
+    if (!aboutButtonDownFrmImage.lock(buttonDownFid)) {
+        goto err1;
+    }
+
+    buttonWidth = aboutButtonDownFrmImage.getWidth();
+    buttonHeight = aboutButtonDownFrmImage.getHeight();
+
+    btn = buttonCreate(aboutWin, 34, 58, buttonWidth, buttonHeight,
+        -1, -1, -1, KEY_RETURN,
+        aboutButtonUpFrmImage.getData(), aboutButtonDownFrmImage.getData(),
+        nullptr, BUTTON_FLAG_TRANSPARENT);
+    if (btn == -1) {
+        goto err1;
+    }
+    buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+
+    btn = buttonCreate(aboutWin, 160, 58, buttonWidth, buttonHeight,
+        -1, -1, -1, KEY_ESCAPE,
+        aboutButtonUpFrmImage.getData(), aboutButtonDownFrmImage.getData(),
+        nullptr, BUTTON_FLAG_TRANSPARENT);
+    if (btn == -1) {
+        goto err1;
+    }
+    buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
+
+    aboutInputString = (char*)internal_malloc(128);
+    if (aboutInputString == nullptr) {
+        goto err1;
+    }
+
+    strcpy(aboutRestoreString, gDialogReplyText);
+    aboutResetString();
+    aboutLastTime = getTicks();
+    aboutUpdateDisplay(false);
+
+    aboutBackgroundFrmImage.unlock();
+
+    windowRefresh(aboutWin);
+    return 0;
+
+err1:
+    aboutButtonUpFrmImage.unlock();
+    aboutButtonDownFrmImage.unlock();
+    windowDestroy(aboutWin);
+    aboutWin = -1;
+    aboutWinBuf = nullptr;
+
+err:
+    fontSetCurrent(aboutOldFont);
+    showMesageBox("Unable to create dialog box.");
+    return -1;
+}
+
+static void aboutExit()
+{
+    if (aboutWin == -1) {
+        return;
+    }
+
+    if (aboutInputString != nullptr) {
+        internal_free(aboutInputString);
+        aboutInputString = nullptr;
+    }
+
+    aboutButtonUpFrmImage.unlock();
+    aboutButtonDownFrmImage.unlock();
+
+    windowDestroy(aboutWin);
+    aboutWin = -1;
+    aboutWinBuf = nullptr;
+
+    fontSetCurrent(aboutOldFont);
+}
+
+static void aboutLoop()
+{
+    if (aboutInit() != 0) {
+        return;
+    }
+
+    for (;;) {
+        sharedFpsLimiter.mark();
+
+        if (aboutProcessInput(inputGetInput()) == -1) {
+            break;
+        }
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+
+    aboutExit();
+    strcpy(gDialogReplyText, aboutRestoreString);
+    dialogSwitchMode = GAME_DIALOG_MODE_NONE;
+    _gdialog_window_create();
+    gdUnhide();
+    gameDialogRenderReply();
+}
+
+static int aboutProcessInput(int input)
+{
+    if (aboutWin == -1) {
+        return -1;
+    }
+
+    switch (input) {
+    case KEY_BACKSPACE:
+        if (aboutInputIndex > 0) {
+            aboutInputIndex--;
+            aboutInputString[aboutInputIndex] = aboutInputCursor;
+            aboutInputString[aboutInputIndex + 1] = '\0';
+            aboutUpdateDisplay(true);
+        }
+        break;
+    case KEY_RETURN:
+        aboutProcessString();
+        break;
+    case KEY_ESCAPE:
+        if (gGameDialogLipSyncStarted) {
+            if (soundIsPlaying(gLipsData.sound)) {
+                gameDialogEndLips();
+            }
+        }
+        return -1;
+    default:
+        if (input >= 32 && input <= 126 && aboutInputIndex < 126) {
+            fontSetCurrent(101);
+            aboutInputString[aboutInputIndex] = '_';
+
+            char tmp[2] = { (char)input, '\0' };
+            if (fontGetStringWidth(aboutInputString) + fontGetStringWidth(tmp) < 244) {
+                aboutInputString[aboutInputIndex] = (char)input;
+                aboutInputString[aboutInputIndex + 1] = aboutInputCursor;
+                aboutInputString[aboutInputIndex + 2] = '\0';
+                aboutInputIndex++;
+                aboutUpdateDisplay(true);
+            }
+
+            aboutInputString[aboutInputIndex] = aboutInputCursor;
+        }
+        break;
+    }
+
+    if (getTicksSince(aboutLastTime) > 333) {
+        if (aboutInputCursor == '_') {
+            aboutInputCursor = ' ';
+        } else {
+            aboutInputCursor = '_';
+        }
+        aboutInputString[aboutInputIndex] = aboutInputCursor;
+        aboutUpdateDisplay(true);
+        aboutLastTime = getTicks();
+    }
+
+    return 0;
+}
+
+static void aboutUpdateDisplay(bool shouldRedraw)
+{
+    int oldFont = fontGetCurrent();
+    aboutClearDisplay(false);
+    fontSetCurrent(101);
+
+    int width = fontGetStringWidth(aboutInputString) - 244;
+    int skip = 0;
+    while (width > 0) {
+        char tmp[2] = { aboutInputString[skip], '\0' };
+        width -= fontGetStringWidth(tmp);
+        skip++;
+    }
+
+    fontDrawText(aboutWinBuf + aboutWinWidth * 32 + 22,
+        aboutInputString + skip,
+        244,
+        aboutWinWidth,
+        _colorTable[992]);
+
+    if (shouldRedraw) {
+        windowRefreshRect(aboutWin, &aboutInputRect);
+    }
+
+    fontSetCurrent(oldFont);
+}
+
+static void aboutClearDisplay(bool shouldRedraw)
+{
+    windowFill(aboutWin, 22, 32, 244, 14, _colorTable[COL_BLACK]);
+
+    if (shouldRedraw) {
+        windowRefreshRect(aboutWin, &aboutInputRect);
+    }
+}
+
+static void aboutResetString()
+{
+    aboutInputIndex = 0;
+    aboutInputString[0] = aboutInputCursor;
+    aboutInputString[1] = '\0';
+}
+
+static void aboutProcessString()
+{
+    static const char* delimiters = " \t.,";
+    int found = 0;
+    char* tok;
+    Script* scr;
+    int count;
+    int messageId;
+    char* str;
+    int randomMsgNum;
+
+    aboutInputString[aboutInputIndex] = '\0';
+
+    if (aboutInputString[0] != '\0') {
+        tok = strtok(aboutInputString, delimiters);
+        while (tok != nullptr) {
+            if (aboutLookupWord(tok) || aboutLookupName(tok)) {
+                found = 1;
+                break;
+            }
+            tok = strtok(nullptr, delimiters);
+        }
+
+        if (!found) {
+            if (scriptGetScript(gGameDialogSpeaker->sid, &scr) != -1) {
+                count = 0;
+                for (messageId = 980; messageId < 1000; messageId++) {
+                    str = _scr_get_msg_str(scr->index + 1, messageId);
+                    if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                        count++;
+                    }
+                }
+
+                if (count != 0) {
+                    randomMsgNum = randomBetween(1, count);
+                    for (messageId = 980; messageId < 1000; messageId++) {
+                        str = _scr_get_msg_str(scr->index + 1, messageId);
+                        if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                            randomMsgNum--;
+                            if (randomMsgNum == 0) {
+                                strncpy(gDialogReplyText,
+                                    _scr_get_msg_str_speech(scr->index + 1, messageId, 1, gGameDialogSpeaker),
+                                    sizeof(gDialogReplyText) - 1);
+                                gDialogReplyText[sizeof(gDialogReplyText) - 1] = '\0';
+                                gdUnhideReply();
+                                gameDialogRenderReply();
+                            }
+                        }
+                    }
+                } else {
+                    for (messageId = 980; messageId < 1000; messageId++) {
+                        str = _scr_get_msg_str(1, messageId);
+                        if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                            count++;
+                        }
+                    }
+
+                    if (count != 0) {
+                        randomMsgNum = randomBetween(1, count);
+                        for (messageId = 980; messageId < 1000; messageId++) {
+                            str = _scr_get_msg_str(1, messageId);
+                            if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                                randomMsgNum--;
+                                if (randomMsgNum == 0) {
+                                    strncpy(gDialogReplyText,
+                                        _scr_get_msg_str_speech(1, messageId, 1, gGameDialogSpeaker),
+                                        sizeof(gDialogReplyText) - 1);
+                                    gDialogReplyText[sizeof(gDialogReplyText) - 1] = '\0';
+                                    gdUnhideReply();
+                                    gameDialogRenderReply();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    aboutResetString();
+    aboutUpdateDisplay(true);
+}
+
+static int aboutLookupWord(const char* search)
+{
+    Script* scr;
+    int found = -1;
+    int messageListId;
+    int messageId;
+    char* str;
+
+    if (scriptGetScript(gGameDialogSpeaker->sid, &scr) != -1) {
+        messageListId = scr->index + 1;
+        for (messageId = 1000; messageId < 1100; messageId++) {
+            str = _scr_get_msg_str(messageListId, messageId);
+            if (str != nullptr && compat_stricmp(str, search) == 0) {
+                found = messageId + 100;
+                break;
+            }
+        }
+    }
+
+    if (found == -1) {
+        messageListId = 1;
+        int base = 600 * mapGetCurrentMap();
+        for (messageId = base + 1000; messageId < base + 1100; messageId++) {
+            str = _scr_get_msg_str(messageListId, messageId);
+            if (str != nullptr && compat_stricmp(str, search) == 0) {
+                found = messageId + 100;
+                break;
+            }
+        }
+    }
+
+    if (found == -1) {
+        return 0;
+    }
+
+    strncpy(gDialogReplyText,
+        _scr_get_msg_str_speech(messageListId, found, 1, gGameDialogSpeaker),
+        sizeof(gDialogReplyText) - 1);
+    gDialogReplyText[sizeof(gDialogReplyText) - 1] = '\0';
+    gdUnhideReply();
+    gameDialogRenderReply();
+    return 1;
+}
+
+static int aboutLookupName(const char* search)
+{
+    const char* name;
+    Script* scr;
+    int messageId;
+    char* str;
+    int count;
+    int randomMsgNum;
+
+    if (PID_TYPE(gGameDialogSpeaker->pid) != OBJ_TYPE_CRITTER) {
+        return 0;
+    }
+
+    name = objectGetName(gGameDialogSpeaker);
+    if (name == nullptr) {
+        return 0;
+    }
+
+    // NOTE: F1's implementation compares search against the speaker's own
+    // name. Preserved for parity.
+    if (compat_stricmp(search, name) != 0) {
+        return 0;
+    }
+
+    if (scriptGetScript(gGameDialogSpeaker->sid, &scr) == -1) {
+        return 0;
+    }
+
+    count = 0;
+    for (messageId = 970; messageId < 980; messageId++) {
+        str = _scr_get_msg_str(scr->index + 1, messageId);
+        if (str != nullptr && compat_stricmp(str, "error") != 0) {
+            count++;
+        }
+    }
+
+    if (count != 0) {
+        randomMsgNum = randomBetween(1, count);
+        for (messageId = 970; messageId < 980; messageId++) {
+            str = _scr_get_msg_str(scr->index + 1, messageId);
+            if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                randomMsgNum--;
+                if (randomMsgNum == 0) {
+                    strncpy(gDialogReplyText,
+                        _scr_get_msg_str_speech(scr->index + 1, messageId, 1, gGameDialogSpeaker),
+                        sizeof(gDialogReplyText) - 1);
+                    gDialogReplyText[sizeof(gDialogReplyText) - 1] = '\0';
+                    gdUnhideReply();
+                    gameDialogRenderReply();
+                    return 1;
+                }
+            }
+        }
+    } else {
+        for (messageId = 970; messageId < 980; messageId++) {
+            str = _scr_get_msg_str(1, messageId);
+            if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                count++;
+            }
+        }
+
+        if (count != 0) {
+            randomMsgNum = randomBetween(1, count);
+            for (messageId = 970; messageId < 980; messageId++) {
+                str = _scr_get_msg_str(1, messageId);
+                if (str != nullptr && compat_stricmp(str, "error") != 0) {
+                    randomMsgNum--;
+                    if (randomMsgNum == 0) {
+                        strncpy(gDialogReplyText,
+                            _scr_get_msg_str_speech(1, messageId, 1, gGameDialogSpeaker),
+                            sizeof(gDialogReplyText) - 1);
+                        gDialogReplyText[sizeof(gDialogReplyText) - 1] = '\0';
+                        gdUnhideReply();
+                        gameDialogRenderReply();
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 } // namespace fallout
