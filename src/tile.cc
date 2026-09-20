@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stack>
 
+#include "animation.h"
 #include "art.h"
 #include "color.h"
 #include "config.h"
@@ -287,6 +288,11 @@ static int gTileWindowWidth;
 // 0x66BE34
 int gCenterTile;
 
+// smoothScrolling
+static bool gAtBorder = false;
+static bool gReCentering = false;
+static int gReCenterTarget = -1;
+
 // 0x4B0C40
 int tileInit(TileData** squareGrid, int squareGridWidth, int squareGridHeight, int hexGridWidth, int hexGridHeight, unsigned char* buf, int windowWidth, int windowHeight, int windowPitch, TileWindowRefreshProc* windowRefreshProc)
 {
@@ -483,6 +489,62 @@ static void tileSetBorder(int windowWidth, int windowHeight, int hexGridWidth, i
     }
 
     gTileBorderInitialized = true;
+}
+
+// Camera follows player
+void tileUpdateSmoothScroll()
+{
+    if (!gDude || (gDude->flags & OBJECT_HIDDEN)) {
+        tileWindowRefresh();
+        return;
+    }
+
+    bool moving = (FID_ANIM_TYPE(gDude->fid) == ANIM_WALK || FID_ANIM_TYPE(gDude->fid) == ANIM_RUNNING);
+
+    if (moving) {
+        int result = tileSetCenter(gDude->tile, 0);
+        if (result == 0) {
+            if (gAtBorder) {
+                gReCentering = true;
+                gReCenterTarget = gDude->tile;
+                gAtBorder = false;
+                tileWindowRefresh();
+                return;
+            }
+
+            // Get the player's visual centre (includes frame offsets)
+            Rect playerRect;
+            objectGetRect(gDude, &playerRect);
+            int playerScreenX = (playerRect.left + playerRect.right) / 2;
+            int playerScreenY = (playerRect.top + playerRect.bottom) / 2;
+
+            int centerX = gTileWindowWidth / 2;
+            int centerY = gTileWindowHeight / 2;
+
+            // Directly set offsets to centre the visual centre
+            // No smoothing – the visual centre already moves smoothly
+            _tile_offx += centerX - playerScreenX;
+            _tile_offy += centerY - playerScreenY;
+
+            // Recompute square offsets
+            _square_offx = _tile_offx - 16;
+            _square_offy = _tile_offy - 2;
+            if (_tile_y & 1) {
+                _square_offy -= 12;
+                _square_offx -= 16;
+            }
+        } else {
+            gAtBorder = true;
+            gReCentering = false;
+            gReCenterTarget = -1;
+        }
+    } else {
+        gAtBorder = false;
+        gReCentering = false;
+        gReCenterTarget = -1;
+    }
+
+    tileWindowRefresh();
 }
 
 // NOTE: Collapsed.
