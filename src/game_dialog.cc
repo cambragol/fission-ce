@@ -5240,7 +5240,7 @@ static int aboutInit()
 
     {
         MessageList msgFile;
-        if (messageListInit(&msgFile) && messageListLoad(&msgFile, "game\\misc.msg")) {
+        if (messageListInit(&msgFile) && messageListLoad(&msgFile, GAME_MSG_PATH("misc.msg"))) {
             MessageListItem mesg;
             mesg.num = 6000;
             if (messageListGetItem(&msgFile, &mesg)) {

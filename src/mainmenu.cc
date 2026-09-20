@@ -311,7 +311,15 @@ int mainMenuWindowInit()
 
     gMainMenuWindowBuffer = windowGetBuffer(gMainMenuWindow);
 
-    int backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 140, gameIsWidescreen());
+    int backgroundFid;
+
+    // Special handling for Fallout 1 Mainmenu which lacks option button
+    if (IS_FALLOUT_1() && !settings.enhancements.strict_vanilla) {
+        backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 470, gameIsWidescreen());
+    } else {
+        backgroundFid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, 140, gameIsWidescreen());
+    }
+
     if (!_mainMenuBackgroundFrmImage.lock(backgroundFid)) {
         // NOTE: Uninline.
         return main_menu_fatal_error();
@@ -343,11 +351,8 @@ int mainMenuWindowInit()
     int offsetY = settings.mod_settings.main_menu_credits_offset_y;
 
     // Copyright.
-    if (!IS_FALLOUT_1()) {
-        msg.num = 20;
-    } else {
-        msg.num = 14;
-    }
+    msg.num = 20;
+
     if (messageListGetItem(&gMiscMessageList, &msg)) {
         windowDrawText(gMainMenuWindow, msg.text, 0, offsetX + gOffsets.copyrightX, offsetY + gOffsets.copyrightY, fontSettings | 0x06000000);
     }
@@ -448,14 +453,14 @@ int mainMenuWindowInit()
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         // Fallout 1 has no Options button.
-        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS) {
+        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
             gMainMenuButtons[index] = -1;
             continue;
         }
 
         // Close the gap left by hidden buttons above this one.
         int visualIndex = index;
-        if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+        if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
             visualIndex--;
         }
 
@@ -491,19 +496,19 @@ int mainMenuWindowInit()
 
     for (int index = 0; index < MAIN_MENU_BUTTON_COUNT; index++) {
         // Fallout 1 has no Options button (and therefore no Options string in misc.msg).
-        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS) {
+        if (IS_FALLOUT_1() && index == MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
             continue;
         }
 
         // Fallout 1's misc.msg is missing the Options entry, so strings after it shift down by one.
         msg.num = 9 + index; // Intro
-        if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+        /*if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
             msg.num--;
-        }
+        }*/
 
         if (messageListGetItem(&gMiscMessageList, &msg)) {
             int visualIndex = index;
-            if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS) {
+            if (IS_FALLOUT_1() && index > MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
                 visualIndex--;
             }
 
@@ -643,7 +648,7 @@ int mainMenuWindowHandleEvents()
 
         for (int buttonIndex = 0; buttonIndex < MAIN_MENU_BUTTON_COUNT; buttonIndex++) {
             // Fallout 1 has no Options button.
-            if (IS_FALLOUT_1() && buttonIndex == MAIN_MENU_BUTTON_OPTIONS) {
+            if (IS_FALLOUT_1() && buttonIndex == MAIN_MENU_BUTTON_OPTIONS && settings.enhancements.strict_vanilla) {
                 continue;
             }
 

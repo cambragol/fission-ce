@@ -495,11 +495,7 @@ static void artProcessVariants(ArtListDescription* desc)
         }
 
         // Fall back to the category root, e.g. "mainmenu_800.frm".
-        // Only when no overlay is active. On an F1 run the file at this
-        // path is Fission's F2 variant and must not leak in; falling
-        // through to the base (non-widescreen) F1 art is the correct
-        // outcome.
-        if (!variantFound && gArtVariantOverlay[0] == '\0') {
+        if (!variantFound) {
             char probePath[COMPAT_MAX_PATH];
             if (snprintf(probePath, sizeof(probePath), "%sart/%s/%s",
                     _cd_path_base, desc->name, candidate)
@@ -512,11 +508,6 @@ static void artProcessVariants(ArtListDescription* desc)
                     variantFound = true;
                 }
             }
-        }
-
-        if (!variantFound) {
-            // No matching variant anywhere - that's normal.
-            continue;
         }
 
         // Grow the backing array if needed (chunks of 10, as before).
