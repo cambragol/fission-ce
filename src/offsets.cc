@@ -64,9 +64,9 @@ const MainMenuOffsets gMainMenuOffsetsF1_800 = {
     /*hashY*/ 470,
     /*buildDateX*/ 780,
     /*buildDateX*/ 460,
-    /*buttonBaseX*/ 47,
+    /*buttonBaseX*/ 585,
     /*buttonBaseY*/ 45,
-    /*buttonTextOffsetX*/ 17,
+    /*buttonTextOffsetX*/ 554,
     /*buttonTextOffsetY*/ 26,
     800,
     500

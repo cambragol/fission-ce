@@ -1983,21 +1983,48 @@ static void showSplash()
         snprintf(path, sizeof(path), "art\\splash\\");
     }
 
+    // Fallout 1: widescreen variant art lives in a "fallout1" subfolder so
+    // it cannot collide with the Fallout 2 variants shipped at the splash
+    // root (inside fission.dat). Resolved locally because showSplash runs
+    // before artInit() and the art overlay global is still empty here.
+    const bool isFallout1 = IS_FALLOUT_1();
+    char overlayPath[96] = { 0 };
+    if (isFallout1) {
+        snprintf(overlayPath, sizeof(overlayPath), "%sfallout1\\", path);
+    }
+
     File* stream = nullptr;
     for (int index = 0; index < SPLASH_COUNT; index++) {
-        char filePath[64];
+        char filePath[128];
 
-        // First try widescreen version if in widescreen mode
         if (gameIsWidescreen()) {
-            snprintf(filePath, sizeof(filePath), "%ssplash%d%s.rix", path, splash,
-                settings.graphics.widescreen_variant_suffix.c_str());
-            stream = fileOpen(filePath, "rb");
-            if (stream != nullptr) {
-                break;
+            // Widescreen variant.
+            if (isFallout1) {
+                // Fallout 1: only the fallout1 subfolder is considered.
+                // Deliberately do NOT fall back to art/splash/splashN
+                // _800.rix, because on an F1 run that path holds the
+                // Fallout 2 variant.
+                snprintf(filePath, sizeof(filePath), "%ssplash%d%s.rix",
+                    overlayPath, splash,
+                    settings.graphics.widescreen_variant_suffix.c_str());
+                stream = fileOpen(filePath, "rb");
+                if (stream != nullptr) {
+                    break;
+                }
+            } else {
+                // Non-F1 (F2, Sonora, etc.): existing behaviour.
+                snprintf(filePath, sizeof(filePath), "%ssplash%d%s.rix",
+                    path, splash,
+                    settings.graphics.widescreen_variant_suffix.c_str());
+                stream = fileOpen(filePath, "rb");
+                if (stream != nullptr) {
+                    break;
+                }
             }
         }
 
-        // If widescreen version not found or not in widescreen mode, try regular version
+        // Non-widescreen base splash - always tried, comes from the
+        // game's own .dat (F1 data on an F1 run, fission.dat otherwise).
         snprintf(filePath, sizeof(filePath), "%ssplash%d.rix", path, splash);
         stream = fileOpen(filePath, "rb");
         if (stream != nullptr) {
