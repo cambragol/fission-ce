@@ -75,6 +75,8 @@ static int artReadFrameData(unsigned char* data, File* stream, int count, int* p
 static int artReadHeader(Art* art, File* stream);
 static int artGetDataSize(Art* art);
 static int paddingForSize(int size);
+const char* artGetVariantOverlay(void);
+
 
 // 0x5002D8
 static char gDefaultJumpsuitMaleFileName[] = "hmjmps";
@@ -145,6 +147,14 @@ static int _art_mapper_blank_tile = 1;
 //
 // 0x56C970
 static char gArtLanguage[32];
+
+// When non-empty, HD variant art is preferred from
+//     art/<category>/<gArtVariantOverlay>/
+// instead of the category root. This lets Fallout 1 ship its own HD
+// variants without colliding with the Fallout 2 variants that Fission
+// provides at the same logical path (e.g. both would otherwise be
+// "mainmenu_800.frm"). Empty string disables the mechanism entirely.
+static char gArtVariantOverlay[16] = { 0 };
 
 // 0x56C990
 Cache gArtCache;
@@ -346,7 +356,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
         *ext = '\0'; // Remove extension
     }
 
-    // Build expected variant name
+    // Build expected variant name, e.g. "mainmenu_800.frm"
     char expected[FILENAME_LENGTH];
     int len = snprintf(expected, sizeof(expected), "%s%s.frm", base, suffix);
     if (len >= static_cast<int>(sizeof(expected))) {
@@ -354,8 +364,28 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
         return -1;
     }
 
-    // Search variant section
-    for (int i = desc->vanillaCount; i < desc->vanillaCount + desc->variantCount; i++) {
+    // When an overlay is active, prefer the overlay-prefixed form
+    // (e.g. "fallout1/mainmenu_800.frm"). This is what makes the F1
+    // variant win over the F2 variant at the same logical basename.
+    if (gArtVariantOverlay[0] != '\0') {
+        char overlayExpected[FILENAME_LENGTH];
+        if (snprintf(overlayExpected, sizeof(overlayExpected), "%s/%s",
+                gArtVariantOverlay, expected)
+            < static_cast<int>(sizeof(overlayExpected))) {
+            for (int i = desc->vanillaCount;
+                 i < desc->vanillaCount + desc->variantCount; i++) {
+                const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
+                if (compat_stricmp(candidate, overlayExpected) == 0) {
+                    return i;
+                }
+            }
+        }
+    }
+
+    // Fall back to the plain name (either no overlay is active, or no
+    // overlay variant was registered for this base asset).
+    for (int i = desc->vanillaCount;
+         i < desc->vanillaCount + desc->variantCount; i++) {
         const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
         if (compat_stricmp(candidate, expected) == 0) {
             return i;
@@ -371,146 +401,152 @@ static void artProcessVariants(ArtListDescription* desc)
 {
     // 2. Process Variant Assets
     // -------------------------
-    // Variants are higher-resolution versions of existing assets (e.g., "_800.frm" for 800x500)
-    // Variant suffix can be set in fission.cfg
-    char suffix[32];
-    snprintf(suffix, sizeof(suffix), "%s.frm",
-        settings.graphics.widescreen_variant_suffix.c_str());
-    size_t suffixLen = strlen(suffix);
+    // Variants are higher-resolution versions of existing assets
+    // (e.g. "_800.frm" for 800x500). Variant suffix can be set in fission.cfg.
+    //
+    // Registration order:
+    //   1. If an overlay folder is active and <overlay>/<base><suffix>.frm
+    //      exists, register the variant under the overlay-prefixed name.
+    //   2. Otherwise, if <base><suffix>.frm exists at the category root,
+    //      register it under the plain name.
+    //   3. Otherwise no variant is registered for this base asset.
+    //
+    // The base slot name is never rewritten; the overlay only affects which
+    // variant file is registered and under what name.
 
-    // Build search pattern for variant files: "art/<category>/*.frm"
-    char pattern[COMPAT_MAX_PATH];
-    snprintf(pattern, sizeof(pattern),
-        "art%c%s%c*.frm",
-        DIR_SEPARATOR,
-        desc->name,
-        DIR_SEPARATOR);
-
-    // Find all matching variant files in this category
-    char** foundFiles = NULL;
-    int fileCount = fileNameListInit(pattern, &foundFiles);
-
-    // Create a set to track which base assets already have variants
-    bool* hasVariant = nullptr;
-    if (desc->vanillaCount > 0) {
-        hasVariant = (bool*)internal_malloc(desc->vanillaCount * sizeof(bool));
-        if (hasVariant != nullptr) {
-            memset(hasVariant, 0, desc->vanillaCount * sizeof(bool));
-        } else {
-            debugPrint("WARNING: Failed to allocate variant tracking array for %s\n", desc->name);
-        }
+    if (desc == nullptr) {
+        return;
     }
 
-    if (fileCount > 0) {
-        // Prepare to extend existing asset list
-        int originalCount = desc->fileNamesLength;
-        int newCount = originalCount;
-        char* names = desc->fileNames;
-        int currentSize = desc->fileNamesLength; // Current array capacity
+    if (desc->fileNames == nullptr || desc->vanillaCount <= 0) {
+        desc->variantCount = 0;
+        return;
+    }
 
-        // Process each found variant file
-        for (int i = 0; i < fileCount; i++) {
-            const char* filename = foundFiles[i];
-            size_t len = strlen(filename);
+    // Build the variant suffix, e.g. "_800.frm".
+    char suffix[32];
+    int suffixLen = snprintf(suffix, sizeof(suffix), "%s.frm",
+        settings.graphics.widescreen_variant_suffix.c_str());
+    if (suffixLen <= 0 || suffixLen >= static_cast<int>(sizeof(suffix))) {
+        desc->variantCount = 0;
+        return;
+    }
 
-            // Skip files without the variant suffix
-            if (len <= suffixLen || compat_stricmp(filename + len - suffixLen, suffix) != 0) {
-                continue;
-            }
+    const int originalCount = desc->vanillaCount;
+    int newCount = originalCount;
+    int currentCapacity = desc->fileNamesLength;
+    char* names = desc->fileNames;
 
-            // Extract base filename without path
-            const char* baseName = strrchr(filename, DIR_SEPARATOR);
-            if (!baseName)
-                baseName = filename;
-            else
-                baseName++; // Skip separator
+    for (int i = 0; i < originalCount; i++) {
+        // Copy the slot name into a local buffer BEFORE any realloc can
+        // move `names`. Never touch `names + i * FILENAME_LENGTH` again
+        // in this iteration after this point.
+        char vanillaName[FILENAME_LENGTH];
+        strncpy(vanillaName, names + i * FILENAME_LENGTH, FILENAME_LENGTH - 1);
+        vanillaName[FILENAME_LENGTH - 1] = '\0';
 
-            // Create variant base name by removing resolution suffix
-            // Example: "button_ok_800.frm" ? "button_ok"
-            char variantBase[FILENAME_LENGTH] = { 0 };
-            size_t baseLen = strlen(baseName) - suffixLen;
-            if (baseLen >= FILENAME_LENGTH)
-                baseLen = FILENAME_LENGTH - 1;
-            strncpy(variantBase, baseName, baseLen);
-            variantBase[baseLen] = '\0';
+        if (vanillaName[0] == '\0') {
+            continue;
+        }
 
-            // Check if this variant matches any existing vanilla asset
-            bool matchFound = false;
-            int matchedIndex = -1;
+        // Strip the ".frm" extension, keeping any subfolder prefix:
+        //   "fallout1/mainmenu.frm" -> "fallout1/mainmenu"
+        //   "mainmenu.frm"          -> "mainmenu"
+        char base[FILENAME_LENGTH];
+        strncpy(base, vanillaName, FILENAME_LENGTH - 1);
+        base[FILENAME_LENGTH - 1] = '\0';
 
-            for (int j = 0; j < originalCount; j++) {
-                const char* slot = names + j * FILENAME_LENGTH;
+        char* dot = strrchr(base, '.');
+        if (dot != nullptr && compat_stricmp(dot, ".frm") == 0) {
+            *dot = '\0';
+        }
 
-                // Extract base name of existing asset
-                const char* slotName = strrchr(slot, DIR_SEPARATOR);
-                if (!slotName)
-                    slotName = slot;
-                else
-                    slotName++;
+        // Build "<base><suffix>", preserving any subfolder prefix the base
+        // slot already had.
+        char candidate[FILENAME_LENGTH];
+        if (snprintf(candidate, sizeof(candidate), "%s%s",
+                base, suffix) >= static_cast<int>(sizeof(candidate))) {
+            debugPrint("Variant name too long for %s\n", vanillaName);
+            continue;
+        }
 
-                // Remove extension from existing asset
-                char slotBase[FILENAME_LENGTH];
-                strncpy(slotBase, slotName, FILENAME_LENGTH);
-                char* ext = strrchr(slotBase, '.');
-                if (ext)
-                    *ext = '\0';
+        // Resolve which variant file to register.
+        char registered[FILENAME_LENGTH];
+        bool variantFound = false;
 
-                // Compare base names (case-insensitive)
-                if (compat_stricmp(slotBase, variantBase) == 0) {
-                    matchFound = true;
-                    matchedIndex = j;
-                    break;
+        // (a) Overlay folder first, e.g. "fallout1/mainmenu_800.frm".
+        if (gArtVariantOverlay[0] != '\0') {
+            char overlayName[FILENAME_LENGTH];
+            if (snprintf(overlayName, sizeof(overlayName), "%s/%s",
+                    gArtVariantOverlay, candidate) < static_cast<int>(sizeof(overlayName))) {
+                char probePath[COMPAT_MAX_PATH];
+                if (snprintf(probePath, sizeof(probePath), "%sart/%s/%s",
+                        _cd_path_base, desc->name, overlayName)
+                    < static_cast<int>(sizeof(probePath))) {
+                    File* stream = fileOpen(probePath, "rb");
+                    if (stream != nullptr) {
+                        fileClose(stream);
+                        strncpy(registered, overlayName, sizeof(registered) - 1);
+                        registered[sizeof(registered) - 1] = '\0';
+                        variantFound = true;
+                    }
                 }
             }
-
-            // Skip variants without matching base asset
-            if (!matchFound)
-                continue;
-
-            // Skip if we already have a variant for this base asset
-            if (hasVariant != nullptr && hasVariant[matchedIndex]) {
-                debugPrint("Skipping duplicate variant for %s: %s\n", variantBase, filename);
-                continue;
-            }
-
-            // Mark this base asset as having a variant
-            if (hasVariant != nullptr) {
-                hasVariant[matchedIndex] = true;
-            }
-
-            // Expand array if needed (grow in chunks of 10)
-            if (newCount >= currentSize) {
-                currentSize += 10;
-                char* newNames = (char*)internal_realloc(names, currentSize * FILENAME_LENGTH);
-                if (!newNames)
-                    break; // Abort if realloc fails
-                names = newNames;
-            }
-
-            // Add variant to asset list
-            char* dest = names + newCount * FILENAME_LENGTH;
-            strncpy(dest, baseName, FILENAME_LENGTH - 1);
-            dest[FILENAME_LENGTH - 1] = '\0';
-            newCount++;
         }
 
-        // Update asset list if we added variants
-        if (newCount > originalCount) {
-            desc->fileNames = names;
-            desc->fileNamesLength = newCount;
+        // Fall back to the category root, e.g. "mainmenu_800.frm".
+        // Only when no overlay is active. On an F1 run the file at this
+        // path is Fission's F2 variant and must not leak in; falling
+        // through to the base (non-widescreen) F1 art is the correct
+        // outcome.
+        if (!variantFound && gArtVariantOverlay[0] == '\0') {
+            char probePath[COMPAT_MAX_PATH];
+            if (snprintf(probePath, sizeof(probePath), "%sart/%s/%s",
+                    _cd_path_base, desc->name, candidate)
+                < static_cast<int>(sizeof(probePath))) {
+                File* stream = fileOpen(probePath, "rb");
+                if (stream != nullptr) {
+                    fileClose(stream);
+                    strncpy(registered, candidate, sizeof(registered) - 1);
+                    registered[sizeof(registered) - 1] = '\0';
+                    variantFound = true;
+                }
+            }
         }
 
-        // Cleanup
-        if (hasVariant) {
-            internal_free(hasVariant);
+        if (!variantFound) {
+            // No matching variant anywhere - that's normal.
+            continue;
         }
 
-        // Cleanup file list
-        fileNameListFree(&foundFiles, fileCount);
+        // Grow the backing array if needed (chunks of 10, as before).
+        if (newCount >= currentCapacity) {
+            int newCapacity = currentCapacity + 10;
+            char* newNames = (char*)internal_realloc(
+                names, static_cast<size_t>(newCapacity) * FILENAME_LENGTH);
+            if (newNames == nullptr) {
+                debugPrint("Failed to grow variant list for %s\n", desc->name);
+                break;
+            }
+            names = newNames;
+            currentCapacity = newCapacity;
+        }
+
+        // Write the variant into the next free slot. Zero the whole slot
+        // first so no stale bytes leak into comparisons.
+        char* dest = names + newCount * FILENAME_LENGTH;
+        memset(dest, 0, FILENAME_LENGTH);
+        memcpy(dest, registered, strlen(registered));
+
+        debugPrint("Registered variant: %s (base: %s)\n", registered, vanillaName);
+        newCount++;
     }
 
-    // Store variant count after processing
-    // (Total assets now = vanilla + variants)
+    if (newCount != originalCount) {
+        desc->fileNames = names;
+        desc->fileNamesLength = newCount;
+    }
+
     desc->variantCount = desc->fileNamesLength - desc->vanillaCount;
 }
 
@@ -1505,6 +1541,16 @@ static int artInitHeadData()
 // Main art initialization function (refactored)
 int artInit()
 {
+    // Fallout 1 overrides its HD variant set from a subfolder so it cannot
+    // collide with the Fallout 2 variants inside fission.dat. Non-F1 runs
+    // leave this empty, which disables the overlay mechanism completely.
+    gArtVariantOverlay[0] = '\0';
+    if (IS_FALLOUT_1()) {
+        strncpy(gArtVariantOverlay, "fallout1", sizeof(gArtVariantOverlay) - 1);
+        gArtVariantOverlay[sizeof(gArtVariantOverlay) - 1] = '\0';
+        debugPrint("art_init: variant overlay enabled: %s\n", gArtVariantOverlay);
+    }
+
     char path[COMPAT_MAX_PATH];
 
     // Initialize art cache
