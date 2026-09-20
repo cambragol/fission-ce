@@ -368,7 +368,7 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int fl
 
     debugPrint(">message_init\t");
 
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "misc.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("misc.msg"));
 
     if (!messageListLoad(&gMiscMessageList, path)) {
         debugPrint("Failed on message_load\n");
