@@ -77,7 +77,6 @@ static int artGetDataSize(Art* art);
 static int paddingForSize(int size);
 const char* artGetVariantOverlay(void);
 
-
 // 0x5002D8
 static char gDefaultJumpsuitMaleFileName[] = "hmjmps";
 
@@ -465,7 +464,8 @@ static void artProcessVariants(ArtListDescription* desc)
         // slot already had.
         char candidate[FILENAME_LENGTH];
         if (snprintf(candidate, sizeof(candidate), "%s%s",
-                base, suffix) >= static_cast<int>(sizeof(candidate))) {
+                base, suffix)
+            >= static_cast<int>(sizeof(candidate))) {
             debugPrint("Variant name too long for %s\n", vanillaName);
             continue;
         }
@@ -478,7 +478,8 @@ static void artProcessVariants(ArtListDescription* desc)
         if (gArtVariantOverlay[0] != '\0') {
             char overlayName[FILENAME_LENGTH];
             if (snprintf(overlayName, sizeof(overlayName), "%s/%s",
-                    gArtVariantOverlay, candidate) < static_cast<int>(sizeof(overlayName))) {
+                    gArtVariantOverlay, candidate)
+                < static_cast<int>(sizeof(overlayName))) {
                 char probePath[COMPAT_MAX_PATH];
                 if (snprintf(probePath, sizeof(probePath), "%sart/%s/%s",
                         _cd_path_base, desc->name, overlayName)
