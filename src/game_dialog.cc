@@ -4755,7 +4755,7 @@ int _gdialog_window_create()
                             buttonSetCallbacks(_gdialog_buttons[1], _gsound_red_butt_press, _gsound_red_butt_release);
 
                             // Fallout 1 & 2 only for the moment
-                            if (gGameDialogSpeakerIsPartyMember ) {
+                            if (gGameDialogSpeakerIsPartyMember) {
                                 // COMBAT CONTROL (party members, both games)
                                 _gdialog_buttons[2] = buttonCreate(gGameDialogWindow,
                                     593, 116, 14, 14, -1, -1, -1, -1,
