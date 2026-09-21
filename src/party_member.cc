@@ -733,6 +733,21 @@ int partyMemberAdd(Object* object)
     }
 
     critterSetTeam(object, 0);
+
+    // Fallout 1 companions ship with no F2 AI state - F1 recruit
+    // scripts never call aiSetDisposition/aiSetAreaAttackMode/etc, so the
+    // F2-derived combat control panel would otherwise read uninitialized
+    // memory. Set defaults so the panel opens properly.
+    if (IS_FALLOUT_1()) {
+        aiSetDisposition(object, 0);      // normal
+        aiSetAreaAttackMode(object, 1);   // sometimes
+        aiSetRunAwayMode(object, 2);      // bleeding
+        aiSetBestWeapon(object, 0);       // no pref
+        aiSetDistance(object, 0);         // stay close
+        aiSetAttackWho(object, 0);        // whoever attacks me
+        aiSetChemUse(object, 0);          // clean
+    }
+
     queueRemoveEventsByType(object, EVENT_TYPE_SCRIPT);
 
     if (_gdialogActive()) {

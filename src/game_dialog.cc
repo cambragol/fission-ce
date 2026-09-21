@@ -3842,6 +3842,16 @@ int partyMemberControlWindowInit()
     _win_group_radio_buttons(5, &(_gdialog_buttons[_control_buttons_start]));
 
     int disposition = aiGetDisposition(gGameDialogSpeaker);
+    if (disposition < 0 || disposition > 4) {
+        // Fallout 1 companions recruited before partyMemberAdd's
+        // AI-seed was added (i.e. old saves) still carry an uninitialized
+        // disposition. Modded companions that don't follow the ai.txt family
+        // convention can also land here. Clamp to normal so the rest-state
+        // index stays in bounds.
+        debugPrint(">>> control init: invalid disposition %d (packet=%d), clamping to 2\n",
+            disposition, gGameDialogSpeaker->data.critter.combat.aiPacket);
+        disposition = 2;
+    }
     _win_set_button_rest_state(_gdialog_buttons[_control_buttons_start + 4 - disposition], 1, 0);
 
     partyMemberControlWindowUpdate();
@@ -4744,8 +4754,8 @@ int _gdialog_window_create()
                             buttonSetMouseCallbacks(_gdialog_buttons[1], nullptr, nullptr, nullptr, gameDialogReviewButtonOnMouseUp);
                             buttonSetCallbacks(_gdialog_buttons[1], _gsound_red_butt_press, _gsound_red_butt_release);
 
-                            // Fallout 2 only for the moment
-                            if (gGameDialogSpeakerIsPartyMember && (!IS_FALLOUT_1())) {
+                            // Fallout 1 & 2 only for the moment
+                            if (gGameDialogSpeakerIsPartyMember ) {
                                 // COMBAT CONTROL (party members, both games)
                                 _gdialog_buttons[2] = buttonCreate(gGameDialogWindow,
                                     593, 116, 14, 14, -1, -1, -1, -1,
