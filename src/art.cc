@@ -511,6 +511,13 @@ static void artProcessVariants(ArtListDescription* desc)
             }
         }
 
+        if (!variantFound) {
+            // No matching variant anywhere - this is the common case.
+            // Do NOT fall through: `registered` is uninitialised and the
+            // slot write below would copy stack garbage into the list.
+            continue;
+        }
+
         // Grow the backing array if needed (chunks of 10, as before).
         if (newCount >= currentCapacity) {
             int newCapacity = currentCapacity + 10;
