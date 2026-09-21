@@ -467,6 +467,6 @@ EG_VCT02.FRM   ; Endgame Sequence - Vault City #2
 EG_SAN04.FRM   ; Endgame Sequence - San Francisco #4
 EG_MYR01.FRM   ; Endgame Sequence - San Francisco #5?
 twnmilbs.frm   ; Town map "Military Base"
-wmapbox2.frm   ; World map dialog box for Fallout 2
-mainmef1.frm   ; Main Menu with Options for Fallout 1
+fallout1/wmapbox.frm   ; World map dialog box for Fallout 2
+fallout1/mainmef1.frm  ; Main Menu with Options for Fallout 1
 

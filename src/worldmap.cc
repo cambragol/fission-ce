@@ -7387,9 +7387,7 @@ static int wmInterfaceInit()
         return -1;
     }
 
-    fid = gameIsWidescreen()
-        ? artGetFidWithVariant(OBJ_TYPE_INTERFACE, wmElements()->backgroundFid, true)
-        : buildFid(OBJ_TYPE_INTERFACE, wmElements()->backgroundFid, 0, 0, 0);
+    fid = artGetFidWithVariant(OBJ_TYPE_INTERFACE, wmElements()->backgroundFid, gameIsWidescreen());
 
     if (!_backgroundFrmImage.lock(fid)) {
         return -1;
