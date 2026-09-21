@@ -42,3 +42,4 @@ MDBTDN.FRM          ; Multidex red button down
 SMALLNUM.FRM        ; Multidex skill numbers
 PIPBBUUP.frm        ; Broken Pipboy up button
 PIPBBUDN.frm        ; Broken Pipboy down button
+DI_TALKF.FRM        ; Fallout 1 Talk window with money and 'Tell Me About'

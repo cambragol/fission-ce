@@ -51,8 +51,8 @@ INVUPOUT.FRM
 INVUPIN.FRM
 INVDNOUT.FRM
 INVDNIN.FRM
-TWOHAND.FRM    ; *** NO LONGER USED ***
-autodim.frm    ; *** NO LONGER USED ***
+INVUPDS.FRM
+INVDNDS.FRM
 autohi.frm     ; *** NO LONGER USED ***
 chadn.frm      ; character button down
 chaup.frm      ; character button up
@@ -97,7 +97,7 @@ di_rdbt1.frm   ; dialog red button <UP>
 di_rdbt2.frm   ; dialog red button <DOWN>
 di_rest1.frm   ; dialog rest button <UP>
 di_rest2.frm   ; dialog rest button <DOWN>
-di_talk.frm    ; dialog screen subwindow
+fallout1/di_talk.frm    ; dialog screen subwindow
 di_up1.frm     ; dialog up button <UP>
 di_up2.frm     ; dialog up button <DOWN>
 review.frm     ; review screen

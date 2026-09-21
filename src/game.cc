@@ -1856,6 +1856,41 @@ static void gameLoadEnabledModsFromOrderFile()
     fclose(f);
 }
 
+// A canonical master.dat is a *frozen* release whose assets fission.dat
+// is expected to layer on top of. Anything that is not canonical is
+// treated as a total conversion still in development, and its .dat
+// keeps priority over fission.dat, so modified assets are used.
+//
+// Fallout 1: format alone is definitive. Only F1 CE ships DAT1 archives,
+//            so if the version check says F1, we're canonical. No size
+//            whitelist needed.
+// Fallout 2: multiple regional/re-release master.dat sizes may exist.
+//            New sizes can be added here as required/discoverd.
+//
+// If a total conversion ever freezes and ships a canonical archive (Nevada?),
+// we'll add its master.dat size here to move it out of the total conversion category.
+static bool isCanonicalMasterDat(long fileSize, FalloutVersion version)
+{
+    if (version == FALLOUT_VERSION_1) {
+        return true;
+    }
+
+    if (version == FALLOUT_VERSION_2) {
+        switch (fileSize) {
+        case 333177805: // Fallout 2 (English, original release)
+            return true;
+        // Other regional / re-release sizes will go here:
+        // case ...: return true; // Fallout 2 (German)?
+        // case ...: return true; // Fallout 2 (GOG / Steam re-release)?
+        }
+    }
+
+    // Unknown version, or a DAT2 that does not match any frozen release:
+    // treat as a mod/TC. Safe default — fission becomes the fallback base
+    // and the master's own assets win.
+    return false;
+}
+
 // 0x44418C
 static int gameDbInit()
 {
@@ -1863,58 +1898,30 @@ static int gameDbInit()
     const char* patch_file_name;
     char filename[COMPAT_MAX_PATH];
     int patch_index;
-    bool is_original = false;
 
-    // Check if master.dat is the original version (multiple versions?)
     const char* master_path = settings.system.master_dat_path.c_str();
-    if (*master_path != '\0') {
-        FILE* f = fopen(master_path, "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            is_original = (ftell(f) == 333177805);
-            fclose(f);
-        }
-    }
+    const bool hasFission = !settings.system.fission_dat_path.empty();
 
-    // Helper lambda to actually open the fission datafile
-    auto loadFission = [&]() -> int {
-        const char* main_file_name = settings.system.fission_dat_path.c_str();
-        const char* patch_file_name = settings.system.fission_patches_path.c_str();
-        if (*patch_file_name == '\0') {
-            patch_file_name = nullptr;
-        }
-        int handle = dbOpen(main_file_name, patch_file_name);
-        if (handle == -1) {
-            showMesageBox(
-                "Could not find the fission datafile. "
-                "Please make sure the fission.dat file is in the folder "
-                "that you are running FALLOUT from.");
-        }
-        return handle;
-    };
-
-    bool hasFission = !settings.system.fission_dat_path.empty();
-    bool useMasterOverride;
-
-    // If master.dat is *not* the â€œoriginalâ€ AND override is *not* set,
-    // then load fission.dat *before* master.dat.
-    if (!is_original && !useMasterOverride && hasFission) {
-        if (loadFission() == -1)
-            return -1;
-    }
-
-    // Now load master.dat
+    // Step 1: open master.dat first, unconditionally.
+    //
+    // Order matters *here* for two reasons:
+    //
+    //  a) The version check lives inside dbaseOpen(). Opening
+    //     master.dat is what calls falloutVersionSet(), which is what
+    //     makes IS_FALLOUT_1() authoritative for the rest of startup.
+    //     Until this call completes, IS_FALLOUT_1() still reports the
+    //     default (Fallout 2).
+    //
+    //  b) At this point the xbase stack is empty, so master.dat has
+    //     nothing to lose to. If it turns out to be a total conversion
+    //     (Sonora, Nevada, ...), we re-promote it in Step 4.
     {
-        const char* main_file_name = settings.system.master_dat_path.c_str();
-        const char* patch_file_name = settings.system.master_patches_path.c_str();
-        if (*main_file_name == '\0') {
-            main_file_name = nullptr;
-        }
-        if (*patch_file_name == '\0') {
-            patch_file_name = nullptr;
-        }
+        const char* master_dat = settings.system.master_dat_path.c_str();
+        const char* master_patch = settings.system.master_patches_path.c_str();
+        if (*master_dat == '\0') master_dat = nullptr;
+        if (*master_patch == '\0') master_patch = nullptr;
 
-        int master_db_handle = dbOpen(main_file_name, patch_file_name);
+        int master_db_handle = dbOpen(master_dat, master_patch);
         if (master_db_handle == -1) {
             showMesageBox(
                 "Could not find the master datafile. "
@@ -1924,24 +1931,95 @@ static int gameDbInit()
         }
     }
 
-    // If master.dat *is* the original, OR if override is set,
-    // then load fission.dat *after* master.dat.
-    if ((is_original || useMasterOverride) && hasFission) {
+    // Step 2: classify master.dat.
+    //
+    // The version check already told us whether this is Fallout 1 or
+    // Fallout 2. The remaining question is whether master.dat is a
+    // frozen release (fission.dat layers over it and wins) or a total
+    // conversion's own archive (mod wins, fission is a fallback base).
+    bool isCanonicalMaster = false;
+    {
+        long masterSize = 0;
+        FILE* f = compat_fopen(master_path, "rb");
+        if (f != nullptr) {
+            fseek(f, 0, SEEK_END);
+            masterSize = ftell(f);
+            fclose(f);
+        } else {
+            debugPrint(">>> gameDbInit: could not stat master.dat\n");
+        }
 
-        if (loadFission() == -1)
-            return -1;
+        isCanonicalMaster = isCanonicalMasterDat(masterSize, falloutVersionGet());
+
+        debugPrint(">>> gameDbInit: master.dat size=%ld version=%s canonical=%d\n",
+            masterSize,
+            IS_FALLOUT_1() ? "Fallout 1" : "Fallout 2",
+            (int)isCanonicalMaster);
+    }
+
+    // Step 3: open fission.dat.
+    //
+    // fission.dat is a DAT2 archive, but opening it will NOT flip the
+    // version back to Fallout 2 — falloutVersionSet() refuses
+    // F1 -> F2 transitions — so F1 detection survives.
+    //
+    // After this, the xbase stack top-to-bottom is:
+    //     fission.dat, master_patch, master.dat
+    //
+    // In the canonical case we're done: fission wins.
+    // In the mod case we still need to fix the order in Step 4.
+    auto loadFission = [&]() -> int {
+        const char* fission_dat = settings.system.fission_dat_path.c_str();
+        const char* fission_patch = settings.system.fission_patches_path.c_str();
+        if (*fission_patch == '\0') fission_patch = nullptr;
+        int handle = dbOpen(fission_dat, fission_patch);
+        if (handle == -1) {
+            showMesageBox(
+                "Could not find the fission datafile. "
+                "Please make sure the fission.dat file is in the folder "
+                "that you are running FALLOUT from.");
+        }
+        return handle;
+    };
+
+    if (hasFission) {
+        if (loadFission() == -1) return -1;
+    }
+
+    // Step 4: for mods, re-promote master.dat over fission.dat.
+    //
+    // xbaseOpen() (called by dbOpen) has "move-to-front" semantics:
+    // if an archive is already on the stack, re-opening it detaches
+    // it from its current position and pushes it to the head, which
+    // is where file lookups start searching.
+    //
+    // We exploit that here. After Step 3 the stack is:
+    //     fission.dat, master_patch, master.dat
+    // and a mod needs:
+    //     master_patch, master.dat, fission.dat
+    // so that the mod's assets take priority over fission's.
+    //
+    // Opening master.dat first, then its patch, produces exactly the
+    // desired top-to-bottom order. (master moves to head, then the
+    // patch moves to head above it.)
+    //
+    // Canonical games skip this step: fission.dat is already on top,
+    // which is where we want it.
+    if (!isCanonicalMaster && hasFission) {
+        const char* master_dat = settings.system.master_dat_path.c_str();
+        const char* master_patch = settings.system.master_patches_path.c_str();
+        if (*master_dat == '\0') master_dat = nullptr;
+        if (*master_patch == '\0') master_patch = nullptr;
+
+        dbOpen(master_dat, master_patch);
     }
 
     // Load critter.dat
     main_file_name = settings.system.critter_dat_path.c_str();
-    if (*main_file_name == '\0') {
-        main_file_name = nullptr;
-    }
+    if (*main_file_name == '\0') main_file_name = nullptr;
 
     patch_file_name = settings.system.critter_patches_path.c_str();
-    if (*patch_file_name == '\0') {
-        patch_file_name = nullptr;
-    }
+    if (*patch_file_name == '\0') patch_file_name = nullptr;
 
     int critter_db_handle = dbOpen(main_file_name, patch_file_name);
     if (critter_db_handle == -1) {

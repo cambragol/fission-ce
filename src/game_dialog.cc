@@ -687,6 +687,7 @@ static void gameDialogRenderHighlight(unsigned char* src, int srcWidth, int srcH
 static void gameDialogRenderTalkingHead(Art* art, int frame);
 static void gameDialogHighlightsInit();
 static void gameDialogHighlightsExit();
+static int gameDialogGetSubwindowFrmId();
 
 static void gameDialogRedButtonsInit();
 static void gameDialogLittleRedButtonsInit();
@@ -4690,9 +4691,9 @@ int _gdialog_window_create()
     }
 
     FrmImage backgroundFrmImage;
-    // 389 - di_talkp.frm - dialog screen subwindow (party members)
-    // 99 - di_talk.frm - dialog screen subwindow (NPC's)
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gGameDialogSpeakerIsPartyMember ? 389 : 99, 0, 0, 0);
+    // Subwindow background: di_talkp.frm (party) or di_talk.frm (NPC);
+    // F1 non-strict-vanilla substitutes the converted NPC panel (di_talkf.frm).
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gameDialogGetSubwindowFrmId(), 0, 0, 0);
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return -1;
     }
@@ -4819,17 +4820,8 @@ void _gdialog_window_destroy()
     int offset = (GAME_DIALOG_WINDOW_WIDTH) * (GAME_DIALOG_WINDOW_HEIGHT - _dialogue_subwin_len);
     unsigned char* backgroundWindowBuffer = windowGetBuffer(gGameDialogBackgroundWindow) + offset;
 
-    int frmId;
-    if (gGameDialogSpeakerIsPartyMember) {
-        // di_talkp.frm - dialog screen subwindow (party members)
-        frmId = 389;
-    } else {
-        // di_talk.frm - dialog screen subwindow (NPC's)
-        frmId = 99;
-    }
-
     FrmImage backgroundFrmImage;
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, frmId, 0, 0, 0);
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gameDialogGetSubwindowFrmId(), 0, 0, 0);
     if (backgroundFrmImage.lock(backgroundFid)) {
         unsigned char* windowBuffer = windowGetBuffer(gGameDialogWindow);
         _gdialog_scroll_subwin(gGameDialogWindow, false, backgroundFrmImage.getData(), windowBuffer, backgroundWindowBuffer, _dialogue_subwin_len);
@@ -4885,17 +4877,9 @@ int gameDialogWindowRenderBackground()
 // 0x44ABA8
 int _talkToRefreshDialogWindowRect(Rect* rect)
 {
-    int frmId;
-    if (gGameDialogSpeakerIsPartyMember) {
-        // di_talkp.frm - dialog screen subwindow (party members)
-        frmId = 389;
-    } else {
-        // di_talk.frm - dialog screen subwindow (NPC's)
-        frmId = 99;
-    }
 
     FrmImage backgroundFrmImage;
-    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, frmId, 0, 0, 0);
+    int backgroundFid = buildFid(OBJ_TYPE_INTERFACE, gameDialogGetSubwindowFrmId(), 0, 0, 0);
     if (!backgroundFrmImage.lock(backgroundFid)) {
         return -1;
     }
@@ -5703,6 +5687,30 @@ static int aboutLookupName(const char* search)
     }
 
     return 0;
+}
+
+// Returns the FRM id for the dialog subwindow background (the panel
+// that carries the reply/options boxes).
+//
+// 389 - di_talkp.frm - party member variant (F2 layout, carries the
+//                      combat control button)
+// 99  - di_talk.frm  - NPC variant
+// 6319- di_talkf.frm - Fallout 1 non-vanilla variant
+//
+// In Fallout 1 (non-strict-vanilla) we serve the converted F1 dialog
+// panel for the NPC variant so the subwindow matches F1's visual
+// language. The party-member variant is left as the F2 original —
+// F1 has no party control interface, so 389 should never come up on
+// an F1 run anyway.
+static int gameDialogGetSubwindowFrmId()
+{
+    if (!gGameDialogSpeakerIsPartyMember
+        && IS_FALLOUT_1()
+        && !settings.enhancements.strict_vanilla) {
+        return 6319; // placeholder
+    }
+
+    return gGameDialogSpeakerIsPartyMember ? 389 : 99;
 }
 
 } // namespace fallout
