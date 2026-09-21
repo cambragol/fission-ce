@@ -97,7 +97,7 @@ di_rdbt1.frm   ; dialog red button <UP>
 di_rdbt2.frm   ; dialog red button <DOWN>
 di_rest1.frm   ; dialog rest button <UP>
 di_rest2.frm   ; dialog rest button <DOWN>
-fallout1/di_talk.frm    ; dialog screen subwindow
+di_talk.frm    ; dialog screen subwindow
 di_up1.frm     ; dialog up button <UP>
 di_up2.frm     ; dialog up button <DOWN>
 review.frm     ; review screen
