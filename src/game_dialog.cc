@@ -1990,6 +1990,13 @@ int _gdProcessExit()
 // 0x446504
 void gameDialogRenderCaps()
 {
+    // F1's dialogue interface doesn't display the player's caps
+    // in the reply window. This is an F2-only feature. Gate it here, but allow
+    // when not strict vanilla.
+    if (IS_FALLOUT_1() && settings.enhancements.strict_vanilla) {
+        return;
+    }
+
     Rect rect;
     rect.left = 5;
     rect.right = 70;
