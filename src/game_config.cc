@@ -1,9 +1,9 @@
 #include "game_config.h"
 #include "sfall_config.h"
 
+#include <SDL_filesystem.h>
 #include <stdio.h>
 #include <string.h>
-#include <SDL_filesystem.h>
 
 #include "db.h"
 #include "main.h"
