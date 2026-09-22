@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <SDL_filesystem.h>
 
 #include "db.h"
 #include "main.h"
