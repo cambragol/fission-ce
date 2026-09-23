@@ -22,6 +22,7 @@ extern Object* gEgg;
 extern Object* gDude;
 
 int objectsInit(unsigned char* buf, int width, int height, int pitch);
+void objectsSetViewport(unsigned char* buffer, int width, int height, int pitch);
 void objectsReset();
 void objectsExit();
 int objectRead(Object* obj, File* stream);

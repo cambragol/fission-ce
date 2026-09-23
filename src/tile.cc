@@ -459,6 +459,19 @@ int tileInit(TileData** squareGrid, int squareGridWidth, int squareGridHeight, i
     return 0;
 }
 
+void tileSetViewport(unsigned char* buffer, int width, int height, int pitch)
+{
+    gTileWindowBuffer = buffer;
+    gTileWindowWidth = width;
+    gTileWindowHeight = height;
+    gTileWindowPitch = pitch;
+
+    gTileWindowRect.left = 0;
+    gTileWindowRect.top = 0;
+    gTileWindowRect.right = width - 1;
+    gTileWindowRect.bottom = height - 1;
+}
+
 // 0x4B11E4
 static void tileSetBorder(int windowWidth, int windowHeight, int hexGridWidth, int hexGridHeight)
 {

@@ -74,6 +74,7 @@ static void _square_reset();
 static int _square_load(File* stream, int flags);
 static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
+static void isoBlitVirtualToWindow(Rect* rect);
 
 static void loadModMapMessages();
 
@@ -160,6 +161,13 @@ MessageList gMapMessageList;
 
 // 0x631D50
 static unsigned char* gIsoWindowBuffer;
+
+// Virtual buffer that tile and object rendering actually draw into.
+// In Step 2 this is the same size as gIsoWindowBuffer; later it will shrink
+// when we zoom in.
+static unsigned char* gIsoVirtualBuffer = nullptr;
+static int gIsoVirtualWidth = 0;
+static int gIsoVirtualHeight = 0;
 
 // 0x631D54
 MapHeader gMapHeader;
@@ -296,6 +304,21 @@ int isoInit()
 
     debugPrint(">obj_init\t\t");
 
+    gIsoVirtualWidth = screenGetWidth();
+    gIsoVirtualHeight = screenGetVisibleHeight();
+    gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
+    if (gIsoVirtualBuffer == nullptr) {
+        debugPrint("virtual iso buffer allocation failed in iso_init\n");
+        return -1;
+    }
+
+    // Point tile and object renderers at the virtual buffer and recompute the
+    // tile offsets for it.
+    tileSetViewport(gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth);
+    objectsSetViewport(gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth);
+    tileSetCenter(HEX_GRID_WIDTH * (HEX_GRID_HEIGHT / 2) + HEX_GRID_WIDTH / 2,
+        TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
+
     colorCycleInit();
     debugPrint(">cycle_init\t\t");
 
@@ -347,6 +370,13 @@ void isoExit()
     objectsExit();
     tileExit();
     artExit();
+
+    if (gIsoVirtualBuffer != nullptr) {
+        internal_free(gIsoVirtualBuffer);
+        gIsoVirtualBuffer = nullptr;
+        gIsoVirtualWidth = 0;
+        gIsoVirtualHeight = 0;
+    }
 
     windowDestroy(gIsoWindow);
 
@@ -828,9 +858,9 @@ int mapScroll(int dx, int dy)
     Rect r2;
     rectCopy(&r2, &r1);
 
-    int width = screenGetWidth();
-    int pitch = width;
-    int height = screenGetVisibleHeight();
+    int width = gIsoVirtualWidth;
+    int pitch = gIsoVirtualWidth;
+    int height = gIsoVirtualHeight;
 
     if (screenDx != 0) {
         width -= 32;
@@ -851,8 +881,8 @@ int mapScroll(int dx, int dy)
     int step;
     if (screenDy < 0) {
         r1.bottom = r1.top - screenDy;
-        src = gIsoWindowBuffer + pitch * (height - 1);
-        dest = gIsoWindowBuffer + pitch * (screenGetVisibleHeight() - 1);
+        src = gIsoVirtualBuffer + pitch * (height - 1);
+        dest = gIsoVirtualBuffer + pitch * (screenGetVisibleHeight() - 1);
         if (screenDx < 0) {
             dest -= screenDx;
         } else {
@@ -861,8 +891,8 @@ int mapScroll(int dx, int dy)
         step = -pitch;
     } else {
         r1.top = r1.bottom - screenDy;
-        dest = gIsoWindowBuffer;
-        src = gIsoWindowBuffer + pitch * screenDy;
+        dest = gIsoVirtualBuffer;
+        src = gIsoVirtualBuffer + pitch * screenDy;
 
         if (screenDx < 0) {
             dest -= screenDx;
@@ -886,6 +916,7 @@ int mapScroll(int dx, int dy)
         _map_scroll_refresh(&r1);
     }
 
+    isoBlitVirtualToWindow(nullptr);
     windowRefresh(gIsoWindow);
 
     return 0;
@@ -1816,13 +1847,36 @@ static void loadModMapMessages()
     }
 }
 
-// 0x483ED0
+static void isoBlitVirtualToWindow(Rect* rect)
+{
+    int x, y, w, h;
+    if (rect != nullptr) {
+        x = rect->left;
+        y = rect->top;
+        w = rectGetWidth(rect);
+        h = rectGetHeight(rect);
+    } else {
+        x = 0;
+        y = 0;
+        w = gIsoVirtualWidth;
+        h = gIsoVirtualHeight;
+    }
+
+    // Pitches are identical in Step 2. When the virtual buffer shrinks (zoom),
+    // this becomes a scale blit.
+    for (int row = 0; row < h; row++) {
+        memcpy(gIsoWindowBuffer + (y + row) * gIsoVirtualWidth + x,
+               gIsoVirtualBuffer + (y + row) * gIsoVirtualWidth + x,
+               w);
+    }
+}
+
 static void isoWindowRefreshRect(Rect* rect)
 {
+    isoBlitVirtualToWindow(rect);
     windowRefreshRect(gIsoWindow, rect);
 }
 
-// 0x483EE4
 static void isoWindowRefreshRectGame(Rect* rect)
 {
     Rect rectToUpdate;
@@ -1830,12 +1884,10 @@ static void isoWindowRefreshRectGame(Rect* rect)
         return;
     }
 
-    // CE: Clear dirty rect to prevent most of the visual artifacts near map
-    // edges.
-    bufferFill(gIsoWindowBuffer + rectToUpdate.top * rectGetWidth(&gIsoWindowRect) + rectToUpdate.left,
+    bufferFill(gIsoVirtualBuffer + rectToUpdate.top * gIsoVirtualWidth + rectToUpdate.left,
         rectGetWidth(&rectToUpdate),
         rectGetHeight(&rectToUpdate),
-        rectGetWidth(&gIsoWindowRect),
+        gIsoVirtualWidth,
         0);
 
     tileRenderFloorsInRect(&rectToUpdate, gElevation);
@@ -1843,7 +1895,7 @@ static void isoWindowRefreshRectGame(Rect* rect)
     tileRenderRoofsInRect(&rectToUpdate, gElevation);
     _obj_render_post_roof(&rectToUpdate, gElevation);
 
-    tile_hires_stencil_draw(&rectToUpdate, gIsoWindowBuffer, rectGetWidth(&gIsoWindowRect), rectGetHeight(&gIsoWindowRect));
+    tile_hires_stencil_draw(&rectToUpdate, gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight);
 }
 
 // 0x483F44
