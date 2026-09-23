@@ -5471,7 +5471,78 @@ int wmMapMarkMapEntranceState(int mapIdx, int elevation, int state)
     return 0;
 }
 
-// FISSION: F1's town-discovery model. Each of F1's towns is revealed when
+// F1 ENDGAME
+// Returns the map index to load instead of [mapIdx] when the current area
+// has been destroyed by its endgame event, or [mapIdx] unchanged if no
+// substitution applies.
+//
+// Mirrors LoadTownMap from Fallout 1 CE:
+//   - GVAR_MASTER_BLOWN fires CHILDEAD for the Cathedral
+//   - GVAR_VATS_BLOWN fires MBDEAD for the Military Base
+//
+// F1 CE has no Brotherhood equivalent; BRODEAD.MAP is present in F1's
+// maps.txt but nothing in vanilla routes to it. I think..
+//
+// When a substitution occurs and the location pointers are non-null, they
+// are rewritten to the dead map's first start point, because the original
+// entrance coordinates belong to the pre-destruction layout and may not
+// exist in the dead map.
+//
+// Area indices are F1's TOWN_* order, which the F1 conversion preserves
+// in city.txt — see f1CityXgvar above for the authoritative list.
+static int wmF1ApplyDestroyedMapOverride(int areaIdx, int mapIdx,
+    int* elevationPtr, int* tilePtr, int* rotationPtr)
+{
+    if (!IS_FALLOUT_1() || mapIdx < 0) {
+        return mapIdx;
+    }
+
+    const int F1_AREA_MILITARY_BASE = 8;
+    const int F1_AREA_CATHEDRAL = 11;
+
+    const char* deadName = nullptr;
+    if (areaIdx == F1_AREA_CATHEDRAL
+        && gameGetGlobalVar(F1_GVAR_MASTER_BLOWN) != 0) {
+        deadName = "childead";
+    } else if (areaIdx == F1_AREA_MILITARY_BASE
+        && gameGetGlobalVar(F1_GVAR_VATS_BLOWN) != 0) {
+        deadName = "mbdead";
+    }
+
+    if (deadName == nullptr) {
+        return mapIdx;
+    }
+
+    char nameBuf[16];
+    snprintf(nameBuf, sizeof(nameBuf), "%s.MAP", deadName);
+    int deadIdx = wmMapMatchNameToIdx(nameBuf);
+    if (deadIdx == -1 || deadIdx == mapIdx) {
+        // Dead map missing or already current; leave the load alone.
+        // This can happen on a modded maps.txt that drops the dead map.
+        return mapIdx;
+    }
+
+    debugPrint("\n>>> wmF1ApplyDestroyedMapOverride: area %d map %d -> %s (map %d)",
+        areaIdx, mapIdx, nameBuf, deadIdx);
+
+    if (elevationPtr != nullptr && tilePtr != nullptr && rotationPtr != nullptr) {
+        MapInfo* deadMap = &wmMapInfoList[deadIdx];
+        if (deadMap->startPointsLength > 0) {
+            MapStartPointInfo* sp = &deadMap->startPoints[0];
+            *elevationPtr = sp->elevation;
+            *tilePtr = sp->tile;
+            *rotationPtr = sp->rotation;
+        } else {
+            *elevationPtr = -1;
+            *tilePtr = -1;
+            *rotationPtr = -1;
+        }
+    }
+
+    return deadIdx;
+}
+
+// F1's town-discovery model. Each of F1's towns is revealed when
 // its GVAR is set to 1 by a script. F2's discovery model is proximity-based
 // and reads a different set of globals, so we sync from F1's globals here.
 //
@@ -5751,6 +5822,13 @@ static int wmWorldMapFunc(int a1)
                                 rc = -1;
                                 break;
                             }
+
+                            // F1 ENDGAME
+                            // Cathedral -> CHILDEAD / Military Base -> MBDEAD once the corresponding
+                            // endgame event has fired. The dead map's first start point replaces
+                            // the original entrance location.
+                            map = wmF1ApplyDestroyedMapOverride(wmGenData.currentAreaId, map,
+                                &elevation, &tile, &rotation);
 
                             // Set the exact entrance location (elevation, tile, rotation) before loading the map
                             mapSetEnteringLocation(elevation, tile, rotation);
@@ -9009,9 +9087,18 @@ static int wmTownMapFunc(int* mapIdxPtr)
                     }
                 }
 
-                *mapIdxPtr = entrance->map;
+                int elevation = entrance->elevation;
+                int tile = entrance->tile;
+                int rotation = entrance->rotation;
 
-                mapSetEnteringLocation(entrance->elevation, entrance->tile, entrance->rotation);
+                // F1 ENDGAME
+                // Cathedral -> CHILDEAD / Military Base -> MBDEAD once the corresponding
+                // endgame event has fired. The dead map's first start point replaces
+                // the entrance location.
+                *mapIdxPtr = wmF1ApplyDestroyedMapOverride(wmGenData.currentAreaId,
+                    entrance->map, &elevation, &tile, &rotation);
+
+                mapSetEnteringLocation(elevation, tile, rotation);
 
                 break;
             }
