@@ -11,7 +11,7 @@
 #include "platform_compat.h"
 #include "scripts.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 
 namespace fallout {
 

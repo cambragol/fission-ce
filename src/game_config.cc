@@ -1,5 +1,5 @@
 #include "game_config.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 
 #include <stdio.h>
 #include <string.h>
