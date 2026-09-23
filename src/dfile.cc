@@ -11,6 +11,8 @@
 
 #include <fpattern/fpattern.h>
 
+#include "f1_lzss.h"
+#include "game_version.h"
 #include "platform_compat.h"
 
 namespace fallout {
@@ -38,6 +40,10 @@ namespace fallout {
 
 // Specifies that [DFile] has unget compressed character.
 #define DFILE_HAS_COMPRESSED_UNGETC (0x10)
+
+// Specifies that [DFile] was pre-decoded into [decompressionBuffer] at open
+// time. Used for LZSS (Fallout 1) entries.
+#define DFILE_PREDECODED (0x20)
 
 static int dbaseFindEntryByFilePath(const void* file, const void* entryName);
 static DFile* dfileOpenInternal(DBase* dbase, const char* filename, const char* mode, DFile* dfile);
@@ -72,6 +78,209 @@ static char* normalizePathForDat(const char* path)
     return normalizedPath;
 }
 
+// Reads a big-endian uint32.
+static int f1ReadBE32(FILE* stream, unsigned int* out)
+{
+    unsigned char b[4];
+    if (fread(b, 1, 4, stream) != 4) return -1;
+    *out = ((unsigned int)b[0] << 24)
+        | ((unsigned int)b[1] << 16)
+        | ((unsigned int)b[2] << 8)
+        | (unsigned int)b[3];
+    return 0;
+}
+
+// qsort comparator so entries are bsearch-able, same as F2 path.
+static int dbaseEntryPathCompare(const void* a, const void* b)
+{
+    const DBaseEntry* ea = (const DBaseEntry*)a;
+    const DBaseEntry* eb = (const DBaseEntry*)b;
+    return compat_stricmp(ea->path, eb->path);
+}
+
+// Parses a classic Fallout 1 .DAT file (big-endian nested assoc array).
+//
+// On success returns a DBase with [dataOffset] = 0 because F1 entry offsets
+// are already absolute. On failure returns nullptr and frees anything it
+// allocated.
+static DBase* dbaseOpenFallout1(FILE* stream, int fileSize, const char* filePath)
+{
+    (void)fileSize;
+
+    // --- All locals declared up front so the cleanup gotos don't skip any
+    // --- initialization. ---
+    unsigned int rootCount = 0;
+    unsigned int rootMax = 0;
+    unsigned int rootDataSize = 0;
+    unsigned int rootListPtr = 0;
+
+    char** dirNames = nullptr;
+
+    int cap = 256;
+    int count = 0;
+    DBaseEntry* entries = nullptr;
+
+    DBase* dbase = nullptr;
+
+    unsigned int i;
+
+    if (f1ReadBE32(stream, &rootCount) != 0) return nullptr;
+    if (f1ReadBE32(stream, &rootMax) != 0) return nullptr;
+    if (f1ReadBE32(stream, &rootDataSize) != 0) return nullptr;
+    if (f1ReadBE32(stream, &rootListPtr) != 0) return nullptr;
+
+    if (rootCount == 0 || rootCount > 10000) return nullptr;
+    if (rootDataSize > 1024) return nullptr;
+
+    // Directory names.
+    dirNames = (char**)calloc(rootCount, sizeof(char*));
+    if (dirNames == nullptr) return nullptr;
+
+    for (i = 0; i < rootCount; i++) {
+        int nameLen = fgetc(stream);
+        if (nameLen <= 0 || nameLen > 255) goto err_names;
+
+        dirNames[i] = (char*)malloc(nameLen + 1);
+        if (dirNames[i] == nullptr) goto err_names;
+        if (fread(dirNames[i], 1, nameLen, stream) != (size_t)nameLen) goto err_names;
+        dirNames[i][nameLen] = '\0';
+
+        if (rootDataSize != 0) {
+            if (fseek(stream, rootDataSize, SEEK_CUR) != 0) goto err_names;
+        }
+    }
+
+    // Growable entry list.
+    entries = (DBaseEntry*)malloc(sizeof(DBaseEntry) * cap);
+    if (entries == nullptr) goto err_names;
+
+    for (i = 0; i < rootCount; i++) {
+        unsigned int subCount;
+        unsigned int subMax;
+        unsigned int subDataSize;
+        unsigned int subListPtr;
+
+        if (f1ReadBE32(stream, &subCount) != 0) goto err_entries;
+        if (f1ReadBE32(stream, &subMax) != 0) goto err_entries;
+        if (f1ReadBE32(stream, &subDataSize) != 0) goto err_entries;
+        if (f1ReadBE32(stream, &subListPtr) != 0) goto err_entries;
+
+        if (subDataSize != 16) goto err_entries; // sizeof(dir_entry)
+        if (subCount > 1000000) goto err_entries;
+
+        for (unsigned int j = 0; j < subCount; j++) {
+            int nameLen = fgetc(stream);
+            if (nameLen <= 0 || nameLen > 255) goto err_entries;
+
+            char nameBuf[256];
+            if (fread(nameBuf, 1, nameLen, stream) != (size_t)nameLen) goto err_entries;
+            nameBuf[nameLen] = '\0';
+
+            unsigned int flags;
+            unsigned int offset;
+            unsigned int length;
+            unsigned int fieldC;
+            if (f1ReadBE32(stream, &flags) != 0) goto err_entries;
+            if (f1ReadBE32(stream, &offset) != 0) goto err_entries;
+            if (f1ReadBE32(stream, &length) != 0) goto err_entries;
+            if (f1ReadBE32(stream, &fieldC) != 0) goto err_entries;
+
+            // Compose "<DIR>\\<NAME>".
+            char* path;
+            if (strcmp(dirNames[i], ".") == 0) {
+                // F1's top-level container is named ".". Its files live at the
+                // DAT root and are looked up by bare name.
+                path = (char*)malloc((size_t)nameLen + 1);
+                if (path == nullptr) goto err_entries;
+                memcpy(path, nameBuf, nameLen);
+                path[nameLen] = '\0';
+            } else {
+                size_t dirLen = strlen(dirNames[i]);
+                size_t totalLen = dirLen + 1 + (size_t)nameLen;
+                path = (char*)malloc(totalLen + 1);
+                if (path == nullptr) goto err_entries;
+                memcpy(path, dirNames[i], dirLen);
+                path[dirLen] = '\\';
+                memcpy(path + dirLen + 1, nameBuf, nameLen);
+                path[totalLen] = '\0';
+            }
+
+            if (count >= cap) {
+                int newCap = cap * 2;
+                DBaseEntry* grown = (DBaseEntry*)realloc(entries, sizeof(DBaseEntry) * newCap);
+                if (grown == nullptr) {
+                    free(path);
+                    goto err_entries;
+                }
+                entries = grown;
+                cap = newCap;
+            }
+
+            DBaseEntry* e = &entries[count++];
+            e->path = path;
+            e->dataOffset = (int)offset;
+            e->uncompressedSize = (int)length;
+            e->dataSize = (int)fieldC;
+
+            switch (flags & 0xF0) {
+            case 0x10:
+                e->compressionType = 2;
+                e->compressed = 1;
+                break; // LZSS
+            case 0x20:
+                e->compressionType = 0;
+                e->compressed = 0;
+                break; // raw
+            case 0x40:
+                e->compressionType = 3;
+                e->compressed = 1;
+                break; // chunked LZSS
+            default:
+                goto err_entries;
+            }
+
+            // For raw entries the two sizes are equal; normalize for safety.
+            if (e->compressionType == 0) {
+                e->dataSize = e->uncompressedSize;
+            }
+        }
+    }
+
+    qsort(entries, count, sizeof(DBaseEntry), dbaseEntryPathCompare);
+
+    dbase = (DBase*)malloc(sizeof(*dbase));
+    if (dbase == nullptr) goto err_entries;
+    memset(dbase, 0, sizeof(*dbase));
+
+    dbase->path = compat_strdup(filePath);
+    if (dbase->path == nullptr) {
+        free(dbase);
+        dbase = nullptr;
+        goto err_entries;
+    }
+    dbase->dataOffset = 0;
+    dbase->entriesLength = count;
+    dbase->entries = entries;
+    dbase->dfileHead = nullptr;
+
+    for (i = 0; i < rootCount; i++)
+        free(dirNames[i]);
+    free(dirNames);
+
+    falloutVersionSet(FALLOUT_VERSION_1);
+    return dbase;
+
+err_entries:
+    for (int k = 0; k < count; k++)
+        free(entries[k].path);
+    free(entries);
+err_names:
+    for (i = 0; i < rootCount; i++)
+        free(dirNames[i]);
+    free(dirNames);
+    return nullptr;
+}
+
 // Reads .DAT file contents.
 //
 // 0x4E4F58
@@ -81,6 +290,7 @@ DBase* dbaseOpen(const char* filePath)
 
     FILE* stream = compat_fopen(filePath, "rb");
     if (stream == nullptr) {
+        fprintf(stderr, "[DB] dbaseOpen('%s') - fopen FAILED\n", filePath);
         return nullptr;
     }
 
@@ -92,9 +302,45 @@ DBase* dbaseOpen(const char* filePath)
 
     memset(dbase, 0, sizeof(*dbase));
 
-    // Get file size, and reposition stream to read footer, which contains two
-    // 32-bits ints.
+    // Get file size.
     int fileSize = getFileSize(stream);
+    fprintf(stderr, "[DB] dbaseOpen('%s') size=%d\n", filePath, fileSize);
+
+    // --- Fallout 1 detection ---
+    // F1 DATs start with a big-endian count of root directories.
+    // F2/FISSION DATs start with "DAT\x1A" (0x4441541A as BE), which is
+    // far above the plausible root-count range, so this check skips them.
+    if (fileSize >= 16) {
+        unsigned char sig[4];
+        if (fseek(stream, 0, SEEK_SET) == 0 && fread(sig, 1, 4, stream) == 4) {
+            unsigned int rootCount = ((unsigned int)sig[0] << 24)
+                | ((unsigned int)sig[1] << 16)
+                | ((unsigned int)sig[2] << 8)
+                | (unsigned int)sig[3];
+
+            fprintf(stderr, "[DB] first4=%02X %02X %02X %02X  BE_rootCount=%u\n",
+                sig[0], sig[1], sig[2], sig[3], rootCount);
+
+            if (rootCount > 0 && rootCount < 10000) {
+                if (fseek(stream, 0, SEEK_SET) == 0) {
+                    fprintf(stderr, "[DB] attempting F1 parse\n");
+                    DBase* f1 = dbaseOpenFallout1(stream, fileSize, filePath);
+                    if (f1 != nullptr) {
+                        fprintf(stderr, "[DB] F1 parse succeeded\n");
+                        fclose(stream);
+                        return f1;
+                    }
+                    fprintf(stderr, "[DB] F1 parse failed, falling through to F2\n");
+                }
+                if (fseek(stream, 0, SEEK_SET) != 0) {
+                    goto err;
+                }
+            }
+        }
+    }
+    // --- end Fallout 1 detection ---
+
+    // Reposition stream to read footer, which contains two 32-bit ints.
     if (fseek(stream, fileSize - sizeof(int) * 2, SEEK_SET) != 0) {
         goto err;
     }
@@ -106,9 +352,6 @@ DBase* dbaseOpen(const char* filePath)
     }
 
     // Read the size of entire dbase content.
-    //
-    // NOTE: It appears that this approach allows existence of arbitrary data in
-    // the beginning of the .DAT file.
     int dbaseDataSize;
     if (fread(&dbaseDataSize, sizeof(dbaseDataSize), 1, stream) != 1) {
         goto err;
@@ -166,27 +409,25 @@ DBase* dbaseOpen(const char* filePath)
         if (fread(&(entry->dataOffset), sizeof(entry->dataOffset), 1, stream) != 1) {
             break;
         }
+
+        entry->compressionType = (entry->compressed == 1) ? 1 : 0;
     }
 
     if (entryIndex < dbase->entriesLength) {
-        // We haven't reached the end, which means there was an error while
-        // reading entries.
         goto err;
     }
 
     dbase->path = compat_strdup(filePath);
     dbase->dataOffset = fileSize - dbaseDataSize;
 
-    fclose(stream);
+    fprintf(stderr, "[DB] F2 parse succeeded: %d entries\n", dbase->entriesLength);
 
+    fclose(stream);
     return dbase;
 
 err:
-
     dbaseClose(dbase);
-
     fclose(stream);
-
     return nullptr;
 }
 
@@ -311,7 +552,7 @@ int dfileClose(DFile* stream)
 
     int rc = 0;
 
-    if (stream->entry->compressed == 1) {
+    if (stream->entry->compressed == 1 && stream->entry->compressionType == 0 && stream->decompressionStream != nullptr) {
         if (inflateEnd(stream->decompressionStream) != Z_OK) {
             rc = -1;
         }
@@ -524,12 +765,18 @@ size_t dfileRead(void* ptr, size_t size, size_t count, DFile* stream)
     }
 
     size_t bytesRead;
-    if (stream->entry->compressed == 1) {
+    if ((stream->flags & DFILE_PREDECODED) != 0) {
+        if (bytesToRead != 0) {
+            long src = stream->position + extraBytesRead;
+            memcpy(ptr, stream->decompressionBuffer + src, bytesToRead);
+        }
+        bytesRead = bytesToRead + extraBytesRead;
+        stream->position += bytesRead;
+    } else if (stream->entry->compressed == 1) {
         if (!dfileReadCompressed(stream, ptr, bytesToRead)) {
             stream->flags |= DFILE_ERROR;
             return false;
         }
-
         bytesRead = bytesToRead;
     } else {
         bytesRead = fread(ptr, 1, bytesToRead, stream->stream) + extraBytesRead;
@@ -559,6 +806,31 @@ int dfileSeek(DFile* stream, long offset, int origin)
 
     if ((stream->flags & DFILE_ERROR) != 0) {
         return 1;
+    }
+
+    if ((stream->flags & DFILE_PREDECODED) != 0) {
+        long offsetFromBeginning;
+        switch (origin) {
+        case SEEK_SET:
+            offsetFromBeginning = offset;
+            break;
+        case SEEK_CUR:
+            offsetFromBeginning = stream->position + offset;
+            break;
+        case SEEK_END:
+            offsetFromBeginning = stream->entry->uncompressedSize + offset;
+            break;
+        default:
+            return 1;
+        }
+
+        if (offsetFromBeginning < 0 || offsetFromBeginning >= stream->entry->uncompressedSize) {
+            return 1;
+        }
+
+        stream->position = offsetFromBeginning;
+        stream->flags &= ~(DFILE_HAS_UNGETC | DFILE_EOF);
+        return 0;
     }
 
     if ((stream->flags & DFILE_TEXT) != 0) {
@@ -753,11 +1025,8 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
         goto err;
     }
 
-    if (entry->compressed == 1) {
-        // Entry is compressed, setup decompression stream and decompression
-        // buffer. This step is not needed when previous instance of dfile is
-        // passed via parameter, which might already have stream and
-        // buffer allocated.
+    if (entry->compressed == 1 && entry->compressionType == 1) {
+        // ---- ZLIB (Fallout 2 / FISSION format) ----
         if (dfile->decompressionStream == nullptr) {
             dfile->decompressionStream = (z_streamp)malloc(sizeof(*dfile->decompressionStream));
             if (dfile->decompressionStream == nullptr) {
@@ -779,15 +1048,62 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
         if (inflateInit(dfile->decompressionStream) != Z_OK) {
             goto err;
         }
-    } else {
-        // Entry is not compressed, there is no need to keep decompression
-        // stream and decompression buffer (in case [dfile] was passed via
-        // parameter).
+    } else if (entry->compressionType == 2 || entry->compressionType == 3) {
+        // ---- LZSS (Fallout 1) ----
+        // Free any zlib resources from a previous use of this DFile.
         if (dfile->decompressionStream != nullptr) {
             free(dfile->decompressionStream);
             dfile->decompressionStream = nullptr;
         }
+        if (dfile->decompressionBuffer != nullptr) {
+            free(dfile->decompressionBuffer);
+            dfile->decompressionBuffer = nullptr;
+        }
 
+        dfile->decompressionBuffer = (unsigned char*)malloc(entry->uncompressedSize);
+        if (dfile->decompressionBuffer == nullptr) {
+            goto err;
+        }
+
+        if (entry->compressionType == 2) {
+            int decoded = f1LzssDecode(dfile->stream, dfile->decompressionBuffer, entry->dataSize);
+            if (decoded != entry->uncompressedSize) {
+                fprintf(stderr, "[DFO] LZSS short: '%s' got %d, want %d\n",
+                    entry->path, decoded, entry->uncompressedSize);
+                goto err;
+            }
+        } else {
+            unsigned char* out = dfile->decompressionBuffer;
+            int remaining = entry->uncompressedSize;
+
+            while (remaining > 0) {
+                unsigned char hdr[2];
+                if (fread(hdr, 1, 2, dfile->stream) != 2) goto err;
+                unsigned int h = ((unsigned int)hdr[0] << 8) | hdr[1];
+
+                if (h & 0x8000) {
+                    unsigned int rawLen = h & 0x7FFF;
+                    if ((int)rawLen > remaining) rawLen = (unsigned int)remaining;
+                    if (fread(out, 1, rawLen, dfile->stream) != rawLen) goto err;
+                    out += rawLen;
+                    remaining -= (int)rawLen;
+                } else {
+                    if (h == 0) goto err;
+                    int decoded = f1LzssDecode(dfile->stream, out, h);
+                    if (decoded <= 0 || decoded > remaining) goto err;
+                    out += decoded;
+                    remaining -= decoded;
+                }
+            }
+        }
+
+        dfile->flags |= DFILE_PREDECODED;
+    } else {
+        // ---- UNCOMPRESSED ----
+        if (dfile->decompressionStream != nullptr) {
+            free(dfile->decompressionStream);
+            dfile->decompressionStream = nullptr;
+        }
         if (dfile->decompressionBuffer != nullptr) {
             free(dfile->decompressionBuffer);
             dfile->decompressionBuffer = nullptr;
@@ -801,7 +1117,6 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
     return dfile;
 
 err:
-
     if (dfile != nullptr) {
         dfileClose(dfile);
     }
@@ -812,6 +1127,27 @@ err:
 // 0x4E5F9C
 static int dfileReadCharInternal(DFile* stream)
 {
+    // PRE-DECODED (F1 LZSS) path — must come first.
+    if ((stream->flags & DFILE_PREDECODED) != 0) {
+        if (stream->position >= stream->entry->uncompressedSize) {
+            return -1;
+        }
+
+        int ch = stream->decompressionBuffer[stream->position];
+        stream->position++;
+
+        if ((stream->flags & DFILE_TEXT) != 0 && ch == '\r') {
+            if (stream->position < stream->entry->uncompressedSize
+                && stream->decompressionBuffer[stream->position] == '\n') {
+                ch = '\n';
+                stream->position++;
+            }
+        }
+
+        return ch;
+    }
+
+    // ZLIB (F2) path.
     if (stream->entry->compressed == 1) {
         char ch;
         if (!dfileReadCompressed(stream, &ch, sizeof(ch))) {
@@ -819,16 +1155,12 @@ static int dfileReadCharInternal(DFile* stream)
         }
 
         if ((stream->flags & DFILE_TEXT) != 0) {
-            // NOTE: I'm not sure if they are comparing as chars or ints. Since
-            // character literals are ints, let's cast read characters to int as
-            // well.
             if (ch == '\r') {
                 char nextCh;
                 if (dfileReadCompressed(stream, &nextCh, sizeof(nextCh))) {
                     if (nextCh == '\n') {
                         ch = nextCh;
                     } else {
-                        // NOTE: Uninline.
                         dfileUngetCompressed(stream, nextCh & 0xFF);
                     }
                 }
@@ -838,6 +1170,7 @@ static int dfileReadCharInternal(DFile* stream)
         return ch & 0xFF;
     }
 
+    // RAW path.
     if (stream->position >= stream->entry->uncompressedSize) {
         return -1;
     }
@@ -845,7 +1178,6 @@ static int dfileReadCharInternal(DFile* stream)
     int ch = fgetc(stream->stream);
     if (ch != -1) {
         if ((stream->flags & DFILE_TEXT) != 0) {
-            // This is a text stream, attempt to detect \r\n sequence.
             if (ch == '\r') {
                 if (stream->position + 1 < stream->entry->uncompressedSize) {
                     int nextCh = fgetc(stream->stream);

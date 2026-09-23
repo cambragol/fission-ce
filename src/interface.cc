@@ -21,6 +21,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "input.h"
 #include "item.h"
@@ -714,9 +715,14 @@ int interfaceInit()
     // Add an extra shift right for wide interfaces (more room for ammometre)
     extraShift = gInterfaceBarIsWide ? 4 : 0;
 
+    int backgroundHeight = backgroundFrmImage.getHeight();
+    if (backgroundHeight > INTERFACE_BAR_HEIGHT) {
+        backgroundHeight = INTERFACE_BAR_HEIGHT;
+    }
+
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
-        backgroundFrmImage.getHeight(),
+        backgroundHeight,
         backgroundFrmImage.getWidth(),
         gInterfaceWindowBuffer,
         gInterfaceBarWidth);
@@ -3078,7 +3084,7 @@ static int indicatorBarInit()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "intrface.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("intrface.msg"));
 
     if (rc != -1) {
         if (!messageListLoad(&messageList, path)) {

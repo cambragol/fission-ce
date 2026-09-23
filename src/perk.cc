@@ -218,13 +218,30 @@ int perksInit()
         messageListItem.num = 101 + perk;
         if (messageListGetItem(&gPerksMessageList, &messageListItem)) {
             gPerkDescriptions[perk].name = messageListItem.text;
+        } else {
+            gPerkDescriptions[perk].name = nullptr;
         }
 
         messageListItem.num = 1101 + perk;
         if (messageListGetItem(&gPerksMessageList, &messageListItem)) {
             gPerkDescriptions[perk].description = messageListItem.text;
+        } else {
+            gPerkDescriptions[perk].description = nullptr;
         }
     }
+
+    // Discover the runtime perk count by walking names we just populated and
+    // stopping at the first missing one. Fallout 1 has 64, Fallout 2 has 119.
+    // PERK_COUNT remains the array-sizing maximum.
+    gPerkCount = 0;
+    for (int perk = 0; perk < PERK_COUNT; perk++) {
+        if (gPerkDescriptions[perk].name == nullptr) {
+            break;
+        }
+        gPerkCount = perk + 1;
+    }
+
+    debugPrint("[GAME] Discovered %d perks (engine max %d)\n", gPerkCount, PERK_COUNT);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_PERK, &gPerksMessageList);
 

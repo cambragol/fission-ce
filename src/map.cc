@@ -21,6 +21,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -746,6 +747,7 @@ char* mapGetCityName(int map)
     MessageListItem messageListItem;
 
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
+        // mod path unchanged
         int idx = gModAreaIndex[city];
         if (idx >= 0) {
             const char* modName = wmGetAreaModName(city);
@@ -758,12 +760,14 @@ char* mapGetCityName(int map)
             }
         }
         return _aErrorF2;
-    } else {
-        // Vanilla area: use original formula (1500 + city)
-        messageListItem.num = 1500 + city;
-        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
-        return name ? name : _aErrorF2;
     }
+
+    // Vanilla area: short-name block lives at different offsets in the two games.
+    // F1: {500}..., F2: {1500}...
+    const int base = IS_FALLOUT_1() ? 500 : 1500;
+    messageListItem.num = base + city;
+    char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+    return name ? name : _aErrorF2;
 }
 
 // 0x48268C
@@ -1212,20 +1216,24 @@ static int mapLoad(File* stream)
         object->id = scriptsNewObjectId();
         script->ownerId = object->id;
         script->owner = object;
-        _scr_spatials_disable();
-        scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
-        _scr_spatials_enable();
 
-        error = "Error Setting up random encounter";
-        if (wmSetupRandomEncounter() == -1) {
-            goto err;
+        if (!gSuppressMapEnterScript) {
+            _scr_spatials_disable();
+            scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
+            _scr_spatials_enable();
+
+            error = "Error Setting up random encounter";
+            if (wmSetupRandomEncounter() == -1) {
+                goto err;
+            }
         }
     }
+    gSuppressMapEnterScript = false;
 
     error = nullptr;
 
 err:
-
+    gSuppressMapEnterScript = false;
     if (error != nullptr) {
         char message[100]; // TODO: Size is probably wrong.
         snprintf(message, sizeof(message), "%s while loading map.", error);
