@@ -5,6 +5,13 @@
 # Windows 1252 encoding
 #
 
+{33}{}{Tu oferta es un insulto.}
+{34}{}{Hablemos en serio.}
+{35}{}{Casi tenemos un trato...}
+
+{36}{}{Primero apaga ese aparato. Luego haremos negocios.}
+{37}{}{No negocio con aparatos como ese. Quítalo de la mesa.}
+
 #
 # Preferences
 #
