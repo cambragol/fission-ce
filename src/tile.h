@@ -32,6 +32,7 @@ void tileDisable();
 void tileEnable();
 void tileWindowRefreshRect(Rect* rect, int elevation);
 void tileWindowRefresh();
+void tileSetViewport(unsigned char* buffer, int width, int height, int pitch);
 int tileSetCenter(int tile, int flags);
 void tile_toggle_roof(bool refresh);
 int tileRoofIsVisible();
