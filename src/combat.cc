@@ -1981,10 +1981,10 @@ static const char* gCritDataMemberKeys[CRIT_DATA_MEMBER_COUNT] = {
 };
 
 static bool gBurstModEnabled = false;
-static int gBurstModCenterMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-static int gBurstModCenterDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-static int gBurstModTargetMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-static int gBurstModTargetDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+static int gBurstModCenterMultiplier = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_MULTIPLIER;
+static int gBurstModCenterDivisor = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_DIVISOR;
+static int gBurstModTargetMultiplier = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_MULTIPLIER;
+static int gBurstModTargetDivisor = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_DIVISOR;
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
 

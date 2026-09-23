@@ -1879,6 +1879,8 @@ static bool isCanonicalMasterDat(long fileSize, FalloutVersion version)
         switch (fileSize) {
         case 333177805: // Fallout 2 (English, original release)
             return true;
+        case 333177817: // Fallout 2 Steam (English)
+            return true;
             // Other regional / re-release sizes will go here:
             // case ...: return true; // Fallout 2 (German)?
             // case ...: return true; // Fallout 2 (GOG / Steam re-release)?
