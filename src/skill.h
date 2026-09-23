@@ -2,6 +2,7 @@
 #define SKILL_H
 
 #include "db.h"
+#include "game_content.h"
 #include "obj_types.h"
 #include "proto_types.h"
 #include "skill_defs.h"
@@ -45,7 +46,7 @@ char* skillsGetGenericResponse(Object* critter, bool isDude);
 // Returns true if skill is valid.
 static inline bool skillIsValid(int skill)
 {
-    return skill >= 0 && skill < SKILL_COUNT;
+    return skill >= 0 && skill < gSkillCount;
 }
 
 } // namespace fallout

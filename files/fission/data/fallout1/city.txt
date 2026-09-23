@@ -1,0 +1,160 @@
+; Generated from Fallout 1 worldmap.cc
+[Area 00]
+area_name=00_Vault 13
+world_pos=823,72
+start_state=On
+size=Large
+townmap_art_idx=156
+townmap_label_art_idx=137
+label_art_y=0
+entrance_0=On,214,309,V13ENT,-1,-1,0
+entrance_1=Off,283,288,VAULT13,-1,-1,0
+entrance_2=Off,304,243,VAULT13,-1,-1,0
+entrance_3=Off,321,210,VAULT13,-1,-1,0
+saved=yes
+
+[Area 01]
+area_name=01_Vault 15
+world_pos=1273,72
+start_state=On
+size=Large
+townmap_art_idx=157
+townmap_label_art_idx=137
+label_art_y=18
+entrance_0=On,80,256,VAULTENT,-1,-1,0
+entrance_1=Off,119,215,VAULTBUR,-1,-1,0
+entrance_2=Off,310,193,VAULTBUR,-1,-1,0
+entrance_3=Off,147,296,VAULTBUR,-1,-1,0
+saved=yes
+
+[Area 02]
+area_name=02_Shady Sands
+world_pos=1073,72
+start_state=On
+size=Large
+townmap_art_idx=158
+townmap_label_art_idx=137
+label_art_y=36
+entrance_0=On,170,198,SHADYW,-1,-1,0
+entrance_1=Off,282,259,SHADYE,-1,-1,0
+entrance_2=Off,326,223,SHADYE,-1,-1,0
+saved=yes
+
+[Area 03]
+area_name=03_Junktown
+world_pos=873,522
+start_state=On
+size=Large
+townmap_art_idx=159
+townmap_label_art_idx=137
+label_art_y=54
+entrance_0=On,412,323,JUNKENT,-1,-1,0
+entrance_1=Off,316,263,JUNKKILL,-1,-1,0
+entrance_2=Off,212,285,JUNKCSNO,-1,-1,0
+saved=yes
+
+[Area 04]
+area_name=04_Raiders
+world_pos=1123,172
+start_state=On
+size=Large
+townmap_art_idx=160
+townmap_label_art_idx=137
+label_art_y=72
+entrance_0=On,253,404,RAIDERS,-1,-1,0
+saved=yes
+
+[Area 05]
+area_name=05_Necropolis
+world_pos=1123,672
+start_state=On
+size=Large
+townmap_art_idx=161
+townmap_label_art_idx=137
+label_art_y=90
+entrance_0=On,410,271,HOTEL,-1,-1,0
+entrance_1=Off,251,230,HALLDED,-1,-1,0
+entrance_2=Off,91,213,WATRSHD,-1,-1,0
+saved=yes
+
+[Area 06]
+area_name=06_The Hub
+world_pos=873,722
+start_state=On
+size=Large
+townmap_art_idx=162
+townmap_label_art_idx=137
+label_art_y=108
+entrance_0=On,250,84,HUBENT,-1,-1,0
+entrance_1=Off,217,178,HUBDWNTN,-1,-1,0
+entrance_2=Off,140,144,HUBHEIGT,-1,-1,0
+entrance_3=Off,318,143,HUBOLDTN,-1,-1,0
+entrance_4=Off,284,244,HUBWATER,-1,-1,0
+entrance_5=Off,137,222,DETHCLAW,-1,-1,0
+saved=yes
+
+[Area 07]
+area_name=07_Brotherhood
+world_pos=623,472
+start_state=On
+size=Large
+townmap_art_idx=163
+townmap_label_art_idx=137
+label_art_y=126
+entrance_0=On,184,173,BROHDENT,-1,-1,0
+entrance_1=Off,266,200,BROHD12,-1,-1,0
+entrance_2=Off,148,269,BROHD12,-1,-1,0
+entrance_3=Off,292,312,BROHD34,-1,-1,0
+entrance_4=Off,173,379,BROHD34,-1,-1,0
+saved=yes
+
+[Area 08]
+area_name=08_Military Base
+world_pos=173,72
+start_state=On
+size=Large
+townmap_art_idx=164
+townmap_label_art_idx=137
+label_art_y=144
+entrance_0=On,209,89,MBENT,-1,-1,0
+saved=yes
+
+[Area 09]
+area_name=09_The Glow
+world_pos=1223,1272
+start_state=On
+size=Large
+townmap_art_idx=165
+townmap_label_art_idx=137
+label_art_y=162
+entrance_0=On,352,155,GLOWENT,-1,-1,0
+entrance_1=Off,346,201,GLOW1,-1,-1,0
+saved=yes
+
+[Area 10]
+area_name=10_Boneyard
+world_pos=773,922
+start_state=On
+size=Large
+townmap_art_idx=166
+townmap_label_art_idx=137
+label_art_y=180
+entrance_0=On,288,245,LAADYTUM,-1,-1,0
+entrance_1=Off,241,201,LABLADES,-1,-1,0
+entrance_2=Off,191,191,LAFOLLWR,-1,-1,0
+entrance_3=Off,358,120,LAGUNRUN,-1,-1,0
+entrance_4=Off,297,165,LARIPPER,-1,-1,0
+saved=yes
+
+[Area 11]
+area_name=11_Cathedral
+world_pos=773,1022
+start_state=On
+size=Large
+townmap_art_idx=167
+townmap_label_art_idx=137
+label_art_y=198
+entrance_0=On,98,334,CHILDRN1,-1,-1,0
+entrance_1=Off,241,319,CHILDRN1,-1,-1,0
+saved=yes
+

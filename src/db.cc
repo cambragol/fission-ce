@@ -46,6 +46,10 @@ static FileList* gFileListHead;
 // 0x4C5D30
 int dbOpen(const char* filePath1, const char* filePath2)
 {
+    fprintf(stderr, "[DB] dbOpen('%s', '%s')\n",
+        filePath1 ? filePath1 : "(null)",
+        filePath2 ? filePath2 : "(null)");
+
     if (filePath1 != nullptr) {
         if (!xbaseOpen(filePath1)) {
             return -1;
