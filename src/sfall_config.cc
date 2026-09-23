@@ -249,9 +249,9 @@ static ModDefaults modDefaultsGet()
     // not mentioned inherits the base value.
     //
     if (IS_FALLOUT_1()) {
-        d.start_year  = 2161;
-        d.start_month = 11;   // zero-based: 11 = December
-        d.start_day   = 4;    // zero-based: 4 = the 5th
+        d.start_year = 2161;
+        d.start_month = 11; // zero-based: 11 = December
+        d.start_day = 4; // zero-based: 4 = the 5th
         d.worldmap_trail_markers = true;
     }
 
