@@ -1,0 +1,98 @@
+;
+; Party Member valid option data
+;
+; FISSION — Fallout 1 companion roster
+;
+; Generated for Fallout 1 mode. Replaces Fallout 2's party.txt, which
+; references F2 pids that do not exist in F1's proto tree and cause
+; aiSave / partyMemberSave / protoGetProto to fail on save.
+;
+; Source of companion pids:
+;   Fallout 1 CE src/game/party.cc — partyFixMultipleMembers() switch
+;
+;     Ian     = 0x100004C = 16777292
+;     Dogmeat = 0x100007A = 16777338
+;     Tycho   = 0x10000D2 = 16777426
+;     Katja   = 0x100012E = 16777518
+;     Tandi   = 0x100003F = 16777279
+;
+; Note: Level-up float messages live in game\misc.msg.
+;
+
+[Party Member 0]   ; Player -- Not actually used!
+party_member_pid=16777216
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
+
+[Party Member 1]   ; pMIan_PID
+party_member_pid=16777292
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
+
+[Party Member 2]   ; pMDog_PID
+party_member_pid=16777338
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
+
+[Party Member 3]   ; pMTycho_PID
+party_member_pid=16777426
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
+
+[Party Member 4]   ; pMKatja_PID
+party_member_pid=16777518
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
+
+[Party Member 5]   ; pMTandi_PID
+party_member_pid=16777279
+area_attack_mode=always, sometimes, be_sure, be_careful, be_absolutely_sure
+attack_who=whomever_attacking_me, strongest, weakest, whomever, closest
+best_weapon=no_pref, melee, melee_over_ranged, ranged_over_melee, ranged, unarmed, unarmed_over_thrown, random
+chem_use=clean, stims_when_hurt_little, stims_when_hurt_lots, sometimes, anytime, always
+distance=stay_close, charge, snipe, on_your_own, stay
+run_away_mode=none, coward, finger_hurts, bleeding, not_feeling_good, tourniquet, never
+disposition=none, custom, coward, defensive, aggressive, berserk
+level_minimum=0
+level_up_every=0
+level_pids=-1
