@@ -154,10 +154,10 @@ struct ModSettings {
     std::string premade_characters_file_names = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FILE_NAMES;
     std::string premade_characters_face_fids = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FACE_FIDS;
     bool burst_mod_enabled = MOD_CONFIG_DEFAULT_BURST_MOD_ENABLED;
-    int burst_mod_center_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-    int burst_mod_center_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-    int burst_mod_target_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-    int burst_mod_target_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+    int burst_mod_center_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_MULTIPLIER;
+    int burst_mod_center_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_DIVISOR;
+    int burst_mod_target_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_MULTIPLIER;
+    int burst_mod_target_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_DIVISOR;
     int dynamite_min_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MIN_DAMAGE;
     int dynamite_max_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MAX_DAMAGE;
     int plastic_explosive_min_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MIN_DAMAGE;
