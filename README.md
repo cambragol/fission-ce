@@ -18,8 +18,8 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 - **Authentic isometric, turn‑based experience** SPECIAL system, original Fallout gameplay
 - **True cross‑platform support**: Windows, macOS, Linux, iOS, Android, Web
 - **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
-- **Modular, customizable systems**—community mods plug in seamlessly
-- **100% compatible** with original Fallout 1 & 2 assets  (can't run Fallout 1 yet... one day)
+- **Modular, customizable systems** Community mods plug in seamlessly
+- **100% compatible** with original Fallout 1 & 2 assets
 - **Future‑proof**: easily extended for new content and Fallout 2 integration
 
 ---
@@ -64,19 +64,17 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 ## Mod/Game Compatibility
 
 **Fully supported**:
+- Fallout 1
 - Fallout 2
 - Fallout: Nevada
 - Fallout: Sonora
 
 **Not supported yet, maybe never**:
-- Fallout 1
 - Fallout Nevada or Sonora 'repacks'
 - Restoration Project
 - Fallout: Et Tu
 - Olympus 2207
 - Resurrection, Yesterday (untested)
-
-(For full Fallout 1 support see [Fallout1-CE](https://github.com/alexbatalov/fallout1-ce).)
 
 ---
 
@@ -85,13 +83,14 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 ### Prerequisites
 You must own **Fallout 2** (GOG, Steam, or Epic Games version) and have it fully installed. F.I.S.S.I.O.N. is a drop-in replacement for `Fallout2.exe` and requires the complete game data.
 
-**Supported base installations:**
-- **Vanilla Fallout 2** - The classic game
+**Supported 'Base' installations:**
+- **Vanilla Fallout 1** - The original game
+- **Vanilla Fallout 2** - The classic sequel
 - **Fallout: Nevada** - Russian total conversion mod
 - **Fallout: Sonora** - Russian total conversion mod
 
 ### Quick Installation
-1. **Ensure you have a working vanilla Fallout 2 installation**
+1. **Ensure you have a working supported 'Base' installation**
 2. **Download** the latest [F.I.S.S.I.O.N. release](https://github.com/cambragol/fission-ce/releases)
 3. **Extract** the F.I.S.S.I.O.N. files into your Fallout 2 folder
 4. **Run** `fallout-fission.exe` (Windows) or `fallout-fission.app` (macOS) instead of the original executable
@@ -138,26 +137,25 @@ After installation, your Fallout 2 folder should contain:
 Fallout 2/
 ├── fallout-fission.exe     # F.I.S.S.I.O.N. executable (Windows)
 ├── fallout-fission.app     # F.I.S.S.I.O.N. application (macOS)
-├── fission.dat            # Engine data file
-├── master.dat            # Original game data
-├── critter.dat           # Original game data
-├── patch000.dat          # Patch data (if present)
-├── data/                 # Game data folder
-│   ├── proto/           # Proto files (vanilla + mods)
-│   ├── text/            # Text files (vanilla + mods)
-│   └── maps/            # Map files
-└── data/lists/          # Auto-generated mod reports (created on first run)
+├── fission.dat             # Engine data file
+├── fission.cfg             # Engine configuration file (created on first run)
+├── master.dat              # Original game data
+├── critter.dat             # Original game data
+├── patch000.dat            # Patch data (if present)
+├── data/                   # Game data folder
+│   ├── proto/              # Proto files (vanilla + mods)
+│   ├── text/               # Text files (vanilla + mods)
+│   └── maps/               # Map files
+└── data/lists/             # Auto-generated mod reports (created on first run)
 ```
 
 ### Important Notes
 
--   F.I.S.S.I.O.N. does NOT include game data - you must own Fallout 2
+-   F.I.S.S.I.O.N. does NOT include game data - you must own Fallout 1 or 2
 
--   Your existing saves should work - F.I.S.S.I.O.N. maintains full compatibility
+-   Mods stay where they are - F.I.S.S.I.O.N. loads from the `mods/` folder
 
--   Mods stay where they are - F.I.S.S.I.O.N. reads from existing `data/` structure
-
--   No configuration needed for basic use - just replace the executable
+-   No configuration needed for basic use - just replace the executable and run
 
 ---
 
