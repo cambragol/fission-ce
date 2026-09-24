@@ -76,6 +76,7 @@ static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
 static void isoBlitVirtualToWindow(Rect* rect);
 static void isoComputeCrop();
+static int mapFindValidCameraCenter(int startTile);
 
 static void loadModMapMessages();
 
@@ -237,42 +238,17 @@ static void mapAdjustCameraToValidArea(void)
     // Ensure stencil is built for current elevation
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
-    int screenW = screenGetWidth();
-    int screenH = screenGetVisibleHeight();
-    int playerTile = gDude->tile;
-
-    // Find nearest valid center tile
-    int targetTile = playerTile;
-    if (!tile_hires_stencil_is_center_tile_allowed(playerTile, gElevation, screenW, screenH)) {
-        for (int radius = 1; radius < 100; ++radius) {
-            int found = -1;
-            for (int dy = -radius; dy <= radius && found == -1; ++dy) {
-                for (int dx = -radius; dx <= radius; ++dx) {
-                    if (abs(dx) + abs(dy) != radius) continue;
-                    int x = (playerTile % HEX_GRID_WIDTH) + dx;
-                    int y = (playerTile / HEX_GRID_WIDTH) + dy;
-                    if (x < 0 || x >= HEX_GRID_WIDTH || y < 0 || y >= HEX_GRID_HEIGHT) continue;
-                    int candidate = y * HEX_GRID_WIDTH + x;
-                    if (tile_hires_stencil_is_center_tile_allowed(candidate, gElevation, screenW, screenH)) {
-                        found = candidate;
-                        break;
-                    }
-                }
-            }
-            if (found != -1) {
-                targetTile = found;
-                break;
-            }
-        }
+    int target = mapFindValidCameraCenter(gDude->tile);
+    if (target == -1) {
+        // Fallback: keep player's tile. Better than doing nothing.
+        target = gDude->tile;
     }
 
-    // Force camera to target tile (bypass all restrictions)
     bool savedBorder = gTileBorderInitialized;
     gTileBorderInitialized = false;
-    tileSetCenter(targetTile, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
+    tileSetCenter(target, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
     gTileBorderInitialized = savedBorder;
 
-    // Rebuild stencil based on new camera position and refresh
     tile_hires_stencil_on_center_tile_or_elevation_change();
     tileWindowRefresh();
 }
@@ -295,20 +271,9 @@ void mapProcessPendingCameraAdjust(void)
 
 void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY)
 {
-    if (gIsoZoom <= 1.0f
-        && gIsoCropX == 0 && gIsoCropY == 0
-        && gIsoCropW == gIsoVirtualWidth
-        && gIsoCropH == gIsoVirtualHeight) {
-        *virtualX = screenX;
-        *virtualY = screenY;
-        return;
-    }
-
-    // Mirror of the column-map math in isoUpdateColMaps.
     int sx = gIsoCropX + (int)((long long)screenX * gIsoCropW / screenGetWidth());
     int sy = gIsoCropY + (int)((long long)screenY * gIsoCropH / screenGetVisibleHeight());
 
-    // Clamp to buffer.
     if (sx < 0) sx = 0;
     if (sy < 0) sy = 0;
     if (sx >= gIsoVirtualWidth) sx = gIsoVirtualWidth - 1;
@@ -363,6 +328,35 @@ float mapGetZoom()
     return gIsoZoom;
 }
 
+// Returns the nearest tile to `startTile` that is a valid camera center for
+// the current crop size, or -1 if none exists within a reasonable radius.
+// Small maps bypass the stencil entirely, same as tileSetCenter does.
+static int mapFindValidCameraCenter(int startTile)
+{
+    if (tile_hires_stencil_is_map_small()) {
+        return startTile;
+    }
+    if (tile_hires_stencil_is_center_tile_allowed(startTile, gElevation, gIsoCropW, gIsoCropH)) {
+        return startTile;
+    }
+
+    for (int radius = 1; radius < 100; ++radius) {
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (abs(dx) + abs(dy) != radius) continue;
+                int x = (startTile % HEX_GRID_WIDTH) + dx;
+                int y = (startTile / HEX_GRID_WIDTH) + dy;
+                if (x < 0 || x >= HEX_GRID_WIDTH || y < 0 || y >= HEX_GRID_HEIGHT) continue;
+                int cand = y * HEX_GRID_WIDTH + x;
+                if (tile_hires_stencil_is_center_tile_allowed(cand, gElevation, gIsoCropW, gIsoCropH)) {
+                    return cand;
+                }
+            }
+        }
+    }
+    return -1;
+}
+
 void mapSetZoom(float zoom)
 {
     if (!gIsoVirtualBuffer) return;
@@ -370,12 +364,37 @@ void mapSetZoom(float zoom)
     zoom = isoSnapZoom(zoom);
     if (zoom == gIsoZoom) return;
 
+    float oldZoom = gIsoZoom;
     gIsoZoom = zoom;
-    isoComputeCrop();
+    isoComputeCrop();   // updates stencil view size
+
+    // The gate is now stricter (zoom out) or more permissive (zoom in).
+    // Re-validate the current camera position for the new crop size.
+    int target = mapFindValidCameraCenter(gCenterTile);
+    if (target == -1) {
+        // No legal position exists at this zoom. Revert.
+        gIsoZoom = oldZoom;
+        isoComputeCrop();
+        return;
+    }
+
+    if (target != gCenterTile) {
+        // Slide the camera to the nearest legal position. Use
+        // IGNORE_SCROLL_RESTRICTIONS to bypass tileSetCenter's own gate
+        // (we've already consulted it) and the border check, mirroring what
+        // mapAdjustCameraToValidArea does.
+        bool savedBorder = gTileBorderInitialized;
+        gTileBorderInitialized = false;
+        tileSetCenter(target, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS |
+                              TILE_SET_CENTER_REFRESH_WINDOW);
+        gTileBorderInitialized = savedBorder;
+    } else {
+        tileWindowRefresh();
+    }
+
     gIsoColMapW = 0;
     gIsoColMapH = 0;
 
-    tileWindowRefresh();
     isoBlitVirtualToWindow(nullptr);
     windowRefresh(gIsoWindow);
 }
@@ -392,6 +411,8 @@ static void isoComputeCrop()
 
     gIsoCropX = (gIsoVirtualWidth - gIsoCropW) / 2;
     gIsoCropY = (gIsoVirtualHeight - gIsoCropH) / 2;
+
+    tile_hires_stencil_set_view_size(gIsoCropW, gIsoCropH);
 }
 
 // iso_init
