@@ -193,7 +193,16 @@ static const float MAX_ZOOM_IN = 4.0f;
 // Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
 // clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
 static const float gZoomLadder[] = {
-    0.5f, 0.625f, 0.8f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f,
+    0.5f,
+    0.625f,
+    0.8f,
+    1.0f,
+    1.25f,
+    1.5f,
+    2.0f,
+    2.5f,
+    3.0f,
+    4.0f,
 };
 static const int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
 
@@ -302,7 +311,7 @@ void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY)
     // Clamp to buffer.
     if (sx < 0) sx = 0;
     if (sy < 0) sy = 0;
-    if (sx >= gIsoVirtualWidth)  sx = gIsoVirtualWidth  - 1;
+    if (sx >= gIsoVirtualWidth) sx = gIsoVirtualWidth - 1;
     if (sy >= gIsoVirtualHeight) sy = gIsoVirtualHeight - 1;
 
     *virtualX = sx;
@@ -319,7 +328,10 @@ static float isoSnapZoom(float zoom)
     float bestDist = std::abs(zoom - best);
     for (int i = 1; i < gZoomLadderSize; i++) {
         float d = std::abs(zoom - gZoomLadder[i]);
-        if (d < bestDist) { bestDist = d; best = gZoomLadder[i]; }
+        if (d < bestDist) {
+            bestDist = d;
+            best = gZoomLadder[i];
+        }
     }
     return best;
 }
