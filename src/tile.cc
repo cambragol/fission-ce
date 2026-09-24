@@ -1198,7 +1198,7 @@ void tileRenderRoofsInRect(Rect* rect, int elevation)
     if (minY < 0) minY = 0;
     if (maxX < 0) return;
     if (maxY < 0) return;
-    if (maxX >= gSquareGridWidth)  maxX = gSquareGridWidth  - 1;
+    if (maxX >= gSquareGridWidth) maxX = gSquareGridWidth - 1;
     if (maxY >= gSquareGridHeight) maxY = gSquareGridHeight - 1;
     if (minX > maxX || minY > maxY) return;
 
@@ -1402,7 +1402,7 @@ void tileRenderFloorsInRect(Rect* rect, int elevation)
     if (minY < 0) minY = 0;
     if (maxX < 0) return;
     if (maxY < 0) return;
-    if (maxX >= gSquareGridWidth)  maxX = gSquareGridWidth  - 1;
+    if (maxX >= gSquareGridWidth) maxX = gSquareGridWidth - 1;
     if (maxY >= gSquareGridHeight) maxY = gSquareGridHeight - 1;
     if (minX > maxX || minY > maxY) return;
 
