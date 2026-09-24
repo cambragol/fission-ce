@@ -70,14 +70,14 @@ static bool gMapIsSmall = false;
 // The gate consults these instead of its screenWidth/screenHeight parameters.
 // Defaults to the vanilla viewport so behaviour is unchanged until map.cc
 // updates them to the current zoom crop.
-static int gStencilViewWidth  = screen_view_width;
+static int gStencilViewWidth = screen_view_width;
 static int gStencilViewHeight = screen_view_height;
 
 void tile_hires_stencil_set_view_size(int width, int height)
 {
-    if (width  <= 0) width  = screen_view_width;
+    if (width <= 0) width = screen_view_width;
     if (height <= 0) height = screen_view_height;
-    gStencilViewWidth  = width;
+    gStencilViewWidth = width;
     gStencilViewHeight = height;
 }
 
@@ -471,7 +471,7 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
 
     if (!gIsTileHiresStencilEnabled) return true;
 
-    const int viewWidth  = gStencilViewWidth;
+    const int viewWidth = gStencilViewWidth;
     const int viewHeight = gStencilViewHeight;
 
     int centerX, centerY;
@@ -489,19 +489,19 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
     bottom += safety_margin;
 
     auto screen_diff = get_screen_diff();
-    int globalLeft   = left   - screen_diff.x;
-    int globalTop    = top    - screen_diff.y;
-    int globalRight  = right  - screen_diff.x;
+    int globalLeft = left - screen_diff.x;
+    int globalTop = top - screen_diff.y;
+    int globalRight = right - screen_diff.x;
     int globalBottom = bottom - screen_diff.y;
 
     if (globalLeft < 0) globalLeft = 0;
     if (globalTop < 0) globalTop = 0;
-    if (globalRight  >= square_width  * square_grid_width)  globalRight  = square_width  * square_grid_width  - 1;
+    if (globalRight >= square_width * square_grid_width) globalRight = square_width * square_grid_width - 1;
     if (globalBottom >= square_height * square_grid_height) globalBottom = square_height * square_grid_height - 1;
 
-    int minX = globalLeft   / square_width;
-    int minY = globalTop    / square_height;
-    int maxX = globalRight  / square_width;
+    int minX = globalLeft / square_width;
+    int minY = globalTop / square_height;
+    int maxX = globalRight / square_width;
     int maxY = globalBottom / square_height;
 
     for (int x = minX; x <= maxX; ++x) {

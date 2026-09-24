@@ -366,7 +366,7 @@ void mapSetZoom(float zoom)
 
     float oldZoom = gIsoZoom;
     gIsoZoom = zoom;
-    isoComputeCrop();   // updates stencil view size
+    isoComputeCrop(); // updates stencil view size
 
     // The gate is now stricter (zoom out) or more permissive (zoom in).
     // Re-validate the current camera position for the new crop size.
@@ -385,8 +385,7 @@ void mapSetZoom(float zoom)
         // mapAdjustCameraToValidArea does.
         bool savedBorder = gTileBorderInitialized;
         gTileBorderInitialized = false;
-        tileSetCenter(target, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS |
-                              TILE_SET_CENTER_REFRESH_WINDOW);
+        tileSetCenter(target, TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS | TILE_SET_CENTER_REFRESH_WINDOW);
         gTileBorderInitialized = savedBorder;
     } else {
         tileWindowRefresh();
