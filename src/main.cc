@@ -359,11 +359,11 @@ static void mainLoop()
         int keyCode = inputGetInput();
 
         if (keyCode == KEY_LOWERCASE_D) {
-            mapSetZoom(mapGetZoom() * 1.25f);
+            mapZoomInStep();
             continue;
         }
         if (keyCode == KEY_LOWERCASE_X) {
-            mapSetZoom(mapGetZoom() / 1.25f);
+            mapZoomOutStep();
             continue;
         }
         if (keyCode == SDL_SCANCODE_HOME) {
