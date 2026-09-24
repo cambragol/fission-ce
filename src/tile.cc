@@ -1194,22 +1194,13 @@ void tileRenderRoofsInRect(Rect* rect, int elevation)
     squareTileScreenToCoordRoof(rect->left, rect->bottom, elevation, &maxX, &temp);
     squareTileScreenToCoordRoof(rect->right, rect->bottom, elevation, &temp, &maxY);
 
-    if (minX < 0) {
-        minX = 0;
-    }
-
-    if (minX >= gSquareGridWidth) {
-        minX = gSquareGridWidth - 1;
-    }
-
-    if (minY < 0) {
-        minY = 0;
-    }
-
-    // FIXME: Probably a bug - testing X, then changing Y.
-    if (minX >= gSquareGridHeight) {
-        minY = gSquareGridHeight - 1;
-    }
+    if (minX < 0) minX = 0;
+    if (minY < 0) minY = 0;
+    if (maxX < 0) return;
+    if (maxY < 0) return;
+    if (maxX >= gSquareGridWidth)  maxX = gSquareGridWidth  - 1;
+    if (maxY >= gSquareGridHeight) maxY = gSquareGridHeight - 1;
+    if (minX > maxX || minY > maxY) return;
 
     int light = lightGetAmbientIntensity();
 
@@ -1407,21 +1398,13 @@ void tileRenderFloorsInRect(Rect* rect, int elevation)
     squareTileScreenToCoord(rect->left, rect->bottom, elevation, &maxX, &temp);
     squareTileScreenToCoord(rect->right, rect->bottom, elevation, &temp, &maxY);
 
-    if (minX < 0) {
-        minX = 0;
-    }
-
-    if (minX >= gSquareGridWidth) {
-        minX = gSquareGridWidth - 1;
-    }
-
-    if (minY < 0) {
-        minY = 0;
-    }
-
-    if (minX >= gSquareGridHeight) {
-        minY = gSquareGridHeight - 1;
-    }
+    if (minX < 0) minX = 0;
+    if (minY < 0) minY = 0;
+    if (maxX < 0) return;
+    if (maxY < 0) return;
+    if (maxX >= gSquareGridWidth)  maxX = gSquareGridWidth  - 1;
+    if (maxY >= gSquareGridHeight) maxY = gSquareGridHeight - 1;
+    if (minX > maxX || minY > maxY) return;
 
     lightGetAmbientIntensity();
 

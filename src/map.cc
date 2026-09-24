@@ -75,6 +75,7 @@ static int _square_load(File* stream, int flags);
 static int mapHeaderWrite(MapHeader* ptr, File* stream);
 static int mapHeaderRead(MapHeader* ptr, File* stream);
 static void isoBlitVirtualToWindow(Rect* rect);
+static void isoComputeCrop();
 
 static void loadModMapMessages();
 
@@ -162,12 +163,32 @@ MessageList gMapMessageList;
 // 0x631D50
 static unsigned char* gIsoWindowBuffer;
 
-// Virtual buffer that tile and object rendering actually draw into.
-// In Step 2 this is the same size as gIsoWindowBuffer; later it will shrink
-// when we zoom in.
+// Virtual buffer + zoom state.
 static unsigned char* gIsoVirtualBuffer = nullptr;
-static int gIsoVirtualWidth = 0;
+static int gIsoVirtualWidth  = 0;
 static int gIsoVirtualHeight = 0;
+
+static float gIsoZoom  = 1.0f;
+static int   gIsoCropX = 0;
+static int   gIsoCropY = 0;
+static int   gIsoCropW = 0;
+static int   gIsoCropH = 0;
+
+// Column-map cache for scaled blits.
+static int* gIsoColMapX = nullptr;
+static int* gIsoColMapY = nullptr;
+static int  gIsoColMapW = 0;         // destination width the maps were built for
+static int  gIsoColMapH = 0;         // destination height
+static int  gIsoColMapVirtualW = 0;  // source crop width
+static int  gIsoColMapVirtualH = 0;  // source crop height
+static int  gIsoColMapCropX = 0;     // source crop origin
+static int  gIsoColMapCropY = 0;
+
+// Virtual buffer is (1 / MAX_ZOOM_OUT) times the visible game area in each
+// dimension. That is the maximum amount of world the player can ever see at
+// once. Zoom 1.0 = visible area exactly; higher = zoomed in; lower = zoomed out.
+static const float MAX_ZOOM_OUT = 0.5f;
+static const float MAX_ZOOM_IN  = 4.0f;
 
 // 0x631D54
 MapHeader gMapHeader;
@@ -256,6 +277,44 @@ void mapProcessPendingCameraAdjust(void)
     }
 }
 
+
+float mapGetZoom()
+{
+    return gIsoZoom;
+}
+
+void mapSetZoom(float zoom)
+{
+    if (!gIsoVirtualBuffer) return;
+
+    if (zoom < MAX_ZOOM_OUT) zoom = MAX_ZOOM_OUT;
+    if (zoom > MAX_ZOOM_IN)  zoom = MAX_ZOOM_IN;
+    if (zoom == gIsoZoom) return;
+
+    gIsoZoom = zoom;
+    isoComputeCrop();
+    gIsoColMapW = 0;
+    gIsoColMapH = 0;
+
+    tileWindowRefresh();
+    isoBlitVirtualToWindow(nullptr);
+    windowRefresh(gIsoWindow);
+}
+
+static void isoComputeCrop()
+{
+    gIsoCropW = (int)(screenGetWidth()         / gIsoZoom);
+    gIsoCropH = (int)(screenGetVisibleHeight() / gIsoZoom);
+
+    if (gIsoCropW < 1) gIsoCropW = 1;
+    if (gIsoCropH < 1) gIsoCropH = 1;
+    if (gIsoCropW > gIsoVirtualWidth)  gIsoCropW = gIsoVirtualWidth;
+    if (gIsoCropH > gIsoVirtualHeight) gIsoCropH = gIsoVirtualHeight;
+
+    gIsoCropX = (gIsoVirtualWidth  - gIsoCropW) / 2;
+    gIsoCropY = (gIsoVirtualHeight - gIsoCropH) / 2;
+}
+
 // iso_init
 // 0x481CA0
 int isoInit()
@@ -290,34 +349,45 @@ int isoInit()
 
     debugPrint(">art_init\t\t");
 
-    if (tileInit(_square, SQUARE_GRID_WIDTH, SQUARE_GRID_HEIGHT, HEX_GRID_WIDTH, HEX_GRID_HEIGHT, gIsoWindowBuffer, screenGetWidth(), screenGetVisibleHeight(), screenGetWidth(), isoWindowRefreshRect) != 0) {
+    // Virtual buffer must cover the max possible view (physical window),
+    // not just the current play-area content width. Otherwise zoom-out has
+    // no room to grow, and play-area-derived zoom starts too tight.
+    int maxW = screenGetWidth();
+    int maxH = screenGetHeight();
+    if (gSdlWindow != nullptr) {
+        int ww = 0, wh = 0;
+        SDL_GetWindowSize(gSdlWindow, &ww, &wh);
+        if (ww > maxW) maxW = ww;
+        if (wh > maxH) maxH = wh;
+    }
+    // Virtual buffer covers MAX_ZOOM_OUT worth of the visible game area.
+    // Aspect ratio matches the visible window, so the blit is uniform.
+    gIsoVirtualWidth  = (int)(screenGetWidth()         / MAX_ZOOM_OUT);
+    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / MAX_ZOOM_OUT);
+
+    gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
+    if (gIsoVirtualBuffer == nullptr) {
+        debugPrint("virtual iso buffer allocation failed in isoInit\n");
+        return -1;
+    }
+
+    if (tileInit(_square, SQUARE_GRID_WIDTH, SQUARE_GRID_HEIGHT,
+                 HEX_GRID_WIDTH, HEX_GRID_HEIGHT,
+                 gIsoVirtualBuffer,
+                 gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth,
+                 isoWindowRefreshRect) != 0) {
         debugPrint("tile_init failed in iso_init\n");
         return -1;
     }
 
     debugPrint(">tile_init\t\t");
 
-    if (objectsInit(gIsoWindowBuffer, screenGetWidth(), screenGetVisibleHeight(), screenGetWidth()) != 0) {
+    if (objectsInit(gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth) != 0) {
         debugPrint("obj_init failed in iso_init\n");
         return -1;
     }
 
     debugPrint(">obj_init\t\t");
-
-    gIsoVirtualWidth = screenGetWidth();
-    gIsoVirtualHeight = screenGetVisibleHeight();
-    gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
-    if (gIsoVirtualBuffer == nullptr) {
-        debugPrint("virtual iso buffer allocation failed in iso_init\n");
-        return -1;
-    }
-
-    // Point tile and object renderers at the virtual buffer and recompute the
-    // tile offsets for it.
-    tileSetViewport(gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth);
-    objectsSetViewport(gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight, gIsoVirtualWidth);
-    tileSetCenter(HEX_GRID_WIDTH * (HEX_GRID_HEIGHT / 2) + HEX_GRID_WIDTH / 2,
-        TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
 
     colorCycleInit();
     debugPrint(">cycle_init\t\t");
@@ -339,6 +409,15 @@ int isoInit()
 
     // NOTE: Uninline.
     mapSetEnteringLocation(-1, -1, -1);
+
+    // Baseline zoom is 1.0 for every play area. The play area already
+    // determines the physical size of the visible game window via
+    // screenGetWidth/Height; zoom is relative to that.
+    gIsoZoom = 1.0f;
+    isoComputeCrop();
+
+    gIsoColMapW = 0;
+    gIsoColMapH = 0;
 
     return 0;
 }
@@ -371,12 +450,15 @@ void isoExit()
     tileExit();
     artExit();
 
-    if (gIsoVirtualBuffer != nullptr) {
+    if (gIsoColMapX) { free(gIsoColMapX); gIsoColMapX = nullptr; }
+    if (gIsoColMapY) { free(gIsoColMapY); gIsoColMapY = nullptr; }
+    gIsoColMapW = gIsoColMapH = 0;
+
+    if (gIsoVirtualBuffer) {
         internal_free(gIsoVirtualBuffer);
         gIsoVirtualBuffer = nullptr;
-        gIsoVirtualWidth = 0;
-        gIsoVirtualHeight = 0;
     }
+    gIsoVirtualWidth = gIsoVirtualHeight = 0;
 
     windowDestroy(gIsoWindow);
 
@@ -846,6 +928,15 @@ int mapScroll(int dx, int dy)
     int newCenterTile = tileFromScreenXY(centerScreenX, centerScreenY);
     if (newCenterTile == -1) {
         return -1;
+    }
+
+    if (gIsoZoom != 1.0f) {
+        if (tileSetCenter(newCenterTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
+            return -1;
+        }
+        isoBlitVirtualToWindow(nullptr);
+        windowRefresh(gIsoWindow);
+        return 0;
     }
 
     if (tileSetCenter(newCenterTile, 0) == -1) {
@@ -1847,34 +1938,64 @@ static void loadModMapMessages()
     }
 }
 
-static void isoBlitVirtualToWindow(Rect* rect)
+static void isoUpdateColMaps()
 {
-    int x, y, w, h;
-    if (rect != nullptr) {
-        x = rect->left;
-        y = rect->top;
-        w = rectGetWidth(rect);
-        h = rectGetHeight(rect);
-    } else {
-        x = 0;
-        y = 0;
-        w = gIsoVirtualWidth;
-        h = gIsoVirtualHeight;
+    int dstW = screenGetWidth();
+    int dstH = screenGetVisibleHeight();
+
+    if (gIsoColMapW == dstW && gIsoColMapH == dstH
+        && gIsoColMapVirtualW == gIsoCropW && gIsoColMapVirtualH == gIsoCropH
+        && gIsoColMapCropX == gIsoCropX && gIsoColMapCropY == gIsoCropY) {
+        return;
     }
 
-    // Pitches are identical in Step 2. When the virtual buffer shrinks (zoom),
-    // this becomes a scale blit.
-    for (int row = 0; row < h; row++) {
-        memcpy(gIsoWindowBuffer + (y + row) * gIsoVirtualWidth + x,
-               gIsoVirtualBuffer + (y + row) * gIsoVirtualWidth + x,
-               w);
+    if (gIsoColMapX) { free(gIsoColMapX); gIsoColMapX = nullptr; }
+    if (gIsoColMapY) { free(gIsoColMapY); gIsoColMapY = nullptr; }
+
+    gIsoColMapW = dstW; gIsoColMapH = dstH;
+    gIsoColMapVirtualW = gIsoCropW; gIsoColMapVirtualH = gIsoCropH;
+    gIsoColMapCropX = gIsoCropX; gIsoColMapCropY = gIsoCropY;
+
+    gIsoColMapX = (int*)malloc(sizeof(int) * dstW);
+    gIsoColMapY = (int*)malloc(sizeof(int) * dstH);
+
+    for (int x = 0; x < dstW; x++) {
+        int sx = gIsoCropX + (int)((long long)x * gIsoCropW / dstW);
+        if (sx < 0) sx = 0;
+        if (sx >= gIsoVirtualWidth) sx = gIsoVirtualWidth - 1;
+        gIsoColMapX[x] = sx;
+    }
+    for (int y = 0; y < dstH; y++) {
+        int sy = gIsoCropY + (int)((long long)y * gIsoCropH / dstH);
+        if (sy < 0) sy = 0;
+        if (sy >= gIsoVirtualHeight) sy = gIsoVirtualHeight - 1;
+        gIsoColMapY[y] = sy;
+    }
+}
+
+static void isoBlitVirtualToWindow(Rect* rect)
+{
+    (void)rect;   // rect is in virtual coords; scaled path always does a full frame.
+
+    int dstW = screenGetWidth();
+    int dstH = screenGetVisibleHeight();
+
+    isoUpdateColMaps();
+
+    for (int y = 0; y < dstH; y++) {
+        const unsigned char* srcRow = gIsoVirtualBuffer + gIsoColMapY[y] * gIsoVirtualWidth;
+        unsigned char* dstRow = gIsoWindowBuffer + y * dstW;
+        for (int x = 0; x < dstW; x++) {
+            dstRow[x] = srcRow[gIsoColMapX[x]];
+        }
     }
 }
 
 static void isoWindowRefreshRect(Rect* rect)
 {
-    isoBlitVirtualToWindow(rect);
-    windowRefreshRect(gIsoWindow, rect);
+    (void)rect;
+    isoBlitVirtualToWindow(nullptr);
+    windowRefreshRect(gIsoWindow, &gIsoWindowRect);
 }
 
 static void isoWindowRefreshRectGame(Rect* rect)
@@ -1896,6 +2017,10 @@ static void isoWindowRefreshRectGame(Rect* rect)
     _obj_render_post_roof(&rectToUpdate, gElevation);
 
     tile_hires_stencil_draw(&rectToUpdate, gIsoVirtualBuffer, gIsoVirtualWidth, gIsoVirtualHeight);
+
+    if (gIsoZoom != 1.0f) {
+        isoBlitVirtualToWindow(nullptr);
+    }
 }
 
 // 0x483F44

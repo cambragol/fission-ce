@@ -358,6 +358,19 @@ static void mainLoop()
 
         int keyCode = inputGetInput();
 
+        if (keyCode == KEY_LOWERCASE_D) {
+            mapSetZoom(mapGetZoom() * 1.25f);
+            continue;
+        }
+        if (keyCode == KEY_LOWERCASE_X) {
+            mapSetZoom(mapGetZoom() / 1.25f);
+            continue;
+        }
+        if (keyCode == SDL_SCANCODE_HOME) {
+            mapSetZoom(1.0f);
+            continue;
+        }
+
         // SFALL: MainLoopHook.
         sfall_gl_scr_process_main();
 

@@ -3416,10 +3416,6 @@ static int _obj_offset_table_init()
             for (int y = 0; y < gObjectsUpdateAreaHexHeight; y++) {
                 for (int x = 0; x < gObjectsUpdateAreaHexWidth; x++) {
                     int tile = tileFromScreenXY(tileX, originTileY);
-                    if (tile == -1) {
-                        goto err;
-                    }
-
                     tileX += 32;
                     *offsets++ = tile - originTile;
                 }
