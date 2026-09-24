@@ -1862,9 +1862,13 @@ bool gameMouseObjectsIsVisible()
 // 0x44CEC4
 Object* gameMouseGetObjectUnderCursor(int objectType, bool includeDude, int elevation)
 {
+    int screenX;
+    int screenY;
+    mouseGetPosition(&screenX, &screenY);
+
     int mouseX;
     int mouseY;
-    mouseGetPosition(&mouseX, &mouseY);
+    mapScreenToVirtual(screenX, screenY, &mouseX, &mouseY);
 
     bool intersectsRoof = false;
     if (objectType == -1) {
@@ -2544,6 +2548,14 @@ int gameMouseUpdateHexCursorFid(Rect* rect)
 // 0x44DF94
 int _gmouse_3d_move_to(int x, int y, int elevation, Rect* rect)
 {
+    // Convert from screen coordinates to the coordinate space the tile and
+    // object renderers work in. When no zoom is active this is a no-op.
+    int vx;
+    int vy;
+    mapScreenToVirtual(x, y, &vx, &vy);
+    x = vx;
+    y = vy;
+
     if (_gmouse_mapper_mode == 0) {
         if (gGameMouseMode != GAME_MOUSE_MODE_MOVE) {
             int offsetX = 0;

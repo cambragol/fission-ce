@@ -117,6 +117,9 @@ int mapHandleTransition();
 int _map_save_in_game(bool isLeavingMap);
 float mapGetZoom();
 void mapSetZoom(float zoom);
+void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY);
+void mapZoomInStep();
+void mapZoomOutStep();
 
 void mapProcessPendingCameraAdjust(void);
 

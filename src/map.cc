@@ -190,6 +190,13 @@ static int gIsoColMapCropY = 0;
 static const float MAX_ZOOM_OUT = 0.5f;
 static const float MAX_ZOOM_IN = 4.0f;
 
+// Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
+// clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
+static const float gZoomLadder[] = {
+    0.5f, 0.625f, 0.8f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f,
+};
+static const int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
+
 // 0x631D54
 MapHeader gMapHeader;
 
@@ -277,6 +284,68 @@ void mapProcessPendingCameraAdjust(void)
     }
 }
 
+void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY)
+{
+    if (gIsoZoom <= 1.0f
+        && gIsoCropX == 0 && gIsoCropY == 0
+        && gIsoCropW == gIsoVirtualWidth
+        && gIsoCropH == gIsoVirtualHeight) {
+        *virtualX = screenX;
+        *virtualY = screenY;
+        return;
+    }
+
+    // Mirror of the column-map math in isoUpdateColMaps.
+    int sx = gIsoCropX + (int)((long long)screenX * gIsoCropW / screenGetWidth());
+    int sy = gIsoCropY + (int)((long long)screenY * gIsoCropH / screenGetVisibleHeight());
+
+    // Clamp to buffer.
+    if (sx < 0) sx = 0;
+    if (sy < 0) sy = 0;
+    if (sx >= gIsoVirtualWidth)  sx = gIsoVirtualWidth  - 1;
+    if (sy >= gIsoVirtualHeight) sy = gIsoVirtualHeight - 1;
+
+    *virtualX = sx;
+    *virtualY = sy;
+}
+
+static float isoSnapZoom(float zoom)
+{
+    if (zoom <= gZoomLadder[0]) return gZoomLadder[0];
+    if (zoom >= gZoomLadder[gZoomLadderSize - 1])
+        return gZoomLadder[gZoomLadderSize - 1];
+
+    float best = gZoomLadder[0];
+    float bestDist = std::abs(zoom - best);
+    for (int i = 1; i < gZoomLadderSize; i++) {
+        float d = std::abs(zoom - gZoomLadder[i]);
+        if (d < bestDist) { bestDist = d; best = gZoomLadder[i]; }
+    }
+    return best;
+}
+
+void mapZoomInStep()
+{
+    float z = mapGetZoom();
+    for (int i = 0; i < gZoomLadderSize; i++) {
+        if (gZoomLadder[i] > z + 0.001f) {
+            mapSetZoom(gZoomLadder[i]);
+            return;
+        }
+    }
+}
+
+void mapZoomOutStep()
+{
+    float z = mapGetZoom();
+    for (int i = gZoomLadderSize - 1; i >= 0; i--) {
+        if (gZoomLadder[i] < z - 0.001f) {
+            mapSetZoom(gZoomLadder[i]);
+            return;
+        }
+    }
+}
+
 float mapGetZoom()
 {
     return gIsoZoom;
@@ -286,8 +355,7 @@ void mapSetZoom(float zoom)
 {
     if (!gIsoVirtualBuffer) return;
 
-    if (zoom < MAX_ZOOM_OUT) zoom = MAX_ZOOM_OUT;
-    if (zoom > MAX_ZOOM_IN) zoom = MAX_ZOOM_IN;
+    zoom = isoSnapZoom(zoom);
     if (zoom == gIsoZoom) return;
 
     gIsoZoom = zoom;
@@ -936,85 +1004,9 @@ int mapScroll(int dx, int dy)
         return -1;
     }
 
-    if (gIsoZoom != 1.0f) {
-        if (tileSetCenter(newCenterTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
-            return -1;
-        }
-        isoBlitVirtualToWindow(nullptr);
-        windowRefresh(gIsoWindow);
-        return 0;
-    }
-
-    if (tileSetCenter(newCenterTile, 0) == -1) {
+    if (tileSetCenter(newCenterTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
         return -1;
     }
-
-    Rect r1;
-    rectCopy(&r1, &gIsoWindowRect);
-
-    Rect r2;
-    rectCopy(&r2, &r1);
-
-    int width = gIsoVirtualWidth;
-    int pitch = gIsoVirtualWidth;
-    int height = gIsoVirtualHeight;
-
-    if (screenDx != 0) {
-        width -= 32;
-    }
-
-    if (screenDy != 0) {
-        height -= 24;
-    }
-
-    if (screenDx < 0) {
-        r2.right = r2.left - screenDx;
-    } else {
-        r2.left = r2.right - screenDx;
-    }
-
-    unsigned char* src;
-    unsigned char* dest;
-    int step;
-    if (screenDy < 0) {
-        r1.bottom = r1.top - screenDy;
-        src = gIsoVirtualBuffer + pitch * (height - 1);
-        dest = gIsoVirtualBuffer + pitch * (screenGetVisibleHeight() - 1);
-        if (screenDx < 0) {
-            dest -= screenDx;
-        } else {
-            src += screenDx;
-        }
-        step = -pitch;
-    } else {
-        r1.top = r1.bottom - screenDy;
-        dest = gIsoVirtualBuffer;
-        src = gIsoVirtualBuffer + pitch * screenDy;
-
-        if (screenDx < 0) {
-            dest -= screenDx;
-        } else {
-            src += screenDx;
-        }
-        step = pitch;
-    }
-
-    for (int y = 0; y < height; y++) {
-        memmove(dest, src, width);
-        dest += step;
-        src += step;
-    }
-
-    if (screenDx != 0) {
-        _map_scroll_refresh(&r2);
-    }
-
-    if (screenDy != 0) {
-        _map_scroll_refresh(&r1);
-    }
-
-    isoBlitVirtualToWindow(nullptr);
-    windowRefresh(gIsoWindow);
 
     return 0;
 }
