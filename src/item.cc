@@ -303,7 +303,7 @@ int itemAttemptAdd(Object* owner, Object* itemToAdd, int quantity)
                 return -5;
             }
 
-            if ((proto->critter.flags & CRITTER_BARTER) == 0) {
+            if ((proto->critter.data.flags & CRITTER_BARTER) == 0) {
                 return -5;
             }
         }
@@ -1442,34 +1442,52 @@ void ammoSetQuantity(Object* ammoOrWeapon, int quantity)
 }
 
 // 0x478768
-int weaponAttemptReload(Object* critter, Object* weapon)
+int weaponAttemptReload(Object* critter, Object* weapon, Object* owner, Object* specificAmmo)
 {
-    // NOTE: Uninline.
-    int quantity = ammoGetQuantity(weapon);
-    int capacity = ammoGetCapacity(weapon);
-    if (quantity == capacity) {
-        return -1;
+    if (ammoGetQuantity(weapon) >= ammoGetCapacity(weapon)) return -1;
+
+    // If no owner specified, use the critter.
+    if (owner == nullptr) {
+        owner = critter;
     }
 
+    // If specific ammo is provided, only attempt to reload with that.
+    if (specificAmmo != nullptr) {
+        if (!weaponCanBeReloadedWith(weapon, specificAmmo)) {
+            return -1;
+        }
+        int rc = weaponReload(weapon, specificAmmo);
+        if (rc == -1) {
+            return -1;
+        }
+        if (rc == 0) {
+            // Whole clip consumed – remove one from the stack.
+            if (itemRemove(owner, specificAmmo, 1) == 0) {
+                objectDestroy(specificAmmo);
+                return 0;
+            }
+            return -1;
+        } else {
+            // Partial reload – weapon is now full.
+            return 0;
+        }
+    }
+
+    // Original behavior: search the owner's inventory for compatible ammo.
     if (weapon->pid != PROTO_ID_SOLAR_SCORCHER) {
         int inventoryItemIndex = -1;
         for (;;) {
-            Object* ammo = inventoryFindByType(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
-            if (ammo == nullptr) {
-                break;
-            }
+            Object* ammo = inventoryFindByType(owner, ITEM_TYPE_AMMO, &inventoryItemIndex);
+            if (ammo == nullptr) break;
 
             if (weapon->data.item.weapon.ammoTypePid == ammo->pid) {
-                if (weaponCanBeReloadedWith(weapon, ammo) != 0) {
+                if (weaponCanBeReloadedWith(weapon, ammo)) {
                     int rc = weaponReload(weapon, ammo);
                     if (rc == 0) {
+                        itemRemove(owner, ammo, 1);
                         objectDestroy(ammo);
                     }
-
-                    if (rc == -1) {
-                        return -1;
-                    }
-
+                    if (rc == -1) return -1;
                     return 0;
                 }
             }
@@ -1477,30 +1495,23 @@ int weaponAttemptReload(Object* critter, Object* weapon)
 
         inventoryItemIndex = -1;
         for (;;) {
-            Object* ammo = inventoryFindByType(critter, ITEM_TYPE_AMMO, &inventoryItemIndex);
-            if (ammo == nullptr) {
-                break;
-            }
+            Object* ammo = inventoryFindByType(owner, ITEM_TYPE_AMMO, &inventoryItemIndex);
+            if (ammo == nullptr) break;
 
-            if (weaponCanBeReloadedWith(weapon, ammo) != 0) {
+            if (weaponCanBeReloadedWith(weapon, ammo)) {
                 int rc = weaponReload(weapon, ammo);
                 if (rc == 0) {
+                    itemRemove(owner, ammo, 1);
                     objectDestroy(ammo);
                 }
-
-                if (rc == -1) {
-                    return -1;
-                }
-
+                if (rc == -1) return -1;
                 return 0;
             }
         }
     }
 
-    if (weaponReload(weapon, nullptr) != 0) {
-        return -1;
-    }
-
+    // Solar Scorcher special case
+    if (weaponReload(weapon, nullptr) != 0) return -1;
     return 0;
 }
 
