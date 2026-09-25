@@ -28,6 +28,7 @@
 #include "map.h"
 #include "memory.h"
 #include "message.h"
+#include "mouse.h"
 #include "object.h"
 #include "party_member.h"
 #include "perk.h"
@@ -3201,6 +3202,21 @@ static int _combat_input()
 
         // SFALL: CombatLoopHook.
         sfall_gl_scr_process_main();
+
+        // Zoom keys are handled here so the camera can be adjusted during
+        // combat without the key being consumed by gameHandleKey. Falls
+        // through to renderPresent/throttle at the bottom of the loop.
+        bool isZoomKey = false;
+        if (keyCode == KEY_LOWERCASE_D) {
+            mapZoomInStep();
+            isZoomKey = true;
+        } else if (keyCode == KEY_LOWERCASE_X) {
+            mapZoomOutStep();
+            isZoomKey = true;
+        } else if (keyCode == SDL_SCANCODE_HOME) {
+            mapSetZoom(1.0f);
+            isZoomKey = true;
+        }
 
         if (_action_explode_running()) {
             // NOTE: Uninline.
