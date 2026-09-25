@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "animation.h"
+#include "art.h"
 #include "color.h"
 #include "combat.h"
 #include "combat_ai.h"
@@ -20,6 +21,7 @@
 #include "display_monitor.h"
 #include "game.h"
 #include "game_dialog.h"
+#include "game_version.h"
 #include "item.h"
 #include "loadsave.h"
 #include "map.h"
@@ -221,7 +223,7 @@ int partyMembersInit()
         return -1;
     }
 
-    if (!configRead(&config, "data\\party.txt", true)) {
+    if (!configRead(&config, GAME_DATA_PATH("party.txt"), true)) {
         goto err;
     }
 
@@ -732,6 +734,21 @@ int partyMemberAdd(Object* object)
     }
 
     critterSetTeam(object, 0);
+
+    // Fallout 1 companions ship with no F2 AI state - F1 recruit
+    // scripts never call aiSetDisposition/aiSetAreaAttackMode/etc, so the
+    // F2-derived combat control panel would otherwise read uninitialized
+    // memory. Set defaults so the panel opens properly.
+    if (IS_FALLOUT_1()) {
+        aiSetDisposition(object, 0); // normal
+        aiSetAreaAttackMode(object, 1); // sometimes
+        aiSetRunAwayMode(object, 2); // bleeding
+        aiSetBestWeapon(object, 0); // no pref
+        aiSetDistance(object, 0); // stay close
+        aiSetAttackWho(object, 0); // whoever attacks me
+        aiSetChemUse(object, 0); // clean
+    }
+
     queueRemoveEventsByType(object, EVENT_TYPE_SCRIPT);
 
     if (_gdialogActive()) {
@@ -2324,6 +2341,73 @@ std::vector<Object*> get_all_party_members_objects(bool include_hidden)
         }
     }
     return value;
+}
+
+bool partyMemberCanEquipArmor(Object* critter)
+{
+    if (critter == gDude) return true; // player always can
+    int bodyType = critterGetBodyType(critter);
+    if (bodyType != BODY_TYPE_BIPED) return false;
+    // Exceptions: Goris and Marcus cannot wear armor
+    if (critter->pid == PROTO_ID_GORIS) return false;
+    if (critter->pid == PROTO_ID_MARCUS) return false;
+    return true;
+}
+
+bool partyMemberCanEquipWeapon(Object* critter)
+{
+    if (critter == gDude) return true;
+    int bodyType = critterGetBodyType(critter);
+    // Quadrupeds (dogs etc) cannot use weapons
+    if (bodyType == BODY_TYPE_QUADRUPED) return false;
+    // Goris cannot use weapons (even though biped)
+    if (critter->pid == PROTO_ID_GORIS) return false;
+    return true;
+}
+
+/**
+ * Checks if a companion can equip a specific weapon.
+ * First does the broad check (body type, Goris), then verifies
+ * that the weapon's animation code is supported by the critter's art.
+ * The player always returns true.
+ */
+bool partyMemberCanEquipThisWeapon(Object* critter, Object* weapon)
+{
+    if (critter == nullptr || weapon == nullptr) return false;
+    if (itemGetType(weapon) != ITEM_TYPE_WEAPON) return false;
+
+    // Player can equip anything
+    if (critter == gDude) return true;
+
+    // First, do the broad check (body type, Goris)
+    if (!partyMemberCanEquipWeapon(critter)) return false;
+
+    // Get weapon animation code
+    Proto* weaponProto;
+    if (protoGetProto(weapon->pid, &weaponProto) == -1) return false;
+    int animCode = weaponProto->item.data.weapon.animationCode;
+
+    // Determine base art ID for the critter (considering current armor)
+    int baseArtId;
+    Object* armor = critterGetArmor(critter);
+    if (armor != nullptr) {
+        Proto* armorProto;
+        if (protoGetProto(armor->pid, &armorProto) == -1) return false;
+        if (critterGetStat(critter, STAT_GENDER) == GENDER_FEMALE)
+            baseArtId = armorProto->item.data.armor.femaleFid;
+        else
+            baseArtId = armorProto->item.data.armor.maleFid;
+        if (baseArtId == -1) baseArtId = _art_vault_guy_num; // fallback
+    } else {
+        // Use base proto fid
+        Proto* critterProto;
+        if (protoGetProto(critter->pid, &critterProto) == -1) return false;
+        baseArtId = artGetIndex(critterProto->fid);
+    }
+
+    // Test if the combination exists in the art cache
+    int testFid = buildFid(OBJ_TYPE_CRITTER, baseArtId, 0, animCode, critter->rotation + 1);
+    return artExists(testFid);
 }
 
 } // namespace fallout

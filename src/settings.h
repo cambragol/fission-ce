@@ -17,7 +17,7 @@ struct SystemSettings {
     std::string fission_dat_path = "fission.dat";
     std::string fission_patches_path = "data";
     std::string language = ENGLISH;
-    bool master_override;
+    bool master_override = false;
     int scroll_lock = 0;
     bool interrupt_walk = true;
     int art_cache_size = 32;
@@ -126,6 +126,10 @@ struct EnhancementSettings {
     bool minimap = false;
     int multi_column_inventory = 1;
     bool npc_armor = false;
+    bool green_monochrome = false;
+    int inventory_filter = 0;
+    bool display_weight = false;
+    bool companion_inventory = false;
     bool vock_features = false;
 };
 
@@ -154,10 +158,10 @@ struct ModSettings {
     std::string premade_characters_file_names = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FILE_NAMES;
     std::string premade_characters_face_fids = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FACE_FIDS;
     bool burst_mod_enabled = MOD_CONFIG_DEFAULT_BURST_MOD_ENABLED;
-    int burst_mod_center_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-    int burst_mod_center_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-    int burst_mod_target_multiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-    int burst_mod_target_divisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+    int burst_mod_center_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_MULTIPLIER;
+    int burst_mod_center_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_DIVISOR;
+    int burst_mod_target_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_MULTIPLIER;
+    int burst_mod_target_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_DIVISOR;
     int dynamite_min_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MIN_DAMAGE;
     int dynamite_max_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MAX_DAMAGE;
     int plastic_explosive_min_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MIN_DAMAGE;
@@ -199,10 +203,12 @@ struct ModSettings {
     bool float_audio = MOD_CONFIG_DEFAULT_FLOAT_AUDIO;
     bool float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
     int float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
+
     bool text_scramble = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE;
     int text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
     int text_scramble_obstruction_dampening = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING;
     std::string text_scramble_chars = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
+
     bool pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
     int pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 };

@@ -22,6 +22,8 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_vars.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "graph_lib.h"
 #include "input.h"
@@ -567,6 +569,34 @@ static const int gAddictionReputationFrmIds[ADDICTION_REPUTATION_COUNT] = {
     52,
     136,
     149,
+};
+
+// Fallout 1's karma roster, from F1 CE's ListKarma(). Slot 0 of the art
+// table is the always-shown "Reputation (General)" line; slots 1..9 are
+// the flag-driven entries below.
+static const int gF1KarmaVars[9] = {
+    F1_GVAR_BERSERKER_REPUTATION,
+    F1_GVAR_CHAMPION_REPUTATION,
+    F1_GVAR_CHILDKILLER_REPUATION,
+    F1_GVAR_NUKA_COLA_ADDICT,
+    F1_GVAR_BUFF_OUT_ADDICT,
+    F1_GVAR_MENTATS_ADDICT,
+    F1_GVAR_PSYCHO_ADDICT,
+    F1_GVAR_RADAWAY_ADDICT,
+    F1_GVAR_ALCOHOL_ADDICT,
+};
+
+static const int gF1KarmaPics[10] = {
+    48,
+    49,
+    51,
+    50,
+    52,
+    53,
+    53,
+    53,
+    53,
+    52,
 };
 
 // 0x518624
@@ -1430,7 +1460,7 @@ static int characterEditorWindowInit()
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "editor.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("editor.msg"));
 
     if (!messageListLoad(&gCharacterEditorMessageList, path)) {
         return -1;
@@ -4980,68 +5010,72 @@ static int characterPrintToFile(const char* fileName)
         }
     }
 
-    bool hasTownReputationHeading = false;
-    // SFALL
-    for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
-        const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
-        if (wmAreaIsKnown(pair->city)) {
-            if (!hasTownReputationHeading) {
-                fileWriteString("\n", stream);
+    if (!IS_FALLOUT_1()) {
+        bool hasTownReputationHeading = false;
+        // SFALL
+        for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
+            const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
+            if (wmAreaIsKnown(pair->city)) {
+                if (!hasTownReputationHeading) {
+                    fileWriteString("\n", stream);
 
-                // ::: Reputation :::
-                snprintf(title1, sizeof(title1), "%s\n", getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 657));
+                    // ::: Reputation :::
+                    snprintf(title1, sizeof(title1), "%s\n", getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 657));
+                    fileWriteString(title1, stream);
+                    hasTownReputationHeading = true;
+                }
+
+                wmGetAreaIdxName(pair->city, title2);
+
+                int townReputation = gGameGlobalVars[pair->gvar];
+
+                int townReputationMessageId;
+
+                if (townReputation < -30) {
+                    townReputationMessageId = 2006; // Vilified
+                } else if (townReputation < -15) {
+                    townReputationMessageId = 2005; // Hated
+                } else if (townReputation < 0) {
+                    townReputationMessageId = 2004; // Antipathy
+                } else if (townReputation == 0) {
+                    townReputationMessageId = 2003; // Neutral
+                } else if (townReputation < 15) {
+                    townReputationMessageId = 2002; // Accepted
+                } else if (townReputation < 30) {
+                    townReputationMessageId = 2001; // Liked
+                } else {
+                    townReputationMessageId = 2000; // Idolized
+                }
+
+                snprintf(title1, sizeof(title1),
+                    "  %s: %s",
+                    title2,
+                    getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationMessageId));
                 fileWriteString(title1, stream);
-                hasTownReputationHeading = true;
+                fileWriteString("\n", stream);
             }
-
-            wmGetAreaIdxName(pair->city, title2);
-
-            int townReputation = gGameGlobalVars[pair->gvar];
-
-            int townReputationMessageId;
-
-            if (townReputation < -30) {
-                townReputationMessageId = 2006; // Vilified
-            } else if (townReputation < -15) {
-                townReputationMessageId = 2005; // Hated
-            } else if (townReputation < 0) {
-                townReputationMessageId = 2004; // Antipathy
-            } else if (townReputation == 0) {
-                townReputationMessageId = 2003; // Neutral
-            } else if (townReputation < 15) {
-                townReputationMessageId = 2002; // Accepted
-            } else if (townReputation < 30) {
-                townReputationMessageId = 2001; // Liked
-            } else {
-                townReputationMessageId = 2000; // Idolized
-            }
-
-            snprintf(title1, sizeof(title1),
-                "  %s: %s",
-                title2,
-                getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationMessageId));
-            fileWriteString(title1, stream);
-            fileWriteString("\n", stream);
         }
     }
 
-    bool hasAddictionsHeading = false;
-    for (int index = 0; index < ADDICTION_REPUTATION_COUNT; index++) {
-        if (gGameGlobalVars[gAddictionReputationVars[index]] != 0) {
-            if (!hasAddictionsHeading) {
-                fileWriteString("\n", stream);
+    if (!IS_FALLOUT_1()) {
+        bool hasAddictionsHeading = false;
+        for (int index = 0; index < ADDICTION_REPUTATION_COUNT; index++) {
+            if (gGameGlobalVars[gAddictionReputationVars[index]] != 0) {
+                if (!hasAddictionsHeading) {
+                    fileWriteString("\n", stream);
 
-                // ::: Addictions :::
-                snprintf(title1, sizeof(title1), "%s\n", getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 656));
+                    // ::: Addictions :::
+                    snprintf(title1, sizeof(title1), "%s\n", getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 656));
+                    fileWriteString(title1, stream);
+                    hasAddictionsHeading = true;
+                }
+
+                snprintf(title1, sizeof(title1),
+                    "  %s",
+                    getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1004 + index));
                 fileWriteString(title1, stream);
-                hasAddictionsHeading = true;
+                fileWriteString("\n", stream);
             }
-
-            snprintf(title1, sizeof(title1),
-                "  %s",
-                getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1004 + index));
-            fileWriteString(title1, stream);
-            fileWriteString("\n", stream);
         }
     }
 
@@ -5450,7 +5484,7 @@ static int characterEditorDrawCardWithOptions(int graphicId, const char* name, c
     if (attributes != nullptr) {
         int nameWidth = fontGetStringWidth(name);
 
-        fontSetCurrent(101);
+        fontSetCurrent(108);
         int attributesFontLineHeight = fontGetLineHeight();
         fontDrawText(gCharacterEditorWindowBuffer + gOffsets.windowWidth * (gOffsets.cardTitleY + nameFontLineHeight - attributesFontLineHeight) + gOffsets.cardTitleX + nameWidth + 8,
             attributes,
@@ -6043,9 +6077,58 @@ static void characterEditorToggleOptionalTrait(int trait)
     windowRefresh(gCharacterEditorWindow);
 }
 
+static void characterEditorDrawKarmaFolderF1()
+{
+    bool hasSelection = false;
+    char buf[64];
+
+    characterEditorFolderViewClear();
+
+    // Slot 0: always-shown "Reputation (General) N".
+    snprintf(buf, sizeof(buf), "%s %d",
+        getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1000),
+        gGameGlobalVars[F1_GVAR_PLAYER_REPUATION]);
+
+    if (characterEditorFolderViewDrawString(buf)) {
+        gCharacterEditorFolderCardFrmId = gF1KarmaPics[0];
+        gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1000);
+        gCharacterEditorFolderCardSubtitle = NULL;
+        gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1100);
+        hasSelection = true;
+    }
+
+    // Slots 1...9: only shown if the gvar is nonzero.
+    for (int i = 0; i < 9; i++) {
+        if (gGameGlobalVars[gF1KarmaVars[i]] == 0) {
+            continue;
+        }
+
+        char* name = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1001 + i);
+        if (characterEditorFolderViewDrawString(name)) {
+            gCharacterEditorFolderCardFrmId = gF1KarmaPics[i + 1];
+            gCharacterEditorFolderCardTitle = name;
+            gCharacterEditorFolderCardSubtitle = NULL;
+            gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 1101 + i);
+            hasSelection = true;
+        }
+    }
+
+    if (!hasSelection) {
+        gCharacterEditorFolderCardFrmId = 47;
+        gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 125);
+        gCharacterEditorFolderCardSubtitle = NULL;
+        gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 128);
+    }
+}
+
 // 0x43BCE0
 static void characterEditorDrawKarmaFolder()
 {
+    if (IS_FALLOUT_1()) {
+        characterEditorDrawKarmaFolderF1();
+        return;
+    }
+
     char* msg;
     char formattedText[256];
 
@@ -6097,65 +6180,67 @@ static void characterEditorDrawKarmaFolder()
         }
     }
 
-    bool hasTownReputationHeading = false;
-    // SFALL
-    for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
-        const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
-        if (wmAreaIsKnown(pair->city)) {
-            if (!hasTownReputationHeading) {
-                msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4000);
-                if (characterEditorFolderViewDrawHeading(msg)) {
-                    gCharacterEditorFolderCardFrmId = 48;
-                    gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4000);
-                    gCharacterEditorFolderCardSubtitle = nullptr;
-                    gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4100);
+    if (!IS_FALLOUT_1()) {
+        bool hasTownReputationHeading = false;
+        // SFALL
+        for (int index = 0; index < gCustomTownReputationEntries.size(); index++) {
+            const TownReputationEntry* pair = &(gCustomTownReputationEntries[index]);
+            if (wmAreaIsKnown(pair->city)) {
+                if (!hasTownReputationHeading) {
+                    msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4000);
+                    if (characterEditorFolderViewDrawHeading(msg)) {
+                        gCharacterEditorFolderCardFrmId = 48;
+                        gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4000);
+                        gCharacterEditorFolderCardSubtitle = nullptr;
+                        gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, 4100);
+                    }
+                    hasTownReputationHeading = true;
                 }
-                hasTownReputationHeading = true;
-            }
 
-            char cityShortName[40];
-            wmGetAreaIdxName(pair->city, cityShortName);
+                char cityShortName[40];
+                wmGetAreaIdxName(pair->city, cityShortName);
 
-            int townReputation = gGameGlobalVars[pair->gvar];
+                int townReputation = gGameGlobalVars[pair->gvar];
 
-            int townReputationGraphicId;
-            int townReputationBaseMessageId;
+                int townReputationGraphicId;
+                int townReputationBaseMessageId;
 
-            if (townReputation < -30) {
-                townReputationGraphicId = 150;
-                townReputationBaseMessageId = 2006; // Vilified
-            } else if (townReputation < -15) {
-                townReputationGraphicId = 153;
-                townReputationBaseMessageId = 2005; // Hated
-            } else if (townReputation < 0) {
-                townReputationGraphicId = 153;
-                townReputationBaseMessageId = 2004; // Antipathy
-            } else if (townReputation == 0) {
-                townReputationGraphicId = 141;
-                townReputationBaseMessageId = 2003; // Neutral
-            } else if (townReputation < 15) {
-                townReputationGraphicId = 137;
-                townReputationBaseMessageId = 2002; // Accepted
-            } else if (townReputation < 30) {
-                townReputationGraphicId = 137;
-                townReputationBaseMessageId = 2001; // Liked
-            } else {
-                townReputationGraphicId = 135;
-                townReputationBaseMessageId = 2000; // Idolized
-            }
+                if (townReputation < -30) {
+                    townReputationGraphicId = 150;
+                    townReputationBaseMessageId = 2006; // Vilified
+                } else if (townReputation < -15) {
+                    townReputationGraphicId = 153;
+                    townReputationBaseMessageId = 2005; // Hated
+                } else if (townReputation < 0) {
+                    townReputationGraphicId = 153;
+                    townReputationBaseMessageId = 2004; // Antipathy
+                } else if (townReputation == 0) {
+                    townReputationGraphicId = 141;
+                    townReputationBaseMessageId = 2003; // Neutral
+                } else if (townReputation < 15) {
+                    townReputationGraphicId = 137;
+                    townReputationBaseMessageId = 2002; // Accepted
+                } else if (townReputation < 30) {
+                    townReputationGraphicId = 137;
+                    townReputationBaseMessageId = 2001; // Liked
+                } else {
+                    townReputationGraphicId = 135;
+                    townReputationBaseMessageId = 2000; // Idolized
+                }
 
-            msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId);
-            snprintf(formattedText, sizeof(formattedText),
-                "%s: %s",
-                cityShortName,
-                msg);
+                msg = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId);
+                snprintf(formattedText, sizeof(formattedText),
+                    "%s: %s",
+                    cityShortName,
+                    msg);
 
-            if (characterEditorFolderViewDrawString(formattedText)) {
-                gCharacterEditorFolderCardFrmId = townReputationGraphicId;
-                gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId);
-                gCharacterEditorFolderCardSubtitle = nullptr;
-                gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId + 100);
-                hasSelection = 1;
+                if (characterEditorFolderViewDrawString(formattedText)) {
+                    gCharacterEditorFolderCardFrmId = townReputationGraphicId;
+                    gCharacterEditorFolderCardTitle = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId);
+                    gCharacterEditorFolderCardSubtitle = nullptr;
+                    gCharacterEditorFolderCardDescription = getmsg(&gCharacterEditorMessageList, &gCharacterEditorMessageListItem, townReputationBaseMessageId + 100);
+                    hasSelection = 1;
+                }
             }
         }
     }
@@ -7209,7 +7294,7 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
 
     if (rank != nullptr) {
         int rankX = fontGetStringWidth(name) + 280 + 8;
-        fontSetCurrent(101);
+        fontSetCurrent(108);
 
         int rankHeight = fontGetLineHeight();
         fontDrawText(gPerkDialogWindowBuffer + PERK_WINDOW_WIDTH * (23 + nameHeight - rankHeight) + rankX, rank, PERK_WINDOW_WIDTH, PERK_WINDOW_WIDTH, _colorTable[COL_BLACK]);
@@ -7576,6 +7661,10 @@ static bool characterEditorFolderViewDrawKillsEntry(const char* name, int kills)
 // 0x43E5C4
 static int karmaInit()
 {
+    if (IS_FALLOUT_1()) {
+        return 0;
+    }
+
     // Free any previously loaded entries
     if (gKarmaEntries) {
         internal_free(gKarmaEntries);
@@ -7738,6 +7827,10 @@ static int karmaEntryCompare(const void* a1, const void* a2)
 // 0x43E798
 static int genericReputationInit()
 {
+    if (IS_FALLOUT_1()) {
+        return 0;
+    }
+
     const char* delim = " \t,";
 
     if (gGenericReputationEntries != nullptr) {
@@ -7873,6 +7966,10 @@ static int customKarmaFolderGetFrmId()
 
 static void customTownReputationInit()
 {
+    if (IS_FALLOUT_1()) {
+        return;
+    }
+
     const std::string& repList = settings.mod_settings.city_reputation_list;
 
     if (repList.empty()) {

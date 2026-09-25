@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "debug.h"
 #include "game.h"
 #include "message.h"
 #include "object.h"
@@ -74,13 +75,32 @@ int traitsInit()
         messageListItem.num = 100 + trait;
         if (messageListGetItem(&gTraitsMessageList, &messageListItem)) {
             gTraitDescriptions[trait].name = messageListItem.text;
+        } else {
+            gTraitDescriptions[trait].name = nullptr;
         }
 
         messageListItem.num = 200 + trait;
         if (messageListGetItem(&gTraitsMessageList, &messageListItem)) {
             gTraitDescriptions[trait].description = messageListItem.text;
+        } else {
+            gTraitDescriptions[trait].description = nullptr;
         }
     }
+
+    // Discover the runtime trait count. Fallout 1 has 16, Fallout 2 has 24.
+    gTraitCount = 0;
+    for (int trait = 0; trait < TRAIT_COUNT; trait++) {
+        if (gTraitDescriptions[trait].name == nullptr) {
+            break;
+        }
+        gTraitCount = trait + 1;
+    }
+
+    if (gTraitCount == 0) {
+        gTraitCount = TRAIT_COUNT;
+    }
+
+    debugPrint("[GAME] Discovered %d traits (engine max %d)\n", gTraitCount, TRAIT_COUNT);
 
     // NOTE: Uninline.
     traitsReset();
