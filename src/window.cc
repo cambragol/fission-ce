@@ -475,8 +475,8 @@ void _doRegionFunc(Region* region, int mouseEvent)
     }
 
     if (mouseEvent < 4) {
-        if (region->program != nullptr && region->rightProcs[mouseEvent] != 0) {
-            programExecuteProcedureAsync(region->program, region->rightProcs[mouseEvent]);
+        if (region->program != nullptr && region->procs[mouseEvent] != 0) {
+            programExecuteProcedureAsync(region->program, region->procs[mouseEvent]);
         }
     }
 }
@@ -571,6 +571,7 @@ void scriptWindowDispatchButtonMouseEvent(int btn, int mouseEvent)
                             managedButton->mouseEventCallback(managedButton->mouseEventCallbackUserData, mouseEvent);
                         }
                     }
+                    return;
                 }
             }
         }
@@ -630,6 +631,7 @@ void scriptWindowDispatchButtonRightMouseEvent(int btn, int mouseEvent)
                             managedButton->rightMouseEventCallback(managedButton->rightMouseEventCallbackUserData, mouseEvent);
                         }
                     }
+                    return;
                 }
             }
         }
@@ -1078,7 +1080,7 @@ char** windowWordWrap(char* string, int maxLength, int indent, int* substringLis
             pch++;
         } else {
             while (width > maxLength) {
-                width -= fontGetCharacterWidth(*pch);
+                width -= fontGetCharacterWidth(*pch & 0xFF);
                 pch--;
             }
 

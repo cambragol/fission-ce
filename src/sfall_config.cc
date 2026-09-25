@@ -2,7 +2,9 @@
 
 #include "art.h"
 #include "db.h"
+#include "debug.h"
 #include "file_find.h"
+#include "game_version.h"
 #include "memory.h"
 #include "platform_compat.h"
 #include "proto.h"
@@ -21,6 +23,240 @@ bool gModConfigInitialized = false;
 Config gModConfig;
 ModInfo gLoadedMods[MAX_LOADED_MODS];
 int gLoadedModsCount = 0;
+
+// Runtime defaults for every key modConfigInit writes into gModConfig.
+// This is the single operational source of truth: the compiled-in
+// MOD_CONFIG_DEFAULT_* constants are used only to seed the base block
+// below, and per-game overrides live inside modDefaultsGet(). Everything
+// that reads a default reads it from the struct this function returns.
+//
+// Adding a new default: add the field here, set it in the base block,
+// and add the corresponding configSetX call in modConfigInit. No new
+// #define needed.
+typedef struct ModDefaults {
+    // Start date
+    int start_year;
+    int start_month;
+    int start_day;
+    const char* starting_map;
+
+    // Movie timers
+    int movie_timer_artimer1;
+    int movie_timer_artimer2;
+    int movie_timer_artimer3;
+    int movie_timer_artimer4;
+
+    // Pip-Boy
+    int pipboy_available_at_gamestart;
+
+    // Criticals
+    int override_criticals_mode;
+    const char* override_criticals_file;
+
+    // Premades
+    const char* premade_characters_file_names;
+    const char* premade_characters_face_fids;
+
+    // Player models
+    const char* dude_native_look_jumpsuit_male;
+    const char* dude_native_look_jumpsuit_female;
+    const char* dude_native_look_tribal_male;
+    const char* dude_native_look_tribal_female;
+
+    // Main menu
+    int main_menu_big_font_color;
+    int main_menu_credits_offset_x;
+    int main_menu_credits_offset_y;
+    int main_menu_font_color;
+    int main_menu_offset_x;
+    int main_menu_offset_y;
+
+    const char* version_string;
+    int worldmap_trail_markers;
+
+    // Karma
+    const char* karma_frms;
+    const char* karma_points;
+
+    // Explosives
+    int dynamite_min_damage;
+    int dynamite_max_damage;
+    int plastic_explosive_min_damage;
+    int plastic_explosive_max_damage;
+
+    // Damage / skills
+    const char* city_reputation_list;
+    const char* unarmed_file;
+    int damage_mod_formula;
+    bool bonus_hth_damage_fix;
+    int use_lockpick_frm;
+    int use_steal_frm;
+    int use_traps_frm;
+    int use_first_aid_frm;
+    int use_doctor_frm;
+    int use_science_frm;
+    int use_repair_frm;
+    bool science_repair_target_type;
+    bool game_dialog_fix;
+    const char* tweaks_file;
+    bool game_dialog_gender_words;
+    bool town_map_hotkeys_fix;
+    const char* extra_message_lists;
+    const char* patch_file;
+    const char* books_file;
+    const char* elevators_file;
+    const char* console_output_file;
+    int use_walk_distance;
+
+    // Burst
+    bool burst_mod_enabled;
+    int burst_mod_center_multiplier;
+    int burst_mod_center_divisor;
+    int burst_mod_target_multiplier;
+    int burst_mod_target_divisor;
+
+    // Interface bar
+    bool iface_bar_mode;
+    int iface_bar_width;
+    int iface_bar_side_art;
+    bool iface_bar_sides_ori;
+
+    // Vock floats
+    int float_audio_channels;
+    int float_distance_per_perception;
+    int float_obstruction_dampening;
+    int float_eviction_policy;
+    bool float_text_scramble;
+    int float_text_scramble_distance_per_perception;
+    const char* float_text_scramble_chars;
+    bool voiced_floats;
+    bool float_censor_bleep;
+    int float_volume;
+
+    // Scripts
+    const char* ini_config_folder;
+    const char* global_script_paths;
+} ModDefaults;
+
+// Returns the complete set of runtime defaults for the currently running
+// game. IS_FALLOUT_1() is authoritative here because gameDbInit() has
+// already opened master.dat (which sets the version) before
+// modConfigInit() is called.
+static ModDefaults modDefaultsGet()
+{
+    ModDefaults d = {};
+
+    // Shared base block
+    // Every FISSION game starts from these values. Edit here to change a
+    // default for every game at once. Values are seeded from the
+    // MOD_CONFIG_DEFAULT_* constants so that behavior is unchanged from
+    // before this refactor.
+    //
+    // NOTE: start_month and start_day are ZERO-BASED. Month 6 = July,
+    // day 24 = the 25th. This trips up every override; check both when
+    // adding a new game.
+    d.start_year = MOD_CONFIG_DEFAULT_START_YEAR;
+    d.start_month = MOD_CONFIG_DEFAULT_START_MONTH;
+    d.start_day = MOD_CONFIG_DEFAULT_START_DAY;
+    d.starting_map = MOD_CONFIG_DEFAULT_STARTING_MAP;
+
+    d.movie_timer_artimer1 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER1;
+    d.movie_timer_artimer2 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER2;
+    d.movie_timer_artimer3 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER3;
+    d.movie_timer_artimer4 = MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER4;
+
+    d.pipboy_available_at_gamestart = MOD_CONFIG_DEFAULT_PIPBOY_AVAILABLE_AT_GAMESTART;
+
+    d.override_criticals_mode = MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_MODE;
+    d.override_criticals_file = MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_FILE;
+
+    d.premade_characters_file_names = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FILE_NAMES;
+    d.premade_characters_face_fids = MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FACE_FIDS;
+
+    d.dude_native_look_jumpsuit_male = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_MALE;
+    d.dude_native_look_jumpsuit_female = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE;
+    d.dude_native_look_tribal_male = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_MALE;
+    d.dude_native_look_tribal_female = MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_FEMALE;
+
+    d.main_menu_big_font_color = MOD_CONFIG_DEFAULT_MAIN_MENU_BIG_FONT_COLOR;
+    d.main_menu_credits_offset_x = MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_X;
+    d.main_menu_credits_offset_y = MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_Y;
+    d.main_menu_font_color = MOD_CONFIG_DEFAULT_MAIN_MENU_FONT_COLOR;
+    d.main_menu_offset_x = MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_X;
+    d.main_menu_offset_y = MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_Y;
+
+    d.version_string = MOD_CONFIG_DEFAULT_VERSION_STRING;
+    d.worldmap_trail_markers = MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS;
+
+    d.karma_frms = MOD_CONFIG_DEFAULT_KARMA_FRMS;
+    d.karma_points = MOD_CONFIG_DEFAULT_KARMA_POINTS;
+
+    d.dynamite_min_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MIN_DAMAGE;
+    d.dynamite_max_damage = MOD_CONFIG_DEFAULT_DYNAMITE_MAX_DAMAGE;
+    d.plastic_explosive_min_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MIN_DAMAGE;
+    d.plastic_explosive_max_damage = MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MAX_DAMAGE;
+
+    d.city_reputation_list = MOD_CONFIG_DEFAULT_CITY_REPUTATION_LIST;
+    d.unarmed_file = MOD_CONFIG_DEFAULT_UNARMED_FILE;
+    d.damage_mod_formula = MOD_CONFIG_DEFAULT_DAMAGE_MOD_FORMULA;
+    d.bonus_hth_damage_fix = MOD_CONFIG_DEFAULT_BONUS_HTH_DAMAGE_FIX;
+    d.use_lockpick_frm = MOD_CONFIG_DEFAULT_USE_LOCKPICK_FRM;
+    d.use_steal_frm = MOD_CONFIG_DEFAULT_USE_STEAL_FRM;
+    d.use_traps_frm = MOD_CONFIG_DEFAULT_USE_TRAPS_FRM;
+    d.use_first_aid_frm = MOD_CONFIG_DEFAULT_USE_FIRST_AID_FRM;
+    d.use_doctor_frm = MOD_CONFIG_DEFAULT_USE_DOCTOR_FRM;
+    d.use_science_frm = MOD_CONFIG_DEFAULT_USE_SCIENCE_FRM;
+    d.use_repair_frm = MOD_CONFIG_DEFAULT_USE_REPAIR_FRM;
+    d.science_repair_target_type = MOD_CONFIG_DEFAULT_SCIENCE_REPAIR_TARGET_TYPE;
+    d.game_dialog_fix = MOD_CONFIG_DEFAULT_GAME_DIALOG_FIX;
+    d.tweaks_file = MOD_CONFIG_DEFAULT_TWEAKS_FILE;
+    d.game_dialog_gender_words = MOD_CONFIG_DEFAULT_GAME_DIALOG_GENDER_WORDS;
+    d.town_map_hotkeys_fix = MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX;
+    d.extra_message_lists = MOD_CONFIG_DEFAULT_EXTRA_MESSAGE_LISTS;
+    d.patch_file = MOD_CONFIG_DEFAULT_PATCH_FILE;
+    d.books_file = MOD_CONFIG_DEFAULT_BOOKS_FILE;
+    d.elevators_file = MOD_CONFIG_DEFAULT_ELEVATORS_FILE;
+    d.console_output_file = MOD_CONFIG_DEFAULT_CONSOLE_OUTPUT_FILE;
+    d.use_walk_distance = MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE;
+
+    d.burst_mod_enabled = MOD_CONFIG_DEFAULT_BURST_MOD_ENABLED;
+    d.burst_mod_center_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_MULTIPLIER;
+    d.burst_mod_center_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_DIVISOR;
+    d.burst_mod_target_multiplier = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_MULTIPLIER;
+    d.burst_mod_target_divisor = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_DIVISOR;
+
+    d.iface_bar_mode = MOD_CONFIG_DEFAULT_IFACE_BAR_MODE;
+    d.iface_bar_width = MOD_CONFIG_DEFAULT_IFACE_BAR_WIDTH;
+    d.iface_bar_side_art = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART;
+    d.iface_bar_sides_ori = MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI;
+
+    d.float_audio_channels = MOD_CONFIG_DEFAULT_FLOAT_AUDIO_CHANNELS;
+    d.float_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION;
+    d.float_obstruction_dampening = MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING;
+    d.float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
+    d.float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
+    d.float_text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
+    d.float_text_scramble_chars = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
+    d.voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
+    d.float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
+    d.float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
+
+    d.ini_config_folder = MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER;
+    d.global_script_paths = MOD_CONFIG_DEFAULT_GLOBAL_SCRIPT_PATHS;
+
+    // Per-game overrides
+    // Only list fields that differ from the base block above. Everything
+    // not mentioned inherits the base value.
+    //
+    if (IS_FALLOUT_1()) {
+        d.start_year = 2161;
+        d.start_month = 11; // zero-based: 11 = December
+        d.start_day = 4; // zero-based: 4 = the 5th
+        d.worldmap_trail_markers = true;
+    }
+
+    return d;
+}
 
 // Comparison function for qsort
 static int compareStrings(const void* a, const void* b)
@@ -529,72 +765,102 @@ bool modConfigInit(int argc, char** argv)
     if (gModConfigInitialized) return false;
     if (!configInit(&gModConfig)) return false;
 
-    // Default settings
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, MOD_CONFIG_DEFAULT_START_YEAR);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, MOD_CONFIG_DEFAULT_START_MONTH);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, MOD_CONFIG_DEFAULT_START_DAY);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_STARTING_MAP_KEY, MOD_CONFIG_DEFAULT_STARTING_MAP);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER1, MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER1);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER2, MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER2);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER3, MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER3);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER4, MOD_CONFIG_DEFAULT_MOVIE_TIMER_ARTIMER4);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, MOD_CONFIG_DEFAULT_PIPBOY_AVAILABLE_AT_GAMESTART);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_MODE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, MOD_CONFIG_DEFAULT_OVERRIDE_CRITICALS_FILE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FILE_NAMES);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, MOD_CONFIG_DEFAULT_PREMADE_CHARACTERS_FACE_FIDS);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_MALE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_MALE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, MOD_CONFIG_DEFAULT_DUDE_NATIVE_LOOK_TRIBAL_FEMALE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_BIG_FONT_COLOR);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_X);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_CREDITS_OFFSET_Y);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_FONT_COLOR_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_FONT_COLOR);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_X_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_X);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_Y_KEY, MOD_CONFIG_DEFAULT_MAIN_MENU_OFFSET_Y);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, MOD_CONFIG_DEFAULT_VERSION_STRING);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, MOD_CONFIG_DEFAULT_WORLDMAP_TRAIL_MARKERS);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_FRMS_KEY, MOD_CONFIG_DEFAULT_KARMA_FRMS);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_POINTS_KEY, MOD_CONFIG_DEFAULT_KARMA_POINTS);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, MOD_CONFIG_DEFAULT_DYNAMITE_MIN_DAMAGE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, MOD_CONFIG_DEFAULT_DYNAMITE_MAX_DAMAGE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MIN_DAMAGE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, MOD_CONFIG_DEFAULT_PLASTIC_EXPLOSIVE_MAX_DAMAGE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CITY_REPUTATION_LIST_KEY, MOD_CONFIG_DEFAULT_CITY_REPUTATION_LIST);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, MOD_CONFIG_DEFAULT_UNARMED_FILE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, MOD_CONFIG_DEFAULT_DAMAGE_MOD_FORMULA);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, MOD_CONFIG_DEFAULT_BONUS_HTH_DAMAGE_FIX);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_LOCKPICK_FRM_KEY, MOD_CONFIG_DEFAULT_USE_LOCKPICK_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_STEAL_FRM_KEY, MOD_CONFIG_DEFAULT_USE_STEAL_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_TRAPS_FRM_KEY, MOD_CONFIG_DEFAULT_USE_TRAPS_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_FIRST_AID_FRM_KEY, MOD_CONFIG_DEFAULT_USE_FIRST_AID_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_DOCTOR_FRM_KEY, MOD_CONFIG_DEFAULT_USE_DOCTOR_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_SCIENCE_FRM_KEY, MOD_CONFIG_DEFAULT_USE_SCIENCE_FRM);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_REPAIR_FRM_KEY, MOD_CONFIG_DEFAULT_USE_REPAIR_FRM);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, MOD_CONFIG_DEFAULT_SCIENCE_REPAIR_TARGET_TYPE);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, MOD_CONFIG_DEFAULT_GAME_DIALOG_FIX);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TWEAKS_FILE_KEY, MOD_CONFIG_DEFAULT_TWEAKS_FILE);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, MOD_CONFIG_DEFAULT_GAME_DIALOG_GENDER_WORDS);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, MOD_CONFIG_DEFAULT_TOWN_MAP_HOTKEYS_FIX);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE);
-    configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER);
-    configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_GLOBAL_SCRIPT_PATHS, MOD_CONFIG_DEFAULT_GLOBAL_SCRIPT_PATHS);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, MOD_CONFIG_DEFAULT_PATCH_FILE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY, MOD_CONFIG_DEFAULT_EXTRA_MESSAGE_LISTS);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BOOKS_FILE_KEY, MOD_CONFIG_DEFAULT_BOOKS_FILE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_ELEVATORS_FILE_KEY, MOD_CONFIG_DEFAULT_ELEVATORS_FILE);
-    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, MOD_CONFIG_DEFAULT_CONSOLE_OUTPUT_FILE);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, MOD_CONFIG_DEFAULT_BURST_MOD_ENABLED);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_MODE, MOD_CONFIG_DEFAULT_IFACE_BAR_MODE);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, MOD_CONFIG_DEFAULT_IFACE_BAR_WIDTH);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDE_ART);
-    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, MOD_CONFIG_DEFAULT_IFACE_BAR_SIDES_ORI);
+    // Resolve per-game defaults once. IS_FALLOUT_1() is authoritative here
+    // because gameDbInit() has already opened master.dat and latched the
+    // version.
+    const ModDefaults defaults = modDefaultsGet();
+    debugPrint(">>> modConfigInit: applying game defaults (fallout1=%d)\n",
+        (int)IS_FALLOUT_1());
+
+    // ---- Default settings ----
+    // Every value below comes from modDefaultsGet(). The MOD_CONFIG_DEFAULT_*
+    // constants are no longer read here directly — to change a default, edit
+    // the base block or add a per-game override inside modDefaultsGet().
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, defaults.start_year);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, defaults.start_month);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_DAY, defaults.start_day);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_STARTING_MAP_KEY, defaults.starting_map);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER1, defaults.movie_timer_artimer1);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER2, defaults.movie_timer_artimer2);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER3, defaults.movie_timer_artimer3);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MOVIE_TIMER_ARTIMER4, defaults.movie_timer_artimer4);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, defaults.pipboy_available_at_gamestart);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_MODE_KEY, defaults.override_criticals_mode);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_OVERRIDE_CRITICALS_FILE_KEY, defaults.override_criticals_file);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FILE_NAMES_KEY, defaults.premade_characters_file_names);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PREMADE_CHARACTERS_FACE_FIDS_KEY, defaults.premade_characters_face_fids);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, defaults.dude_native_look_jumpsuit_male);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_FEMALE_KEY, defaults.dude_native_look_jumpsuit_female);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_MALE_KEY, defaults.dude_native_look_tribal_male);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_TRIBAL_FEMALE_KEY, defaults.dude_native_look_tribal_female);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_BIG_FONT_COLOR_KEY, defaults.main_menu_big_font_color);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_X_KEY, defaults.main_menu_credits_offset_x);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_CREDITS_OFFSET_Y_KEY, defaults.main_menu_credits_offset_y);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_FONT_COLOR_KEY, defaults.main_menu_font_color);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_X_KEY, defaults.main_menu_offset_x);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_MAIN_MENU_OFFSET_Y_KEY, defaults.main_menu_offset_y);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_VERSION_STRING, defaults.version_string);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, defaults.worldmap_trail_markers);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_FRMS_KEY, defaults.karma_frms);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_KARMA_POINTS_KEY, defaults.karma_points);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MIN_DAMAGE_KEY, defaults.dynamite_min_damage);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DYNAMITE_MAX_DAMAGE_KEY, defaults.dynamite_max_damage);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MIN_DAMAGE_KEY, defaults.plastic_explosive_min_damage);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PLASTIC_EXPLOSIVE_MAX_DAMAGE_KEY, defaults.plastic_explosive_max_damage);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CITY_REPUTATION_LIST_KEY, defaults.city_reputation_list);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_UNARMED_FILE_KEY, defaults.unarmed_file);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DAMAGE_MOD_FORMULA_KEY, defaults.damage_mod_formula);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY, defaults.bonus_hth_damage_fix);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_LOCKPICK_FRM_KEY, defaults.use_lockpick_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_STEAL_FRM_KEY, defaults.use_steal_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_TRAPS_FRM_KEY, defaults.use_traps_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_FIRST_AID_FRM_KEY, defaults.use_first_aid_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_DOCTOR_FRM_KEY, defaults.use_doctor_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_SCIENCE_FRM_KEY, defaults.use_science_frm);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_REPAIR_FRM_KEY, defaults.use_repair_frm);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, defaults.science_repair_target_type);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_FIX_KEY, defaults.game_dialog_fix);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TWEAKS_FILE_KEY, defaults.tweaks_file);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, defaults.game_dialog_gender_words);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, defaults.town_map_hotkeys_fix);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, defaults.use_walk_distance);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_FOG_LEVEL, MOD_CONFIG_DEFAULT_FOG_LEVEL);
+
+    // Vock floats
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, defaults.float_audio_channels);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, defaults.float_distance_per_perception);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, defaults.float_obstruction_dampening);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, defaults.float_eviction_policy);
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY, defaults.float_text_scramble);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, defaults.float_text_scramble_distance_per_perception);
+    configSetString(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY, defaults.float_text_scramble_chars);
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_VOICED_FLOATS_KEY, defaults.voiced_floats);
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, defaults.float_censor_bleep);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, defaults.float_volume);
+
+    // Scripts
+    configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, defaults.ini_config_folder);
+    configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_GLOBAL_SCRIPT_PATHS, defaults.global_script_paths);
+
+    // Files and paths
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_PATCH_FILE, defaults.patch_file);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_EXTRA_MESSAGE_LISTS_KEY, defaults.extra_message_lists);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BOOKS_FILE_KEY, defaults.books_file);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_ELEVATORS_FILE_KEY, defaults.elevators_file);
+    configSetString(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_CONSOLE_OUTPUT_FILE_KEY, defaults.console_output_file);
+
+    // Burst
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_ENABLED_KEY, defaults.burst_mod_enabled);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_MULTIPLIER_KEY, defaults.burst_mod_center_multiplier);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_CENTER_DIVISOR_KEY, defaults.burst_mod_center_divisor);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_MULTIPLIER_KEY, defaults.burst_mod_target_multiplier);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_BURST_MOD_TARGET_DIVISOR_KEY, defaults.burst_mod_target_divisor);
+
+    // Interface bar
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_MODE, defaults.iface_bar_mode);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_WIDTH, defaults.iface_bar_width);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDE_ART, defaults.iface_bar_side_art);
+    configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_IFACE_BAR_SIDES_ORI, defaults.iface_bar_sides_ori);
 
     // Scan mods folder
     char folderMods[MAX_LOADED_MODS][MOD_INFO_MAX_NAME];

@@ -1,6 +1,7 @@
 #include "game_config.h"
 #include "sfall_config.h"
 
+#include <SDL_filesystem.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -70,8 +71,22 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
 #ifdef __APPLE__
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
-    // iOS path
-    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/fission.dat");
+    // iOS path: resolve fission.dat from the app bundle's Resources directory.
+    // The working directory is already Documents at this point, so a relative
+    // path would never resolve. SDL_GetBasePath() returns the bundle's
+    // Resources path on iOS.
+    {
+        char* basePath = SDL_GetBasePath();
+        if (basePath != NULL) {
+            char fissionPath[COMPAT_MAX_PATH];
+            snprintf(fissionPath, sizeof(fissionPath), "%sfission.dat", basePath);
+            configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, fissionPath);
+            SDL_free(basePath);
+        } else {
+            // Fallback: allow a user-supplied fission.dat in Documents.
+            configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
+        }
+    }
 #elif TARGET_OS_MAC
     // macOS path
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/Contents/Resources/fission.dat");
@@ -161,6 +176,17 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MINIMAP, false);
     configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_MULTI_COLUMN_INVENTORY, 1);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_NPC_ARMOR, false);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_GREEN_MONOCHROME, false);
+    configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, 0);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, false);
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_COMPANION_INVENTORY, false);
+    // FISSION-VOCK ADD: master on/off for the whole float-enhancement subsystem
+    // (voiced floats, censor bleep, distance text scramble -- see the
+    // [vock-floats] keys in game.cfg for the individual toggles). Volume for
+    // voiced floats is tied to [sound] sndfx_volume rather than its own
+    // setting -- see _scr_get_msg_str_speech()/speechLoadFloat() in
+    // scripts.cc/game_sound.cc.
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, false);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");

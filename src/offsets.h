@@ -592,6 +592,8 @@ struct WorldmapOffsets {
 
 extern const MainMenuOffsets gMainMenuOffsets640;
 extern const MainMenuOffsets gMainMenuOffsets800;
+extern const MainMenuOffsets gMainMenuOffsetsF1_640;
+extern const MainMenuOffsets gMainMenuOffsetsF1_800;
 extern const CharacterEditorOffsets gCharEditorOffsets640;
 extern const CharacterEditorOffsets gCharEditorOffsets800;
 extern const CharacterSelectorOffsets gCharSelectorOffsets640;

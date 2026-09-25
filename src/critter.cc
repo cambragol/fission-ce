@@ -11,6 +11,7 @@
 #include "display_monitor.h"
 #include "endgame.h"
 #include "game.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "interface.h"
 #include "item.h"
@@ -883,7 +884,9 @@ void critterKill(Object* critter, int anim, bool refreshRect)
 
     if (!critterFlagCheck(critter->pid, CRITTER_FLAT)) {
         critter->flags |= OBJECT_NO_BLOCK;
-        _obj_toggle_flat(critter, &tempRect);
+        if ((critter->flags & OBJECT_FLAT) == OBJECT_NONE) {
+            _obj_toggle_flat(critter, &tempRect);
+        }
     }
 
     // NOTE: using uninitialized updatedRect/tempRect if fid was not set.
@@ -1036,6 +1039,15 @@ int gcdLoad(const char* path)
         return -1;
     }
 
+    if (IS_FALLOUT_1()) {
+        // F1's .gcd layout predates F2's critter damageType field.
+        // protoCritterDataRead unconditionally reads 4 bytes for it,
+        // consuming the first 4 bytes of the name field. Rewind those and
+        // use the same default the optional-field path would have chosen.
+        fileSeek(stream, -4, SEEK_CUR);
+        proto->critter.data.damageType = DAMAGE_TYPE_NORMAL;
+    }
+
     fileRead(gDudeName, DUDE_NAME_MAX_LENGTH, 1, stream);
 
     if (skillsLoad(stream) == -1) {
@@ -1106,6 +1118,14 @@ int gcdSave(const char* path)
     if (protoCritterDataWrite(stream, &(proto->critter.data)) == -1) {
         fileClose(stream);
         return -1;
+    }
+
+    if (IS_FALLOUT_1()) {
+        // gcdLoad rewinds 4 bytes in F1 mode to skip F2's damageType field,
+        // which F1's .gcd format doesn't have. Rewind here after writing so
+        // the field is overwritten by the name that follows, keeping the
+        // file in F1's layout.
+        fileSeek(stream, -4, SEEK_CUR);
     }
 
     fileWrite(gDudeName, DUDE_NAME_MAX_LENGTH, 1, stream);
