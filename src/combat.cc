@@ -19,6 +19,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -1980,10 +1981,10 @@ static const char* gCritDataMemberKeys[CRIT_DATA_MEMBER_COUNT] = {
 };
 
 static bool gBurstModEnabled = false;
-static int gBurstModCenterMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_MULTIPLIER;
-static int gBurstModCenterDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_CENTER_DIVISOR;
-static int gBurstModTargetMultiplier = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_MULTIPLIER;
-static int gBurstModTargetDivisor = MOD_CONFIG_BURST_MOD_DEFAULT_TARGET_DIVISOR;
+static int gBurstModCenterMultiplier = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_MULTIPLIER;
+static int gBurstModCenterDivisor = MOD_CONFIG_DEFAULT_BURST_MOD_CENTER_DIVISOR;
+static int gBurstModTargetMultiplier = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_MULTIPLIER;
+static int gBurstModTargetDivisor = MOD_CONFIG_DEFAULT_BURST_MOD_TARGET_DIVISOR;
 static UnarmedHitDescription gUnarmedHitDescriptions[HIT_MODE_COUNT];
 static int gDamageCalculationType;
 
@@ -2019,7 +2020,7 @@ int combatInit()
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "combat.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("combat.msg"));
 
     if (!(messageListLoad(&gCombatMessageList, path))) {
         return -1;
@@ -5623,7 +5624,7 @@ static int calledShotSelectHitLocation(Object* critter, int* hitLocation, int hi
     }
 
     int oldFont = fontGetCurrent();
-    fontSetCurrent(101);
+    fontSetCurrent(108);
 
     for (int index = 0; index < 4; index++) {
         int probability;

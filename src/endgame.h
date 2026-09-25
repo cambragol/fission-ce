@@ -20,6 +20,11 @@ int endgameDeathEndingExit();
 void endgameSetupDeathEnding(int reason);
 char* endgameDeathEndingGetFileName();
 
+// F1 ENDGAME DEBUG
+// Sets F1 endgame globals to a canned scenario and immediately plays the
+// slideshow. Intended for testing the F1 endgame port.
+void endgameDebugRunScenario(int scenario);
+
 } // namespace fallout
 
 #endif /* ENDGAME_H */
