@@ -824,7 +824,7 @@ bool modConfigInit(int argc, char** argv)
     configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, defaults.game_dialog_gender_words);
     configSetBool(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY, defaults.town_map_hotkeys_fix);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, defaults.use_walk_distance);
-    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_FOG_LEVEL, MOD_CONFIG_DEFAULT_FOG_LEVEL);
+    configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_FOG_LEVEL, MOD_CONFIG_DEFAULT_FOG_LEVEL);
 
     // Vock floats
     configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, defaults.float_audio_channels);
