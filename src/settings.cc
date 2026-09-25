@@ -205,7 +205,7 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.mod_settings.science_repair_target_type);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
-    modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_FOG_LEVEL, settings.mod_settings.fog_level);
+    modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_FOG_LEVEL, settings.mod_settings.fog_level);
 
     // FISSION-VOCK ADD: [vock-floats] is its own section rather than
     // mod_settings, so modders can find/tune it without wading through
@@ -408,7 +408,7 @@ static void settingsToConfig()
     settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_SCIENCE_REPAIR_TARGET_TYPE_KEY, settings.mod_settings.science_repair_target_type);
     settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
     settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
-    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_FOG_LEVEL, settings.mod_settings.fog_level);
+    settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_FOG_LEVEL, settings.mod_settings.fog_level);
 
     // Game Fixes
     settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
