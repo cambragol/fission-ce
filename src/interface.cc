@@ -21,6 +21,7 @@
 #include "game.h"
 #include "game_mouse.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "geometry.h"
 #include "input.h"
 #include "item.h"
@@ -28,6 +29,7 @@
 #include "memory.h"
 #include "mouse.h"
 #include "object.h"
+#include "party_member.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "proto_instance.h"
@@ -714,9 +716,14 @@ int interfaceInit()
     // Add an extra shift right for wide interfaces (more room for ammometre)
     extraShift = gInterfaceBarIsWide ? 4 : 0;
 
+    int backgroundHeight = backgroundFrmImage.getHeight();
+    if (backgroundHeight > INTERFACE_BAR_HEIGHT) {
+        backgroundHeight = INTERFACE_BAR_HEIGHT;
+    }
+
     blitBufferToBuffer(backgroundFrmImage.getData(),
         backgroundFrmImage.getWidth(),
-        backgroundFrmImage.getHeight(),
+        backgroundHeight,
         backgroundFrmImage.getWidth(),
         gInterfaceWindowBuffer,
         gInterfaceBarWidth);
@@ -1784,7 +1791,7 @@ void _intface_use_item()
         gameMouseSetMode(GAME_MOUSE_MODE_USE_CROSSHAIR);
     } else if (_obj_action_can_use(ptr->item)) {
         if (isInCombat()) {
-            int actionPointsRequired = itemGetActionPointCost(gDude, ptr->secondaryHitMode, false);
+            int actionPointsRequired = itemGetActionPointCost(gDude, ptr->primaryHitMode, false);
             if (actionPointsRequired <= gDude->data.critter.combat.ap) {
                 objectUseItem(gDude, ptr->item);
                 interfaceUpdateItems(false, INTERFACE_ITEM_ACTION_DEFAULT, INTERFACE_ITEM_ACTION_DEFAULT);
@@ -2678,11 +2685,58 @@ static int _intface_item_reload()
         return -1;
     }
 
-    bool wasReloaded = false;
-    while (weaponAttemptReload(gDude, gInterfaceItemStates[gInterfaceCurrentHand].item) != -1) {
-        wasReloaded = true;
+    Object* weapon = gInterfaceItemStates[gInterfaceCurrentHand].item;
+    if (weapon == nullptr) {
+        return -1;
     }
 
+    bool wasReloaded = false;
+
+    // Determine which owners to search for ammo.
+    Object* owners[8]; // max: player + 6 companions + safety
+    int ownerCount = 0;
+
+    if (isInCombat()) {
+        // In combat, only the player's inventory is accessible.
+        owners[ownerCount++] = gDude;
+    } else if (!settings.enhancements.strict_vanilla && settings.enhancements.companion_inventory) {
+        // Out of combat and companion inventory enabled: include player and companions.
+        owners[ownerCount++] = gDude;
+
+        // Add companions from the global party member PID array.
+        for (int i = 0; i < 6; i++) {
+            int pid = gPartyMemberPids[i];
+            if (pid != -1) {
+                Object* member = partyMemberFindByPid(pid);
+                if (member != nullptr && member != gDude && critterIsActive(member)) {
+                    if (ownerCount < 8) {
+                        owners[ownerCount++] = member;
+                    }
+                }
+            }
+        }
+    } else {
+        // Companion inventory disabled or strict vanilla: only player.
+        owners[ownerCount++] = gDude;
+    }
+
+    // Try each owner in order. If we find ammo and reload, stop searching.
+    for (int i = 0; i < ownerCount; i++) {
+        Object* owner = owners[i];
+        // Keep reloading from this owner while possible.
+        while (weaponAttemptReload(gDude, weapon, owner) != -1) {
+            wasReloaded = true;
+            // If weapon becomes full, no need to reload more.
+            if (ammoGetQuantity(weapon) >= ammoGetCapacity(weapon)) {
+                break;
+            }
+        }
+        if (wasReloaded) {
+            break; // Found and reloaded ammo, stop searching other owners.
+        }
+    }
+
+    // Update the interface after reload attempt.
     interfaceCycleItemAction();
     interfaceUpdateItems(false, INTERFACE_ITEM_ACTION_DEFAULT, INTERFACE_ITEM_ACTION_DEFAULT);
 
@@ -2690,7 +2744,8 @@ static int _intface_item_reload()
         return -1;
     }
 
-    const char* sfx = sfxBuildWeaponName(WEAPON_SOUND_EFFECT_READY, gInterfaceItemStates[gInterfaceCurrentHand].item, HIT_MODE_RIGHT_WEAPON_PRIMARY, nullptr);
+    // Play reload sound once.
+    const char* sfx = sfxBuildWeaponName(WEAPON_SOUND_EFFECT_READY, weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY, nullptr);
     soundPlayFile(sfx);
 
     return 0;
@@ -3078,7 +3133,7 @@ static int indicatorBarInit()
     }
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "intrface.msg");
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("intrface.msg"));
 
     if (rc != -1) {
         if (!messageListLoad(&messageList, path)) {
