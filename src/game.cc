@@ -545,21 +545,33 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
             int wheelY;
             mouseGetWheel(&wheelX, &wheelY);
 
-            int dx = 0;
-            if (wheelX > 0) {
-                dx = 1;
-            } else if (wheelX < 0) {
-                dx = -1;
-            }
+            bool altHeld = gPressedPhysicalKeys[SDL_SCANCODE_LALT] != 0;
 
-            int dy = 0;
-            if (wheelY > 0) {
-                dy = -1;
-            } else if (wheelY < 0) {
-                dy = 1;
-            }
+            if (altHeld && wheelY != 0) {
+                // Ctrl+wheel: zoom.
+                if (wheelY > 0) {
+                    mapZoomInStep();
+                } else {
+                    mapZoomOutStep();
+                }
+            } else if (!altHeld) {
+                // Plain wheel: scroll (existing behaviour).
+                int dx = 0;
+                if (wheelX > 0) {
+                    dx = 1;
+                } else if (wheelX < 0) {
+                    dx = -1;
+                }
 
-            mapScroll(dx, dy);
+                int dy = 0;
+                if (wheelY > 0) {
+                    dy = -1;
+                } else if (wheelY < 0) {
+                    dy = 1;
+                }
+
+                mapScroll(dx, dy);
+            }
         }
         return 0;
     }
@@ -802,6 +814,15 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
             tileScrollLimitingEnable();
         }
 
+        break;
+    case KEY_PAGE_UP:
+        mapZoomInStep();
+        break;
+    case KEY_PAGE_DOWN:
+        mapZoomOutStep();
+        break;
+    case KEY_END:
+        mapSetZoom(1.0f);
         break;
     case KEY_1:
     case KEY_EXCLAMATION:

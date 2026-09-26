@@ -375,6 +375,19 @@ err:
     return -1;
 }
 
+void objectsSetViewport(unsigned char* buffer, int width, int height, int pitch)
+{
+    gObjectsWindowBuffer = buffer;
+    gObjectsWindowWidth = width;
+    gObjectsWindowHeight = height;
+    gObjectsWindowPitch = pitch;
+
+    gObjectsWindowRect.left = 0;
+    gObjectsWindowRect.top = 0;
+    gObjectsWindowRect.right = width - 1;
+    gObjectsWindowRect.bottom = height - 1;
+}
+
 // 0x488A00
 void objectsReset()
 {
@@ -3403,10 +3416,6 @@ static int _obj_offset_table_init()
             for (int y = 0; y < gObjectsUpdateAreaHexHeight; y++) {
                 for (int x = 0; x < gObjectsUpdateAreaHexWidth; x++) {
                     int tile = tileFromScreenXY(tileX, originTileY);
-                    if (tile == -1) {
-                        goto err;
-                    }
-
                     tileX += 32;
                     *offsets++ = tile - originTile;
                 }
