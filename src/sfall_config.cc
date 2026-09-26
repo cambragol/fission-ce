@@ -121,17 +121,22 @@ typedef struct ModDefaults {
     int iface_bar_side_art;
     bool iface_bar_sides_ori;
 
-    // Vock floats
+    // ---- Vock features (NPC floats, text scramble, Pip-Boy audio) ----
     int float_audio_channels;
     int float_distance_per_perception;
     int float_obstruction_dampening;
     int float_eviction_policy;
-    bool float_text_scramble;
-    int float_text_scramble_distance_per_perception;
-    const char* float_text_scramble_chars;
-    bool voiced_floats;
+    bool float_audio;
     bool float_censor_bleep;
     int float_volume;
+
+    bool text_scramble;
+    int text_scramble_distance_per_perception;
+    int text_scramble_obstruction_dampening;
+    const char* text_scramble_chars;
+
+    bool pipboy_audio;
+    int pipboy_volume;
 
     // Scripts
     const char* ini_config_folder;
@@ -234,12 +239,17 @@ static ModDefaults modDefaultsGet()
     d.float_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION;
     d.float_obstruction_dampening = MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING;
     d.float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
-    d.float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
-    d.float_text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
-    d.float_text_scramble_chars = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
-    d.voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
+    d.float_audio = MOD_CONFIG_DEFAULT_FLOAT_AUDIO;
     d.float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
     d.float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
+
+    d.text_scramble = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE;
+    d.text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
+    d.text_scramble_obstruction_dampening = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING;
+    d.text_scramble_chars = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
+
+    d.pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
+    d.pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 
     d.ini_config_folder = MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER;
     d.global_script_paths = MOD_CONFIG_DEFAULT_GLOBAL_SCRIPT_PATHS;
@@ -774,7 +784,7 @@ bool modConfigInit(int argc, char** argv)
 
     // ---- Default settings ----
     // Every value below comes from modDefaultsGet(). The MOD_CONFIG_DEFAULT_*
-    // constants are no longer read here directly — to change a default, edit
+    // constants are no longer read here directly Â— to change a default, edit
     // the base block or add a per-game override inside modDefaultsGet().
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_YEAR, defaults.start_year);
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_START_MONTH, defaults.start_month);
@@ -826,16 +836,30 @@ bool modConfigInit(int argc, char** argv)
     configSetInt(&gModConfig, MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, defaults.use_walk_distance);
 
     // Vock floats
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, defaults.float_audio_channels);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, defaults.float_distance_per_perception);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, defaults.float_obstruction_dampening);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, defaults.float_eviction_policy);
-    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY, defaults.float_text_scramble);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, defaults.float_text_scramble_distance_per_perception);
-    configSetString(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY, defaults.float_text_scramble_chars);
-    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_VOICED_FLOATS_KEY, defaults.voiced_floats);
-    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, defaults.float_censor_bleep);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, defaults.float_volume);
+    // FISSION-VOCK ADD: number of NPC floats that can play voiced audio
+    // simultaneously -- see settings.mod_settings.float_audio_channels and
+    // AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc.
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, defaults.float_audio_channels);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, defaults.float_distance_per_perception);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, defaults.float_obstruction_dampening);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, defaults.float_eviction_policy);
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_AUDIO_KEY, defaults.float_audio);
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, defaults.float_censor_bleep);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, defaults.float_volume);
+    // FISSION-VOCK ADD: TextScramble is its own feature with its own
+    // independent distance/obstruction range -- see the comment on
+    // MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY in
+    // sfall_config.h.
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_KEY, defaults.text_scramble);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, defaults.text_scramble_distance_per_perception);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY, defaults.text_scramble_obstruction_dampening);
+    configSetString(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_CHARS_KEY, defaults.text_scramble_chars);
+    // FISSION-VOCK ADD: dedicated Pip-Boy holodisk-narration channel --
+    // own on/off (PipboyAudio) and own volume (PipboyVolume), independent
+    // of the NPC float pool above. See pipboySpeechLoad() in game_sound.cc
+    // and pipboyHolodiskUpdateAudio() in pipboy.cc.
+    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_AUDIO_KEY, defaults.pipboy_audio);
+    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_VOLUME_KEY, defaults.pipboy_volume);
 
     // Scripts
     configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, defaults.ini_config_folder);

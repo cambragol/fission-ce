@@ -35,6 +35,7 @@ void pipboyInit();
 void pipboyReset();
 int pipboySave(File* stream);
 int pipboyLoad(File* stream);
+bool pipboyIsResting();
 
 extern MessageList gPipboyMessageList;
 int pipboyMessageListInit();
