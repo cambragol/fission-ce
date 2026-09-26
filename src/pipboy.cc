@@ -2807,9 +2807,10 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 
 // 0x4988A0
 // Starts the voiced-holodisk speech for a holodisk when it's first opened.
-// `audio` is the raw audio field of the holodisk's first message line
-// (holodisk->description, the same `{num}{audio}{text}` field VockFeatures
-// reads for dialogue). It resolves through pipboySpeechLoad() on its own
+// `audio` is the raw audio field of the holodisk's title entry
+// (holodisk->name, the same `{num}{audio}{text}` field VockFeatures reads
+// for dialogue). The title is the one entry per holodisk that never moves
+// when the body text is edited or repaginated, matching vock-fo2's tagging. It resolves through pipboySpeechLoad() on its own
 // dedicated Pip-Boy channel (gPipboySound in game_sound.cc) rather than the
 // shared dialogue channel, so holodisk narration can't be interrupted by,
 // or interrupt, an unrelated NPC's line. Gated behind the [enhancements]
@@ -2879,7 +2880,7 @@ static void pipboyRenderHolodiskText()
         // _holodisk changed, so this is a newly opened holodisk, not a page
         // turn within one already playing. (Re)start narration from the top.
         // See pipboyHolodiskUpdateAudio() for why it's once per holodisk.
-        getmsg(&gPipboyMessageList, &gPipboyMessageListItem, holodisk->description);
+        getmsg(&gPipboyMessageList, &gPipboyMessageListItem, holodisk->name);
         pipboyHolodiskUpdateAudio(gPipboyMessageListItem.audio);
         gPipboyHolodiskAudioIndex = _holodisk;
     }
@@ -5025,7 +5026,7 @@ static void generateHolodiskListReport()
         "4. IDs are stable: same ModName + BlockKey gives same base ID.\n"
         "5. In scripts, set GVAR to non-zero to make holodisk appear.\n"
         "6. Optional voiced narration: put a bare filename (no path) in the\n"
-        "   holodisk's FIRST line's audio field, e.g. {1}{myquest_intro}{line1}.\n"
+        "   holodisk's TITLE entry's audio field, e.g. {0}{myquest_intro}{Title}.\n"
         "   One clip for the whole holodisk, not per page (pages break mid-\n"
         "   sentence, so per-page audio can't be cut cleanly). Resolves to\n"
         "   sound/pipboy/myquest_intro.*. Requires [enhancements]\n"

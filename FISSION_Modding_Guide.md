@@ -1570,12 +1570,12 @@ Create message files in language folders:
 Holodisks share the same message-list loading path as everything else in FISSION
 (`getmsg()`/`MessageListItem`), and that path already carries a per-line audio field --
 the middle slot of the standard `{num}{audio}{text}` `.msg` triple. Holodisk rendering
-reads that field once, from the holodisk's *very first* message line, and plays it as
-one continuous narration clip for the whole holodisk -- not one clip per page.
+reads that field once, from the holodisk's *title* entry, and plays it as one continuous
+narration clip for the whole holodisk -- not one clip per page.
 
 ```
-{0}{}{Important Data Disk}
-{1}{myquest_intro}{This holodisk contains critical information}
+{0}{myquest_intro}{Important Data Disk}
+{1}{}{This holodisk contains critical information}
 {2}{}{about the secret facility.}
 {3}{}{**END-PAR**}
 {4}{}{The entrance is hidden behind the waterfall.}
@@ -1592,9 +1592,10 @@ keeps playing across page turns, so nothing needs to be cut to match an arbitrar
 
 Rules:
 
--   Only the audio field on the holodisk's first message line is read (the ID in
-    `holodisk.txt`'s third column, i.e. page 0's first line). The field on every other
-    line, including the first line of later pages, is ignored.
+-   Only the audio field on the holodisk's title entry is read (the ID in
+    `holodisk.txt`'s second column for vanilla holodisks, `{0}` for mod holodisks).
+    The title never moves when the body text is edited, so the tag stays put. The
+    field on every body line is ignored.
 -   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
     NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
     to `sound/pipboy/<name>.wav` or `.acm` (searched in that order) -- a sibling of
