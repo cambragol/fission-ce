@@ -29,6 +29,7 @@
 #include "message.h"
 #include "object.h"
 #include "party_member.h"
+#include "pipboy.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "proto_instance.h"
@@ -3354,6 +3355,12 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
     // dialogue window's own line is always fully voiced/lip-synced.
     bool vockFeaturesGateOpen = settings.enhancements.vock_features && !settings.enhancements.strict_vanilla;
 
+    // FISSION-VOCK FIX: resting through the Pip-Boy alarm clock runs queued
+    // script events while time fast-forwards, so NPCs off-screen fire their
+    // floats back to back. The text floats stay (vanilla behavior), but
+    // voicing them -- or bleeping censored ones -- during the skip is noise.
+    bool floatAudioAllowed = vockFeaturesGateOpen && !pipboyIsResting();
+
     if (a3) {
         if (messageListItem.audio != nullptr && messageListItem.audio[0] != '\0') {
             if (messageListItem.flags & 0x01) {
@@ -3362,7 +3369,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // same as the in-dialog case below.
                 if (inOwnDialogue) {
                     gameDialogStartLips(nullptr);
-                } else if (vockFeaturesGateOpen && settings.mod_settings.float_censor_bleep) {
+                } else if (floatAudioAllowed && settings.mod_settings.float_censor_bleep) {
                     // FISSION-VOCK FIX: gated on FloatCensorBleep specifically,
                     // not FloatAudio -- a filtered line never plays its real
                     // audio either way, so whether it bleeps instead is its
@@ -3385,7 +3392,7 @@ char* _scr_get_msg_str_speech(int messageListId, int messageId, int a3, Object* 
                 // start_gdialog() has actually created a window with a real
                 // head to lip-sync against.
                 gameDialogStartLips(messageListItem.audio);
-            } else if (vockFeaturesGateOpen && settings.mod_settings.float_audio) {
+            } else if (floatAudioAllowed && settings.mod_settings.float_audio) {
                 // FISSION-VOCK FIX: message_str()/mstr() is also called from outside
                 // gdialog (float_msg, combat, timed_event_p_proc, etc), or
                 // from a script that isn't the one whose window is currently
