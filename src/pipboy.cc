@@ -448,6 +448,11 @@ int _holodisk;
 // pipboyHolodiskUpdateAudio().
 static int gPipboyHolodiskAudioIndex = -1;
 
+// Nesting depth of pipboyRest() (it calls itself for the heal-until
+// options). Non-zero while the alarm clock is fast-forwarding time, so
+// VOCK can keep NPC floats fired by scripts during the skip silent.
+static int gPipboyRestDepth = 0;
+
 // 0x6644F8
 int gPipboyWindowButtonCount;
 
@@ -4114,6 +4119,11 @@ static void pipboyWindowDestroyButtons()
 // 0x499A24
 static bool pipboyRest(int hours, int minutes, int duration)
 {
+    struct RestDepthGuard {
+        RestDepthGuard() { gPipboyRestDepth++; }
+        ~RestDepthGuard() { gPipboyRestDepth--; }
+    } restDepthGuard;
+
     gameMouseSetCursor(MOUSE_CURSOR_WAIT_WATCH);
 
     bool rc = false;
@@ -5040,6 +5050,12 @@ static void generateHolodiskListReport()
         "   default); volume is [vock-features] PipboyVolume.\n");
 
     fclose(reportFile);
+}
+
+// True while the alarm clock is fast-forwarding time.
+bool pipboyIsResting()
+{
+    return gPipboyRestDepth > 0;
 }
 
 // 0x49A824
