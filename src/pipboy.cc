@@ -1106,6 +1106,12 @@ int pipboyOpen(int intent)
                 cluesResetDistortion();
             }
 
+            // Leaving the holodisk view for another tab (automaps, archives,
+            // alarm clock, ...). Stop the narration and clear the tracker so
+            // reopening the same holodisk restarts it from the top.
+            pipboySpeechDelete();
+            gPipboyHolodiskAudioIndex = -1;
+
             gPipboyPrevTab = gPipboyTab;
             gPipboyTab = newTab;
 
