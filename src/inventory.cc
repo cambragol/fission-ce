@@ -3241,7 +3241,7 @@ static void _display_inventory_info(Object* item, int quantity, unsigned char* d
     }
 
     if (drawQuantity) {
-        if (!isScreen) {
+        if (!isScreen || !settings.enhancements.green_monochrome || settings.enhancements.strict_vanilla) {
             int currentFont = fontGetCurrent();
             fontSetCurrent(108); // Restore non-scanline font
             fontDrawText(dest, formattedText, 80, pitch, _colorTable[COL_WHITE]);

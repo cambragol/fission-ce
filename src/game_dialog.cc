@@ -4757,7 +4757,7 @@ int _gdialog_window_create()
                             buttonSetCallbacks(_gdialog_buttons[1], _gsound_red_butt_press, _gsound_red_butt_release);
 
                             // Fallout 1 & 2 only for the moment
-                            if (gGameDialogSpeakerIsPartyMember) {
+                            if (gGameDialogSpeakerIsPartyMember && ((IS_FALLOUT_1() && !settings.enhancements.strict_vanilla) || !IS_FALLOUT_1())) {
                                 // COMBAT CONTROL (party members, both games)
                                 _gdialog_buttons[2] = buttonCreate(gGameDialogWindow,
                                     593, 116, 14, 14, -1, -1, -1, -1,
@@ -5704,11 +5704,10 @@ static int aboutLookupName(const char* search)
 // Returns the FRM id for the dialog subwindow background (the panel
 // that carries the reply/options boxes).
 //
-// 389 - di_talkp.frm - party member variant (F2 layout, carries the
-//                      combat control button)
-// 99  - di_talk.frm  - NPC variant
-// 6319- di_talkf.frm - Fallout 1 non-vanilla variant
-//
+// 389  - di_talkp.frm - party member variant (small screen + combat control button)
+// 99   - di_talk.frm  - NPC variant (vanilla)
+// 6319 - di_talkf.frm - Fallout 1 non-vanilla variant (small screen + ask about)
+// 6306 - di_talk2.frm - Fallout 2 non-vanilla variant (small screen)
 // In Fallout 1 (non-strict-vanilla) we serve the converted F1 dialog
 // panel for the NPC variant so the subwindow matches F1's visual
 // language. The party-member variant is left as the F2 original —
@@ -5722,7 +5721,14 @@ static int gameDialogGetSubwindowFrmId()
         return 6319; // placeholder
     }
 
-    return gGameDialogSpeakerIsPartyMember ? 389 : 99;
+    if (gGameDialogSpeakerIsPartyMember && (IS_FALLOUT_1() && settings.enhancements.strict_vanilla))
+        return 99;
+
+    if (IS_FALLOUT_1()) {
+        return gGameDialogSpeakerIsPartyMember ? 389 : 99;
+    } else {
+        return gGameDialogSpeakerIsPartyMember ? 389 : 6306;
+    }
 }
 
 } // namespace fallout
