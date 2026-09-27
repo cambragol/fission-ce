@@ -45,3 +45,4 @@ PIPBBUDN.frm        ; Broken Pipboy down button
 SORTUSEH.frm        ; New Use Item On Action Icon Highlighted
 SORTUSEO.frm        ; New Use Item on Action Icon
 DI_TALKF.FRM        ; Fallout 1 Talk window with money and 'Tell Me About'
+DI_TALK2.FRM        ; Fallout 2 Talk window with money and no 'Tell Me About'
