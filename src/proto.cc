@@ -15,7 +15,9 @@
 #include "debug.h"
 #include "dialog.h"
 #include "game.h"
+#include "game_content.h"
 #include "game_movie.h"
+#include "game_version.h"
 #include "interface.h"
 #include "map.h"
 #include "memory.h"
@@ -424,7 +426,7 @@ static int protoSceneryDataRead(SceneryProtoData* scenery_data, int type, File* 
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileReadInt32(stream, &(scenery_data->ladder.destinationMap)) == -1)
+        if (fileReadInt32(stream, &(scenery_data->ladder.destinationBuiltTile)) == -1)
             return -1;
 
         return 0;
@@ -712,7 +714,7 @@ static int protoSceneryDataWrite(SceneryProtoData* scenery_data, int type, File*
         return 0;
     case SCENERY_TYPE_LADDER_UP:
     case SCENERY_TYPE_LADDER_DOWN:
-        if (fileWriteInt32(stream, scenery_data->ladder.destinationMap) == -1)
+        if (fileWriteInt32(stream, scenery_data->ladder.destinationBuiltTile) == -1)
             return -1;
 
         return 0;
@@ -1077,7 +1079,7 @@ static int _proto_update_gen(Object* obj)
             break;
         case SCENERY_TYPE_LADDER_UP:
         case SCENERY_TYPE_LADDER_DOWN:
-            data->scenery.ladder.destinationMap = proto->scenery.data.ladder.destinationMap;
+            data->scenery.ladder.destinationBuiltTile = proto->scenery.data.ladder.destinationBuiltTile;
             break;
         }
         break;
@@ -1289,11 +1291,11 @@ int proto_scenery_subdata_init(Proto* proto, int type)
         proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_UP:
-        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.data.ladder.destinationBuiltTile = -1;
         proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     case SCENERY_TYPE_LADDER_DOWN:
-        proto->scenery.data.ladder.destinationMap = -1;
+        proto->scenery.data.ladder.destinationBuiltTile = -1;
         proto->scenery.extendedFlags |= PROTO_EXT_FLAG_CAN_USE;
         break;
     }
@@ -1943,10 +1945,9 @@ int _proto_dude_update_gender()
         return -1;
     }
 
-    int nativeLook = DUDE_NATIVE_LOOK_TRIBAL;
-    if (gameMovieIsSeen(MOVIE_VSUIT)) {
-        nativeLook = DUDE_NATIVE_LOOK_JUMPSUIT;
-    }
+    int nativeLook = (IS_FALLOUT_1() || gameMovieIsSeen(gMovieVsuit))
+        ? DUDE_NATIVE_LOOK_JUMPSUIT
+        : DUDE_NATIVE_LOOK_TRIBAL;
 
     int frmId;
     if (critterGetStat(gDude, STAT_GENDER) == GENDER_MALE) {
@@ -3082,22 +3083,22 @@ int protoInit()
     _mp_critter_stats_list = _aDrugStatSpecia;
     _critter_stats_list = _critter_stats_list_strs;
     _critter_stats_list_None = _aNone_1;
-    for (i = 0; i < STAT_COUNT; i++) {
+
+    for (i = 0; i < gStatCount; i++) {
         _critter_stats_list_strs[i] = statGetName(i);
-        if (_critter_stats_list_strs[i] == nullptr) {
-            debugPrint("\nError: Finding stat names!");
-            return -1;
-        }
+    }
+    for (i = gStatCount; i < STAT_COUNT; i++) {
+        _critter_stats_list_strs[i] = _aNone_1;
     }
 
     _mp_perk_code_None = _aNone_1;
     _perk_code_strs = _mp_perk_code_strs;
-    for (i = 0; i < PERK_COUNT; i++) {
+
+    for (i = 0; i < gPerkCount; i++) {
         _mp_perk_code_strs[i] = perkGetName(i);
-        if (_mp_perk_code_strs[i] == nullptr) {
-            debugPrint("\nError: Finding perk names!");
-            return -1;
-        }
+    }
+    for (i = gPerkCount; i < PERK_COUNT; i++) {
+        _mp_perk_code_strs[i] = _aNone_1;
     }
 
     if (!messageListInit(&gProtoMessageList)) {
@@ -3105,7 +3106,7 @@ int protoInit()
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%sproto.msg", asc_5186C8);
+    snprintf(path, sizeof(path), "%s", GAME_MSG_PATH("proto.msg"));
 
     if (!messageListLoad(&gProtoMessageList, path)) {
         debugPrint("\nError: Loading main proto message file!");

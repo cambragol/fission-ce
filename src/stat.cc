@@ -7,6 +7,7 @@
 #include "art.h"
 #include "combat.h"
 #include "critter.h"
+#include "debug.h"
 #include "display_monitor.h"
 #include "game.h"
 #include "game_sound.h"
@@ -102,6 +103,7 @@ static int gPcStatValues[PC_STAT_COUNT];
 int statsInit()
 {
     MessageListItem messageListItem;
+    MessageListItem probe;
 
     // NOTE: Uninline.
     pcStatsReset();
@@ -116,6 +118,21 @@ int statsInit()
     if (!messageListLoad(&gStatsMessageList, path)) {
         return -1;
     }
+
+    gStatCount = 0;
+    for (int stat = 0; stat < STAT_COUNT; stat++) {
+        probe.num = 100 + stat;
+        if (!messageListGetItem(&gStatsMessageList, &probe)) {
+            break;
+        }
+        gStatCount = stat + 1;
+    }
+
+    if (gStatCount == 0) {
+        gStatCount = STAT_COUNT;
+    }
+
+    debugPrint("[GAME] Discovered %d stats (engine max %d)\n", gStatCount, STAT_COUNT);
 
     for (int stat = 0; stat < STAT_COUNT; stat++) {
         gStatDescriptions[stat].name = getmsg(&gStatsMessageList, &messageListItem, 100 + stat);
