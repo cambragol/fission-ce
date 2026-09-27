@@ -38,6 +38,15 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# Normalize: strip whitespace and embedded double quotes
+string(STRIP "${DATE}" DATE)
+string(REPLACE "\"" "" DATE "${DATE}")
+
+# If DATE ended up empty, fall back.
+if(DATE STREQUAL "")
+    string(TIMESTAMP DATE "%Y-%m-%d")
+endif()
+
 # Define a variable for CI_BUILD
 set(CI_BUILD 0)
 
