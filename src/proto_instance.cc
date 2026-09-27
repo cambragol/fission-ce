@@ -829,7 +829,7 @@ static UseItemResultCode _obj_use_flare(Object* critter, Object* flare)
     } else {
         if (critter == gDude) {
             // You light the flare.
-            messageListItem.num = 588;
+            messageListItem.num = 587;
             if (messageListGetItem(&gProtoMessageList, &messageListItem)) {
                 displayMonitorAddMessage(messageListItem.text);
             }

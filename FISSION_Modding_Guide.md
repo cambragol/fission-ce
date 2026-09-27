@@ -149,6 +149,12 @@ Fallout FISSION Modding System: Complete Modder's Guide
     - [15.4 Generated IDs Reference](#154-generated-ids-reference)
     - [15.5 Example Script Usage](#155-example-script-usage)
 
+16. [NPC Dialog & Voice Audio](#16-npc-dialog--voice-audio)
+    - [16.1 Overview](#161-overview)
+    - [16.2 File Structure](#162-file-structure)
+    - [16.3 Adding Voice Audio](#163-adding-voice-audio)
+    - [16.4 Example Mod Layout](#164-example-mod-layout)
+
 * * * * *
 
 1\. System Overview
@@ -248,7 +254,9 @@ Fallout 2 Game Directory/\
 │ │ ├── critters_{modname}.lst\
 │ │ └── *.pro\
 │ └── ... other proto types\
-├── dialog/ # Script dialog messages (optional)\
+├── text/ # (see above)\
+│ └── english/\
+│ └── dialog/ # Script dialog messages (optional)\
 │ └── *.msg\
 ├── lists/ # Generated reports\
 └── ... (other game folders)
@@ -2078,7 +2086,7 @@ To be added later.
 - Compiled Scripts: `{scriptname}.int`
 - Art Files: `{artname}.frm`
 - Proto Files: `{protoname}.pro`
-- Dialog Messages: `dialog/{scriptname}.msg`
+- Dialog Messages: `text/{language}/dialog/{scriptname}.msg`
 
 ### 14.2 Key Formats
 
@@ -2184,7 +2192,9 @@ MyFirstMod/\
 │ └── scenery/\
 │ ├── scenery_myfirst.lst\
 │ └── [mydoor.pro](https://mydoor.pro/)\
-├── dialog/ # Script dialog messages (optional)\
+├── text/\
+│ └── english/\
+│ └── dialog/ # Script dialog messages (optional)\
 │ └── myfirst_gun.msg\
 └── README.txt
 ```
@@ -2312,6 +2322,67 @@ set_global_var(900, 1);
 Use these exact IDs in your scripts for a fully working mod!
 
 * * * * *
+
+16\. NPC Dialog & Voice Audio
+-----------------------------
+
+### 16.1 Overview
+
+Every NPC script that shows dialogue or floating text (combat barks, ambient chatter,
+flavor lines) pulls its text from a `.msg` file, one per script. This is the same system
+across the whole game — dialogue windows, floating text, and combat barks all read from the
+same kind of file, and any line in it can optionally carry a voice-over.
+
+### 16.2 File Structure
+
+A script's `.msg` file lives at:
+
+```
+text/{language}/dialog/{scriptname}.msg
+```
+
+The filename must match the script's own filename — a script called `myscript.ssl`
+(compiled to `myscript.int`) reads from `text/english/dialog/myscript.msg`. If the NPC
+already has a `.msg` file, add your lines to it; if not, create one.
+
+Each line in the file follows the same three-field format:
+
+```
+{100}{}{You see a wastelander leaning against the wall.}
+{101}{myaudio}{Hey there, stranger. Watch yourself out there.}
+```
+
+-   **First `{ }`** — the line number. Scripts refer to this number to fetch the line.
+-   **Second `{ }`** — the voice-over filename, with no extension and no folder path. Leave
+    it empty (`{}`) for a silent line, like `{100}` above. Fill it in to attach audio, like
+    `{101}` — see 16.3 below for where that file goes.
+-   **Third `{ }`** — the line's text.
+
+### 16.3 Adding Voice Audio
+
+Drop the audio file under `sound/Speech/` in your mod folder, named to match the audio field
+from the `.msg` entry — `myaudio` in the example above means `sound/Speech/myaudio.wav`. The
+filename lookup is case-insensitive, and so is the folder name. `.acm` (the original
+Fallout 2 speech codec) is also supported if that's what you have, but `.wav` is the simpler
+choice for new content.
+
+No separate registration step is needed — as long as the filename in the `.msg` entry
+matches the audio file's name, the game finds it.
+
+### 16.4 Example Mod Layout
+
+```
+mods/mod_myfirst.dat/\
+├── scripts/\
+│   └── myscript.int\
+├── text/\
+│   └── english/\
+│       └── dialog/\
+│           └── MYSCRIPT.MSG\
+└── sound/\
+    └── Speech/\
+        └── myaudio.wav
+```
 
 *Document Version: 2.0 - Modder-Focused Refactor*\
 *Last Updated: Fallout 2 FISSION*\

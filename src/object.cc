@@ -2436,6 +2436,16 @@ bool _obj_occupied(int tile, int elevation)
     return false;
 }
 
+static bool critterHasWalkAnimation(Object* critter)
+{
+    int walkFid = buildFid(FID_TYPE(critter->fid),
+        artGetIndex(critter->fid),
+        ANIM_WALK,
+        0,
+        critter->rotation + 1);
+    return artExists(walkFid);
+}
+
 Object* _obj_blocking_at_for_path(Object* mover, int tile, int elev)
 {
     ObjectListNode* objectListNode;
@@ -2453,12 +2463,12 @@ Object* _obj_blocking_at_for_path(Object* mover, int tile, int elev)
             if ((obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0 && obj != mover) {
                 type = FID_TYPE(obj->fid);
                 if (type == OBJ_TYPE_CRITTER) {
-                    // For the player out of combat, critters are not blockers
-                    if (mover == gDude && !isInCombat()) {
-                        // treat as non-blocking
-                    } else {
+                    // For the player out of combat, only critters with walk animations are passable (pushable).
+                    // Immobile critters (e.g., turrets) block the path.
+                    if (mover != gDude || isInCombat() || !critterHasWalkAnimation(obj)) {
                         return obj;
                     }
+                    // Otherwise, fall through - treat as passable.
                 } else if (type == OBJ_TYPE_SCENERY || type == OBJ_TYPE_WALL) {
                     return obj;
                 }
@@ -2479,8 +2489,8 @@ Object* _obj_blocking_at_for_path(Object* mover, int tile, int elev)
                         if ((obj->flags & OBJECT_HIDDEN) == 0 && (obj->flags & OBJECT_NO_BLOCK) == 0 && obj != mover) {
                             type = FID_TYPE(obj->fid);
                             if (type == OBJ_TYPE_CRITTER) {
-                                if (mover == gDude && !isInCombat()) {
-                                    // ignore
+                                if (mover == gDude && !isInCombat() && critterHasWalkAnimation(obj)) {
+                                    // passable
                                 } else {
                                     return obj;
                                 }

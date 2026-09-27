@@ -10,7 +10,7 @@ const MainMenuOffsets gMainMenuOffsets640 = {
     /*versionX*/ 615,
     /*versionY*/ 460,
     /*hashX*/ 615,
-    /*hashX*/ 450,
+    /*hashY*/ 450,
     /*buildDateX*/ 615,
     /*buildDateX*/ 440,
     /*buttonBaseX*/ 30,
@@ -21,18 +21,52 @@ const MainMenuOffsets gMainMenuOffsets640 = {
     480
 };
 
+const MainMenuOffsets gMainMenuOffsetsF1_640 = {
+    /*copyrightX*/ 15,
+    /*copyrightY*/ 460,
+    /*versionX*/ 615,
+    /*versionY*/ 460,
+    /*hashX*/ 615,
+    /*hashY*/ 450,
+    /*buildDateX*/ 615,
+    /*buildDateX*/ 440,
+    /*buttonBaseX      */ 425,
+    /*buttonBaseY      */ 45,
+    /*buttonTextOffsetX*/ 394,
+    /*buttonTextOffsetY*/ 26,
+    640,
+    480
+};
+
 const MainMenuOffsets gMainMenuOffsets800 = {
     /*copyrightX*/ 15,
     /*copyrightY*/ 480,
     /*versionX*/ 780,
     /*versionY*/ 480,
     /*hashX*/ 780,
-    /*hashX*/ 470,
+    /*hashY*/ 470,
     /*buildDateX*/ 780,
     /*buildDateX*/ 460,
     /*buttonBaseX*/ 47,
     /*buttonBaseY*/ 45,
     /*buttonTextOffsetX*/ 17,
+    /*buttonTextOffsetY*/ 26,
+    800,
+    500
+};
+
+const MainMenuOffsets gMainMenuOffsetsF1_800 = {
+    /*copyrightX*/ 15,
+    /*copyrightY*/ 480,
+    /*versionX*/ 780,
+    /*versionY*/ 480,
+    /*hashX*/ 780,
+    /*hashY*/ 470,
+    /*buildDateX*/ 780,
+    /*buildDateX*/ 460,
+    /*buttonBaseX*/ 585,
+    /*buttonBaseY*/ 45,
+    /*buttonTextOffsetX*/ 554,
     /*buttonTextOffsetY*/ 26,
     800,
     500
@@ -1239,7 +1273,7 @@ void applyConfigToCharacterEditorOffsets(Config* config, const char* section, Ch
     // Primary stat Y (array of 7)
     configGetIntArray(config, section, "primaryStatY", offsets->primaryStatY, 7);
 
-    // Skill‐adjustment slider
+    // Skill”adjustment slider
     configGetInt(config, section, "skillValueAdjustmentSliderY", &offsets->skillValueAdjustmentSliderY);
 
     // Folder view
@@ -1428,7 +1462,7 @@ void applyConfigToLoadSaveOffsets(Config* config, const char* section, LoadSaveO
     configGetInt(config, section, "prevPageButtonWidth", &offsets->prevPageButtonWidth);
     configGetInt(config, section, "prevPageButtonHeight", &offsets->prevPageButtonHeight);
 
-    // Info‐box text block
+    // Info”box text block
     configGetInt(config, section, "infoBoxTextBlockY", &offsets->infoBoxTextBlockY);
 
     // Cover image parameters

@@ -245,6 +245,7 @@ extern unsigned char* circleBlendTable;
 extern int gModMapNameOffset[];
 extern int gModAreaIndex[];
 extern bool wmFaded;
+extern bool gSuppressMapEnterScript;
 
 // Accessor functions for map system
 int wmGetAreaId(int areaIndex);

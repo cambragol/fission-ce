@@ -19,6 +19,8 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_vars.h"
+#include "game_version.h"
 #include "input.h"
 #include "map.h"
 #include "memory.h"
@@ -91,6 +93,10 @@ static void endgameEndingUpdateOverlay();
 
 static void generateEndgameReport();
 static void generateEnddeathReport();
+
+// F1 ENDGAME
+static void endgamePlayF1DefaultSlideshow();
+static void endgamePlayDataDrivenSlideshow();
 
 // The number of lines in current subtitles file.
 //
@@ -214,6 +220,187 @@ static int gEndgameEndingSlideshowWindow;
 
 static int gEndgameEndingOverlay;
 
+// F1 ENDGAME DEBUG
+// Simulates endgame scenarios for testing the F1 slideshow port.
+// Scenario meanings and expected narrators are documented inline. "nar_NN"
+// names correspond to files in sound\speech\narrator\ and subtitle files in
+// text\<lang>\cuts\.
+void endgameDebugRunScenario(int scenario)
+{
+    if (!IS_FALLOUT_1()) {
+        debugPrint(">>> endgameDebugRunScenario: not in F1 mode, aborting\n");
+        return;
+    }
+
+    // Reset every F1 GVAR the slideshow reads to 0, so each scenario starts
+    // from a clean slate and we don't inherit state from a previous run.
+    gameSetGlobalVar(F1_GVAR_VATS_STATUS, 0);
+    gameSetGlobalVar(F1_GVAR_NECROPOLIS_INVADED, 0);
+    gameSetGlobalVar(F1_GVAR_NECROP_WATER_CHIP_TAKEN, 0);
+    gameSetGlobalVar(F1_GVAR_NECROP_WATER_PUMP_FIXED, 0);
+    gameSetGlobalVar(F1_GVAR_FOLLOWERS_INVADED, 0);
+    gameSetGlobalVar(F1_GVAR_TRAIN_FOLLOWERS, 0);
+    gameSetGlobalVar(F1_GVAR_SHADY_SANDS_INVADED, 0);
+    gameSetGlobalVar(F1_GVAR_TANDI_STATUS, 0);
+    gameSetGlobalVar(F1_GVAR_ARADESH_STATUS, 0);
+    gameSetGlobalVar(F1_GVAR_JUNKTOWN_INVADED, 0);
+    gameSetGlobalVar(F1_GVAR_CAPTURE_GIZMO, 0);
+    gameSetGlobalVar(F1_GVAR_KILLIAN_DEAD, 0);
+    gameSetGlobalVar(F1_GVAR_GIZMO_DEAD, 0);
+    gameSetGlobalVar(F1_GVAR_BECOME_AN_INITIATE, 0);
+    gameSetGlobalVar(F1_GVAR_ENEMY_BROTHERHOOD, 0);
+    gameSetGlobalVar(F1_GVAR_HUB_INVADED, 0);
+    gameSetGlobalVar(F1_GVAR_KIND_TO_HAROLD, 0);
+    gameSetGlobalVar(F1_GVAR_RAIDERS, 0);
+    gameSetGlobalVar(F1_GVAR_TOTAL_RAIDERS, 0);
+    gameSetGlobalVar(F1_GVAR_GARL_DEAD, 0);
+
+    switch (scenario) {
+    case 0:
+        // Neutral / all-zero. Exercises the "no slide" paths for Necropolis,
+        // Followers, and Hub.
+        // Expected order:
+        //   nar_10 (opening pan, VATS off)
+        //   [no Necropolis]
+        //   [no Followers]
+        //   nar_19 (Shady Sands, no Aradesh, Tandi 0)
+        //   nar_25 (Junktown, CAPTURE_GIZMO != 2, Gizmo alive)
+        //   nar_28 (Brotherhood, not initiate/enemy)
+        //   [no Hub]
+        //   nar_37 (Raiders < 2)
+        //   nar_40 (closing pan)
+        debugPrint(">>> F1 endgame scenario 0: neutral / minimal\n");
+        break;
+
+    case 1:
+        // Best outcomes. Should be the "hero" reel.
+        // Expected order:
+        //   nar_11 (opening pan, VATS on)
+        //   nar_13 (Necropolis: water chip taken, pump fixed)
+        //   nar_16 (Followers: trained)
+        //   nar_22 (Shady Sands: Aradesh alive, Tandi 1)
+        //   nar_24 (Junktown: Gizmo captured, Killian alive)
+        //   nar_29 (Brotherhood: initiate + enemy)
+        //   nar_32 (Hub: kind to Harold)
+        //   nar_37 (Raiders < 2)
+        //   nar_40 (closing pan)
+        debugPrint(">>> F1 endgame scenario 1: best outcomes\n");
+        gameSetGlobalVar(F1_GVAR_VATS_STATUS, 1);
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_CHIP_TAKEN, 1);
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_PUMP_FIXED, 2);
+        gameSetGlobalVar(F1_GVAR_TRAIN_FOLLOWERS, 1);
+        gameSetGlobalVar(F1_GVAR_ARADESH_STATUS, 1);
+        gameSetGlobalVar(F1_GVAR_TANDI_STATUS, 1);
+        gameSetGlobalVar(F1_GVAR_CAPTURE_GIZMO, 2);
+        gameSetGlobalVar(F1_GVAR_BECOME_AN_INITIATE, 2);
+        gameSetGlobalVar(F1_GVAR_ENEMY_BROTHERHOOD, 1);
+        gameSetGlobalVar(F1_GVAR_KIND_TO_HAROLD, 1);
+        break;
+
+    case 2:
+        // Worst outcomes. All "invaded" branches fire.
+        // Expected order:
+        //   nar_10 (opening pan)
+        //   nar_15 (Necropolis invaded)
+        //   nar_18 (Followers invaded)
+        //   nar_23 (Shady Sands invaded)
+        //   nar_27 (Junktown invaded)
+        //   nar_28 (Brotherhood default)
+        //   nar_34 (Hub invaded)
+        //   nar_36 (Raiders worst)
+        //   nar_40 (closing pan)
+        debugPrint(">>> F1 endgame scenario 2: worst outcomes\n");
+        gameSetGlobalVar(F1_GVAR_NECROPOLIS_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_FOLLOWERS_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_SHADY_SANDS_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_JUNKTOWN_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_HUB_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_RAIDERS, 2);
+        gameSetGlobalVar(F1_GVAR_TOTAL_RAIDERS, 8);
+        break;
+
+    case 3:
+        // "Silent gap" test. Two slides should be skipped entirely.
+        // Expected order:
+        //   nar_10 (opening pan)
+        //   [no Necropolis]
+        //   [no Followers]
+        //   nar_19 (Shady Sands)
+        //   [no Junktown]  <- Gizmo dead, Killian alive, Gizmo was captured
+        //   nar_28 (Brotherhood)
+        //   [no Hub]       <- neither invaded nor kind to Harold
+        //   nar_37 (Raiders < 2)
+        //   nar_40 (closing pan)
+        debugPrint(">>> F1 endgame scenario 3: no-slide gap test\n");
+        gameSetGlobalVar(F1_GVAR_CAPTURE_GIZMO, 2);
+        gameSetGlobalVar(F1_GVAR_KILLIAN_DEAD, 0);
+        gameSetGlobalVar(F1_GVAR_GIZMO_DEAD, 1);
+        break;
+
+    case 4:
+        // Necropolis: invaded wins over the water-chip branches.
+        // Expected: nar_15, not nar_13 or nar_12.
+        debugPrint(">>> F1 endgame scenario 4: Necropolis precedence\n");
+        gameSetGlobalVar(F1_GVAR_NECROPOLIS_INVADED, 1);
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_CHIP_TAKEN, 1);
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_PUMP_FIXED, 2);
+        break;
+
+    case 5:
+        // Necropolis: water chip taken but pump NOT fixed -> nar_12.
+        debugPrint(">>> F1 endgame scenario 5: Necropolis pump not fixed\n");
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_CHIP_TAKEN, 1);
+        gameSetGlobalVar(F1_GVAR_NECROP_WATER_PUMP_FIXED, 0);
+        break;
+
+    case 6:
+        // Raiders: middle branch via TOTAL_RAIDERS < 4 -> nar_35.
+        debugPrint(">>> F1 endgame scenario 6: Raiders low total\n");
+        gameSetGlobalVar(F1_GVAR_RAIDERS, 2);
+        gameSetGlobalVar(F1_GVAR_TOTAL_RAIDERS, 3);
+        break;
+
+    case 7:
+        // Raiders: middle branch via GARL_DEAD + TOTAL < 8 -> nar_35.
+        debugPrint(">>> F1 endgame scenario 7: Raiders Garl dead, moderate total\n");
+        gameSetGlobalVar(F1_GVAR_RAIDERS, 2);
+        gameSetGlobalVar(F1_GVAR_TOTAL_RAIDERS, 5);
+        gameSetGlobalVar(F1_GVAR_GARL_DEAD, 1);
+        break;
+
+    case 8:
+        // Shady Sands: Aradesh dead, Tandi alive (1) -> nar_20.
+        debugPrint(">>> F1 endgame scenario 8: Shady Sands, Tandi alone\n");
+        gameSetGlobalVar(F1_GVAR_ARADESH_STATUS, 0);
+        gameSetGlobalVar(F1_GVAR_TANDI_STATUS, 1);
+        break;
+
+    case 9:
+        // Shady Sands: Aradesh alive, Tandi dead (2) -> nar_21.
+        // This is the specific case the `!= 2 && != 0` guard catches.
+        debugPrint(">>> F1 endgame scenario 9: Shady Sands, Tandi dead\n");
+        gameSetGlobalVar(F1_GVAR_ARADESH_STATUS, 1);
+        gameSetGlobalVar(F1_GVAR_TANDI_STATUS, 2);
+        break;
+
+    case 10:
+        // Data-driven override test. No F1 globals set - instead
+        // verify that a user-supplied data\endgame.txt replaces the
+        // hardcoded port entirely. Loading the game with that file present
+        // and running this scenario should show only whatever the override
+        // file defines, not the F1 default reel.
+        debugPrint(">>> F1 endgame scenario 10: mod override passthrough\n");
+        break;
+
+    default:
+        debugPrint(">>> F1 endgame scenario %d: unknown, running neutral\n", scenario);
+        break;
+    }
+
+    endgamePlaySlideshow();
+    endgamePlayMovie();
+}
+
 static void getScreenDimensions(int* width, int* height)
 {
     if (gameIsWidescreen()) {
@@ -235,11 +422,151 @@ void endgamePlaySlideshow()
     restoreUserAspectPreference();
     resizeContent(gameIsWidescreen() ? 800 : 640, gameIsWidescreen() ? 500 : 480);
 
+    // F1 ENDGAME
+    // F1's master.dat ships no endgame.txt. If no mod override supplied one,
+    // run the hardcoded port of F1 CE's endgame_slideshow(). If an endgame.txt
+    // (or endgame_*.txt) is present, it wins and runs through the standard
+    // data-driven path using F1 GVAR indices.
+    if (IS_FALLOUT_1() && gEndgameEndingsLength == 0) {
+        endgamePlayF1DefaultSlideshow();
+    } else {
+        endgamePlayDataDrivenSlideshow();
+    }
+
+    resizeContent(screenGetWidth(), screenGetHeight(), true);
+
+    endgameEndingSlideshowWindowFree();
+
+    // F1 ENDGAME
+    // F1 CE's endgame_slideshow always clears this global, even if
+    // endgame_init failed. Reproduce that here so F1 map scripts that
+    // read GVAR_CALM_REBELS_2 see the same state F1 left behind.
+    if (IS_FALLOUT_1()) {
+        gameSetGlobalVar(F1_GVAR_CALM_REBELS_2, 0);
+    }
+}
+
+// F1 ENDGAME
+//
+// Fallout 1's ending slideshow, ported 1:1 from F1 CE's endgame_slideshow()
+// in game/endgame.cc.
+//
+// F1's slide logic cannot be expressed in the flat endgame.txt format: it
+// uses inequalities (GVAR_RAIDERS < 2), conjunctions (BECOME_AN_INITIATE==2
+// && ENEMY_BROTHERHOOD), disjunctions (CAPTURE_GIZMO!=2 || KILLIAN_DEAD),
+// nested conditionals, and "no slide" branches (Hub shows nothing if neither
+// Hub was invaded nor Harold was spared).
+//
+// Mod-override: if data\endgame_f1.txt or data\endgame_f1_*.txt exists, the
+// data-driven path replaces this function entirely (see endgamePlaySlideshow).
+// The F1 override format is identical to F2's endgame.txt:
+//
+//     gvar, value, art_num, narrator [, direction]
+//
+// where gvar is an F1_GVAR_* index (F1's GameGlobalVar enum), art_num is an
+// F1 interface art index (311..327), and direction (only meaningful for the
+// panning desert art, index 327) is -1 for right-to-left or 1 for left-to-right.
+static void endgamePlayF1DefaultSlideshow()
+{
+    // Opening desert pan: Vault Dweller leaving the Vault.
+    if (gameGetGlobalVar(F1_GVAR_VATS_STATUS)) {
+        endgameEndingRenderPanningScene(1, "nar_11", 327);
+    } else {
+        endgameEndingRenderPanningScene(1, "nar_10", 327);
+    }
+
+    // Necropolis
+    if (gameGetGlobalVar(F1_GVAR_NECROPOLIS_INVADED)) {
+        endgameEndingRenderStaticScene(311, "nar_15");
+    } else if (gameGetGlobalVar(F1_GVAR_NECROP_WATER_CHIP_TAKEN)) {
+        if (gameGetGlobalVar(F1_GVAR_NECROP_WATER_PUMP_FIXED) == 2) {
+            endgameEndingRenderStaticScene(312, "nar_13");
+        } else {
+            endgameEndingRenderStaticScene(311, "nar_12");
+        }
+    }
+
+    // Followers of the Apocalypse
+    if (gameGetGlobalVar(F1_GVAR_FOLLOWERS_INVADED)) {
+        endgameEndingRenderStaticScene(314, "nar_18");
+    } else if (gameGetGlobalVar(F1_GVAR_TRAIN_FOLLOWERS)) {
+        endgameEndingRenderStaticScene(313, "nar_16");
+    }
+
+    // Shady Sands
+    if (gameGetGlobalVar(F1_GVAR_SHADY_SANDS_INVADED)) {
+        endgameEndingRenderStaticScene(324, "nar_23");
+    } else {
+        int tandi = gameGetGlobalVar(F1_GVAR_TANDI_STATUS);
+        if (gameGetGlobalVar(F1_GVAR_ARADESH_STATUS)) {
+            if (tandi != 2 && tandi != 0) {
+                endgameEndingRenderStaticScene(324, "nar_22");
+            } else {
+                endgameEndingRenderStaticScene(323, "nar_21");
+            }
+        } else {
+            if (tandi != 2 && tandi != 0) {
+                endgameEndingRenderStaticScene(323, "nar_20");
+            } else {
+                endgameEndingRenderStaticScene(323, "nar_19");
+            }
+        }
+    }
+
+    // Junktown
+    if (gameGetGlobalVar(F1_GVAR_JUNKTOWN_INVADED)) {
+        endgameEndingRenderStaticScene(317, "nar_27");
+    } else if (gameGetGlobalVar(F1_GVAR_CAPTURE_GIZMO) != 2
+        || gameGetGlobalVar(F1_GVAR_KILLIAN_DEAD)) {
+        if (!gameGetGlobalVar(F1_GVAR_GIZMO_DEAD)) {
+            endgameEndingRenderStaticScene(316, "nar_25");
+        }
+        // else: no slide (Gizmo dead but Killian alive and Gizmo not captured)
+    } else {
+        endgameEndingRenderStaticScene(315, "nar_24");
+    }
+
+    // Brotherhood of Steel
+    if (gameGetGlobalVar(F1_GVAR_BECOME_AN_INITIATE) == 2
+        && gameGetGlobalVar(F1_GVAR_ENEMY_BROTHERHOOD)) {
+        endgameEndingRenderStaticScene(319, "nar_29");
+    } else {
+        endgameEndingRenderStaticScene(318, "nar_28");
+    }
+
+    // The Hub
+    if (gameGetGlobalVar(F1_GVAR_HUB_INVADED)) {
+        endgameEndingRenderStaticScene(326, "nar_34");
+    } else if (gameGetGlobalVar(F1_GVAR_KIND_TO_HAROLD) == 1) {
+        endgameEndingRenderStaticScene(325, "nar_32");
+    }
+    // else: no slide (Hub untouched, Harold killed)
+
+    // Raiders / Khan Base
+    if (gameGetGlobalVar(F1_GVAR_RAIDERS) < 2) {
+        endgameEndingRenderStaticScene(320, "nar_37");
+    } else {
+        int total = gameGetGlobalVar(F1_GVAR_TOTAL_RAIDERS);
+        if ((gameGetGlobalVar(F1_GVAR_GARL_DEAD) && total < 8) || total < 4) {
+            endgameEndingRenderStaticScene(320, "nar_35");
+        } else {
+            endgameEndingRenderStaticScene(320, "nar_36");
+        }
+    }
+
+    // Closing desert pan: Vault Dweller walking into the wasteland.
+    endgameEndingRenderPanningScene(-1, "nar_40", 327);
+}
+
+// F1 ENDGAME
+// Runs the loaded gEndgameEndings table. Identical to the F2 path but kept
+// separate so the F1/F2 dispatch in endgamePlaySlideshow reads cleanly.
+static void endgamePlayDataDrivenSlideshow()
+{
     for (int index = 0; index < gEndgameEndingsLength; index++) {
         EndgameEnding* ending = &(gEndgameEndings[index]);
         int value = gameGetGlobalVar(ending->gvar);
         if (value == ending->value) {
-            // Changed this to allow mods to set panning end-slides, but still plays original pan slide.
             if (ending->direction == 1 || ending->direction == -1) {
                 endgameEndingRenderPanningScene(ending->direction, ending->voiceOverBaseName, ending->art_num);
             } else {
@@ -247,15 +574,47 @@ void endgamePlaySlideshow()
             }
         }
     }
-
-    resizeContent(screenGetWidth(), screenGetHeight(), true);
-
-    endgameEndingSlideshowWindowFree();
 }
 
 // 0x43F810
 void endgamePlayMovie()
 {
+    // F1 ENDGAME
+    // F1's endgame_movie() plays MOVIE_WALKM/WALKW (the Vault Dweller
+    // walking away from the Overseer) rather than F2's "akiss" cue, and
+    // quits the game outright rather than offering "continue playing?".
+    if (IS_FALLOUT_1()) {
+        backgroundSoundDelete();
+        isoDisable();
+        paletteFadeTo(gPaletteBlack);
+
+        _endgame_maybe_done = 0;
+        tickersAdd(_endgame_movie_bk_process);
+        backgroundSoundSetEndCallback(_endgame_movie_callback);
+        backgroundSoundLoad("maybe", GSOUND_LIMIT_AFTER, GSOUND_STREAM, GSOUND_NO_LOOP);
+        inputPauseForTocks(3000);
+
+        int gender = critterGetStat(gDude, STAT_GENDER);
+        if (gender == GENDER_MALE) {
+            gameMoviePlay(gMovieWalkm, GAME_MOVIE_FADE_IN | GAME_MOVIE_FADE_OUT | GAME_MOVIE_PAUSE_MUSIC);
+        } else {
+            gameMoviePlay(gMovieWalkw, GAME_MOVIE_FADE_IN | GAME_MOVIE_FADE_OUT | GAME_MOVIE_PAUSE_MUSIC);
+        }
+
+        creditsOpen("credits.txt", -1, false);
+
+        backgroundSoundDelete();
+        backgroundSoundSetEndCallback(nullptr);
+        tickersRemove(_endgame_movie_bk_process);
+        backgroundSoundDelete();
+        colorPaletteLoad("color.pal");
+        paletteFadeTo(_cmap);
+        isoEnable();
+
+        _game_user_wants_to_quit = 2;
+        return;
+    }
+
     backgroundSoundDelete();
     isoDisable();
     paletteFadeTo(gPaletteBlack);
@@ -546,7 +905,7 @@ static void endgameEndingRenderStaticScene(int art_num, const char* narratorFile
                 break;
             }
 
-            if (getTicksSince(referenceTime) > delay) {
+            if (getTicksSince(referenceTime) >= delay) {
                 break;
             }
 
@@ -1173,7 +1532,7 @@ int endgameDeathEndingInit()
     }
 
     // Load vanilla enddeath.txt
-    parseEnddeathFile("data\\enddeath.txt", "vanilla");
+    parseEnddeathFile(GAME_DATA_PATH("enddeath.txt"), "vanilla");
 
     // Find and load enddeath mod files (enddeath_*.txt etc.)
     char searchPattern[COMPAT_MAX_PATH];
@@ -1232,6 +1591,29 @@ int endgameDeathEndingExit()
 // 0x440BD0
 void endgameSetupDeathEnding(int reason)
 {
+    // F1 ENDGAME
+    // F1's main_death_scene() had no data file and no timeout-specific
+    // behavior: on death it picked uniformly at random from four narrator
+    // files. Reproduce that when no enddeath.txt override is present.
+    if (IS_FALLOUT_1()
+        && reason == ENDGAME_DEATH_ENDING_REASON_DEATH
+        && gEndgameDeathEndingsLength == 0) {
+        // Could other 'cut' deaths later - for now pure vanilla
+        static const char* f1DeathNarrators[] = {
+            "narrator\\nar_3",
+            "narrator\\nar_4",
+            "narrator\\nar_5",
+            "narrator\\nar_6",
+        };
+
+        int index = randomBetween(0, 3);
+        strcpy(gEndgameDeathEndingFileName, f1DeathNarrators[index]);
+
+        debugPrint("\nendgameSetupDeathEnding: F1 default narrator %s\n",
+            gEndgameDeathEndingFileName);
+        return;
+    }
+
     if (!gEndgameDeathEndingsLength) {
         debugPrint("\nError: endgameSetupDeathEnding: No endgame death info!");
         return;
@@ -1258,13 +1640,13 @@ void endgameSetupDeathEnding(int reason)
 
     switch (reason) {
     case ENDGAME_DEATH_ENDING_REASON_DEATH:
-        if (gameGetGlobalVar(GVAR_MODOC_SHITTY_DEATH) != 0) {
+        if (!IS_FALLOUT_1() && gameGetGlobalVar(GVAR_MODOC_SHITTY_DEATH) != 0) {
             selectedEnding = 12;
             specialEndingSelected = true;
         }
         break;
     case ENDGAME_DEATH_ENDING_REASON_TIMEOUT:
-        gameMoviePlay(MOVIE_TIMEOUT, GAME_MOVIE_FADE_IN | GAME_MOVIE_FADE_OUT | GAME_MOVIE_PAUSE_MUSIC);
+        gameMoviePlay(gMovieTimeout, GAME_MOVIE_FADE_IN | GAME_MOVIE_FADE_OUT | GAME_MOVIE_PAUSE_MUSIC);
         break;
     }
 

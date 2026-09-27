@@ -1,4 +1,5 @@
 #include "version.h"
+#include "game_version.h"
 #include "settings.h"
 #include "sfall_config.h"
 
@@ -14,7 +15,11 @@ void versionGetVersion(char* dest, size_t size)
     if (!settings.mod_settings.version_string.empty()) {
         versionString = settings.mod_settings.version_string.c_str();
     }
-    snprintf(dest, size, (versionString ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
+    if (!IS_FALLOUT_1()) {
+        snprintf(dest, size, (versionString ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
+    } else {
+        snprintf(dest, size, "FALLOUT 1.1");
+    }
 }
 
 } // namespace fallout

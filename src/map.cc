@@ -21,6 +21,7 @@
 #include "game_mouse.h"
 #include "game_movie.h"
 #include "game_sound.h"
+#include "game_version.h"
 #include "input.h"
 #include "interface.h"
 #include "item.h"
@@ -746,6 +747,7 @@ char* mapGetCityName(int map)
     MessageListItem messageListItem;
 
     if (city >= MOD_AREA_START && city < MOD_AREA_MAX) {
+        // mod path unchanged
         int idx = gModAreaIndex[city];
         if (idx >= 0) {
             const char* modName = wmGetAreaModName(city);
@@ -758,12 +760,14 @@ char* mapGetCityName(int map)
             }
         }
         return _aErrorF2;
-    } else {
-        // Vanilla area: use original formula (1500 + city)
-        messageListItem.num = 1500 + city;
-        char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
-        return name ? name : _aErrorF2;
     }
+
+    // Vanilla area: short-name block lives at different offsets in the two games.
+    // F1: {500}..., F2: {1500}...
+    const int base = IS_FALLOUT_1() ? 500 : 1500;
+    messageListItem.num = base + city;
+    char* name = getmsg(&gMapMessageList, &messageListItem, messageListItem.num);
+    return name ? name : _aErrorF2;
 }
 
 // 0x48268C
@@ -1145,6 +1149,9 @@ static int mapLoad(File* stream)
         goto err;
     }
 
+    // unhide any NPCs left with OBJECT_GHOST_HIDDEN
+    animationUnhideGhosts();
+
     if ((gMapHeader.flags & 1) == 0) {
         _map_fix_critter_combat_data();
     }
@@ -1209,20 +1216,24 @@ static int mapLoad(File* stream)
         object->id = scriptsNewObjectId();
         script->ownerId = object->id;
         script->owner = object;
-        _scr_spatials_disable();
-        scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
-        _scr_spatials_enable();
 
-        error = "Error Setting up random encounter";
-        if (wmSetupRandomEncounter() == -1) {
-            goto err;
+        if (!gSuppressMapEnterScript) {
+            _scr_spatials_disable();
+            scriptExecProc(gMapSid, SCRIPT_PROC_MAP_ENTER);
+            _scr_spatials_enable();
+
+            error = "Error Setting up random encounter";
+            if (wmSetupRandomEncounter() == -1) {
+                goto err;
+            }
         }
     }
+    gSuppressMapEnterScript = false;
 
     error = nullptr;
 
 err:
-
+    gSuppressMapEnterScript = false;
     if (error != nullptr) {
         char message[100]; // TODO: Size is probably wrong.
         snprintf(message, sizeof(message), "%s while loading map.", error);
@@ -1354,10 +1365,10 @@ static int _map_age_dead_critters()
     }
 
     int agingType;
-    if (hoursSinceLastVisit > 6 * 24) {
-        agingType = 1;
-    } else if (hoursSinceLastVisit > 14 * 24) {
+    if (hoursSinceLastVisit > 21 * 24) {
         agingType = 2;
+    } else if (hoursSinceLastVisit > 14 * 24) {
+        agingType = 1;
     } else {
         return 0;
     }
@@ -1371,7 +1382,7 @@ static int _map_age_dead_critters()
         int type = PID_TYPE(obj->pid);
         if (type == OBJ_TYPE_CRITTER) {
             if (obj != gDude && critterIsDead(obj)) {
-                if (critterGetKillType(obj) != KILL_TYPE_ROBOT && !critterFlagCheck(obj->pid, CRITTER_NO_HEAL)) {
+                if (critterGetKillType(obj) != KILL_TYPE_ROBOT && !critterFlagCheck(obj->pid, CRITTER_NO_AGE)) {
                     objects[count++] = obj;
 
                     if (count >= capacity) {
@@ -1384,7 +1395,7 @@ static int _map_age_dead_critters()
                     }
                 }
             }
-        } else if (agingType == 2 && type == OBJ_TYPE_MISC && obj->pid == 0x500000B) {
+        } else if (agingType == 2 && type == OBJ_TYPE_MISC && obj->fid == 0x500000B) {
             objects[count++] = obj;
             if (count >= capacity) {
                 capacity *= 2;
@@ -1456,6 +1467,9 @@ int mapSetTransition(MapTransition* transition)
         return -1;
     }
 
+    // unhide any stray NPCs left with OBJECT_GHOST_HIDDEN
+    animationUnhideGhosts();
+
     memcpy(&gMapTransition, transition, sizeof(gMapTransition));
 
     if (gMapTransition.map == 0) {
@@ -1519,7 +1533,7 @@ int mapHandleTransition()
 
             memset(&gMapTransition, 0, sizeof(gMapTransition));
 
-            int city;
+            int city = -1;
             wmMatchAreaContainingMapIdx(gMapHeader.index, &city);
             if (wmTeleportToArea(city) == -1) {
                 debugPrint("\nError: couldn't make jump on worldmap for map jump!");

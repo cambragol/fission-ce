@@ -2,6 +2,7 @@
 #define PERK_H
 
 #include "db.h"
+#include "game_content.h"
 #include "obj_types.h"
 #include "perk_defs.h"
 
@@ -27,7 +28,7 @@ int perkGetSkillModifier(Object* critter, int skill);
 // Returns true if perk is valid.
 static inline bool perkIsValid(int perk)
 {
-    return perk >= 0 && perk < PERK_COUNT;
+    return perk >= 0 && perk < gPerkCount;
 }
 
 // Returns true if critter has at least one rank in specified perk.
