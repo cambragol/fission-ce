@@ -5722,12 +5722,11 @@ static int gameDialogGetSubwindowFrmId()
     }
 
     if (gGameDialogSpeakerIsPartyMember && (IS_FALLOUT_1() && settings.enhancements.strict_vanilla))
-    return 99;
+        return 99;
 
     if (IS_FALLOUT_1()) {
         return gGameDialogSpeakerIsPartyMember ? 389 : 99;
-    }
-    else {
+    } else {
         return gGameDialogSpeakerIsPartyMember ? 389 : 6306;
     }
 }
