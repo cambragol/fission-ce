@@ -67,6 +67,20 @@ static_assert(screen_view_height % (2 * square_height) == 20);
 static bool gIsTileHiresStencilEnabled = true;
 static bool gMapIsSmall = false;
 
+// The gate consults these instead of its screenWidth/screenHeight parameters.
+// Defaults to the vanilla viewport so behaviour is unchanged until map.cc
+// updates them to the current zoom crop.
+static int gStencilViewWidth = screen_view_width;
+static int gStencilViewHeight = screen_view_height;
+
+void tile_hires_stencil_set_view_size(int width, int height)
+{
+    if (width <= 0) width = screen_view_width;
+    if (height <= 0) height = screen_view_height;
+    gStencilViewWidth = width;
+    gStencilViewHeight = height;
+}
+
 static void clean_cache()
 {
     memset(visited_tiles, 0, sizeof(visited_tiles));
@@ -450,15 +464,23 @@ void tile_hires_stencil_init()
 
 bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int screenWidth, int screenHeight)
 {
+    // Parameters kept for signature compatibility (for now) but ignored; the effective
+    // view size comes from tile_hires_stencil_set_view_size().
+    (void)screenWidth;
+    (void)screenHeight;
+
     if (!gIsTileHiresStencilEnabled) return true;
+
+    const int viewWidth = gStencilViewWidth;
+    const int viewHeight = gStencilViewHeight;
 
     int centerX, centerY;
     tileToScreenXY(tile, &centerX, &centerY);
 
-    int left = centerX + 16 - screenWidth / 2;
-    int top = centerY + 8 - screenHeight / 2;
-    int right = left + screenWidth;
-    int bottom = top + screenHeight;
+    int left = centerX + 16 - viewWidth / 2;
+    int top = centerY + 8 - viewHeight / 2;
+    int right = left + viewWidth;
+    int bottom = top + viewHeight;
 
     const int safety_margin = 8;
     left -= safety_margin;
@@ -484,8 +506,9 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
 
     for (int x = minX; x <= maxX; ++x) {
         for (int y = minY; y <= maxY; ++y) {
-            if (!visible_squares[elevation][x][y])
+            if (!visible_squares[elevation][x][y]) {
                 return false;
+            }
         }
     }
     return true;

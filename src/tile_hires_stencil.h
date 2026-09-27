@@ -15,6 +15,8 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
 
 bool tile_hires_stencil_is_map_small(void);
 
+void tile_hires_stencil_set_view_size(int width, int height);
+
 } // namespace fallout
 
 #endif

@@ -3299,7 +3299,11 @@ int _check_move(int* actionPointsPtr)
     int y;
     mouseGetPosition(&x, &y);
 
-    int tile = tileFromScreenXY(x, y);
+    int vx;
+    int vy;
+    mapScreenToVirtual(x, y, &vx, &vy);
+
+    int tile = tileFromScreenXY(vx, vy);
     if (tile == -1) {
         return -1;
     }
