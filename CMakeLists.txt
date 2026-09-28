@@ -154,6 +154,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/mainmenu.cc"
     "src/mainmenu.h"
     "src/map_defs.h"
+    "src/map_edge.cc"
+    "src/map_edge.h"
     "src/map.cc"
     "src/map.h"
     "src/memory_defs.h"

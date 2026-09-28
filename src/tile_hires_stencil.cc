@@ -2,6 +2,7 @@
 #include "debug.h"
 #include "draw.h"
 #include "geometry.h"
+#include "map_edge.h"
 #include "settings.h"
 #include "stdio.h"
 #include "svga.h"
@@ -166,6 +167,13 @@ enum class MarkOnlyPart {
 
 static void mark_screen_tiles_around_as_visible(int center_tile, const Point& screen_diff, MarkOnlyPart part)
 {
+    // EDG: tiles outside the boundary do not contribute visible squares.
+    // Done here (per-tile) rather than as a post-pass so the boundary is
+    // exact on the hex grid instead of aliasing through the 16x12 square grid.
+    if (mapEdgeIsLoaded() && !mapEdgeTileIsInBounds(gElevation, center_tile)) {
+        return;
+    }
+
     int centerTileScreenX;
     int centerTileScreenY;
     tileToScreenXY(center_tile, &centerTileScreenX, &centerTileScreenY);

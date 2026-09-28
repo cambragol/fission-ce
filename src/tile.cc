@@ -15,6 +15,7 @@
 #include "game_mouse.h"
 #include "light.h"
 #include "map.h"
+#include "map_edge.h"
 #include "object.h"
 #include "platform_compat.h"
 #include "settings.h"
@@ -591,9 +592,18 @@ int tileSetCenter(int tile, int flags)
         }
     }
 
-    if (!(flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) && !tile_hires_stencil_is_map_small()) {
-        if (!tile_hires_stencil_is_center_tile_allowed(tile, gElevation, gTileWindowWidth, gTileWindowHeight)) {
-            return -1;
+    if (!(flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS)) {
+        if (mapEdgeIsLoaded()) {
+            // EDG defines the camera range directly: the center tile just has
+            // to be inside the zone. The viewport may extend past the zone
+            // edge into black, which is exactly the RPU behavior.
+            if (!mapEdgeTileIsInBounds(gElevation, tile)) {
+                return -1;
+            }
+        } else if (!tile_hires_stencil_is_map_small()) {
+            if (!tile_hires_stencil_is_center_tile_allowed(tile, gElevation, gTileWindowWidth, gTileWindowHeight)) {
+                return -1;
+            }
         }
     }
 
