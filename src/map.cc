@@ -78,6 +78,7 @@ static int mapHeaderRead(MapHeader* ptr, File* stream);
 static void isoBlitVirtualToWindow(Rect* rect);
 static void isoComputeCrop();
 static int mapFindValidCameraCenter(int startTile);
+static void mapSnapZoomToFitEdg();
 
 static void loadModMapMessages();
 
@@ -661,6 +662,37 @@ bool isoIsDisabled()
     return gIsoEnabled == false;
 }
 
+// When a map or elevation with EDG data is loaded while the camera is zoomed
+// out, the current crop may be too large to fit inside that elevation's EDG
+// box, which leaves mapAdjustCameraToValidArea unable to find a legal camera
+// position. Snap the zoom in toward 1.0 to the least zoomed-out ladder level
+// whose crop fits. Never zooms out, never zooms past 1.0: maps that are too
+// small even at 1.0 accept their black border rather than zooming further in.
+// This may need to be adapted for non EDG maps too.
+static void mapSnapZoomToFitEdg()
+{
+    if (!mapEdgeIsLoaded()) return;
+    if (gIsoZoom >= 1.0f) return;
+
+    float targetZoom = 1.0f; // best-effort fallback
+    for (int i = 0; i < gZoomLadderSize; i++) {
+        float z = gZoomLadder[i];
+        if (z < gIsoZoom) continue;
+        if (z > 1.0f) break;
+        int testW = (int)(screenGetWidth() / z);
+        int testH = (int)(screenGetVisibleHeight() / z);
+        if (mapEdgeViewportFitsInAnyZone(gElevation, testW, testH)) {
+            targetZoom = z;
+            break;
+        }
+    }
+
+    if (targetZoom != gIsoZoom) {
+        gIsoZoom = targetZoom;
+        isoComputeCrop();
+    }
+}
+
 // map_set_elevation
 // 0x482158
 int mapSetElevation(int elevation)
@@ -693,6 +725,8 @@ int mapSetElevation(int elevation)
     if (gameMouseWasVisible) {
         gameMouseObjectsShow();
     }
+
+    mapSnapZoomToFitEdg();
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
