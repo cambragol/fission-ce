@@ -27,6 +27,7 @@
 #include "item.h"
 #include "light.h"
 #include "loadsave.h"
+#include "map_edge.h"
 #include "memory.h"
 #include "message.h"
 #include "object.h"
@@ -566,6 +567,8 @@ void isoExit()
     }
     gIsoVirtualWidth = gIsoVirtualHeight = 0;
 
+    mapEdgeFree();
+
     windowDestroy(gIsoWindow);
 
     // NOTE: Uninline.
@@ -1080,6 +1083,7 @@ void mapNewMap()
     gMapHeader.enteringTile = 20100;
     _obj_remove_all();
     animationStop();
+    mapEdgeFree();
 
     // NOTE: Uninline.
     mapGlobalVariablesFree();
@@ -1230,6 +1234,8 @@ static int mapLoad(File* stream)
     if (gMapHeader.version != 19 && gMapHeader.version != 20) {
         goto err;
     }
+
+    mapEdgeLoad(gMapHeader.name);
 
     if (gEnteringElevation == -1) {
         // Keep the rotation that was requested from the world map (if any)
