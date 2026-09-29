@@ -285,6 +285,12 @@ void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY)
     *virtualY = sy;
 }
 
+void mapGetVirtualSize(int* width, int* height)
+{
+    *width = gIsoVirtualWidth;
+    *height = gIsoVirtualHeight;
+}
+
 static float isoSnapZoom(float zoom)
 {
     if (zoom <= gZoomLadder[0]) return gZoomLadder[0];
