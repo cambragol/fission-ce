@@ -86,9 +86,18 @@ void mapEdgeLoad(const char* mapName)
     if (stream == nullptr) return;
 
     int magic = 0, version = 0, reserved = 0;
-    if (fileReadInt32(stream, &magic) == -1 || magic != 'EDGE') { fileClose(stream); return; }
-    if (fileReadInt32(stream, &version) == -1 || version != 1) { fileClose(stream); return; }
-    if (fileReadInt32(stream, &reserved) == -1) { fileClose(stream); return; }
+    if (fileReadInt32(stream, &magic) == -1 || magic != 'EDGE') {
+        fileClose(stream);
+        return;
+    }
+    if (fileReadInt32(stream, &version) == -1 || version != 1) {
+        fileClose(stream);
+        return;
+    }
+    if (fileReadInt32(stream, &reserved) == -1) {
+        fileClose(stream);
+        return;
+    }
 
     const int kMaxRecords = 64;
     int currentElev = 0;
@@ -97,7 +106,10 @@ void mapEdgeLoad(const char* mapName)
         int corners[4];
         bool readFailed = false;
         for (int i = 0; i < 4; i++) {
-            if (fileReadInt32(stream, &corners[i]) == -1) { readFailed = true; break; }
+            if (fileReadInt32(stream, &corners[i]) == -1) {
+                readFailed = true;
+                break;
+            }
         }
         if (readFailed) break;
 
