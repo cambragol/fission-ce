@@ -531,10 +531,10 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
 
     // In practise only right margin needed in testing
     const int safety_margin = 32;
-    left -= 0;//safety_margin;
-    top -= 0;//safety_margin;
+    left -= 0; // safety_margin;
+    top -= 0; // safety_margin;
     right += safety_margin;
-    bottom += 0;//safety_margin;
+    bottom += 0; // safety_margin;
 
     auto screen_diff = get_screen_diff();
     int globalLeft = left - screen_diff.x;
