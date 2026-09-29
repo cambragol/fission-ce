@@ -11,6 +11,10 @@ bool mapEdgeIsLoaded();
 // Returns true (no constraint) if EDG isn't loaded or has no zones for this elevation.
 bool mapEdgeTileIsInBox(int elevation, int tile);
 
+// True if a viewport of the given size can fit inside any EDG zone for this
+// elevation (ignoring where exactly; just checks the zone is large enough).
+bool mapEdgeViewportFitsInAnyZone(int elevation, int viewWidth, int viewHeight);
+
 } // namespace fallout
 
 #endif

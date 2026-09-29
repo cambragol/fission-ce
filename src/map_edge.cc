@@ -152,4 +152,20 @@ void mapEdgeLoad(const char* mapName)
         (int)gEdgBoxes[2].size());
 }
 
+bool mapEdgeViewportFitsInAnyZone(int elevation, int viewWidth, int viewHeight)
+{
+    if (!gEdgLoaded) return true;
+    if (elevation < 0 || elevation >= ELEVATION_COUNT) return true;
+    if (gEdgBoxes[elevation].empty()) return true;
+    if (viewWidth <= 0 || viewHeight <= 0) return true;
+
+    for (const auto& b : gEdgBoxes[elevation]) {
+        if (b.maxPx - b.minPx >= viewWidth
+            && b.maxPy - b.minPy >= viewHeight) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace fallout
