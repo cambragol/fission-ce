@@ -2,6 +2,7 @@
 #include "debug.h"
 #include "draw.h"
 #include "geometry.h"
+#include "map_edge.h"
 #include "settings.h"
 #include "stdio.h"
 #include "svga.h"
@@ -235,6 +236,51 @@ void tile_hires_stencil_on_center_tile_or_elevation_change()
         return;
     };
 
+    // EDG path: when an .EDG file is loaded, the camera is bounded by the
+    // viewport-inside-box gate in tileSetCenter. Mark visible_squares to cover
+    // every square whose mapped tile lies inside the box. This replaces the
+    // vanilla flood-fill entirely for EDG maps - no scroll-blocker checks,
+    // no border checks. Marking is camera-position-dependent because the grid
+    // to screen mapping shifts with screen_diff.
+    if (mapEdgeIsLoaded()) {
+        clean_cache_for_elevation(gElevation);
+
+        auto screen_diff = get_screen_diff();
+
+        int minX = square_grid_width, maxX = -1;
+        int minY = square_grid_height, maxY = -1;
+
+        for (int x = 0; x < square_grid_width; x++) {
+            int screenX = x * square_width + screen_diff.x;
+            for (int y = 0; y < square_grid_height; y++) {
+                int screenY = y * square_height + screen_diff.y;
+                int tile = tileFromScreenXY(screenX, screenY, true);
+                if (tile < 0 || tile >= HEX_GRID_SIZE) continue;
+                if (!mapEdgeTileIsInBox(gElevation, tile)) continue;
+                visible_squares[gElevation][x][y] = true;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+
+        if (maxX >= minX && maxY >= minY) {
+            int visWidthPx = (maxX - minX + 1) * square_width;
+            int visHeightPx = (maxY - minY + 1) * square_height;
+            int screenW = screenGetWidth();
+            int screenH = screenGetVisibleHeight();
+            gMapIsSmall = (visWidthPx < screenW || visHeightPx < screenH);
+        } else {
+            gMapIsSmall = true;
+        }
+
+        debugPrint("tile_hires_stencil_on_center_tile_or_elevation_change EDG path bbox=(%d,%d)-(%d,%d) small=%d\n",
+            minX, minY, maxX, maxY, gMapIsSmall ? 1 : 0);
+        return;
+    }
+
+    // Vanilla flood-fill path. Unchanged from the original.
     if (visited_tiles[gElevation][gCenterTile]) {
         debugPrint("tile_hires_stencil_on_center_tile_or_elevation_change tile was visited gElevation=%i gCenterTile=%i so doing nothing\n",
             gElevation, gCenterTile);
@@ -265,23 +311,24 @@ void tile_hires_stencil_on_center_tile_or_elevation_change()
         auto tileInfo = tiles_to_visit.back();
         tiles_to_visit.pop_back();
 
+        // Bounds check first - tileFromScreenXY(..., true) can return
+        // out-of-range indices.
+        if (tileInfo.tile < 0 || tileInfo.tile >= HEX_GRID_SIZE) {
+            continue;
+        }
+
         if (visited_tiles[gElevation][tileInfo.tile]) {
             continue;
         }
 
         if (tileInfo.tile != gCenterTile) [[unlikely]] {
-            if (tileInfo.tile < 0 || tileInfo.tile >= HEX_GRID_SIZE) {
-                continue;
-            }
             if (_obj_scroll_blocking_at(tileInfo.tile, gElevation) == 0) {
                 continue;
             }
 
-            // TODO: Maybe create new function in tile.cc and use it here
             int tile_x = HEX_GRID_WIDTH - 1 - tileInfo.tile % HEX_GRID_WIDTH;
             int tile_y = tileInfo.tile / HEX_GRID_WIDTH;
-            if (
-                tile_x <= gTileBorderMinX || tile_x >= gTileBorderMaxX || tile_y <= gTileBorderMinY || tile_y >= gTileBorderMaxY) {
+            if (tile_x <= gTileBorderMinX || tile_x >= gTileBorderMaxX || tile_y <= gTileBorderMinY || tile_y >= gTileBorderMaxY) {
                 continue;
             }
         }
@@ -482,11 +529,12 @@ bool tile_hires_stencil_is_center_tile_allowed(int tile, int elevation, int scre
     int right = left + viewWidth;
     int bottom = top + viewHeight;
 
-    const int safety_margin = 8;
-    left -= safety_margin;
-    top -= safety_margin;
+    // In practise only right margin needed in testing
+    const int safety_margin = 32;
+    left -= 0; // safety_margin;
+    top -= 0; // safety_margin;
     right += safety_margin;
-    bottom += safety_margin;
+    bottom += 0; // safety_margin;
 
     auto screen_diff = get_screen_diff();
     int globalLeft = left - screen_diff.x;
