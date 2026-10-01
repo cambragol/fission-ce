@@ -60,22 +60,25 @@ namespace fallout {
 #define MOD_CONFIG_TOWN_MAP_HOTKEYS_FIX_KEY "TownMapHotkeysFix"
 #define MOD_CONFIG_GAME_DIALOG_FIX_KEY "DialogueFix"
 #define MOD_CONFIG_BONUS_HTH_DAMAGE_FIX_KEY "BonusHtHDamageFix"
-#define MOD_CONFIG_VOCK_FLOATS_KEY "vock-floats"
+#define MOD_CONFIG_VOCK_FEATURES_KEY "vock-features"
 #define MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY "FloatAudioChannels"
-#define MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY "DistancePerPerception"
-#define MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY "ObstructionDampening"
-#define MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY "EvictionPolicy"
+#define MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY "FloatDistancePerPerception"
+#define MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY "FloatObstructionDampening"
+#define MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY "FloatEvictionPolicy"
 
 #define FLOAT_SPEECH_EVICTION_POLICY_VANILLA (0)
 #define FLOAT_SPEECH_EVICTION_POLICY_OLDEST (1)
 #define FLOAT_SPEECH_EVICTION_POLICY_FURTHEST (2)
 
+#define MOD_CONFIG_FLOAT_AUDIO_KEY "FloatAudio"
+#define MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY "FloatCensorBleep"
+#define MOD_CONFIG_FLOAT_VOLUME_KEY "FloatVolume"
 #define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY "TextScramble"
 #define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY "TextScrambleDistancePerPerception"
 #define MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY "TextScrambleChars"
-#define MOD_CONFIG_VOICED_FLOATS_KEY "VoicedFloats"
-#define MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY "CensorBleep"
-#define MOD_CONFIG_FLOAT_VOLUME_KEY "Volume"
+#define MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY "TextScrambleObstructionDampening"
+#define MOD_CONFIG_PIPBOY_AUDIO_KEY "PipboyAudio"
+#define MOD_CONFIG_PIPBOY_VOLUME_KEY "PipboyVolume"
 
 // files and paths - add to mod settings
 #define MOD_CONFIG_INI_CONFIG_FOLDER "IniConfigFolder"
@@ -132,17 +135,27 @@ namespace fallout {
 // Game fixes
 #define MOD_CONFIG_DEFAULT_USE_WALK_DISTANCE 5
 
-// vock-floats
+// vock-features
 #define MOD_CONFIG_DEFAULT_FLOAT_AUDIO_CHANNELS 8
 #define MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION 2
 #define MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING 50
 #define MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY FLOAT_SPEECH_EVICTION_POLICY_VANILLA
-#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE 0
-#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION 4
-#define MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS "#%&*~^"
-#define MOD_CONFIG_DEFAULT_VOICED_FLOATS 1
+#define MOD_CONFIG_DEFAULT_FLOAT_AUDIO 1
 #define MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP 1
 #define MOD_CONFIG_DEFAULT_FLOAT_VOLUME 32767
+#define MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE 0
+// Kept at the value this shipped with before the Float/TextScramble split
+// (double FloatDistancePerPerception's default) rather than reset to match
+// it now that they're independent knobs -- an already-public default,
+// changing it would silently alter behavior for anyone already running
+// with TextScramble on.
+#define MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION 4
+// Same default as FloatObstructionDampening -- unlike the distance range
+// above, this one has no prior shipped value of its own to preserve.
+#define MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING 50
+#define MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS "#%&*~^"
+#define MOD_CONFIG_DEFAULT_PIPBOY_AUDIO 1
+#define MOD_CONFIG_DEFAULT_PIPBOY_VOLUME 32767
 
 // Files and paths
 #define MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER ""

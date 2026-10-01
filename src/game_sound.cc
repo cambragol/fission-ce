@@ -52,6 +52,13 @@ static char _aSoundMusic_0[] = "sound\\music\\";
 // 0x5035D8
 static char _aSoundSpeech_0[] = "sound\\speech\\";
 
+// FISSION-VOCK ADD: loose-file base path for the dedicated Pip-Boy channel
+// -- sound/pipboy/, a sibling of sound/speech/ rather than a subfolder of
+// it. Pip-Boy narration isn't a critter's spoken line (no head, no
+// lip-sync), so it doesn't belong under the same root dialogue and floats
+// share -- see gameSoundFindPipboySoundPath() below.
+static char _aSoundPipboy_0[] = "sound\\pipboy\\";
+
 // 0x518E30
 static bool gGameSoundInitialized = false;
 
@@ -83,6 +90,11 @@ static Sound* gBackgroundSound = nullptr;
 // 0x518E54
 static Sound* gSpeechSound = nullptr;
 
+// FISSION-VOCK ADD: dedicated single-slot channel for Pip-Boy holodisk
+// narration -- see pipboySpeechLoad()/pipboySpeechDelete() below and
+// PIPBOY_SPEECH_MAX_COUNT in audio_engine.cc.
+static Sound* gPipboySound = nullptr;
+
 // 0x518E58
 static SoundEndCallback* gBackgroundSoundEndCallback = nullptr;
 
@@ -100,7 +112,7 @@ typedef struct FloatSpeechSlot {
     unsigned int allocSeq;
 } FloatSpeechSlot;
 
-// FISSION-VOCK ADD: sized once in gameSoundInit() from [vock-floats]
+// FISSION-VOCK ADD: sized once in gameSoundInit() from [vock-features]
 // FloatAudioChannels in game.cfg (settings.mod_settings.float_audio_channels),
 // then never resized -- see AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc,
 // which reserves mixer buffer slots for this same count.
@@ -142,6 +154,10 @@ static char* _sound_music_path2 = nullptr;
 
 // 0x518E80
 static char* _sound_speech_path = _aSoundSpeech_0;
+
+// FISSION-VOCK ADD: loose-file base path for pipboySpeechLoad(), parallel
+// to _sound_speech_path above but rooted at sound/pipboy/.
+static char* _sound_pipboy_path = _aSoundPipboy_0;
 
 // 0x518E84
 static int gMasterVolume = VOLUME_MAX;
@@ -192,15 +208,19 @@ static long gameSoundFileTell(int handle);
 static long gameSoundFileGetSize(int handle);
 static bool gameSoundIsCompressed(char* filePath);
 static void speechCallback(void* userData, int event);
+static void pipboyCallback(void* userData, int event);
 static void floatSpeechCallback(void* userData, int event);
 static int _gsound_calc_float_volume(Object* speaker);
+static int _gsound_calc_pipboy_volume();
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
 static int gameSoundFindBackgroundSoundPath(char* dest, const char* src);
+static int gameSoundFindPipboySoundPath(char* dest, const char* src);
 static int gameSoundFindWavEffectPath(char* dest, const char* src);
 static int backgroundSoundPlay();
 static int speechPlay();
+static int pipboySpeechPlay();
 static int _gsound_get_music_path(char** out_value, const char* key);
 static Sound* _gsound_get_sound_ready_for_effect();
 static bool _gsound_file_exists_f(const char* fname);
@@ -233,7 +253,7 @@ int gameSoundInit()
         debugPrint("Initializing sound system...");
     }
 
-    // FISSION-VOCK ADD: size the float-speech pool from [vock-floats]
+    // FISSION-VOCK ADD: size the float-speech pool from [vock-features]
     // FloatAudioChannels (game.cfg) once, before soundInit() below starts
     // the audio engine's mixer callback thread -- see
     // AUDIO_ENGINE_SOUND_BUFFERS in audio_engine.cc, which derives its own
@@ -391,6 +411,7 @@ void gameSoundReset()
 
     // NOTE: Uninline.
     speechDelete();
+    pipboySpeechDelete();
 
     if (_gsound_background_df_vol) {
         // NOTE: Uninline.
@@ -425,6 +446,7 @@ int gameSoundExit()
 
     // NOTE: Uninline.
     speechDelete();
+    pipboySpeechDelete();
 
     backgroundSoundDelete();
     soundExit();
@@ -1169,6 +1191,193 @@ void speechDelete()
     }
 }
 
+// FISSION-VOCK ADD: mirrors speechCallback() -- lets gPipboySound get
+// nulled out when playback ends naturally, so pipboySpeechDelete() never
+// sees a dangling pointer freed by a prior soundContinueAll() background
+// tick (see the FISSION-VOCK FIX comment on speechCallback()'s registration
+// in speechLoad() above for the use-after-free this pattern avoids).
+static void pipboyCallback(void* userData, int event)
+{
+    if (event == SOUND_CALLBACK_EVENT_DONE) {
+        gPipboySound = nullptr;
+    }
+}
+
+// Gain for the dedicated Pip-Boy narration channel: [vock-features]
+// PipboyVolume / VOLUME_MAX, layered multiplicatively on top of the Speech
+// Volume Preferences slider -- same relationship the float pool's Volume
+// key has to the Sound Effects slider (see the comment above
+// _gsound_calc_float_volume_gain()).
+static int _gsound_calc_pipboy_volume()
+{
+    int baseVolume = speechGetVolume();
+    double gain = (double)settings.mod_settings.pipboy_volume / VOLUME_MAX;
+    return (int)(baseVolume * gain);
+}
+
+// FISSION-VOCK ADD: dedicated channel for Pip-Boy holodisk narration,
+// mirroring speechLoad() but against gPipboySound instead of gSpeechSound
+// so a holodisk's audio can't be interrupted by, or interrupt, dialogue --
+// see PIPBOY_SPEECH_MAX_COUNT in audio_engine.cc for the extra mixer buffer
+// this reserves. Resolves fileName under sound/pipboy/ via
+// gameSoundFindPipboySoundPath() -- a sibling of sound/speech/, not a
+// subfolder of it, since Pip-Boy narration isn't dialogue. Callers pass a
+// bare filename with no folder prefix -- see pipboyHolodiskUpdateAudio()
+// in pipboy.cc.
+int pipboySpeechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    int rc;
+    bool foundWav;
+
+    if (!gGameSoundInitialized) {
+        return -1;
+    }
+
+    if (!settings.mod_settings.pipboy_audio) {
+        return -1;
+    }
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("Loading pipboy sound file %s%s...", fileName, ".ACM");
+    }
+
+    pipboySpeechDelete();
+
+    if (_gsound_background_allocate(&gPipboySound, storageType, loopingMode)) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because sound could not be allocated.\n");
+        }
+        gPipboySound = nullptr;
+        return -1;
+    }
+
+    if (gameSoundFindPipboySoundPath(path, fileName) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed because the file could not be found.\n");
+        }
+        soundDelete(gPipboySound);
+        gPipboySound = nullptr;
+        return -1;
+    }
+
+    foundWav = isWavFile(path);
+
+    if (foundWav) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("pipboySpeechLoad: Found WAV file: %s\n", path);
+        }
+        rc = soundSetFileIO(gPipboySound, wavOpen, wavClose, wavRead, nullptr,
+            wavSeek, wavTell, wavGetSize);
+        if (rc != 0) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("pipboySpeechLoad: Failed to set WAV I/O (rc=%d)\n", rc);
+            }
+            soundDelete(gPipboySound);
+            gPipboySound = nullptr;
+            return -1;
+        }
+        gPipboySound->isWav = true;
+    } else {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("pipboySpeechLoad: Found ACM file: %s\n", path);
+        }
+        rc = soundSetFileIO(gPipboySound, audioOpen, audioClose, audioRead, nullptr,
+            audioSeek, gameSoundFileTellNotImplemented, audioGetSize);
+        if (rc != 0) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("pipboySpeechLoad: Failed to set ACM I/O (rc=%d)\n", rc);
+            }
+            soundDelete(gPipboySound);
+            gPipboySound = nullptr;
+            return -1;
+        }
+    }
+
+    rc = soundSetCallback(gPipboySound, pipboyCallback, nullptr);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("soundSetCallback failed for pipboy sound\n");
+        }
+    }
+
+    if (readLimitMode == GSOUND_LIMIT_BEFORE) {
+        rc = soundSetReadLimit(gPipboySound, 0x40000);
+        if (rc != SOUND_NO_ERROR) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("unable to set read limit ");
+            }
+        }
+    }
+
+    rc = soundLoad(gPipboySound, path);
+    if (rc != SOUND_NO_ERROR) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed on call to soundLoad.\n");
+        }
+        soundDelete(gPipboySound);
+        gPipboySound = nullptr;
+        return -1;
+    }
+
+    if (readLimitMode != GSOUND_LIMIT_BEFORE) {
+        rc = soundSetReadLimit(gPipboySound, 0x40000);
+        if (rc != 0) {
+            if (gGameSoundDebugEnabled) {
+                debugPrint("unable to set read limit ");
+            }
+        }
+    }
+
+    if (readLimitMode == GSOUND_LOAD_NO_PLAY) {
+        return 0;
+    }
+
+    if (pipboySpeechPlay() != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("failed starting to play.\n");
+        }
+        soundDelete(gPipboySound);
+        gPipboySound = nullptr;
+        return -1;
+    }
+
+    if (gGameSoundDebugEnabled) {
+        debugPrint("succeeded.\n");
+    }
+
+    return 0;
+}
+
+static int pipboySpeechPlay()
+{
+    if (gGameSoundDebugEnabled) {
+        debugPrint(" playing ");
+    }
+
+    soundSetVolume(gPipboySound, (int)(_gsound_calc_pipboy_volume() * 0.69));
+
+    if (soundPlay(gPipboySound) != 0) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("Unable to play pipboy sound.\n");
+        }
+
+        return -1;
+    }
+
+    return 0;
+}
+
+void pipboySpeechDelete()
+{
+    if (gGameSoundInitialized) {
+        if (gPipboySound != nullptr) {
+            soundDelete(gPipboySound);
+            gPipboySound = nullptr;
+        }
+    }
+}
+
 void floatSpeechCallback(void* userData, int event)
 {
     if (event == SOUND_CALLBACK_EVENT_DONE) {
@@ -1179,21 +1388,22 @@ void floatSpeechCallback(void* userData, int event)
 }
 
 // Scales soundEffectsGetVolume() by distance between the speaking object
-// and the player, then by the [vock-floats] Volume knob below. Elevation is
-// always checked first and short-circuits to silence -- tile distance alone
-// can't tell floors apart. Volume is tied to the Sound Effects Volume
-// Preferences slider rather than the dialog speech slider -- there's no
-// dedicated float-volume Preferences UI; a config-only float_speech_volume
-// existed briefly and was removed for exactly that reason. Volume below is
-// different in kind, not just a revival of that: it's a linear multiplier
-// *on top of* the SFX slider (VOLUME_MAX = unity, matches the slider
-// exactly) rather than a replacement for it, so it can't be used to make
-// floats louder than SFX or to silence SFX without also silencing floats.
+// and the player, then by the [vock-features] FloatVolume knob below.
+// Elevation is always checked first and short-circuits to silence -- tile
+// distance alone can't tell floors apart. FloatVolume is tied to the Sound
+// Effects Volume Preferences slider rather than the dialog speech slider --
+// there's no dedicated float-volume Preferences UI; a config-only
+// float_speech_volume existed briefly and was removed for exactly that
+// reason. FloatVolume below is different in kind, not just a revival of
+// that: it's a linear multiplier *on top of* the SFX slider (VOLUME_MAX =
+// unity, matches the slider exactly) rather than a replacement for it, so
+// it can't be used to make floats louder than SFX or to silence SFX
+// without also silencing floats.
 //
 // Distance falloff: full gain out to half of refDistance, then a straight
 // ramp down to an exact 0.0 at refDistance itself, silent beyond it --
 // gain = clamp(2 * (1 - distance/refDistance), 0, 1), where refDistance =
-// Perception x [vock-floats] DistancePerPerception
+// Perception x [vock-features] FloatDistancePerPerception
 // (settings.mod_settings.float_distance_per_perception, default 2). Started
 // as a pure ramp from distance 0 (see commit fef10eb) with no plateau; the
 // plateau was added after text-scramble clarity (which shares this same
@@ -1201,13 +1411,15 @@ void floatSpeechCallback(void* userData, int event)
 // immediately at almost any distance without one -- see git history around
 // FLOAT_SPEECH_CLARITY_GAIN_FLOOR/CEILING for that detour, which is now
 // folded directly into this shared formula instead of being a
-// clarity-only remap. A config-selectable choice of curve-shaped
-// alternatives (vanilla-ambient-SFX-mirroring via
-// _gsound_compute_relative_volume() below, inverse-distance, sigmoid,
-// logarithmic) was explored even earlier and removed again in favor of
-// always using one shared formula -- see git history around
-// FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/SIGMOID/LOG and the
-// DistanceFormula game.cfg key for that detour.
+// clarity-only remap. Text scrambling uses its own independent
+// TextScrambleDistancePerPerception/TextScrambleObstructionDampening
+// instead of these -- see _gsound_calc_float_gain()'s comment. A
+// config-selectable choice of curve-shaped alternatives
+// (vanilla-ambient-SFX-mirroring via _gsound_compute_relative_volume()
+// below, inverse-distance, sigmoid, logarithmic) was explored even
+// earlier and removed again in favor of always using one shared formula --
+// see git history around FLOAT_SPEECH_DISTANCE_FORMULA_VANILLA/INVERSE/
+// SIGMOID/LOG and the DistanceFormula game.cfg key for that detour.
 
 // Returns true if a solid obstacle sits between speaker and gDude, using
 // the same straight-line raycast the obj_can_see_obj sfall opcode uses (see
@@ -1229,11 +1441,12 @@ static bool _gsound_float_is_obstructed(Object* speaker)
 }
 
 // Pure distance-based gain factor in [0.0, 1.0] -- 1.0 is full volume, 0.0
-// is elevation-mismatched/inaudible/out of range. Takes distancePerPerception
-// as a parameter (rather than reading a single fixed setting) so volume and
-// text-scramble clarity can each define their own effective range while
-// sharing the same falloff shape and obstruction handling, without
-// duplicating this logic in two places.
+// is elevation-mismatched/inaudible/out of range. Takes
+// distancePerPerception and obstructionDampening as parameters (rather
+// than reading fixed settings) so volume and text-scramble clarity can
+// each define their own effective range and obstruction dampening while
+// sharing the same falloff shape and raycast logic, without duplicating
+// either in two places.
 //
 // Shape: full gain (1.0) out to half of refDistance, then a straight linear
 // ramp down to an exact 0.0 at refDistance itself. Not a plain ramp from
@@ -1242,9 +1455,9 @@ static bool _gsound_float_is_obstructed(Object* speaker)
 // almost any distance, reading as "scrambling starts right next to the
 // speaker" instead of "stays clear, then fades out near the edge of
 // range." Volume gets the same plateau for consistency -- both callers
-// share one formula and one obstruction handling, only refDistance differs
+// share one formula, only refDistance and obstructionDampening differ
 // between them.
-static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception)
+static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception, int obstructionDampening)
 {
     if (speaker == nullptr || gDude == nullptr) {
         return 1.0;
@@ -1267,13 +1480,13 @@ static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception
     // ramps down over the second half of refDistance.
     double gain = std::clamp(2.0 * (1.0 - (double)distance / (double)refDistance), 0.0, 1.0);
 
-    // [vock-floats] ObstructionDampening in game.cfg -- 0 (default) skips the
-    // raycast entirely, so players who don't opt in pay nothing extra here.
-    // Applied *after* the falloff above (including its plateau), not
-    // folded into the ramp -- an obstructed line inside the plateau still
-    // needs to be dampened by the full percentage, not partially absorbed
-    // by the plateau flattening it back out to 1.0.
-    int obstructionDampening = std::clamp(settings.mod_settings.float_obstruction_dampening, 0, 100);
+    // FloatObstructionDampening/TextScrambleObstructionDampening in
+    // game.cfg -- 0 skips the raycast entirely, so a caller passing 0 pays
+    // nothing extra here. Applied *after* the falloff above (including its
+    // plateau), not folded into the ramp -- an obstructed line inside the
+    // plateau still needs to be dampened by the full percentage, not
+    // partially absorbed by the plateau flattening it back out to 1.0.
+    obstructionDampening = std::clamp(obstructionDampening, 0, 100);
     if (obstructionDampening > 0 && _gsound_float_is_obstructed(speaker)) {
         gain *= 1.0 - ((double)obstructionDampening / 100.0);
     }
@@ -1281,15 +1494,10 @@ static double _gsound_calc_float_gain(Object* speaker, int distancePerPerception
     return gain;
 }
 
-static double _gsound_calc_float_distance_factor(Object* speaker)
-{
-    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_distance_per_perception);
-}
-
-// Linear [vock-floats] Volume curve -- gain = Volume / VOLUME_MAX, same
-// 0-32767 scale as the pre-existing dialog speech_volume setting.
-// Independent of speaker/distance, so it's cheap to recompute per call
-// rather than caching.
+// Linear [vock-features] FloatVolume curve -- gain = FloatVolume /
+// VOLUME_MAX, same 0-32767 scale as the pre-existing dialog speech_volume
+// setting. Independent of speaker/distance, so it's cheap to recompute per
+// call rather than caching.
 static double _gsound_calc_float_volume_gain()
 {
     int volume = std::clamp(settings.mod_settings.float_volume, VOLUME_MIN, VOLUME_MAX);
@@ -1299,19 +1507,21 @@ static double _gsound_calc_float_volume_gain()
 static int _gsound_calc_float_volume(Object* speaker)
 {
     int baseVolume = soundEffectsGetVolume();
-    double gain = _gsound_calc_float_distance_factor(speaker) * _gsound_calc_float_volume_gain();
+    double gain = _gsound_calc_float_gain(speaker, settings.mod_settings.float_distance_per_perception, settings.mod_settings.float_obstruction_dampening) * _gsound_calc_float_volume_gain();
     return (int)(baseVolume * gain);
 }
 
 // Text clarity is exactly _gsound_calc_float_gain() -- same plateau/ramp
-// shape and obstruction handling as volume above -- computed against its
-// own independent range: [vock-floats] TextScrambleDistancePerPerception in
-// game.cfg, rather than reusing DistancePerPerception. gain and clarity are
-// the same [0.0, 1.0] scale by construction, so no separate remap is
-// needed here; only the refDistance passed in differs from volume's call.
+// shape as volume above -- computed against its own independent range and
+// obstruction value: [vock-features] TextScrambleDistancePerPerception and
+// TextScrambleObstructionDampening in game.cfg, rather than reusing
+// FloatDistancePerPerception/FloatObstructionDampening. gain and clarity
+// are the same [0.0, 1.0] scale by construction, so no separate remap is
+// needed here; only the refDistance/obstructionDampening passed in differ
+// from volume's call.
 double gameSoundCalcFloatClarity(Object* speaker)
 {
-    return _gsound_calc_float_gain(speaker, settings.mod_settings.float_text_scramble_distance_per_perception);
+    return _gsound_calc_float_gain(speaker, settings.mod_settings.text_scramble_distance_per_perception, settings.mod_settings.text_scramble_obstruction_dampening);
 }
 
 // Re-evaluates and re-applies every active float's volume from its
@@ -1404,7 +1614,7 @@ bool speechLoadFloat(const char* fileName, Object* speaker)
         }
 
         if (slotIndex == -1) {
-            // Pool is full. What happens next depends on [vock-floats]
+            // Pool is full. What happens next depends on [vock-features]
             // EvictionPolicy in game.cfg
             // (settings.mod_settings.float_eviction_policy):
             int evictIndex = -1;
@@ -2377,6 +2587,73 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     }
 
     if (gGameSoundDebugEnabled) debugPrint("-- speech find failed ");
+    return -1;
+}
+
+// FISSION-VOCK ADD: mirrors gameSoundFindSpeechSoundPath() above, but
+// rooted at sound/pipboy/ instead of sound/speech/ -- Pip-Boy narration is
+// a sibling category, not a subfolder of dialogue/float speech (see
+// _aSoundPipboy_0's comment). Kept as its own function rather than
+// parameterizing the root into gameSoundFindSpeechSoundPath() so neither
+// caller pays for a branch it doesn't need.
+static int gameSoundFindPipboySoundPath(char* dest, const char* src)
+{
+    char path[COMPAT_MAX_PATH + 1];
+    char upperSrc[COMPAT_MAX_PATH + 1];
+    int fileSize;
+
+    strcpy(upperSrc, src);
+    compat_strupr(upperSrc);
+
+    // VFS - .WAV (uppercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.WAV", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .WAV (lowercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.WAV", src);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Loose: .WAV using config path
+    snprintf(path, sizeof(path), "%s%s%s", _sound_pipboy_path, src, ".WAV");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .ACM (uppercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.ACM", upperSrc);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // VFS - .ACM (lowercase)
+    snprintf(path, sizeof(path), "sound/pipboy/%s.ACM", src);
+    if (dbGetFileSize(path, &fileSize) == 0) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // Loose - .ACM using config path (original fallback)
+    snprintf(path, sizeof(path), "%s%s%s", _sound_pipboy_path, src, ".ACM");
+    if (_gsound_file_exists_f(path)) {
+        strncpy(dest, path, COMPAT_MAX_PATH);
+        dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    if (gGameSoundDebugEnabled) debugPrint("-- pipboy find failed ");
     return -1;
 }
 

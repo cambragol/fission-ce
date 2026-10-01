@@ -1517,7 +1517,13 @@ int objectSetLocation(Object* obj, int tile, int elevation, Rect* rect)
                 }
 
                 if (rect != nullptr) {
-                    rectUnion(rect, &_scr_size, rect);
+                    // The visible area at high zoom-out is larger than the physical screen.
+                    // We have to invalidate the whole virtual buffer rather than just _scr_size,
+                    // everything visible updates when the roof toggles.
+                    int vw = 0, vh = 0;
+                    mapGetVirtualSize(&vw, &vh);
+                    Rect fullBuffer = { 0, 0, vw - 1, vh - 1 };
+                    rectUnion(rect, &fullBuffer, rect);
                 }
             }
 

@@ -130,7 +130,7 @@ struct EnhancementSettings {
     int inventory_filter = GAME_CONFIG_DEFAULT_INVENTORY_FILTER;
     bool display_weight = GAME_CONFIG_DEFAULT_DISPLAY_WEIGHT;
     bool companion_inventory = GAME_CONFIG_DEFAULT_COMPANION_INVENTORY;
-    bool vock_floats = GAME_CONFIG_DEFAULT_VOCK_FLOATS;
+    bool vock_features = GAME_CONFIG_DEFAULT_VOCK_FEATURES;
 };
 
 struct ModSettings {
@@ -200,12 +200,17 @@ struct ModSettings {
     int float_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_DISTANCE_PER_PERCEPTION;
     int float_obstruction_dampening = MOD_CONFIG_DEFAULT_FLOAT_OBSTRUCTION_DAMPENING;
     int float_eviction_policy = MOD_CONFIG_DEFAULT_FLOAT_EVICTION_POLICY;
-    bool float_text_scramble = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE;
-    int float_text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
-    std::string float_text_scramble_chars = MOD_CONFIG_DEFAULT_FLOAT_TEXT_SCRAMBLE_CHARS;
-    bool voiced_floats = MOD_CONFIG_DEFAULT_VOICED_FLOATS;
+    bool float_audio = MOD_CONFIG_DEFAULT_FLOAT_AUDIO;
     bool float_censor_bleep = MOD_CONFIG_DEFAULT_FLOAT_CENSOR_BLEEP;
     int float_volume = MOD_CONFIG_DEFAULT_FLOAT_VOLUME;
+
+    bool text_scramble = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE;
+    int text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
+    int text_scramble_obstruction_dampening = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING;
+    std::string text_scramble_chars = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
+
+    bool pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
+    int pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 };
 
 struct ModScriptsSettings {
