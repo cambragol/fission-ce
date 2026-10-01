@@ -26,7 +26,7 @@
 #include "proto.h"
 #include "proto_instance.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "skill.h"
 #include "skilldex.h"
 #include "svga.h"
