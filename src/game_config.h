@@ -120,7 +120,7 @@ namespace fallout {
 #define GAME_CONFIG_INVENTORY_FILTER "InventoryFilter"
 #define GAME_CONFIG_DISPLAY_WEIGHT "DisplayWeight"
 #define GAME_CONFIG_COMPANION_INVENTORY "CompanionInventory"
-#define GAME_CONFIG_VOCK_FLOATS_KEY "VockFloats"
+#define GAME_CONFIG_VOCK_FEATURES_KEY "VockFeatures"
 
 #define ENGLISH "english"
 #define FRENCH "french"
