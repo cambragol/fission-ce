@@ -7,10 +7,10 @@
 
 #include "db.h"
 #include "input.h"
+#include "mod_config.h"
 #include "platform_compat.h"
 #include "scripts.h"
 #include "settings.h"
-#include "mod_config.h"
 #include "string_parsers.h"
 
 namespace fallout {
