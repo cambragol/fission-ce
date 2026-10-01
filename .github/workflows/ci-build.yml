@@ -629,8 +629,6 @@ jobs:
           prerelease: true
           name: Fallout Fission Beta ${{ needs.get-version.outputs.version }}
           body: |
-            ## Fallout Fission Beta ${{ needs.get-version.outputs.version }}
-
             Built from `${{ github.ref_name }}` — `${{ github.sha }}`
 
             ---
