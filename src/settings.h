@@ -26,7 +26,7 @@ struct SystemSettings {
     bool hashing = GAME_CONFIG_DEFAULT_HASHING;
     int splash = GAME_CONFIG_DEFAULT_SPLASH;
     int free_space = GAME_CONFIG_DEFAULT_FREE_SPACE;
-    int times_run = 0;   // runtime state only - no config key, no define
+    int times_run = 0; // runtime state only - no config key, no define
 };
 
 struct PreferencesSettings {
