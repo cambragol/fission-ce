@@ -155,7 +155,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, settings.enhancements.inventory_filter);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, settings.enhancements.display_weight);
     settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_COMPANION_INVENTORY, settings.enhancements.companion_inventory);
-    settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, settings.enhancements.vock_floats);
+    settingsRead(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FEATURES_KEY, settings.enhancements.vock_features);
 }
 
 // read in modConfig setting (no writing back, just reading)
@@ -206,19 +206,28 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_GAME_DIALOG_GENDER_WORDS_KEY, settings.mod_settings.game_dialog_gender_words);
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_WORLDMAP_TRAIL_MARKERS, settings.mod_settings.worldmap_trail_markers);
 
-    // FISSION-VOCK ADD: [vock-floats] is its own section rather than
+    // FISSION-VOCK ADD: [vock-features] is its own section rather than
     // mod_settings, so modders can find/tune it without wading through
     // everything else in game.cfg.
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, settings.mod_settings.float_audio_channels);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.float_distance_per_perception);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.float_obstruction_dampening);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, settings.mod_settings.float_eviction_policy);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_KEY, settings.mod_settings.float_text_scramble);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.float_text_scramble_distance_per_perception);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_TEXT_SCRAMBLE_CHARS_KEY, settings.mod_settings.float_text_scramble_chars);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_VOICED_FLOATS_KEY, settings.mod_settings.voiced_floats);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, settings.mod_settings.float_censor_bleep);
-    modSettingsRead(MOD_CONFIG_VOCK_FLOATS_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, settings.mod_settings.float_volume);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_AUDIO_CHANNELS_KEY, settings.mod_settings.float_audio_channels);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.float_distance_per_perception);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.float_obstruction_dampening);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_EVICTION_POLICY_KEY, settings.mod_settings.float_eviction_policy);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_AUDIO_KEY, settings.mod_settings.float_audio);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_CENSOR_BLEEP_KEY, settings.mod_settings.float_censor_bleep);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_FLOAT_VOLUME_KEY, settings.mod_settings.float_volume);
+    // FISSION-VOCK ADD: TextScramble is its own feature, not a flavor of
+    // float audio -- own on/off, own independent distance/obstruction
+    // range (see MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY's
+    // comment in sfall_config.h), own character pool.
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_KEY, settings.mod_settings.text_scramble);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.text_scramble_distance_per_perception);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.text_scramble_obstruction_dampening);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_CHARS_KEY, settings.mod_settings.text_scramble_chars);
+    // FISSION-VOCK ADD: dedicated Pip-Boy holodisk-narration channel's own
+    // on/off and volume, independent of the NPC float pool above.
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_AUDIO_KEY, settings.mod_settings.pipboy_audio);
+    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_VOLUME_KEY, settings.mod_settings.pipboy_volume);
 
     // Game Fixes
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
@@ -364,7 +373,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, settings.enhancements.inventory_filter);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, settings.enhancements.display_weight);
     settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_COMPANION_INVENTORY, settings.enhancements.companion_inventory);
-    settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, settings.enhancements.vock_floats);
+    settingsWrite(GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FEATURES_KEY, settings.enhancements.vock_features);
 
     // Mod Settings
     /*settingsWrite(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_DUDE_NATIVE_LOOK_JUMPSUIT_MALE_KEY, settings.mod_settings.dude_native_look_jumpsuit_male);

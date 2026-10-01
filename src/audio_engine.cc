@@ -12,12 +12,13 @@
 
 namespace fallout {
 
-// Background music and dialogue speech are each a single scalar Sound*
-// global (gBackgroundSound/gSpeechSound in game_sound.cc), not pools -- there
-// is no allocation loop to raise, so unlike SFX and floats these aren't
-// runtime-configurable.
+// Background music, dialogue speech, and Pip-Boy holodisk narration are
+// each a single scalar Sound* global (gBackgroundSound/gSpeechSound/
+// gPipboySound in game_sound.cc), not pools -- there is no allocation loop
+// to raise, so unlike SFX and floats these aren't runtime-configurable.
 #define BACKGROUND_MUSIC_MAX_COUNT (1)
 #define DIALOGUE_SPEECH_MAX_COUNT (1)
+#define PIPBOY_SPEECH_MAX_COUNT (1)
 
 struct AudioEngineSoundBuffer {
     bool active = false;
@@ -47,7 +48,7 @@ static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
 // (1) + SFX (SOUND_EFFECTS_MAX_COUNT, 4) + dialogue speech (1) = 6, plus 2
 // spare). Now derived from every category's actual budget instead of a
 // hand-maintained number, so it can't silently drift out of sync with them.
-// Floats are the only category configurable at runtime (see [vock-floats]
+// Floats are the only category configurable at runtime (see [vock-features]
 // FloatAudioChannels in game.cfg / settings.mod_settings.float_audio_channels),
 // so this is computed once in audioEngineInit(), before the SDL device is
 // opened and the mixer callback thread starts -- gAudioEngineSoundBuffers is
@@ -59,7 +60,7 @@ static int audioEngineSoundBufferCount()
         floatAudioChannels = 1;
     }
 
-    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + floatAudioChannels;
+    return BACKGROUND_MUSIC_MAX_COUNT + SOUND_EFFECTS_MAX_COUNT + DIALOGUE_SPEECH_MAX_COUNT + PIPBOY_SPEECH_MAX_COUNT + floatAudioChannels;
 }
 
 static std::vector<AudioEngineSoundBuffer> gAudioEngineSoundBuffers;
