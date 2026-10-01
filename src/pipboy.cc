@@ -282,6 +282,7 @@ static void pipboyWindowRenderQuestLocationList(int a1);
 static void pipboyWindowQuestList(int a1);
 static void pipboyRenderHolodiskText();
 static void pipboyHolodiskUpdateAudio(const char* audio);
+static void pipboyHolodiskStopAudio();
 static int pipboyWindowRenderHolodiskList(int a1);
 static int _qscmp(const void* a1, const void* a2);
 static void pipboyWindowHandleAutomaps(int a1);
@@ -1111,11 +1112,8 @@ int pipboyOpen(int intent)
                 cluesResetDistortion();
             }
 
-            // Leaving the holodisk view for another tab (automaps, archives,
-            // alarm clock, ...). Stop the narration and clear the tracker so
-            // reopening the same holodisk restarts it from the top.
-            pipboySpeechDelete();
-            gPipboyHolodiskAudioIndex = -1;
+            // Leaving the holodisk for another tab.
+            pipboyHolodiskStopAudio();
 
             gPipboyPrevTab = gPipboyTab;
             gPipboyTab = newTab;
@@ -1800,12 +1798,8 @@ static void pipboyWindowHandleStatus(int userInput)
 
         _holo_flag = 0;
         _holodisk = -1;
-        // Leaving the holodisk detail view for the status list. Stop the
-        // narration so it doesn't keep playing under the status list, and
-        // clear the tracker so reopening the same holodisk later restarts
-        // its narration from the top.
-        pipboySpeechDelete();
-        gPipboyHolodiskAudioIndex = -1;
+        // Leaving the holodisk for the status list.
+        pipboyHolodiskStopAudio();
         gPipboyWindowHolodisksCount = 0;
         _view_page_quest = 0;
         _view_page_holodisk = 0;
@@ -2051,6 +2045,7 @@ static void pipboyWindowHandleStatus(int userInput)
                 soundPlayFile("ib1p1xx1");
                 _holo_flag = 0;
                 gPipboyKeyboardMode = true;
+                pipboyHolodiskStopAudio();
                 pipboyRefreshStatusMain();
             } else if (_view_page > 0) {
                 _view_page--;
@@ -2063,6 +2058,7 @@ static void pipboyWindowHandleStatus(int userInput)
                 soundPlayFile("ib1p1xx1");
                 _holo_flag = 0;
                 gPipboyKeyboardMode = true;
+                pipboyHolodiskStopAudio();
                 pipboyRefreshStatusMain();
             }
             return;
@@ -2133,6 +2129,7 @@ static void pipboyWindowHandleStatus(int userInput)
                 soundPlayFile("ib1p1xx1");
                 _holo_flag = 0;
                 gPipboyKeyboardMode = true;
+                pipboyHolodiskStopAudio();
                 pipboyRefreshStatusMain();
             } else if (_view_page < gPipboyHolodiskLastPage) {
                 _view_page++;
@@ -2145,6 +2142,7 @@ static void pipboyWindowHandleStatus(int userInput)
                 soundPlayFile("ib1p1xx1");
                 _holo_flag = 0;
                 gPipboyKeyboardMode = true;
+                pipboyHolodiskStopAudio();
                 pipboyRefreshStatusMain();
             }
             return;
@@ -2226,6 +2224,7 @@ static void pipboyWindowHandleStatus(int userInput)
             soundPlayFile("ib1p1xx1");
             _holo_flag = 0;
             gPipboyKeyboardMode = true;
+            pipboyHolodiskStopAudio();
             pipboyRefreshStatusMain();
             return;
         }
@@ -2867,6 +2866,14 @@ static void pipboyHolodiskUpdateAudio(const char* audio)
     } else {
         pipboySpeechDelete();
     }
+}
+
+// Stops holodisk narration and clears the tracker, so reopening the same
+// holodisk restarts it from the top.
+static void pipboyHolodiskStopAudio()
+{
+    pipboySpeechDelete();
+    gPipboyHolodiskAudioIndex = -1;
 }
 
 static void pipboyRenderHolodiskText()
@@ -5197,11 +5204,8 @@ static int holodiskInit()
 // 0x49A968
 static void holodiskFree()
 {
-    // Safety net for pipboyWindowFree(): stop any holodisk narration still
-    // playing when the whole Pip-Boy window closes, not just when backing
-    // out to the status list.
-    pipboySpeechDelete();
-    gPipboyHolodiskAudioIndex = -1;
+    // Pip-Boy is closing.
+    pipboyHolodiskStopAudio();
 
     if (gHolodiskDescriptions != nullptr) {
         internal_free(gHolodiskDescriptions);
