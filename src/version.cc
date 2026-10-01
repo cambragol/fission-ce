@@ -1,7 +1,7 @@
 #include "version.h"
 #include "game_version.h"
 #include "settings.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 
 #include <stdio.h>
 
