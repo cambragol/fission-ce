@@ -180,13 +180,15 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     configSetInt(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_INVENTORY_FILTER, 0);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_DISPLAY_WEIGHT, false);
     configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_COMPANION_INVENTORY, false);
-    // FISSION-VOCK ADD: master on/off for the whole float-enhancement subsystem
-    // (voiced floats, censor bleep, distance text scramble -- see the
-    // [vock-floats] keys in game.cfg for the individual toggles). Volume for
-    // voiced floats is tied to [sound] sndfx_volume rather than its own
-    // setting -- see _scr_get_msg_str_speech()/speechLoadFloat() in
-    // scripts.cc/game_sound.cc.
-    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FLOATS_KEY, false);
+    // FISSION-VOCK ADD: master on/off for the whole VOCK feature set (voiced
+    // floats, censor bleep, distance text scramble, voiced Pip-Boy holodisk
+    // narration -- see the [vock-features] keys in game.cfg for the
+    // individual toggles). Volume for voiced floats is tied to [sound]
+    // sndfx_volume rather than its own setting -- see
+    // _scr_get_msg_str_speech()/speechLoadFloat() in scripts.cc/game_sound.cc.
+    // Pip-Boy narration has its own dedicated PipboyVolume key instead (see
+    // [vock-features] PipboyVolume / PipboyAudio in sfall_config.h).
+    configSetBool(&gGameConfig, GAME_CONFIG_ENHANCEMENTS_KEY, GAME_CONFIG_VOCK_FEATURES_KEY, false);
 
     if (isMapper) {
         configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, "mapper");
