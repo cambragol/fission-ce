@@ -1565,6 +1565,59 @@ Create message files in language folders:
 -   Recommended range: 900-999 for small mods, higher for larger mods
 -   Set GVAR to 1 to give holodisk, 0 to remove (though typically not removed)
 
+#### 11.5.5 Voiced Narration (Audio)
+
+Holodisks share the same message-list loading path as everything else in FISSION
+(`getmsg()`/`MessageListItem`), and that path already carries a per-line audio field --
+the middle slot of the standard `{num}{audio}{text}` `.msg` triple. Holodisk rendering
+reads that field once, from the holodisk's *title* entry, and plays it as one continuous
+narration clip for the whole holodisk -- not one clip per page.
+
+```
+{0}{myquest_intro}{Important Data Disk}
+{1}{}{This holodisk contains critical information}
+{2}{}{about the secret facility.}
+{3}{}{**END-PAR**}
+{4}{}{The entrance is hidden behind the waterfall.}
+{5}{}{**END-DISK**}
+```
+
+Why one clip, not one per page: pagination (35 message IDs per page, see 11.5.2) is a
+blind count with no idea where a sentence ends. A real, longer holodisk's page breaks
+land mid-sentence as a matter of course -- there's no way to choose per-page cut points
+that don't eventually land there too, since the boundary shifts if the text is ever
+edited. A single clip sidesteps this entirely: it starts when the holodisk opens and
+keeps playing across page turns, so nothing needs to be cut to match an arbitrary
+35-line count.
+
+Rules:
+
+-   Only the audio field on the holodisk's title entry is read (the ID in
+    `holodisk.txt`'s second column for vanilla holodisks, `{0}` for mod holodisks).
+    The title never moves when the body text is edited, so the tag stays put. The
+    field on every body line is ignored.
+-   The audio field is a bare filename, same as dialogue's (e.g. `{fea1}` in a regular
+    NPC `.msg`) -- never a path. The folder is fixed, not authored: it always resolves
+    to `sound/pipboy/<name>.wav` or `.acm` (searched in that order) -- a sibling of
+    `sound/speech/`, not a subfolder of it, unlike dialogue's
+    `sound/speech/<critter's head name>/<name>`.
+-   Leave the field empty (`{}`) for a silent holodisk -- no narration plays.
+-   The clip plays once, in full, regardless of how many pages the reader turns through
+    or how long they linger on one page. Opening a *different* holodisk, or leaving the
+    Pip-Boy, stops it and clears the tracking so reopening the same holodisk later
+    restarts the clip from the top. Nothing needs manual cleanup from script or data.
+-   Plays on its own dedicated Pip-Boy audio channel, separate from both dialogue speech
+    and NPC floats -- holodisk narration can't be interrupted by, or interrupt, either one.
+-   Gated by `[enhancements] VockFeatures=1` in `fission.cfg` plus its own
+    `[vock-features] PipboyAudio=1` toggle in `game.cfg`, and off entirely under
+    `StrictVanilla=1`. Independent of `FloatAudio` -- floats and holodisk narration can
+    be switched on/off separately. Volume is `[vock-features] PipboyVolume` (own knob,
+    layered on the Speech slider, separate from floats' `FloatVolume`). With `PipboyAudio`
+    off, holodisks behave exactly as before -- text only.
+-   Applies identically to vanilla holodisks (`data/holodisk.txt` +
+    `text/english/game/PIPBOY.msg`) and mod holodisks (`holodisk_<ModName>_<BlockKey>.msg`,
+    see 11.3) -- both load through the same message-list parser.
+
 ### 11.6 Complete Example Mod
 
 File: `data/holodisk_myquest.txt`
