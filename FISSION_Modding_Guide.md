@@ -2437,6 +2437,42 @@ mods/mod_myfirst.dat/\
         └── myaudio.wav
 ```
 
+### 16.5 Voiced Combat-AI Taunts (Audio)
+
+The lines critters shout during combat ("Take that!", "Ow, my arm!") do not come from a
+script's `.msg` file. They come from the engine's `combatai.msg`
+(`text/{language}/game/combatai.msg`), picked by number from a range set per AI packet.
+These taunts read the same `{num}{audio}{text}` audio field as every other line, and play
+it as a voiced float over the critter that speaks:
+
+```
+{2000}{}{Yer gonna die!}
+{2001}{ncr_raider_2001}{I'll cut you into little pieces!}
+```
+
+Line `{2001}` plays `sound/speech/ncr_raider_2001.wav` (or `.acm`). The file name is
+resolved like any other float speech file, directly under `sound/speech/`. Line `{2000}`
+stays silent. No script is involved: the engine plays the file when the taunt appears.
+
+Rules:
+
+-   Gated like voiced script floats: `[enhancements] VockFeatures=1` in `fission.cfg` plus
+    `[vock-features] FloatAudio=1` in `game.cfg`, and off entirely under
+    `StrictVanilla=1`. With either switch off, taunts are text only, as before.
+-   `[preferences] combat_taunts` still applies. With taunts off, nothing shows and
+    nothing plays.
+-   Plays on the float audio channels (`[vock-features] FloatAudioChannels`), so two
+    critters can taunt at once. Volume falls off with distance and Perception like any
+    other voiced float. Silent while resting with the Pip-Boy alarm clock.
+-   **One number, one voice.** Every critter whose AI packet range covers a number uses
+    the same line. If you voice `{2001}`, a raider, a slaver and a mercenary all say it in
+    that voice. For separate voices per faction, give each faction its own AI packet with
+    its own number block, and voice each block. A
+    `text/{language}/game/combatai_{ModName}.msg` file is merged in at its own base
+    offset for this.
+-   The base game ships its taunts with the audio field empty. Voice lines one at a time;
+    an unvoiced line shows its text as always.
+
 *Document Version: 2.0 - Modder-Focused Refactor*\
 *Last Updated: Fallout 2 FISSION*\
 *For more information, see the generated reports in `data/lists/` after running the game.*

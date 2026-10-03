@@ -25,6 +25,7 @@
 #include "message.h"
 #include "object.h"
 #include "party_member.h"
+#include "pipboy.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "proto_instance.h"
@@ -320,6 +321,12 @@ static Object** _curr_crit_list;
 
 // 0x56D624
 static char _attack_str[AI_MESSAGE_SIZE];
+
+// FISSION-VOCK ADD: speech file names for [_target_str] and [_attack_str],
+// taken from the audio field of combatai.msg. Empty when the line is not
+// voiced.
+static char _target_audio[AI_MESSAGE_SIZE];
+static char _attack_audio[AI_MESSAGE_SIZE];
 
 static bool gUsedPacketNum[MAX_PACKET_NUM] = { false };
 static bool gAiCollisionOccurred = false;
@@ -3832,32 +3839,38 @@ int _combatai_msg(Object* critter, Attack* attack, int type, int delay)
     int start;
     int end;
     char* string;
+    char* audio;
 
     switch (type) {
     case AI_MESSAGE_TYPE_RUN:
         start = ai->run.start;
         end = ai->run.end;
         string = _attack_str;
+        audio = _attack_audio;
         break;
     case AI_MESSAGE_TYPE_MOVE:
         start = ai->move.start;
         end = ai->move.end;
         string = _attack_str;
+        audio = _attack_audio;
         break;
     case AI_MESSAGE_TYPE_ATTACK:
         start = ai->attack.start;
         end = ai->attack.end;
         string = _attack_str;
+        audio = _attack_audio;
         break;
     case AI_MESSAGE_TYPE_MISS:
         start = ai->miss.start;
         end = ai->miss.end;
         string = _target_str;
+        audio = _target_audio;
         break;
     case AI_MESSAGE_TYPE_HIT:
         start = ai->hit[attack->defenderHitLocation].start;
         end = ai->hit[attack->defenderHitLocation].end;
         string = _target_str;
+        audio = _target_audio;
         break;
     default:
         return -1;
@@ -3876,6 +3889,7 @@ int _combatai_msg(Object* critter, Attack* attack, int type, int delay)
 
     debugPrint("%s said message %d\n", objectGetName(critter), messageListItem.num);
     snprintf(string, AI_MESSAGE_SIZE, "%s", messageListItem.text);
+    snprintf(audio, AI_MESSAGE_SIZE, "%s", messageListItem.audio != nullptr ? messageListItem.audio : "");
 
     // TODO: Get rid of casts.
     return animationRegisterCallback(critter, (void*)(uintptr_t)type, (AnimationCallback*)_ai_print_msg, delay);
@@ -3889,13 +3903,16 @@ static int _ai_print_msg(Object* critter, int type)
     }
 
     char* string;
+    char* audio;
     switch (type) {
     case AI_MESSAGE_TYPE_HIT:
     case AI_MESSAGE_TYPE_MISS:
         string = _target_str;
+        audio = _target_audio;
         break;
     default:
         string = _attack_str;
+        audio = _attack_audio;
         break;
     }
 
@@ -3904,6 +3921,16 @@ static int _ai_print_msg(Object* critter, int type)
     Rect rect;
     if (textObjectAdd(critter, string, ai->font, ai->color, ai->outline_color, &rect) == 0) {
         tileWindowRefreshRect(&rect, critter->elevation);
+
+        // FISSION-VOCK ADD: play the taunt's voice on the float pool, gated
+        // like script floats in _scr_get_msg_str_speech().
+        bool floatAudioAllowed = settings.enhancements.vock_features
+            && !settings.enhancements.strict_vanilla
+            && !pipboyIsResting()
+            && settings.mod_settings.float_audio;
+        if (audio[0] != '\0' && floatAudioAllowed) {
+            speechLoadFloat(audio, critter);
+        }
     }
 
     return 0;
