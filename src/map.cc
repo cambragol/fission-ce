@@ -260,8 +260,37 @@ static void mapAdjustCameraToValidArea(void)
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
     int target = mapFindValidCameraCenter(gDude->tile);
+
+    // If no camera position fits the current crop, snap the zoom in toward
+    // 1.0 until one does. Never zooms out, never zooms past 1.0
+    if (target == -1 && gIsoZoom < 1.0f) {
+        const float origZoom = gIsoZoom;
+
+        for (int i = 0; i < gZoomLadderSize; i++) {
+            const float z = gZoomLadder[i];
+            if (z <= origZoom) continue;
+            if (z > 1.0f) break;
+
+            gIsoZoom = z;
+            isoComputeCrop();
+            target = mapFindValidCameraCenter(gDude->tile);
+            if (target != -1) {
+                gIsoColMapW = 0;
+                gIsoColMapH = 0;
+                break;
+            }
+        }
+
+        if (target == -1) {
+            // Nothing fits; restore the original zoom and accept the border.
+            gIsoZoom = origZoom;
+            isoComputeCrop();
+        }
+    }
+
     if (target == -1) {
-        // Fallback: keep player's tile. Better than doing nothing.
+        // Level is too small even at 1.0. Best we can do is honor the dude's
+        // tile; the stencil will draw the black border around it.
         target = gDude->tile;
     }
 
@@ -710,13 +739,6 @@ bool isoIsDisabled()
     return gIsoEnabled == false;
 }
 
-// When a map or elevation with EDG data is loaded while the camera is zoomed
-// out, the current crop may be too large to fit inside that elevation's EDG
-// box, which leaves mapAdjustCameraToValidArea unable to find a legal camera
-// position. Snap the zoom in toward 1.0 to the least zoomed-out ladder level
-// whose crop fits. Never zooms out, never zooms past 1.0: maps that are too
-// small even at 1.0 accept their black border rather than zooming further in.
-// This may need to be adapted for non EDG maps too.
 static void mapSnapZoomToFitEdg()
 {
     if (!mapEdgeIsLoaded()) return;
