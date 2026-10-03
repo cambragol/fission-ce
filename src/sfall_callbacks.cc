@@ -1,7 +1,7 @@
 #include "sfall_callbacks.h"
 
 #include "display_monitor.h"
-#include "sfall_config.h"
+#include "mod_config.h"
 #include "sfall_script_hooks.h"
 #include "worldmap.h"
 
