@@ -168,15 +168,23 @@ static unsigned char* gIsoWindowBuffer;
 // Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
 // clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
 static constexpr float gZoomLadder[] = {
-    0.5f, 0.625f, 0.8f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f,
+    0.5f,
+    0.625f,
+    0.8f,
+    1.0f,
+    1.25f,
+    1.5f,
+    2.0f,
+    2.5f,
+    3.0f,
+    4.0f,
 };
-static constexpr int gZoomLadderSize =
-    sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
+static constexpr int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
 
 // Entry 0 defines the virtual buffer size.
-static constexpr int SCROLL_SLACK_X = 32;   // one tile step, virtual px
+static constexpr int SCROLL_SLACK_X = 32; // one tile step, virtual px
 static constexpr int SCROLL_SLACK_Y = 24;
-static constexpr int SUB_STEP_X = 8;        // must divide SLACK evenly
+static constexpr int SUB_STEP_X = 8; // must divide SLACK evenly
 static constexpr int SUB_STEP_Y = 6;
 static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
 
