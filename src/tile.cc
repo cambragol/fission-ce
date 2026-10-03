@@ -15,6 +15,7 @@
 #include "game_mouse.h"
 #include "light.h"
 #include "map.h"
+#include "map_edge.h"
 #include "object.h"
 #include "platform_compat.h"
 #include "settings.h"
@@ -584,7 +585,7 @@ int tileSetCenter(int tile, int flags)
             }
         }
 
-        if (gTileScrollBlockingEnabled) {
+        if (gTileScrollBlockingEnabled && !mapEdgeIsLoaded()) {
             if (_obj_scroll_blocking_at(tile, gElevation) == 0) {
                 return -1;
             }
@@ -594,8 +595,9 @@ int tileSetCenter(int tile, int flags)
     int tile_x = gHexGridWidth - 1 - tile % gHexGridWidth;
     int tile_y = tile / gHexGridWidth;
 
-    if (gTileBorderInitialized) {
-        if (tile_x <= gTileBorderMinX || tile_x >= gTileBorderMaxX || tile_y <= gTileBorderMinY || tile_y >= gTileBorderMaxY) {
+    if (gTileBorderInitialized && !mapEdgeIsLoaded()) {
+        if (tile_x <= gTileBorderMinX || tile_x >= gTileBorderMaxX
+            || tile_y <= gTileBorderMinY || tile_y >= gTileBorderMaxY) {
             return -1;
         }
     }
