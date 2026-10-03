@@ -79,6 +79,8 @@ static void isoBlitVirtualToWindow(Rect* rect);
 static void isoComputeCrop();
 static int mapFindValidCameraCenter(int startTile);
 static void mapSnapZoomToFitEdg();
+static void isoScrollSmooth();
+static void isoUpdateColMaps();
 
 static void loadModMapMessages();
 
@@ -100,9 +102,6 @@ static const int _map_data_elev_flags[ELEVATION_COUNT] = {
     4,
     8,
 };
-
-// 0x519550
-static unsigned int gIsoWindowScrollTimestamp = 0;
 
 // 0x519554
 static bool gIsoEnabled = false;
@@ -166,36 +165,9 @@ MessageList gMapMessageList;
 // 0x631D50
 static unsigned char* gIsoWindowBuffer;
 
-// Virtual buffer + zoom state.
-static unsigned char* gIsoVirtualBuffer = nullptr;
-static int gIsoVirtualWidth = 0;
-static int gIsoVirtualHeight = 0;
-
-static float gIsoZoom = 1.0f;
-static int gIsoCropX = 0;
-static int gIsoCropY = 0;
-static int gIsoCropW = 0;
-static int gIsoCropH = 0;
-
-// Column-map cache for scaled blits.
-static int* gIsoColMapX = nullptr;
-static int* gIsoColMapY = nullptr;
-static int gIsoColMapW = 0; // destination width the maps were built for
-static int gIsoColMapH = 0; // destination height
-static int gIsoColMapVirtualW = 0; // source crop width
-static int gIsoColMapVirtualH = 0; // source crop height
-static int gIsoColMapCropX = 0; // source crop origin
-static int gIsoColMapCropY = 0;
-
-// Virtual buffer is (1 / MAX_ZOOM_OUT) times the visible game area in each
-// dimension. That is the maximum amount of world the player can ever see at
-// once. Zoom 1.0 = visible area exactly; higher = zoomed in; lower = zoomed out.
-static const float MAX_ZOOM_OUT = 0.5f;
-static const float MAX_ZOOM_IN = 4.0f;
-
 // Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
 // clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
-static const float gZoomLadder[] = {
+static constexpr float gZoomLadder[] = {
     0.5f,
     0.625f,
     0.8f,
@@ -207,7 +179,46 @@ static const float gZoomLadder[] = {
     3.0f,
     4.0f,
 };
-static const int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
+static constexpr int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
+
+// Entry 0 defines the virtual buffer size.
+static constexpr int SCROLL_SLACK_X = 32; // one tile step, virtual px
+static constexpr int SCROLL_SLACK_Y = 24;
+static constexpr int SUB_STEP_X = 8; // must divide SLACK evenly
+static constexpr int SUB_STEP_Y = 6;
+static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
+
+// Virtual buffer and zoom state.
+static unsigned char* gIsoVirtualBuffer = nullptr;
+static int gIsoVirtualWidth = 0;
+static int gIsoVirtualHeight = 0;
+
+static float gIsoZoom = 1.0f;
+static int gIsoCropX = 0;
+static int gIsoCropY = 0;
+static int gIsoCropW = 0;
+static int gIsoCropH = 0;
+
+// Column-map cache. gIsoColMap* fields are the inputs the cache was built for.
+static int* gIsoColMapX = nullptr;
+static int* gIsoColMapY = nullptr;
+static int gIsoColMapW = 0;
+static int gIsoColMapH = 0;
+static int gIsoColMapVirtualW = 0;
+static int gIsoColMapVirtualH = 0;
+static int gIsoColMapCropX = 0;
+static int gIsoColMapCropY = 0;
+
+// Sub-tile scroll offset between tile steps. Magnitude < SCROLL_SLACK.
+static int gIsoSubOffsetX = 0;
+static int gIsoSubOffsetY = 0;
+static int gIsoColMapSubX = 0;
+static int gIsoColMapSubY = 0;
+
+// Scroll intent, set by mapScroll() and cleared by the ticker on timeout.
+static int gIsoScrollIntentX = 0;
+static int gIsoScrollIntentY = 0;
+static unsigned int gIsoScrollIntentTick = 0;
 
 // 0x631D54
 MapHeader gMapHeader;
@@ -241,8 +252,37 @@ static void mapAdjustCameraToValidArea(void)
     tile_hires_stencil_on_center_tile_or_elevation_change();
 
     int target = mapFindValidCameraCenter(gDude->tile);
+
+    // If no camera position fits the current crop, snap the zoom in toward
+    // 1.0 until one does. Never zooms out, never zooms past 1.0
+    if (target == -1 && gIsoZoom < 1.0f) {
+        const float origZoom = gIsoZoom;
+
+        for (int i = 0; i < gZoomLadderSize; i++) {
+            const float z = gZoomLadder[i];
+            if (z <= origZoom) continue;
+            if (z > 1.0f) break;
+
+            gIsoZoom = z;
+            isoComputeCrop();
+            target = mapFindValidCameraCenter(gDude->tile);
+            if (target != -1) {
+                gIsoColMapW = 0;
+                gIsoColMapH = 0;
+                break;
+            }
+        }
+
+        if (target == -1) {
+            // Nothing fits; restore the original zoom and accept the border.
+            gIsoZoom = origZoom;
+            isoComputeCrop();
+        }
+    }
+
     if (target == -1) {
-        // Fallback: keep player's tile. Better than doing nothing.
+        // Level is too small even at 1.0. Best we can do is honor the dude's
+        // tile; the stencil will draw the black border around it.
         target = gDude->tile;
     }
 
@@ -329,6 +369,12 @@ void mapZoomOutStep()
             return;
         }
     }
+}
+
+void mapResetSubScroll()
+{
+    gIsoSubOffsetX = 0;
+    gIsoSubOffsetY = 0;
 }
 
 float mapGetZoom()
@@ -420,6 +466,21 @@ static void isoComputeCrop()
     gIsoCropY = (gIsoVirtualHeight - gIsoCropH) / 2;
 
     tile_hires_stencil_set_view_size(gIsoCropW, gIsoCropH);
+
+    // Restrict tile rendering to the region that can actually be sampled by
+    // isoBlitVirtualToWindow between two consecutive refreshes.
+    Rect r;
+    r.left = gIsoCropX - SCROLL_SLACK_X;
+    r.top = gIsoCropY - SCROLL_SLACK_Y;
+    r.right = gIsoCropX + gIsoCropW + SCROLL_SLACK_X - 1;
+    r.bottom = gIsoCropY + gIsoCropH + SCROLL_SLACK_Y - 1;
+
+    if (r.left < 0) r.left = 0;
+    if (r.top < 0) r.top = 0;
+    if (r.right > gIsoVirtualWidth - 1) r.right = gIsoVirtualWidth - 1;
+    if (r.bottom > gIsoVirtualHeight - 1) r.bottom = gIsoVirtualHeight - 1;
+
+    tileSetRefreshRect(&r);
 }
 
 // iso_init
@@ -467,10 +528,9 @@ int isoInit()
         if (ww > maxW) maxW = ww;
         if (wh > maxH) maxH = wh;
     }
-    // Virtual buffer covers MAX_ZOOM_OUT worth of the visible game area.
-    // Aspect ratio matches the visible window, so the blit is uniform.
-    gIsoVirtualWidth = (int)(screenGetWidth() / MAX_ZOOM_OUT);
-    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / MAX_ZOOM_OUT);
+    // Buffer covers the widest zoom-out level in the ladder (see gZoomLadder).
+    gIsoVirtualWidth = (int)(screenGetWidth() / gZoomLadder[0]) + 2 * SCROLL_SLACK_X;
+    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / gZoomLadder[0]) + 2 * SCROLL_SLACK_Y;
 
     gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
     if (gIsoVirtualBuffer == nullptr) {
@@ -610,6 +670,7 @@ void mapInit()
 
     mapNewMap();
     tickersAdd(gameMouseRefresh);
+    tickersAdd(isoScrollSmooth);
     _gmouse_disable(0);
     windowShow(gIsoWindow);
 
@@ -621,6 +682,7 @@ void mapExit()
 {
     windowHide(gIsoWindow);
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+    tickersRemove(isoScrollSmooth);
     tickersRemove(gameMouseRefresh);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MAP, nullptr);
@@ -668,13 +730,6 @@ bool isoIsDisabled()
     return gIsoEnabled == false;
 }
 
-// When a map or elevation with EDG data is loaded while the camera is zoomed
-// out, the current crop may be too large to fit inside that elevation's EDG
-// box, which leaves mapAdjustCameraToValidArea unable to find a legal camera
-// position. Snap the zoom in toward 1.0 to the least zoomed-out ladder level
-// whose crop fits. Never zooms out, never zooms past 1.0: maps that are too
-// small even at 1.0 accept their black border rather than zooming further in.
-// This may need to be adapted for non EDG maps too.
 static void mapSnapZoomToFitEdg()
 {
     if (!mapEdgeIsLoaded()) return;
@@ -1053,36 +1108,10 @@ int mapGetCurrentMap()
 // 0x4826C0
 int mapScroll(int dx, int dy)
 {
-    if (getTicksSince(gIsoWindowScrollTimestamp) < 33) {
-        return -2;
-    }
-
-    gIsoWindowScrollTimestamp = getTicks();
-
-    int screenDx = dx * 32;
-    int screenDy = dy * 24;
-
-    if (screenDx == 0 && screenDy == 0) {
-        return -1;
-    }
-
-    gameMouseObjectsHide();
-
-    int centerScreenX;
-    int centerScreenY;
-    tileToScreenXY(gCenterTile, &centerScreenX, &centerScreenY);
-    centerScreenX += screenDx + 16;
-    centerScreenY += screenDy + 8;
-
-    int newCenterTile = tileFromScreenXY(centerScreenX, centerScreenY);
-    if (newCenterTile == -1) {
-        return -1;
-    }
-
-    if (tileSetCenter(newCenterTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
-        return -1;
-    }
-
+    if (dx == 0 && dy == 0) return -1;
+    gIsoScrollIntentX = dx;
+    gIsoScrollIntentY = dy;
+    gIsoScrollIntentTick = getTicks();
     return 0;
 }
 
@@ -2014,6 +2043,101 @@ static void loadModMapMessages()
     }
 }
 
+static void isoScrollSmooth()
+{
+    // Expire intent when input stops arriving.
+    if ((gIsoScrollIntentX != 0 || gIsoScrollIntentY != 0)
+        && getTicksSince(gIsoScrollIntentTick) > SCROLL_INTENT_TIMEOUT_MS) {
+        gIsoScrollIntentX = 0;
+        gIsoScrollIntentY = 0;
+    }
+
+    bool active = (gIsoScrollIntentX != 0 || gIsoScrollIntentY != 0);
+
+    if (!active) {
+        if (gIsoSubOffsetX == 0 && gIsoSubOffsetY == 0) return;
+
+        // Snap forward
+        int dirX = (gIsoSubOffsetX > 0) - (gIsoSubOffsetX < 0);
+        int dirY = (gIsoSubOffsetY > 0) - (gIsoSubOffsetY < 0);
+
+        int cx, cy;
+        tileToScreenXY(gCenterTile, &cx, &cy);
+        cx += dirX * 32 + 4;
+        cy += dirY * 24 + 3;
+        int newTile = tileFromScreenXY(cx, cy);
+
+        if (newTile != -1) {
+            int savedSubX = gIsoSubOffsetX;
+            int savedSubY = gIsoSubOffsetY;
+            gIsoSubOffsetX = 0;
+            gIsoSubOffsetY = 0;
+
+            if (tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == 0) {
+                return;
+            }
+
+            gIsoSubOffsetX = savedSubX;
+            gIsoSubOffsetY = savedSubY;
+        }
+
+        return;
+    }
+
+    int newSubX = gIsoSubOffsetX + gIsoScrollIntentX * SUB_STEP_X;
+    int newSubY = gIsoSubOffsetY + gIsoScrollIntentY * SUB_STEP_Y;
+    int stepsX = 0, stepsY = 0;
+
+    while (newSubX >= SCROLL_SLACK_X) {
+        newSubX -= SCROLL_SLACK_X;
+        stepsX++;
+    }
+    while (newSubX <= -SCROLL_SLACK_X) {
+        newSubX += SCROLL_SLACK_X;
+        stepsX--;
+    }
+    while (newSubY >= SCROLL_SLACK_Y) {
+        newSubY -= SCROLL_SLACK_Y;
+        stepsY++;
+    }
+    while (newSubY <= -SCROLL_SLACK_Y) {
+        newSubY += SCROLL_SLACK_Y;
+        stepsY--;
+    }
+
+    if (stepsX != 0 || stepsY != 0) {
+        // Commit the new sub-offset BEFORE tileSetCenter.
+        int savedSubX = gIsoSubOffsetX;
+        int savedSubY = gIsoSubOffsetY;
+        gIsoSubOffsetX = newSubX;
+        gIsoSubOffsetY = newSubY;
+
+        int cx, cy;
+        tileToScreenXY(gCenterTile, &cx, &cy);
+        cx += stepsX * 32 + 4;
+        cy += stepsY * 24 + 3;
+        int newTile = tileFromScreenXY(cx, cy);
+
+        if (newTile == -1
+            || tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
+            // Blocked at a map edge. Restore the previous sub-offset.
+            gIsoSubOffsetX = savedSubX;
+            gIsoSubOffsetY = savedSubY;
+            return;
+        }
+
+        // tileSetCenter rendered and blitted using the new sub-offset. Done.
+        return;
+    }
+
+    // No tile step this frame: move the sub-offset and re-blit.
+    gIsoSubOffsetX = newSubX;
+    gIsoSubOffsetY = newSubY;
+    isoUpdateColMaps();
+    isoBlitVirtualToWindow(nullptr);
+    windowRefresh(gIsoWindow);
+}
+
 static void isoUpdateColMaps()
 {
     int dstW = screenGetWidth();
@@ -2021,7 +2145,8 @@ static void isoUpdateColMaps()
 
     if (gIsoColMapW == dstW && gIsoColMapH == dstH
         && gIsoColMapVirtualW == gIsoCropW && gIsoColMapVirtualH == gIsoCropH
-        && gIsoColMapCropX == gIsoCropX && gIsoColMapCropY == gIsoCropY) {
+        && gIsoColMapCropX == gIsoCropX && gIsoColMapCropY == gIsoCropY
+        && gIsoColMapSubX == gIsoSubOffsetX && gIsoColMapSubY == gIsoSubOffsetY) {
         return;
     }
 
@@ -2040,18 +2165,20 @@ static void isoUpdateColMaps()
     gIsoColMapVirtualH = gIsoCropH;
     gIsoColMapCropX = gIsoCropX;
     gIsoColMapCropY = gIsoCropY;
+    gIsoColMapSubX = gIsoSubOffsetX;
+    gIsoColMapSubY = gIsoSubOffsetY;
 
     gIsoColMapX = (int*)malloc(sizeof(int) * dstW);
     gIsoColMapY = (int*)malloc(sizeof(int) * dstH);
 
     for (int x = 0; x < dstW; x++) {
-        int sx = gIsoCropX + (int)((long long)x * gIsoCropW / dstW);
+        int sx = gIsoCropX + gIsoSubOffsetX + (int)((long long)x * gIsoCropW / dstW);
         if (sx < 0) sx = 0;
         if (sx >= gIsoVirtualWidth) sx = gIsoVirtualWidth - 1;
         gIsoColMapX[x] = sx;
     }
     for (int y = 0; y < dstH; y++) {
-        int sy = gIsoCropY + (int)((long long)y * gIsoCropH / dstH);
+        int sy = gIsoCropY + gIsoSubOffsetY + (int)((long long)y * gIsoCropH / dstH);
         if (sy < 0) sy = 0;
         if (sy >= gIsoVirtualHeight) sy = gIsoVirtualHeight - 1;
         gIsoColMapY[y] = sy;
@@ -2065,13 +2192,27 @@ static void isoBlitVirtualToWindow(Rect* rect)
     int dstW = screenGetWidth();
     int dstH = screenGetVisibleHeight();
 
+    if (gIsoZoom == 1.0f) {
+        const int srcX0 = gIsoCropX + gIsoSubOffsetX;
+        const int srcY0 = gIsoCropY + gIsoSubOffsetY;
+
+        for (int y = 0; y < dstH; y++) {
+            const unsigned char* src = gIsoVirtualBuffer + (srcY0 + y) * gIsoVirtualWidth + srcX0;
+            unsigned char* dst = gIsoWindowBuffer + y * dstW;
+            memcpy(dst, src, dstW);
+        }
+        return;
+    }
+
     isoUpdateColMaps();
+
+    const int* colX = gIsoColMapX;
 
     for (int y = 0; y < dstH; y++) {
         const unsigned char* srcRow = gIsoVirtualBuffer + gIsoColMapY[y] * gIsoVirtualWidth;
         unsigned char* dstRow = gIsoWindowBuffer + y * dstW;
         for (int x = 0; x < dstW; x++) {
-            dstRow[x] = srcRow[gIsoColMapX[x]];
+            dstRow[x] = srcRow[colX[x]];
         }
     }
 }
