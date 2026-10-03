@@ -103,9 +103,6 @@ static const int _map_data_elev_flags[ELEVATION_COUNT] = {
     8,
 };
 
-// 0x519550
-static unsigned int gIsoWindowScrollTimestamp = 0;
-
 // 0x519554
 static bool gIsoEnabled = false;
 
@@ -168,7 +165,22 @@ MessageList gMapMessageList;
 // 0x631D50
 static unsigned char* gIsoWindowBuffer;
 
-// Virtual buffer + zoom state.
+// Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
+// clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
+static constexpr float gZoomLadder[] = {
+    0.5f, 0.625f, 0.8f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f,
+};
+static constexpr int gZoomLadderSize =
+    sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
+
+// Entry 0 defines the virtual buffer size.
+static constexpr int SCROLL_SLACK_X = 32;   // one tile step, virtual px
+static constexpr int SCROLL_SLACK_Y = 24;
+static constexpr int SUB_STEP_X = 8;        // must divide SLACK evenly
+static constexpr int SUB_STEP_Y = 6;
+static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
+
+// Virtual buffer and zoom state.
 static unsigned char* gIsoVirtualBuffer = nullptr;
 static int gIsoVirtualWidth = 0;
 static int gIsoVirtualHeight = 0;
@@ -179,54 +191,26 @@ static int gIsoCropY = 0;
 static int gIsoCropW = 0;
 static int gIsoCropH = 0;
 
-// Column-map cache for scaled blits.
+// Column-map cache. gIsoColMap* fields are the inputs the cache was built for.
 static int* gIsoColMapX = nullptr;
 static int* gIsoColMapY = nullptr;
-static int gIsoColMapW = 0; // destination width the maps were built for
-static int gIsoColMapH = 0; // destination height
-static int gIsoColMapVirtualW = 0; // source crop width
-static int gIsoColMapVirtualH = 0; // source crop height
-static int gIsoColMapCropX = 0; // source crop origin
+static int gIsoColMapW = 0;
+static int gIsoColMapH = 0;
+static int gIsoColMapVirtualW = 0;
+static int gIsoColMapVirtualH = 0;
+static int gIsoColMapCropX = 0;
 static int gIsoColMapCropY = 0;
 
-// Virtual buffer is (1 / MAX_ZOOM_OUT) times the visible game area in each
-// dimension. That is the maximum amount of world the player can ever see at
-// once. Zoom 1.0 = visible area exactly; higher = zoomed in; lower = zoomed out.
-static const float MAX_ZOOM_OUT = 0.5f;
-static const float MAX_ZOOM_IN = 4.0f;
-
+// Sub-tile scroll offset between tile steps. Magnitude < SCROLL_SLACK.
 static int gIsoSubOffsetX = 0;
 static int gIsoSubOffsetY = 0;
 static int gIsoColMapSubX = 0;
 static int gIsoColMapSubY = 0;
 
+// Scroll intent, set by mapScroll() and cleared by the ticker on timeout.
 static int gIsoScrollIntentX = 0;
 static int gIsoScrollIntentY = 0;
 static unsigned int gIsoScrollIntentTick = 0;
-static int gIsoWallDirX = 0; // -1, 0, +1
-static int gIsoWallDirY = 0;
-
-static constexpr int SCROLL_SLACK_X = 32; // one tile step, virtual px
-static constexpr int SCROLL_SLACK_Y = 24;
-static constexpr int SUB_STEP_X = 8; // must divide SLACK evenly
-static constexpr int SUB_STEP_Y = 6;
-static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
-
-// Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
-// clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
-static const float gZoomLadder[] = {
-    0.5f,
-    0.625f,
-    0.8f,
-    1.0f,
-    1.25f,
-    1.5f,
-    2.0f,
-    2.5f,
-    3.0f,
-    4.0f,
-};
-static const int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
 
 // 0x631D54
 MapHeader gMapHeader;
@@ -536,10 +520,9 @@ int isoInit()
         if (ww > maxW) maxW = ww;
         if (wh > maxH) maxH = wh;
     }
-    // Virtual buffer covers MAX_ZOOM_OUT worth of the visible game area.
-    // Aspect ratio matches the visible window, so the blit is uniform.
-    gIsoVirtualWidth = (int)(screenGetWidth() / MAX_ZOOM_OUT) + 2 * SCROLL_SLACK_X;
-    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / MAX_ZOOM_OUT) + 2 * SCROLL_SLACK_Y;
+    // Buffer covers the widest zoom-out level in the ladder (see gZoomLadder).
+    gIsoVirtualWidth = (int)(screenGetWidth() / gZoomLadder[0]) + 2 * SCROLL_SLACK_X;
+    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / gZoomLadder[0]) + 2 * SCROLL_SLACK_Y;
 
     gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
     if (gIsoVirtualBuffer == nullptr) {
