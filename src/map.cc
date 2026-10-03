@@ -2068,18 +2068,11 @@ static void isoScrollSmooth()
             if (tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == 0) {
                 return;
             }
-
-            // Blocked at a boundary: fall through to snap-back below.
+            
             gIsoSubOffsetX = savedSubX;
             gIsoSubOffsetY = savedSubY;
         }
 
-        // Snap-back, only reached when the Snap forward step is blocked.
-        gIsoSubOffsetX = 0;
-        gIsoSubOffsetY = 0;
-        isoUpdateColMaps();
-        isoBlitVirtualToWindow(nullptr);
-        windowRefresh(gIsoWindow);
         return;
     }
 
