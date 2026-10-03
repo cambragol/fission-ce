@@ -539,6 +539,11 @@ void tileWindowRefreshRect(Rect* rect, int elevation)
     }
 }
 
+void tileSetRefreshRect(const Rect* rect)
+{
+    gTileWindowRect = *rect;
+}
+
 // 0x4B12D8
 void tileWindowRefresh()
 {

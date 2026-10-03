@@ -24,6 +24,7 @@ struct EdgeBox {
 
 static std::vector<EdgeBox> gEdgBoxes[ELEVATION_COUNT];
 static bool gEdgLoaded = false;
+static bool gEdgTileMask[ELEVATION_COUNT][HEX_GRID_WIDTH * HEX_GRID_HEIGHT];
 
 // Tile index -> pixel-offset coordinate. Matches sfall/HRP ViewMap::GetTileCoordOffset.
 static void tileToPixelOffset(int tile, int& outX, int& outY)
@@ -54,18 +55,8 @@ bool mapEdgeTileIsInBox(int elevation, int tile)
     if (!gEdgLoaded) return true;
     if (elevation < 0 || elevation >= ELEVATION_COUNT) return true;
     if (gEdgBoxes[elevation].empty()) return true;
-    if (tile < 0 || tile >= HEX_GRID_WIDTH * HEX_GRID_HEIGHT) return false;
-
-    int px, py;
-    tileToPixelOffset(tile, px, py);
-
-    for (const auto& b : gEdgBoxes[elevation]) {
-        if (px >= b.minPx && px <= b.maxPx
-            && py >= b.minPy && py <= b.maxPy) {
-            return true;
-        }
-    }
-    return false;
+    if (tile < 0 || tile >= HEX_GRID_SIZE) return false;
+    return gEdgTileMask[elevation][tile];
 }
 
 void mapEdgeLoad(const char* mapName)
@@ -141,6 +132,26 @@ void mapEdgeLoad(const char* mapName)
         }
 
         currentElev = levelIndicator;
+    }
+
+    // Precompute per-tile box membership. Turns mapEdgeTileIsInBox into a
+    // single array read.
+    for (int e = 0; e < ELEVATION_COUNT; e++) {
+        for (int t = 0; t < HEX_GRID_SIZE; t++) {
+            gEdgTileMask[e][t] = false;
+        }
+        if (gEdgBoxes[e].empty()) continue;
+        for (int t = 0; t < HEX_GRID_SIZE; t++) {
+            int px, py;
+            tileToPixelOffset(t, px, py);
+            for (const auto& b : gEdgBoxes[e]) {
+                if (px >= b.minPx && px <= b.maxPx
+                    && py >= b.minPy && py <= b.maxPy) {
+                    gEdgTileMask[e][t] = true;
+                    break;
+                }
+            }
+        }
     }
 
     fileClose(stream);
