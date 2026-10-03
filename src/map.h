@@ -121,6 +121,10 @@ void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY);
 void mapZoomInStep();
 void mapZoomOutStep();
 void mapGetVirtualSize(int* width, int* height);
+// Reset the sub-tile scroll offset. Call when the camera is repositioned
+// programmatically (map load, teleport, zoom change) so the next blit is
+// aligned to the integer tile.
+void mapResetSubScroll();
 
 void mapProcessPendingCameraAdjust(void);
 

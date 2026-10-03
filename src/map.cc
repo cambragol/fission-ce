@@ -79,6 +79,8 @@ static void isoBlitVirtualToWindow(Rect* rect);
 static void isoComputeCrop();
 static int mapFindValidCameraCenter(int startTile);
 static void mapSnapZoomToFitEdg();
+static void isoScrollSmooth();
+static void isoUpdateColMaps();
 
 static void loadModMapMessages();
 
@@ -192,6 +194,23 @@ static int gIsoColMapCropY = 0;
 // once. Zoom 1.0 = visible area exactly; higher = zoomed in; lower = zoomed out.
 static const float MAX_ZOOM_OUT = 0.5f;
 static const float MAX_ZOOM_IN = 4.0f;
+
+static int gIsoSubOffsetX = 0;
+static int gIsoSubOffsetY = 0;
+static int gIsoColMapSubX = 0;
+static int gIsoColMapSubY = 0;
+
+static int gIsoScrollIntentX = 0;
+static int gIsoScrollIntentY = 0;
+static unsigned int gIsoScrollIntentTick = 0;
+static int gIsoWallDirX = 0; // -1, 0, +1
+static int gIsoWallDirY = 0;
+
+static constexpr int SCROLL_SLACK_X = 32;   // one tile step, virtual px
+static constexpr int SCROLL_SLACK_Y = 24;
+static constexpr int SUB_STEP_X = 24;        // must divide SLACK evenly
+static constexpr int SUB_STEP_Y = 18;
+static constexpr int SCROLL_INTENT_TIMEOUT_MS = 30;
 
 // Zoom ladder. Values chosen so each step is roughly 25%, endpoints land on
 // clean ratios, and the max zoom-out produces an exact 2x1 multiplication.
@@ -329,6 +348,12 @@ void mapZoomOutStep()
             return;
         }
     }
+}
+
+void mapResetSubScroll()
+{
+    gIsoSubOffsetX = 0;
+    gIsoSubOffsetY = 0;
 }
 
 float mapGetZoom()
@@ -469,8 +494,8 @@ int isoInit()
     }
     // Virtual buffer covers MAX_ZOOM_OUT worth of the visible game area.
     // Aspect ratio matches the visible window, so the blit is uniform.
-    gIsoVirtualWidth = (int)(screenGetWidth() / MAX_ZOOM_OUT);
-    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / MAX_ZOOM_OUT);
+    gIsoVirtualWidth = (int)(screenGetWidth() / MAX_ZOOM_OUT) + 2 * SCROLL_SLACK_X;
+    gIsoVirtualHeight = (int)(screenGetVisibleHeight() / MAX_ZOOM_OUT) + 2 * SCROLL_SLACK_Y;
 
     gIsoVirtualBuffer = (unsigned char*)internal_malloc(gIsoVirtualWidth * gIsoVirtualHeight);
     if (gIsoVirtualBuffer == nullptr) {
@@ -610,6 +635,7 @@ void mapInit()
 
     mapNewMap();
     tickersAdd(gameMouseRefresh);
+    tickersAdd(isoScrollSmooth);
     _gmouse_disable(0);
     windowShow(gIsoWindow);
 
@@ -621,6 +647,7 @@ void mapExit()
 {
     windowHide(gIsoWindow);
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
+    tickersRemove(isoScrollSmooth);
     tickersRemove(gameMouseRefresh);
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MAP, nullptr);
@@ -1053,36 +1080,10 @@ int mapGetCurrentMap()
 // 0x4826C0
 int mapScroll(int dx, int dy)
 {
-    if (getTicksSince(gIsoWindowScrollTimestamp) < 33) {
-        return -2;
-    }
-
-    gIsoWindowScrollTimestamp = getTicks();
-
-    int screenDx = dx * 32;
-    int screenDy = dy * 24;
-
-    if (screenDx == 0 && screenDy == 0) {
-        return -1;
-    }
-
-    gameMouseObjectsHide();
-
-    int centerScreenX;
-    int centerScreenY;
-    tileToScreenXY(gCenterTile, &centerScreenX, &centerScreenY);
-    centerScreenX += screenDx + 16;
-    centerScreenY += screenDy + 8;
-
-    int newCenterTile = tileFromScreenXY(centerScreenX, centerScreenY);
-    if (newCenterTile == -1) {
-        return -1;
-    }
-
-    if (tileSetCenter(newCenterTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
-        return -1;
-    }
-
+    if (dx == 0 && dy == 0) return -1;
+    gIsoScrollIntentX = dx;
+    gIsoScrollIntentY = dy;
+    gIsoScrollIntentTick = getTicks();
     return 0;
 }
 
@@ -2014,6 +2015,79 @@ static void loadModMapMessages()
     }
 }
 
+static void isoScrollSmooth()
+{
+    // Expire intent when input stops arriving.
+    if ((gIsoScrollIntentX != 0 || gIsoScrollIntentY != 0)
+        && getTicksSince(gIsoScrollIntentTick) > SCROLL_INTENT_TIMEOUT_MS) {
+        gIsoScrollIntentX = 0;
+        gIsoScrollIntentY = 0;
+    }
+
+    bool active = (gIsoScrollIntentX != 0 || gIsoScrollIntentY != 0);
+
+    if (!active) {
+        if (gIsoSubOffsetX == 0 && gIsoSubOffsetY == 0) return;
+
+        if (gIsoSubOffsetX > 0) { gIsoSubOffsetX -= SUB_STEP_X; if (gIsoSubOffsetX < 0) gIsoSubOffsetX = 0; }
+        else if (gIsoSubOffsetX < 0) { gIsoSubOffsetX += SUB_STEP_X; if (gIsoSubOffsetX > 0) gIsoSubOffsetX = 0; }
+        if (gIsoSubOffsetY > 0) { gIsoSubOffsetY -= SUB_STEP_Y; if (gIsoSubOffsetY < 0) gIsoSubOffsetY = 0; }
+        else if (gIsoSubOffsetY < 0) { gIsoSubOffsetY += SUB_STEP_Y; if (gIsoSubOffsetY > 0) gIsoSubOffsetY = 0; }
+
+        isoUpdateColMaps();
+        isoBlitVirtualToWindow(nullptr);
+        windowRefresh(gIsoWindow);
+        return;
+    }
+
+    int newSubX = gIsoSubOffsetX + gIsoScrollIntentX * SUB_STEP_X;
+    int newSubY = gIsoSubOffsetY + gIsoScrollIntentY * SUB_STEP_Y;
+    int stepsX = 0, stepsY = 0;
+
+    while (newSubX >= SCROLL_SLACK_X) { newSubX -= SCROLL_SLACK_X; stepsX++; }
+    while (newSubX <= -SCROLL_SLACK_X) { newSubX += SCROLL_SLACK_X; stepsX--; }
+    while (newSubY >= SCROLL_SLACK_Y) { newSubY -= SCROLL_SLACK_Y; stepsY++; }
+    while (newSubY <= -SCROLL_SLACK_Y) { newSubY += SCROLL_SLACK_Y; stepsY--; }
+
+    if (stepsX != 0 || stepsY != 0) {
+        // Commit the new sub-offset BEFORE tileSetCenter. tileSetCenter
+        // renders and blits internally, and that blit reads gIsoSubOffsetX/Y -
+        // so it must see the post-wrap value for the on-screen motion to be
+        // correct. Committing after the call made every other frame freeze.
+        int savedSubX = gIsoSubOffsetX;
+        int savedSubY = gIsoSubOffsetY;
+        gIsoSubOffsetX = newSubX;
+        gIsoSubOffsetY = newSubY;
+
+        int cx, cy;
+        tileToScreenXY(gCenterTile, &cx, &cy);
+        cx += stepsX * 32 + 4;
+        cy += stepsY * 24 + 3;
+        int newTile = tileFromScreenXY(cx, cy);
+
+        if (newTile == -1
+            || tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
+            // Blocked at a map edge. Restore the previous sub-offset. The
+            // tile did not move and no blit was performed by tileSetCenter,
+            // so this leaves the visible state exactly as it was - no
+            // accumulation, no oscillation.
+            gIsoSubOffsetX = savedSubX;
+            gIsoSubOffsetY = savedSubY;
+            return;
+        }
+
+        // tileSetCenter rendered and blitted using the new sub-offset. Done.
+        return;
+    }
+
+    // No tile step this frame: move the sub-offset and re-blit.
+    gIsoSubOffsetX = newSubX;
+    gIsoSubOffsetY = newSubY;
+    isoUpdateColMaps();
+    isoBlitVirtualToWindow(nullptr);
+    windowRefresh(gIsoWindow);
+}
+
 static void isoUpdateColMaps()
 {
     int dstW = screenGetWidth();
@@ -2021,7 +2095,8 @@ static void isoUpdateColMaps()
 
     if (gIsoColMapW == dstW && gIsoColMapH == dstH
         && gIsoColMapVirtualW == gIsoCropW && gIsoColMapVirtualH == gIsoCropH
-        && gIsoColMapCropX == gIsoCropX && gIsoColMapCropY == gIsoCropY) {
+        && gIsoColMapCropX == gIsoCropX && gIsoColMapCropY == gIsoCropY
+        && gIsoColMapSubX == gIsoSubOffsetX && gIsoColMapSubY == gIsoSubOffsetY) {
         return;
     }
 
@@ -2040,18 +2115,20 @@ static void isoUpdateColMaps()
     gIsoColMapVirtualH = gIsoCropH;
     gIsoColMapCropX = gIsoCropX;
     gIsoColMapCropY = gIsoCropY;
+    gIsoColMapSubX = gIsoSubOffsetX;
+    gIsoColMapSubY = gIsoSubOffsetY;
 
     gIsoColMapX = (int*)malloc(sizeof(int) * dstW);
     gIsoColMapY = (int*)malloc(sizeof(int) * dstH);
 
     for (int x = 0; x < dstW; x++) {
-        int sx = gIsoCropX + (int)((long long)x * gIsoCropW / dstW);
+        int sx = gIsoCropX + gIsoSubOffsetX + (int)((long long)x * gIsoCropW / dstW);
         if (sx < 0) sx = 0;
         if (sx >= gIsoVirtualWidth) sx = gIsoVirtualWidth - 1;
         gIsoColMapX[x] = sx;
     }
     for (int y = 0; y < dstH; y++) {
-        int sy = gIsoCropY + (int)((long long)y * gIsoCropH / dstH);
+        int sy = gIsoCropY + gIsoSubOffsetY + (int)((long long)y * gIsoCropH / dstH);
         if (sy < 0) sy = 0;
         if (sy >= gIsoVirtualHeight) sy = gIsoVirtualHeight - 1;
         gIsoColMapY[y] = sy;
