@@ -206,9 +206,9 @@ static unsigned int gIsoScrollIntentTick = 0;
 static int gIsoWallDirX = 0; // -1, 0, +1
 static int gIsoWallDirY = 0;
 
-static constexpr int SCROLL_SLACK_X = 32;   // one tile step, virtual px
+static constexpr int SCROLL_SLACK_X = 32; // one tile step, virtual px
 static constexpr int SCROLL_SLACK_Y = 24;
-static constexpr int SUB_STEP_X = 8;        // must divide SLACK evenly
+static constexpr int SUB_STEP_X = 8; // must divide SLACK evenly
 static constexpr int SUB_STEP_Y = 6;
 static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
 
@@ -449,14 +449,14 @@ static void isoComputeCrop()
     // Restrict tile rendering to the region that can actually be sampled by
     // isoBlitVirtualToWindow between two consecutive refreshes.
     Rect r;
-    r.left   = gIsoCropX - SCROLL_SLACK_X;
-    r.top    = gIsoCropY - SCROLL_SLACK_Y;
-    r.right  = gIsoCropX + gIsoCropW + SCROLL_SLACK_X - 1;
+    r.left = gIsoCropX - SCROLL_SLACK_X;
+    r.top = gIsoCropY - SCROLL_SLACK_Y;
+    r.right = gIsoCropX + gIsoCropW + SCROLL_SLACK_X - 1;
     r.bottom = gIsoCropY + gIsoCropH + SCROLL_SLACK_Y - 1;
 
-    if (r.left   < 0)                  r.left   = 0;
-    if (r.top    < 0)                  r.top    = 0;
-    if (r.right  > gIsoVirtualWidth  - 1) r.right  = gIsoVirtualWidth  - 1;
+    if (r.left < 0) r.left = 0;
+    if (r.top < 0) r.top = 0;
+    if (r.right > gIsoVirtualWidth - 1) r.right = gIsoVirtualWidth - 1;
     if (r.bottom > gIsoVirtualHeight - 1) r.bottom = gIsoVirtualHeight - 1;
 
     tileSetRefreshRect(&r);
@@ -2082,10 +2082,22 @@ static void isoScrollSmooth()
     int newSubY = gIsoSubOffsetY + gIsoScrollIntentY * SUB_STEP_Y;
     int stepsX = 0, stepsY = 0;
 
-    while (newSubX >= SCROLL_SLACK_X) { newSubX -= SCROLL_SLACK_X; stepsX++; }
-    while (newSubX <= -SCROLL_SLACK_X) { newSubX += SCROLL_SLACK_X; stepsX--; }
-    while (newSubY >= SCROLL_SLACK_Y) { newSubY -= SCROLL_SLACK_Y; stepsY++; }
-    while (newSubY <= -SCROLL_SLACK_Y) { newSubY += SCROLL_SLACK_Y; stepsY--; }
+    while (newSubX >= SCROLL_SLACK_X) {
+        newSubX -= SCROLL_SLACK_X;
+        stepsX++;
+    }
+    while (newSubX <= -SCROLL_SLACK_X) {
+        newSubX += SCROLL_SLACK_X;
+        stepsX--;
+    }
+    while (newSubY >= SCROLL_SLACK_Y) {
+        newSubY -= SCROLL_SLACK_Y;
+        stepsY++;
+    }
+    while (newSubY <= -SCROLL_SLACK_Y) {
+        newSubY += SCROLL_SLACK_Y;
+        stepsY--;
+    }
 
     if (stepsX != 0 || stepsY != 0) {
         // Commit the new sub-offset BEFORE tileSetCenter.
@@ -2102,7 +2114,7 @@ static void isoScrollSmooth()
 
         if (newTile == -1
             || tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
-            // Blocked at a map edge. Restore the previous sub-offset. 
+            // Blocked at a map edge. Restore the previous sub-offset.
             gIsoSubOffsetX = savedSubX;
             gIsoSubOffsetY = savedSubY;
             return;
@@ -2179,8 +2191,7 @@ static void isoBlitVirtualToWindow(Rect* rect)
         const int srcY0 = gIsoCropY + gIsoSubOffsetY;
 
         for (int y = 0; y < dstH; y++) {
-            const unsigned char* src =
-                gIsoVirtualBuffer + (srcY0 + y) * gIsoVirtualWidth + srcX0;
+            const unsigned char* src = gIsoVirtualBuffer + (srcY0 + y) * gIsoVirtualWidth + srcX0;
             unsigned char* dst = gIsoWindowBuffer + y * dstW;
             memcpy(dst, src, dstW);
         }
@@ -2192,8 +2203,7 @@ static void isoBlitVirtualToWindow(Rect* rect)
     const int* colX = gIsoColMapX;
 
     for (int y = 0; y < dstH; y++) {
-        const unsigned char* srcRow =
-            gIsoVirtualBuffer + gIsoColMapY[y] * gIsoVirtualWidth;
+        const unsigned char* srcRow = gIsoVirtualBuffer + gIsoColMapY[y] * gIsoVirtualWidth;
         unsigned char* dstRow = gIsoWindowBuffer + y * dstW;
         for (int x = 0; x < dstW; x++) {
             dstRow[x] = srcRow[colX[x]];
