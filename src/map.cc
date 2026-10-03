@@ -2076,7 +2076,7 @@ static void isoScrollSmooth()
             if (tileSetCenter(newTile, TILE_SET_CENTER_REFRESH_WINDOW) == 0) {
                 return;
             }
-            
+
             gIsoSubOffsetX = savedSubX;
             gIsoSubOffsetY = savedSubY;
         }
