@@ -554,6 +554,10 @@ int tileSetCenter(int tile, int flags)
         return -1;
     }
 
+    if (flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) {
+        mapResetSubScroll();
+    }
+
     if ((flags & TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) == 0) {
         if (gTileScrollLimitingEnabled) {
             int tileScreenX;
