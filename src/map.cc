@@ -184,8 +184,8 @@ static constexpr int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[
 // Entry 0 defines the virtual buffer size.
 static constexpr int SCROLL_SLACK_X = 32; // one tile step, virtual px
 static constexpr int SCROLL_SLACK_Y = 24;
-static constexpr int SUB_STEP_X = 8; // must divide SLACK evenly
-static constexpr int SUB_STEP_Y = 6;
+static constexpr int SUB_STEP_X = 16; // must divide SLACK evenly
+static constexpr int SUB_STEP_Y = 12;
 static constexpr int SCROLL_INTENT_TIMEOUT_MS = 60;
 
 // Virtual buffer and zoom state.
