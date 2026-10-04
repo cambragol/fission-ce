@@ -8,10 +8,10 @@
 #include "debug.h"
 #include "game.h"
 #include "game_config.h"
+#include "mod_config.h"
 #include "platform_compat.h"
 #include "scripts.h"
 #include "settings.h"
-#include "sfall_config.h"
 
 namespace fallout {
 

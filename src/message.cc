@@ -11,12 +11,12 @@
 
 #include "debug.h"
 #include "memory.h"
+#include "mod_config.h"
 #include "platform_compat.h"
 #include "proto.h"
 #include "proto_types.h"
 #include "random.h"
 #include "settings.h"
-#include "sfall_config.h"
 #include "string_parsers.h"
 #include "window_manager.h"
 
