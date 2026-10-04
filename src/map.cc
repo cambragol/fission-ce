@@ -405,7 +405,7 @@ static void mapReportZoomIfChanged()
     gLastReportedZoom = gIsoZoom;
 
     MessageListItem msg;
-    const char* fmt = getmsg(&gFissionMessageList, &msg, 600); // Zoom: 
+    const char* fmt = getmsg(&gFissionMessageList, &msg, 600); // Zoom:
     if (fmt == nullptr || fmt[0] == '\0') return;
 
     char buf[64];
