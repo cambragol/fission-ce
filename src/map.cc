@@ -1780,7 +1780,7 @@ int mapHandleTransition()
                 objectSetRotation(gDude, gMapTransition.rotation, nullptr);
             }
 
-            if (tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW) == -1) {
+            if (tileSetCenter(gDude->tile, TILE_SET_CENTER_REFRESH_WINDOW | TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS) == -1) {
                 debugPrint("\nError: map: attempt to center out-of-bounds!");
             }
 
