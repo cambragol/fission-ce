@@ -17,6 +17,9 @@
 #include "win32.h"
 #include "window_manager.h"
 #include "window_manager_private.h"
+#ifdef HAVE_MACOS_PINCH
+#include "platform/macos/pinch.h"
+#endif
 
 namespace fallout {
 
@@ -235,6 +238,11 @@ int _GNW95_init_window(int width, int height, bool fullscreen)
         if (gSdlWindow == nullptr) {
             return -1;
         }
+
+        #ifdef HAVE_MACOS_PINCH
+            pinchInit();
+        #endif
+
         int actualWidth = 0, actualHeight = 0;
         SDL_GetWindowSize(gSdlWindow, &actualWidth, &actualHeight);
 
