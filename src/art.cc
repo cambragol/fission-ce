@@ -16,10 +16,10 @@
 #include "game.h"
 #include "game_version.h"
 #include "memory.h"
+#include "mod_config.h"
 #include "object.h"
 #include "proto.h"
 #include "settings.h"
-#include "sfall_config.h"
 #include "window_manager.h"
 
 namespace fallout {
