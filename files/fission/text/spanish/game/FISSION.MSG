@@ -135,3 +135,8 @@
 {526}{}{¿Ajustar mods para coincidir con esta partida y reiniciar?}
 {527}{}{La configuración de mods fue actualizada para coincidir con la partida. Reinicia el juego antes de cargarla.}
 {528}{}{No se pudo aplicar la configuración de mods.}
+
+#
+# Monitor de pantalla
+#
+{600}{}{Zoom: %d%%}

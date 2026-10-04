@@ -121,6 +121,8 @@ void mapScreenToVirtual(int screenX, int screenY, int* virtualX, int* virtualY);
 void mapZoomInStep();
 void mapZoomOutStep();
 void mapGetVirtualSize(int* width, int* height);
+void mapResetSubScroll();
+void mapHandlePinch(float dDist);
 
 void mapProcessPendingCameraAdjust(void);
 
