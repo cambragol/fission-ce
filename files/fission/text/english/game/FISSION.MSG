@@ -139,3 +139,9 @@
 {526}{}{Adjust mods to match this save and restart?}
 {527}{}{Mod configuration updated to match the save. Please restart the game before loading this save.}
 {528}{}{Failed to apply mod configuration.}
+
+#
+# Display Monitor
+#
+
+{600}{}{Zoom: %d%%}

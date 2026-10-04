@@ -135,3 +135,9 @@
 {526}{}{Dopasowaæ mody do tego zapisu i zrestartowaæ?}
 {527}{}{Konfiguracja modów zosta³a dopasowana do tego zapisu. Proszê zrestartowaæ grê przed wczytaniem tego zapisu.}
 {528}{}{Nie uda³o siê zmieniæ konfiguracji modów.}
+
+#
+# Monitor wyœwietlacza
+#
+
+{600}{}{Powiêkszenie: %d%%}
