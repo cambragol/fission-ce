@@ -220,6 +220,10 @@ static int gIsoScrollIntentX = 0;
 static int gIsoScrollIntentY = 0;
 static unsigned int gIsoScrollIntentTick = 0;
 
+// Mac specific pinch globals
+static float gPinchAccum = 0.0f;
+static unsigned int gPinchLastTick = 0;
+
 // 0x631D54
 MapHeader gMapHeader;
 
@@ -368,6 +372,28 @@ void mapZoomOutStep()
             mapSetZoom(gZoomLadder[i]);
             return;
         }
+    }
+}
+
+// MacOS specific pinch handling
+void mapHandlePinch(float dDist)
+{
+    unsigned int now = getTicks();
+    if (getTicksSince(gPinchLastTick) > 200) {
+        gPinchAccum = 0.0f;
+    }
+    gPinchLastTick = now;
+
+    gPinchAccum += dDist;
+
+    constexpr float kPinchStep = 0.3f;
+    while (gPinchAccum >= kPinchStep) {
+        gPinchAccum -= kPinchStep;
+        mapZoomInStep();
+    }
+    while (gPinchAccum <= -kPinchStep) {
+        gPinchAccum += kPinchStep;
+        mapZoomOutStep();
     }
 }
 

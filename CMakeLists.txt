@@ -315,6 +315,16 @@ if(IOS)
     )
 endif()
 
+if(APPLE AND NOT IOS)
+    target_sources(${EXECUTABLE_NAME} PUBLIC
+        "src/platform/macos/pinch.h"
+        "src/platform/macos/pinch.mm"
+    )
+    target_include_directories(${EXECUTABLE_NAME} PRIVATE "src")
+    target_compile_definitions(${EXECUTABLE_NAME} PUBLIC HAVE_MACOS_PINCH)
+    target_link_libraries(${EXECUTABLE_NAME} "-framework Cocoa")
+endif()
+
 if(WIN32)
     target_compile_definitions(${EXECUTABLE_NAME} PUBLIC
         _CRT_SECURE_NO_WARNINGS
