@@ -21,6 +21,7 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 - **Modular, customizable systems** Community mods plug in seamlessly
 - **100% compatible** with original Fallout 1 & 2 assets
 - **Future‑proof**: easily extended for new content and Fallout 2 integration
+- **Extensive QOL improvements** Dozens of fully optional gameplay enhancements 
 
 ---
 
