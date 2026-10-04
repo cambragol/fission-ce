@@ -15,6 +15,7 @@
 #include "critter.h"
 #include "cycle.h"
 #include "debug.h"
+#include "display_monitor.h"
 #include "draw.h"
 #include "elevator.h"
 #include "game.h"
@@ -81,7 +82,7 @@ static int mapFindValidCameraCenter(int startTile);
 static void mapSnapZoomToFitEdg();
 static void isoScrollSmooth();
 static void isoUpdateColMaps();
-
+static void mapReportZoomIfChanged();
 static void loadModMapMessages();
 
 // 0x50B058
@@ -162,6 +163,8 @@ static Rect gIsoWindowRect;
 // 0x631D48
 MessageList gMapMessageList;
 
+MessageList gFissionMessageList;
+
 // 0x631D50
 static unsigned char* gIsoWindowBuffer;
 
@@ -175,9 +178,6 @@ static constexpr float gZoomLadder[] = {
     1.25f,
     1.5f,
     2.0f,
-    2.5f,
-    3.0f,
-    4.0f,
 };
 static constexpr int gZoomLadderSize = sizeof(gZoomLadder) / sizeof(gZoomLadder[0]);
 
@@ -193,6 +193,7 @@ static unsigned char* gIsoVirtualBuffer = nullptr;
 static int gIsoVirtualWidth = 0;
 static int gIsoVirtualHeight = 0;
 
+static float gLastReportedZoom = 1.0f;
 static float gIsoZoom = 1.0f;
 static int gIsoCropX = 0;
 static int gIsoCropY = 0;
@@ -297,6 +298,7 @@ static void mapAdjustCameraToValidArea(void)
 
     tile_hires_stencil_on_center_tile_or_elevation_change();
     tileWindowRefresh();
+    mapReportZoomIfChanged();
 }
 
 static void mapSetNeedCameraAdjust(bool need)
@@ -397,6 +399,21 @@ void mapHandlePinch(float dDist)
     }
 }
 
+static void mapReportZoomIfChanged()
+{
+    if (gIsoZoom == gLastReportedZoom) return;
+    gLastReportedZoom = gIsoZoom;
+
+    MessageListItem msg;
+    const char* fmt = getmsg(&gFissionMessageList, &msg, 600); // Zoom: 
+    if (fmt == nullptr || fmt[0] == '\0') return;
+
+    char buf[64];
+    int percent = (int)(gIsoZoom * 100.0f + 0.5f);
+    snprintf(buf, sizeof(buf), fmt, percent);
+    displayMonitorAddMessage(buf);
+}
+
 void mapResetSubScroll()
 {
     gIsoSubOffsetX = 0;
@@ -474,6 +491,7 @@ void mapSetZoom(float zoom)
     gIsoColMapW = 0;
     gIsoColMapH = 0;
 
+    mapReportZoomIfChanged();
     isoBlitVirtualToWindow(nullptr);
     windowRefresh(gIsoWindow);
 }
@@ -694,6 +712,16 @@ void mapInit()
         debugPrint("\nError initing map_msg_file!");
     }
 
+    if (messageListInit(&gFissionMessageList)) {
+        char fissionPath[COMPAT_MAX_PATH];
+        snprintf(fissionPath, sizeof(fissionPath), "%s%s", asc_5186C8, "fission.msg");
+        if (!messageListLoad(&gFissionMessageList, fissionPath)) {
+            debugPrint("\nError loading fission msg_file!");
+        }
+    } else {
+        debugPrint("\nError initing fission msg_file!");
+    }
+
     mapNewMap();
     tickersAdd(gameMouseRefresh);
     tickersAdd(isoScrollSmooth);
@@ -714,6 +742,9 @@ void mapExit()
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MAP, nullptr);
     if (!messageListFree(&gMapMessageList)) {
         debugPrint("\nError exiting map_msg_file!");
+    }
+    if (!messageListFree(&gFissionMessageList)) {
+        debugPrint("\nError exiting fission_msg_file!");
     }
 }
 
@@ -778,6 +809,7 @@ static void mapSnapZoomToFitEdg()
         gIsoZoom = targetZoom;
         isoComputeCrop();
     }
+    mapReportZoomIfChanged();
 }
 
 // map_set_elevation
