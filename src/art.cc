@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "animation.h"
 #include "debug.h"
@@ -18,6 +19,7 @@
 #include "memory.h"
 #include "mod_config.h"
 #include "object.h"
+#include "png_art.h"
 #include "proto.h"
 #include "settings.h"
 #include "window_manager.h"
@@ -51,6 +53,13 @@ typedef struct ArtListDescription {
     char collisionDetails[8192][128]; // Collision messages per index
 
     bool categoryFull; // Set when no mod slots available
+
+    // PNG metadata: NULL or MAX_ART_INDICES entries.
+    PngArtMeta* modMeta;
+
+    // Original vanilla FRM name (relative to art/<category>/) to inherit
+    // metadata from. Empty string means no inheritance. Only set on remap.
+    char* inheritedFrmNames;
 } ArtListDescription;
 
 typedef struct HeadDescription {
@@ -549,6 +558,124 @@ static void artProcessVariants(ArtListDescription* desc)
     desc->variantCount = desc->fileNamesLength - desc->vanillaCount;
 }
 
+// Splits "name key=value key=value" into name (up to first whitespace)
+// and returns a pointer to the metadata portion (or nullptr).
+static const char* artSplitNameAndMeta(char* line, char** nameOut)
+{
+    char* p = line;
+    while (*p && !isspace((unsigned char)*p)) p++;
+    if (*p == '\0') {
+        *nameOut = line;
+        return nullptr;
+    }
+    *p = '\0';
+    char* meta = p + 1;
+    while (*meta && isspace((unsigned char)*meta)) meta++;
+    *nameOut = line;
+    return (*meta) ? meta : nullptr;
+}
+
+// Checks whether a .png replacement exists for the entry currently
+// stored at desc->fileNames[index]. If so, stashes the original name
+// into inheritedFrmNames[index] (only if not already stashed) and
+// rewrites the slot to point at the .png. Returns true on override.
+static bool artTryApplyPngOverride(ArtListDescription* desc, int index)
+{
+    if (desc == nullptr || desc->fileNames == nullptr) {
+        return false;
+    }
+    if (index < 0 || index >= desc->fileNamesLength) {
+        return false;
+    }
+
+    char* entry = desc->fileNames + index * FILENAME_LENGTH;
+    if (entry[0] == '\0') {
+        return false;
+    }
+
+    size_t entryLen = strlen(entry);
+
+    // Already .png - nothing to do.
+    if (entryLen >= 4
+        && compat_stricmp(entry + entryLen - 4, ".png") == 0) {
+        return false;
+    }
+
+    // Build candidate .png name: strip extension, append .png.
+    // Preserves any subdirectory prefix.
+    char pngEntry[FILENAME_LENGTH];
+    strncpy(pngEntry, entry, FILENAME_LENGTH - 1);
+    pngEntry[FILENAME_LENGTH - 1] = '\0';
+
+    char* dot = strrchr(pngEntry, '.');
+    if (dot != nullptr) {
+        *dot = '\0';
+    }
+
+    size_t baseLen = strlen(pngEntry);
+    if (baseLen + 4 >= FILENAME_LENGTH) {
+        return false;
+    }
+    strcat(pngEntry, ".png");
+
+    // Probe through the game file system.
+    char probePath[COMPAT_MAX_PATH];
+    if (snprintf(probePath, sizeof(probePath),
+            "%sart\\%s\\%s",
+            _cd_path_base, desc->name, pngEntry)
+        >= (int)sizeof(probePath)) {
+        return false;
+    }
+
+    File* stream = fileOpen(probePath, "rb");
+    if (stream == nullptr) {
+        return false;
+    }
+    fileClose(stream);
+
+    // Stash the original name for metadata inheritance. Only do this
+    // once per slot, so that a later override doesn't clobber the
+    // first inheritance source.
+    if (desc->inheritedFrmNames != nullptr) {
+        char* dst = desc->inheritedFrmNames + index * FILENAME_LENGTH;
+        if (dst[0] == '\0') {
+            strncpy(dst, entry, FILENAME_LENGTH - 1);
+            dst[FILENAME_LENGTH - 1] = '\0';
+        }
+    }
+
+    debugPrint("PNG override: %s -> %s\n", entry, pngEntry);
+
+    strncpy(entry, pngEntry, FILENAME_LENGTH - 1);
+    entry[FILENAME_LENGTH - 1] = '\0';
+    return true;
+}
+
+// For every vanilla entry, check whether a sibling .png exists in the
+// same art directory. If so, rewrite the entry to point at the .png and
+// stash the original .frm name for metadata inheritance. This gives
+// modders a zero-config drop-in replacement workflow.
+//
+// Skips:
+//   - entries that are already .png
+//   - critters and heads (their entries are base names, not filenames;
+//     see notes below)
+static void artApplyPngOverrides(ArtListDescription* desc)
+{
+    if (desc == nullptr || desc->fileNames == nullptr) {
+        return;
+    }
+    if (strcmp(desc->name, "critters") == 0
+        || strcmp(desc->name, "heads") == 0) {
+        return;
+    }
+
+    int limit = desc->vanillaCount + desc->variantCount;
+    for (int i = 0; i < limit; i++) {
+        artTryApplyPngOverride(desc, i);
+    }
+}
+
 // Helper function to load and process mod assets with collision handling
 static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
 {
@@ -639,33 +766,62 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
             char* modEntries = nullptr;
             int modEntryCount = 0;
 
-            if (artReadList(fullPath, &modEntries, &modEntryCount) == 0) {
-                debugPrint("  Found %d art assets in %s\n", modEntryCount, filename);
+            File* modStream = fileOpen(fullPath, "rt");
+            if (modStream) {
+                char line[512];
+                while (fileReadString(line, sizeof(line), modStream)) {
+                    // Trim leading whitespace
+                    char* p = line;
+                    while (*p && isspace((unsigned char)*p)) {
+                        p++;
+                    }
 
-                // Process each asset in the mod list
-                for (int j = 0; j < modEntryCount; j++) {
-                    const char* modAssetName = modEntries + j * FILENAME_LENGTH;
+                    // Skip empty lines and comments
+                    if (*p == '\0' || *p == '#') {
+                        continue;
+                    }
 
-                    // Check for remapping directive
-                    if (modAssetName[0] == '@') {
-                        // Parse remapping directive: "@original_name=new_path/filename.frm"
+                    // Trim trailing whitespace
+                    char* end = p + strlen(p) - 1;
+                    while (end > p && isspace((unsigned char)*end)) {
+                        end--;
+                    }
+                    *(end + 1) = '\0';
+
+                    if (*p == '\0') {
+                        continue;
+                    }
+
+                    // Split "name key=value key=value" into name and metadata tokens.
+                    char* assetName = nullptr;
+                    const char* metaTokens = artSplitNameAndMeta(p, &assetName);
+
+                    // Remap directive: @original=new_path/filename.frm [metadata]
+                    if (assetName[0] == '@') {
                         char originalName[FILENAME_LENGTH] = { 0 };
                         char newPath[FILENAME_LENGTH] = { 0 };
-                        const char* equalSign = strchr(modAssetName, '=');
+                        const char* equalSign = strchr(assetName, '=');
 
-                        if (equalSign && (equalSign - modAssetName) < FILENAME_LENGTH) {
+                        if (equalSign && (equalSign - assetName) < FILENAME_LENGTH) {
                             // Extract original name (skip '@' and copy until '=')
-                            size_t nameLen = equalSign - modAssetName - 1;
-                            if (nameLen > FILENAME_LENGTH - 1)
+                            size_t nameLen = (size_t)(equalSign - assetName - 1);
+                            if (nameLen > FILENAME_LENGTH - 1) {
                                 nameLen = FILENAME_LENGTH - 1;
-                            strncpy(originalName, modAssetName + 1, nameLen);
+                            }
+                            strncpy(originalName, assetName + 1, nameLen);
                             originalName[nameLen] = '\0';
 
                             // Extract new path (after '=')
                             strncpy(newPath, equalSign + 1, FILENAME_LENGTH - 1);
                             newPath[FILENAME_LENGTH - 1] = '\0';
 
-                            // Find matching vanilla asset to remap
+                            // Trim trailing whitespace from the path
+                            char* e2 = newPath + strlen(newPath) - 1;
+                            while (e2 > newPath && isspace((unsigned char)*e2)) {
+                                *e2-- = '\0';
+                            }
+
+                            // Find matching vanilla asset to remap.
                             bool remapped = false;
                             for (int idx = 0; idx < desc->vanillaCount; idx++) {
                                 char* currentPath = desc->fileNames + idx * FILENAME_LENGTH;
@@ -673,21 +829,34 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                                 getBaseNameWithoutExtension(currentBase, currentPath, sizeof(currentBase));
 
                                 if (compat_stricmp(currentBase, originalName) == 0) {
-                                    // Backup old path for reporting
+                                    // Save the original vanilla FRM name for metadata
+                                    // inheritance (used by the PNG loader).
+                                    if (desc->inheritedFrmNames != nullptr) {
+                                        char* dst = desc->inheritedFrmNames + idx * FILENAME_LENGTH;
+                                        strncpy(dst, currentPath, FILENAME_LENGTH - 1);
+                                        dst[FILENAME_LENGTH - 1] = '\0';
+                                    }
+
+                                    // Backup old path for reporting.
                                     char oldPath[FILENAME_LENGTH];
                                     strncpy(oldPath, currentPath, FILENAME_LENGTH);
                                     oldPath[FILENAME_LENGTH - 1] = '\0';
 
-                                    // Perform remapping
+                                    // Perform remapping.
                                     strncpy(currentPath, newPath, FILENAME_LENGTH);
                                     currentPath[FILENAME_LENGTH - 1] = '\0';
 
-                                    // Record remapping
+                                    // Parse any inline metadata tokens for this remap.
+                                    if (metaTokens != nullptr && desc->modMeta != nullptr) {
+                                        pngParseMetaTokens(metaTokens, &desc->modMeta[idx]);
+                                    }
+
+                                    // Record remapping.
                                     snprintf(desc->collisionDetails[idx], sizeof(desc->collisionDetails[idx]),
                                         "REMAP: %s -> %s", oldPath, newPath);
                                     desc->collisionOccurred = true;
                                     remapped = true;
-                                    break; // Only remap first match
+                                    break; // Only remap first match.
                                 }
                             }
 
@@ -695,14 +864,14 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                                 debugPrint("WARNING: Remap target not found: %s\n", originalName);
                             }
                         } else {
-                            debugPrint("WARNING: Invalid remap syntax: %s\n", modAssetName);
+                            debugPrint("WARNING: Invalid remap syntax: %s\n", assetName);
                         }
-                        continue; // Skip normal processing for remap entries
+                        continue; // Skip normal processing for remap entries.
                     }
 
                     // Normal asset processing
                     char baseName[FILENAME_LENGTH];
-                    getBaseNameWithoutExtension(baseName, modAssetName, sizeof(baseName));
+                    getBaseNameWithoutExtension(baseName, assetName, sizeof(baseName));
 
                     // Calculate stable index position
                     int index = artGetStableIndex(baseName);
@@ -724,7 +893,7 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                             desc->variantCount,
                             desc->vanillaCount + desc->variantCount,
                             MAX_ART_INDICES,
-                            modAssetName);
+                            assetName);
                         showFatalError(errorMsg);
                         continue;
                     }
@@ -760,9 +929,9 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         char message[256];
                         snprintf(message, sizeof(message),
                             "OVERWRITTEN: %s -> %s (from %s)",
-                            oldAsset, modAssetName, modName);
+                            oldAsset, assetName, modName);
 
-                        // Append to collisionDetails (multi?line history)
+                        // Append to collisionDetails (multi-line history)
                         if (desc->collisionDetails[index][0] == '\0') {
                             strncpy(desc->collisionDetails[index], message,
                                 sizeof(desc->collisionDetails[index]) - 1);
@@ -776,25 +945,34 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                         desc->collisionOccurred = true;
 
                         // Replace the filename
-                        strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
+                        strncpy(slot, assetName, FILENAME_LENGTH - 1);
                         slot[FILENAME_LENGTH - 1] = '\0';
 
                         debugPrint("  Overwrote asset: %s -> slot %d (was %s)\n",
-                            modAssetName, index, oldAsset);
+                            assetName, index, oldAsset);
                         // modCount unchanged
                     } else {
                         // --- New asset ---
-                        strncpy(slot, modAssetName, FILENAME_LENGTH - 1);
+                        strncpy(slot, assetName, FILENAME_LENGTH - 1);
                         slot[FILENAME_LENGTH - 1] = '\0';
                         desc->usedIndices[index] = true;
                         desc->modCount++;
 
-                        debugPrint("  Added asset: %s -> slot %d\n", modAssetName, index);
+                        debugPrint("  Added asset: %s -> slot %d\n", assetName, index);
                     }
+
+                    // Store inline metadata tokens (if any) for this slot.
+                    if (metaTokens != nullptr && desc->modMeta != nullptr) {
+                        pngParseMetaTokens(metaTokens, &desc->modMeta[index]);
+                    }
+                    // Drop-in .png replacement: if the modder shipped IFACE_SW.png
+                    // alongside IFACE_SW.FRM, prefer the PNG. Stashes the FRM name for
+                    // metadata inheritance.
+                    artTryApplyPngOverride(desc, index);
                 }
-                internal_free(modEntries);
+                fileClose(modStream);
             } else {
-                debugPrint("ERROR: Failed to read mod list %s\n", fullPath);
+                debugPrint("ERROR: Failed to open mod list %s\n", fullPath);
             }
         }
         fileNameListFree(&foundFiles, fileCount);
@@ -1615,6 +1793,25 @@ int artInit()
         }
         desc->vanillaCount = desc->fileNamesLength; // Store vanilla count
 
+        // Allocate PNG metadata and inheritance arrays now - the override
+        // pass below needs inheritedFrmNames to be ready.
+        if (desc->modMeta == nullptr) {
+            desc->modMeta = (PngArtMeta*)internal_malloc(
+                sizeof(PngArtMeta) * MAX_ART_INDICES);
+            for (int i = 0; i < MAX_ART_INDICES; i++) {
+                pngMetaReset(&desc->modMeta[i]);
+            }
+        }
+        if (desc->inheritedFrmNames == nullptr) {
+            desc->inheritedFrmNames = (char*)internal_malloc(
+                FILENAME_LENGTH * MAX_ART_INDICES);
+            memset(desc->inheritedFrmNames, 0, FILENAME_LENGTH * MAX_ART_INDICES);
+        }
+
+        // Apply .png drop-in overrides for vanilla entries. Runs before variant
+        // processing so that variant generation sees the final entry names.
+        artApplyPngOverrides(desc);
+
         // 2. Process Variant Assets
         artProcessVariants(desc);
 
@@ -1632,6 +1829,19 @@ int artInit()
             }
         }
         desc->fileNamesLength = MAX_ART_INDICES;
+
+        if (desc->modMeta == nullptr) {
+            desc->modMeta = (PngArtMeta*)internal_malloc(
+                sizeof(PngArtMeta) * MAX_ART_INDICES);
+            for (int i = 0; i < MAX_ART_INDICES; i++) {
+                pngMetaReset(&desc->modMeta[i]);
+            }
+        }
+        if (desc->inheritedFrmNames == nullptr) {
+            desc->inheritedFrmNames = (char*)internal_malloc(
+                FILENAME_LENGTH * MAX_ART_INDICES);
+            memset(desc->inheritedFrmNames, 0, FILENAME_LENGTH * MAX_ART_INDICES);
+        }
 
         // 3. Load MOD Assets
         // Build base directory path for this art category
@@ -1691,6 +1901,12 @@ void artExit()
 
         internal_free(gArtListDescriptions[index].field_18);
         gArtListDescriptions[index].field_18 = nullptr;
+
+        internal_free(gArtListDescriptions[index].modMeta);
+        gArtListDescriptions[index].modMeta = nullptr;
+
+        internal_free(gArtListDescriptions[index].inheritedFrmNames);
+        gArtListDescriptions[index].inheritedFrmNames = nullptr;
     }
 
     internal_free(gHeadDescriptions);
@@ -2060,7 +2276,10 @@ char* artBuildFilePath(int fid)
                 fileName);
 
             size_t len = strlen(basePath);
-            if (len < 4 || compat_stricmp(basePath + len - 4, ".frm") != 0) {
+            bool hasKnownExt =
+                (len >= 4 && (compat_stricmp(basePath + len - 4, ".frm") == 0 ||
+                            compat_stricmp(basePath + len - 4, ".png") == 0));
+            if (!hasKnownExt) {
                 if (len < sizeof(basePath) - 5) {
                     strcat(basePath, ".frm");
                 } else {
@@ -2398,41 +2617,97 @@ int artAliasFid(int fid)
     return -1;
 }
 
+// Returns true if `path` ends in `ext` (case-insensitive).
+static bool artPathEndsWith(const char* path, const char* ext)
+{
+    size_t len = strlen(path);
+    size_t extLen = strlen(ext);
+    if (len < extLen) return false;
+    return compat_stricmp(path + len - extLen, ext) == 0;
+}
+
+// Returns the PNG metadata for a fid, or NULL if none.
+static const PngArtMeta* artGetModMetaForFid(int fid)
+{
+    int objectType = FID_TYPE(fid);
+    if (objectType < 0 || objectType >= OBJ_TYPE_COUNT) return nullptr;
+    ArtListDescription* desc = &gArtListDescriptions[objectType];
+    if (!desc->modMeta) return nullptr;
+    int id = artGetIndex(fid);
+    if (id < 0 || id >= MAX_ART_INDICES) return nullptr;
+    const PngArtMeta* m = &desc->modMeta[id];
+    return m->hasAnyMeta ? m : nullptr;
+}
+
+// Returns the vanilla FRM full path to inherit metadata from, or NULL.
+static const char* artGetInheritPathForFid(int fid)
+{
+    int objectType = FID_TYPE(fid);
+    if (objectType < 0 || objectType >= OBJ_TYPE_COUNT) return nullptr;
+    ArtListDescription* desc = &gArtListDescriptions[objectType];
+    if (!desc->inheritedFrmNames) return nullptr;
+    int id = artGetIndex(fid);
+    if (id < 0 || id >= MAX_ART_INDICES) return nullptr;
+    const char* name = desc->inheritedFrmNames + id * FILENAME_LENGTH;
+    if (name[0] == '\0') return nullptr;
+
+    static char buf[COMPAT_MAX_PATH];
+    snprintf(buf, sizeof(buf), "%sart\\%s\\%s",
+             _cd_path_base, desc->name, name);
+    return buf;
+}
+
 // 0x419A78
 static int artCacheGetFileSizeImpl(int fid, int* sizePtr)
 {
     int result = -1;
 
     char* artFilePath = artBuildFilePath(fid);
-    if (artFilePath != nullptr) {
-        bool loaded = false;
-        File* stream = nullptr;
+    if (artFilePath == nullptr) {
+        return result;
+    }
 
-        if (gArtLanguageInitialized) {
-            // Skip past "art/" to get the relative path within art directory
-            const char* relativePath = artFilePath;
-            if (strncmp(artFilePath, "art/", 4) == 0 || strncmp(artFilePath, "art\\", 4) == 0) {
-                relativePath = artFilePath + 4;
-            }
+    // PNG path: defer size computation to the PNG loader, which may inherit
+    // metadata (frame count, fps, etc.) from a vanilla FRM.
+    if (artPathEndsWith(artFilePath, ".png")) {
+        const PngArtMeta* meta = artGetModMetaForFid(fid);
+        const char* inheritFrom = artGetInheritPathForFid(fid);
+        int size = 0;
+        if (pngGetArtSize(artFilePath, meta, inheritFrom, &size) == 0) {
+            *sizePtr = size;
+            result = 0;
+        }
+        return result;
+    }
 
-            char localizedPath[COMPAT_MAX_PATH];
-            snprintf(localizedPath, sizeof(localizedPath), "art\\%s\\%s", gArtLanguage, relativePath);
+    // FRM path (original behavior).
+    bool loaded = false;
+    File* stream = nullptr;
 
-            stream = fileOpen(localizedPath, "rb");
+    if (gArtLanguageInitialized) {
+        // Skip past "art/" to get the relative path within art directory
+        const char* relativePath = artFilePath;
+        if (strncmp(artFilePath, "art/", 4) == 0 || strncmp(artFilePath, "art\\", 4) == 0) {
+            relativePath = artFilePath + 4;
         }
 
-        if (stream == nullptr) {
-            stream = fileOpen(artFilePath, "rb");
-        }
+        char localizedPath[COMPAT_MAX_PATH];
+        snprintf(localizedPath, sizeof(localizedPath), "art\\%s\\%s", gArtLanguage, relativePath);
 
-        if (stream != nullptr) {
-            Art art;
-            if (artReadHeader(&art, stream) == 0) {
-                *sizePtr = artGetDataSize(&art);
-                result = 0;
-            }
-            fileClose(stream);
+        stream = fileOpen(localizedPath, "rb");
+    }
+
+    if (stream == nullptr) {
+        stream = fileOpen(artFilePath, "rb");
+    }
+
+    if (stream != nullptr) {
+        Art art;
+        if (artReadHeader(&art, stream) == 0) {
+            *sizePtr = artGetDataSize(&art);
+            result = 0;
         }
+        fileClose(stream);
     }
 
     return result;
@@ -2444,33 +2719,55 @@ static int artCacheReadDataImpl(int fid, int* sizePtr, unsigned char* data)
     int result = -1;
 
     char* artFileName = artBuildFilePath(fid);
-    if (artFileName != nullptr) {
-        bool loaded = false;
-        if (gArtLanguageInitialized) {
-            // Skip past "art/" to get the relative path within art directory
-            const char* relativePath = artFileName;
-            if (strncmp(artFileName, "art/", 4) == 0 || strncmp(artFileName, "art\\", 4) == 0) {
-                relativePath = artFileName + 4;
-            }
+    if (artFileName == nullptr) {
+        return result;
+    }
 
-            char localizedPath[COMPAT_MAX_PATH];
-            snprintf(localizedPath, sizeof(localizedPath), "art\\%s\\%s", gArtLanguage, relativePath);
+    // PNG path: hand off to the PNG loader. The cache system already
+    // allocated `data` to the size reported by artCacheGetFileSizeImpl, so
+    // we re-query that size for a bounds check inside pngReadArt.
+    if (artPathEndsWith(artFileName, ".png")) {
+        const PngArtMeta* meta = artGetModMetaForFid(fid);
+        const char* inheritFrom = artGetInheritPathForFid(fid);
 
-            if (artRead(localizedPath, data) == 0) {
-                loaded = true;
-            }
+        int expectedSize = 0;
+        if (pngGetArtSize(artFileName, meta, inheritFrom, &expectedSize) != 0) {
+            return result;
         }
 
-        if (!loaded) {
-            if (artRead(artFileName, data) == 0) {
-                loaded = true;
-            }
-        }
-
-        if (loaded) {
+        if (pngReadArt(artFileName, data, expectedSize, meta, inheritFrom) == 0) {
             *sizePtr = artGetDataSize((Art*)data);
             result = 0;
         }
+        return result;
+    }
+
+    // FRM path (original behavior).
+    bool loaded = false;
+    if (gArtLanguageInitialized) {
+        // Skip past "art/" to get the relative path within art directory
+        const char* relativePath = artFileName;
+        if (strncmp(artFileName, "art/", 4) == 0 || strncmp(artFileName, "art\\", 4) == 0) {
+            relativePath = artFileName + 4;
+        }
+
+        char localizedPath[COMPAT_MAX_PATH];
+        snprintf(localizedPath, sizeof(localizedPath), "art\\%s\\%s", gArtLanguage, relativePath);
+
+        if (artRead(localizedPath, data) == 0) {
+            loaded = true;
+        }
+    }
+
+    if (!loaded) {
+        if (artRead(artFileName, data) == 0) {
+            loaded = true;
+        }
+    }
+
+    if (loaded) {
+        *sizePtr = artGetDataSize((Art*)data);
+        result = 0;
     }
 
     return result;
