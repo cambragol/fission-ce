@@ -197,6 +197,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/pipboy.h"
     "src/png_art.cc"
     "src/png_art.h"
+    "src/png_writer.cc"
+    "src/png_writer.h"
     "src/proto_instance.cc"
     "src/proto_instance.h"
     "src/proto_types.h"

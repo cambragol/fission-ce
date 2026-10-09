@@ -88,13 +88,20 @@ int pngParseMetaTokens(const char* tokens, PngArtMeta* meta)
 // Vanilla FRM header reader (for inheritance)
 // ---------------------------------------------------------------------------
 
+#define MAX_INHERITED_FRAMES 256
+
 struct InheritedFrmInfo {
     bool valid;
     int framesPerSecond;
     int actionFrame;
     int frameCount;
+    int rotations;
     int xOffsets[ROTATION_COUNT];
     int yOffsets[ROTATION_COUNT];
+    int perFrameX[ROTATION_COUNT][MAX_INHERITED_FRAMES];
+    int perFrameY[ROTATION_COUNT][MAX_INHERITED_FRAMES];
+    int perFrameW[ROTATION_COUNT][MAX_INHERITED_FRAMES];
+    int perFrameH[ROTATION_COUNT][MAX_INHERITED_FRAMES];
 };
 
 static bool pngReadFrmHeader(const char* path, InheritedFrmInfo* info)
@@ -121,24 +128,79 @@ static bool pngReadFrmHeader(const char* path, InheritedFrmInfo* info)
         fileReadInt32List(stream, dataOffsets, ROTATION_COUNT) != -1 &&
         fileReadInt32(stream, &dataSize) != -1;
 
-    fileClose(stream);
-
-    if (!ok) return false;
+    if (!ok) {
+        fileClose(stream);
+        return false;
+    }
 
     info->valid = true;
     info->framesPerSecond = fps;
     info->actionFrame = action;
     info->frameCount = frameCount;
+
+    int blocks = 0;
+    int prev = -1;
+    for (int i = 0; i < ROTATION_COUNT; i++) {
+        if (dataOffsets[i] != prev) {
+            blocks++;
+            prev = dataOffsets[i];
+        }
+    }
+    info->rotations = (blocks > 1) ? ROTATION_COUNT : 1;
+
     for (int i = 0; i < ROTATION_COUNT; i++) {
         info->xOffsets[i] = xOffsets[i];
         info->yOffsets[i] = yOffsets[i];
     }
+
+    // Read per-frame x/y from each rotation. The FRM header is 62 bytes
+    // on disk, followed by frameCount frames per distinct rotation.
+    // Each frame on disk: 12-byte header (w, h, size, x, y) then `size`
+    // bytes of pixel data. No padding between frames in the file.
+    const int kFrmHeaderBytes = 62;
+    fileSeek(stream, kFrmHeaderBytes, SEEK_SET);
+
+    int maxFrames = (frameCount < MAX_INHERITED_FRAMES)
+                    ? frameCount : MAX_INHERITED_FRAMES;
+
+    for (int rot = 0; rot < ROTATION_COUNT; rot++) {
+        if (rot > 0 && dataOffsets[rot] == dataOffsets[rot - 1]) {
+            for (int f = 0; f < maxFrames; f++) {
+                info->perFrameX[rot][f] = info->perFrameX[rot - 1][f];
+                info->perFrameY[rot][f] = info->perFrameY[rot - 1][f];
+            }
+            continue;
+        }
+
+        for (int f = 0; f < frameCount; f++) {
+            short fw = 0, fh = 0, fx = 0, fy = 0;
+            int fsize = 0;
+
+            if (fileReadInt16(stream, &fw) == -1
+                || fileReadInt16(stream, &fh) == -1
+                || fileReadInt32(stream, &fsize) == -1
+                || fileReadInt16(stream, &fx) == -1
+                || fileReadInt16(stream, &fy) == -1) {
+                fileClose(stream);
+                return false;
+            }
+
+            if (f < maxFrames) {
+                info->perFrameX[rot][f] = fx;
+                info->perFrameY[rot][f] = fy;
+                info->perFrameW[rot][f] = fw;
+                info->perFrameH[rot][f] = fh;
+            }
+
+            if (fsize > 0) {
+                fileSeek(stream, fsize, SEEK_CUR);
+            }
+        }
+    }
+
+    fileClose(stream);
     return true;
 }
-
-// ---------------------------------------------------------------------------
-// Metadata resolution: fills in rotations/frames/frame size
-// ---------------------------------------------------------------------------
 
 static bool pngResolveLayout(int pngW, int pngH,
                              const PngArtMeta* meta,
@@ -157,10 +219,11 @@ static bool pngResolveLayout(int pngW, int pngH,
         frames = frm->frameCount;
     }
 
-    // rotations: meta > 1  (do NOT inherit from FRM; PNGs are rotation-agnostic
-    // unless the modder explicitly says otherwise).
+    // rotations: meta > inherited FRM > 1
     if (meta && meta->hasRotations && meta->rotations > 0) {
         rotations = meta->rotations;
+    } else if (frm && frm->valid && frm->rotations > 0) {
+        rotations = frm->rotations;
     }
 
     // frame size: meta > derived from grid
@@ -195,31 +258,41 @@ static bool pngResolveLayout(int pngW, int pngH,
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Size computation (must match artGetDataSize exactly)
-// ---------------------------------------------------------------------------
-
-static int pngComputeTotalSize(int rotations, int frames, int frameSize)
+// Computes the exact buffer size required to hold the Art structure
+// produced by pngReadArt for a given PNG + FRM pair. Both pngGetArtSize
+// and pngReadArt call this so the size reported to the cache and the size
+// actually written can never drift apart.
+static int pngComputeArtBufferSize(int rotations, int frames,
+                                   int frameW, int frameH,
+                                   const InheritedFrmInfo* frm)
 {
-    int framePaddedSize = sizeof(ArtFrame) + frameSize + pngPadForSize(frameSize);
-    int artDataSize = rotations * frames * framePaddedSize;
+    int total = sizeof(Art);
+
+    for (int rot = 0; rot < rotations; rot++) {
+        for (int f = 0; f < frames; f++) {
+            int origW = frameW;
+            int origH = frameH;
+            if (frm && frm->valid
+                && rot < ROTATION_COUNT
+                && f < MAX_INHERITED_FRAMES) {
+                if (frm->perFrameW[rot][f] > 0) origW = frm->perFrameW[rot][f];
+                if (frm->perFrameH[rot][f] > 0) origH = frm->perFrameH[rot][f];
+            }
+            int fs = origW * origH;
+            total += sizeof(ArtFrame) + fs + pngPadForSize(fs);
+        }
+    }
 
     // artGetDataSize adds (sizeof(int) - 1) * frames for each index where
-    // dataOffsets changes. For our layout:
-    //   rot 0..rotations-1 : distinct cumulative offsets
-    //   rot rotations      : offset 0 (distinct from previous if rotations > 0)
-    //   rot rotations+1..5 : offset 0 (same as previous)
+    // dataOffsets changes. Our layout has `rotations` distinct offsets plus
+    // one zero-offset slot if rotations < ROTATION_COUNT.
     int distinct = rotations;
     if (distinct < ROTATION_COUNT) distinct += 1;
     if (distinct > ROTATION_COUNT) distinct = ROTATION_COUNT;
+    total += (sizeof(int) - 1) * frames * distinct;
 
-    int extra = (sizeof(int) - 1) * frames * distinct;
-    return sizeof(Art) + artDataSize + extra;
+    return total;
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 // Reads an entire file through the game's file system into a heap buffer.
 // Caller owns the buffer and must free it with internal_free.
@@ -317,7 +390,8 @@ int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
         return -1;
     }
 
-    *outSize = pngComputeTotalSize(rotations, frames, frameW * frameH);
+    *outSize = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
+                                       frm.valid ? &frm : nullptr);
     return 0;
 }
 
@@ -343,16 +417,15 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
         return -1;
     }
 
-    int frameSize = frameW * frameH;
-    int framePaddedSize = sizeof(ArtFrame) + frameSize + pngPadForSize(frameSize);
-    int total = pngComputeTotalSize(rotations, frames, frameSize);
+    int total = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
+                                        frm.valid ? &frm : nullptr);
     if (total > dataSize) {
         debugPrint("pngReadArt: buffer too small (%d < %d)\n", dataSize, total);
         stbi_image_free(pixels);
         return -1;
     }
 
-    // ---- Metadata resolution for header fields ----
+    // Metadata resolution for header fields
     int fps = 10;
     int actionFrame = 0;
     if (frm.valid) {
@@ -368,7 +441,7 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
         offsetY = meta->offsetY;
     }
 
-    // ---- Write Art header ----
+    // Write Art header
     Art* art = (Art*)data;
     memset(art, 0, sizeof(*art));
     art->field_0 = 0;
@@ -383,66 +456,81 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
         }
     }
 
-    // ---- Write frames ----
-    int writeOffset = 0;    // bytes of frame data written so far
+    // Write frames
+    int writeOffset = 0;
     int dataBytes = 0;
 
     for (int rot = 0; rot < ROTATION_COUNT; rot++) {
         art->padding[rot] = 0;
         if (rot >= rotations) {
-            // Reuse rotation 0 for all higher rotations (common for
-            // static/1-rotation assets).
             art->dataOffsets[rot] = art->dataOffsets[0];
             continue;
         }
 
         art->dataOffsets[rot] = writeOffset;
 
-        int fx = (meta && meta->hasOffset) ? offsetX : 0;
-        int fy = (meta && meta->hasOffset) ? offsetY : 0;
-
         for (int f = 0; f < frames; f++) {
+            // Prefer the FRM's original per-frame dimensions. This makes
+            // the in-memory layout byte-identical to what the FRM would
+            // produce, so the renderer anchors every frame the same way
+            // it would anchor the vanilla FRM.
+            int origW = frameW;
+            int origH = frameH;
+            int origX = 0;
+            int origY = 0;
+            if (frm.valid && rot < ROTATION_COUNT && f < MAX_INHERITED_FRAMES) {
+                if (frm.perFrameW[rot][f] > 0) origW = frm.perFrameW[rot][f];
+                if (frm.perFrameH[rot][f] > 0) origH = frm.perFrameH[rot][f];
+                origX = frm.perFrameX[rot][f];
+                origY = frm.perFrameY[rot][f];
+            }
+            if (meta && meta->hasOffset) {
+                origX = meta->offsetX;
+                origY = meta->offsetY;
+            }
+
+            int origSize = origW * origH;
+            int framePad = pngPadForSize(origSize);
+
             ArtFrame* frame = (ArtFrame*)(data + sizeof(Art) + writeOffset);
-            frame->width  = frameW;
-            frame->height = frameH;
-            frame->size   = frameSize;
-            frame->x      = fx;
-            frame->y      = fy;
+            frame->width  = origW;
+            frame->height = origH;
+            frame->size   = origSize;
+            frame->x      = origX;
+            frame->y      = origY;
 
             unsigned char* dst = (unsigned char*)frame + sizeof(ArtFrame);
 
-            int srcX = f * frameW;
-            int srcY = rot * frameH;
+            int srcCellX = f * frameW;
+            int srcCellY = rot * frameH;
 
-            for (int y = 0; y < frameH; y++) {
-                const unsigned char* srcRow =
-                    pixels + ((srcY + y) * w + srcX) * 4;
-                unsigned char* dstRow = dst + y * frameW;
-                for (int x = 0; x < frameW; x++) {
+            for (int y = 0; y < origH; y++) {
+                const unsigned char* srcRow = pixels
+                    + ((size_t)(srcCellY + y) * (size_t)w + srcCellX) * 4;
+                unsigned char* dstRow = dst + (size_t)y * (size_t)origW;
+
+                for (int x = 0; x < origW; x++) {
                     unsigned char r8 = srcRow[x * 4 + 0];
                     unsigned char g8 = srcRow[x * 4 + 1];
                     unsigned char b8 = srcRow[x * 4 + 2];
                     unsigned char a8 = srcRow[x * 4 + 3];
 
                     if (a8 < 128) {
-                        dstRow[x] = 0; // transparent index
+                        dstRow[x] = 0;
                     } else {
-                        int r5 = r8 >> 3;
-                        int g5 = g8 >> 3;
-                        int b5 = b8 >> 3;
-                        int rgb15 = (r5 << 10) | (g5 << 5) | b5;
+                        int rgb15 = ((r8 >> 3) << 10) | ((g8 >> 3) << 5) | (b8 >> 3);
                         dstRow[x] = _colorTable[rgb15];
                     }
                 }
             }
 
-            writeOffset += framePaddedSize;
-            dataBytes += framePaddedSize;
+            writeOffset += sizeof(ArtFrame) + origSize + framePad;
+            dataBytes += sizeof(ArtFrame) + origSize + framePad;
         }
     }
 
     art->dataSize = dataBytes;
-
+    
     stbi_image_free(pixels);
     return 0;
 }

@@ -77,6 +77,7 @@ struct DebugSettings {
     bool show_load_info = GAME_CONFIG_DEFAULT_SHOW_LOAD_INFO;
     bool output_map_data_info = GAME_CONFIG_DEFAULT_OUTPUT_MAP_DATA_INFO;
     bool write_offsets = GAME_CONFIG_DEFAULT_WRITE_OFFSETS;
+    std::string export_png = GAME_CONFIG_DEFAULT_EXPORT_PNG;
 };
 
 struct MapperSettings {

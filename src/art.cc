@@ -10,7 +10,11 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
+#include "color.h"
+#include "png_writer.h"
 #include "animation.h"
 #include "debug.h"
 #include "draw.h"
@@ -169,6 +173,11 @@ Cache gArtCache;
 
 // 0x56C9E4
 static char _art_name[COMPAT_MAX_PATH];
+
+// When artBuildFilePath resolves a critter fid to a .png override, this
+// holds the corresponding .frm path so the cache callbacks can pass it
+// as the metadata-inheritance source. 
+static char _art_frm_fallback[COMPAT_MAX_PATH] = { 0 };
 
 // head_info
 // 0x56CAE8
@@ -351,7 +360,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
     if (baseIndex < 0 || baseIndex >= desc->fileNamesLength)
         return -1;
 
-    // Get base filename
+    // Get base filename, strip its extension (.frm or .png).
     const char* baseName = desc->fileNames + baseIndex * FILENAME_LENGTH;
 
     // Extract base without extension
@@ -359,43 +368,68 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
     strncpy(base, baseName, FILENAME_LENGTH - 1);
     base[FILENAME_LENGTH - 1] = '\0';
 
-    char* ext = strrchr(base, '.');
-    if (ext && compat_stricmp(ext, ".frm") == 0) {
-        *ext = '\0'; // Remove extension
+    size_t baseLen = strlen(base);
+    if (baseLen >= 4
+        && (compat_stricmp(base + baseLen - 4, ".frm") == 0
+            || compat_stricmp(base + baseLen - 4, ".png") == 0)) {
+        base[baseLen - 4] = '\0';
     }
 
-    // Build expected variant name, e.g. "mainmenu_800.frm"
-    char expected[FILENAME_LENGTH];
-    int len = snprintf(expected, sizeof(expected), "%s%s.frm", base, suffix);
-    if (len >= static_cast<int>(sizeof(expected))) {
+    // Build the expected variant base name, e.g. "mainmenu_800".
+    // Extension is intentionally NOT appended - matching is by base name
+    // so both .frm and .png variants resolve.
+    char expectedBase[FILENAME_LENGTH];
+    int len = snprintf(expectedBase, sizeof(expectedBase), "%s%s",
+                       base, suffix);
+    if (len >= static_cast<int>(sizeof(expectedBase))) {
         debugPrint("Variant name too long: %s%s", base, suffix);
         return -1;
     }
 
-    // When an overlay is active, prefer the overlay-prefixed form
-    // (e.g. "fallout1/mainmenu_800.frm"). This is what makes the F1
-    // variant win over the F2 variant at the same logical basename.
+    // Overlay-prefixed expected base, e.g. "fallout1/mainmenu_800".
+    char overlayBase[FILENAME_LENGTH];
+    bool haveOverlayBase = false;
     if (gArtVariantOverlay[0] != '\0') {
-        char overlayExpected[FILENAME_LENGTH];
-        if (snprintf(overlayExpected, sizeof(overlayExpected), "%s/%s",
-                gArtVariantOverlay, expected)
-            < static_cast<int>(sizeof(overlayExpected))) {
-            for (int i = desc->vanillaCount;
-                 i < desc->vanillaCount + desc->variantCount; i++) {
-                const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
-                if (compat_stricmp(candidate, overlayExpected) == 0) {
-                    return i;
-                }
+        if (snprintf(overlayBase, sizeof(overlayBase), "%s/%s",
+                     gArtVariantOverlay, expectedBase)
+            < static_cast<int>(sizeof(overlayBase))) {
+            haveOverlayBase = true;
+        }
+    }
+
+    // Compare a candidate's base name (extension stripped) against an
+    // expected base name.
+    auto matchesBase = [](const char* candidate,
+                          const char* expected) -> bool {
+        char candBase[FILENAME_LENGTH];
+        strncpy(candBase, candidate, FILENAME_LENGTH - 1);
+        candBase[FILENAME_LENGTH - 1] = '\0';
+
+        size_t candLen = strlen(candBase);
+        if (candLen >= 4
+            && (compat_stricmp(candBase + candLen - 4, ".frm") == 0
+                || compat_stricmp(candBase + candLen - 4, ".png") == 0)) {
+            candBase[candLen - 4] = '\0';
+        }
+        return compat_stricmp(candBase, expected) == 0;
+    };
+
+    // Overlay-prefixed variant first, when an overlay is active.
+    if (haveOverlayBase) {
+        for (int i = desc->vanillaCount;
+             i < desc->vanillaCount + desc->variantCount; i++) {
+            const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
+            if (matchesBase(candidate, overlayBase)) {
+                return i;
             }
         }
     }
 
-    // Fall back to the plain name (either no overlay is active, or no
-    // overlay variant was registered for this base asset).
+    // Plain variant name.
     for (int i = desc->vanillaCount;
          i < desc->vanillaCount + desc->variantCount; i++) {
         const char* candidate = desc->fileNames + i * FILENAME_LENGTH;
-        if (compat_stricmp(candidate, expected) == 0) {
+        if (matchesBase(candidate, expectedBase)) {
             return i;
         }
     }
@@ -546,7 +580,6 @@ static void artProcessVariants(ArtListDescription* desc)
         memset(dest, 0, FILENAME_LENGTH);
         memcpy(dest, registered, strlen(registered));
 
-        debugPrint("Registered variant: %s (base: %s)\n", registered, vanillaName);
         newCount++;
     }
 
@@ -643,8 +676,6 @@ static bool artTryApplyPngOverride(ArtListDescription* desc, int index)
             dst[FILENAME_LENGTH - 1] = '\0';
         }
     }
-
-    debugPrint("PNG override: %s -> %s\n", entry, pngEntry);
 
     strncpy(entry, pngEntry, FILENAME_LENGTH - 1);
     entry[FILENAME_LENGTH - 1] = '\0';
@@ -870,6 +901,11 @@ static void artLoadModAssets(ArtListDescription* desc, const char* baseDir)
                     }
 
                     // Normal asset processing
+                    char* comma = strchr(assetName, ',');
+                    if (comma != nullptr) {
+                        *comma = '\0';
+                    }
+
                     char baseName[FILENAME_LENGTH];
                     getBaseNameWithoutExtension(baseName, assetName, sizeof(baseName));
 
@@ -1715,6 +1751,431 @@ static int artInitHeadData()
     return 0;
 }
 
+static void artEnsureDirRecursive(const char* path)
+{
+    char tmp[COMPAT_MAX_PATH];
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+
+    size_t len = strlen(tmp);
+    for (size_t i = 1; i < len; i++) {
+        if (tmp[i] == '/' || tmp[i] == '\\') {
+            char saved = tmp[i];
+            tmp[i] = '\0';
+            struct stat st;
+            if (stat(tmp, &st) != 0) {
+                mkdir(tmp, 0755);
+            }
+            tmp[i] = saved;
+        }
+    }
+    struct stat st;
+    if (stat(tmp, &st) != 0) {
+        mkdir(tmp, 0755);
+    }
+}
+
+static void artEnsureParentDir(const char* path)
+{
+    char tmp[COMPAT_MAX_PATH];
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+
+    char* lastSep = strrchr(tmp, '/');
+    char* lastAlt = strrchr(tmp, '\\');
+    if (lastAlt != nullptr && (lastSep == nullptr || lastAlt > lastSep)) {
+        lastSep = lastAlt;
+    }
+    if (lastSep == nullptr) {
+        return;
+    }
+    *lastSep = '\0';
+    artEnsureDirRecursive(tmp);
+}
+
+static void artExportOneFrm(const char* frmPath, const char* outPath)
+{
+    // Skip if already exported. Preserves modder edits across runs.
+    struct stat st;
+    if (stat(outPath, &st) == 0) {
+        return;
+    }
+
+    // Defensive: never attempt to read a PNG as an FRM.
+    size_t frmLen = strlen(frmPath);
+    if (frmLen >= 4
+        && compat_stricmp(frmPath + frmLen - 4, ".png") == 0) {
+        return;
+    }
+
+    debugPrint("artExport: loading %s\n", frmPath);
+
+    Art* art = artLoad(frmPath);
+    if (art == nullptr) {
+        debugPrint("artExport: failed to load %s\n", frmPath);
+        return;
+    }
+
+    // Rotation detection: any FRM with more than one distinct dataOffsets
+    // block is normalized to 6 rotations.
+    int blocks = 0;
+    int prev = -1;
+    for (int i = 0; i < ROTATION_COUNT; i++) {
+        if (art->dataOffsets[i] != prev) {
+            blocks++;
+            prev = art->dataOffsets[i];
+        }
+    }
+    int rotations = (blocks > 1) ? ROTATION_COUNT : 1;
+
+    int frames = art->frameCount;
+    if (frames <= 0) {
+        internal_free(art);
+        return;
+    }
+
+    // Scan every frame in every rotation to determine cell size. Individual
+    // frames can vary in width and height; frame 0 is not authoritative.
+    int frameW = 0;
+    int frameH = 0;
+    for (int rot = 0; rot < rotations; rot++) {
+        for (int f = 0; f < frames; f++) {
+            ArtFrame* fr = artGetFrame(art, f, rot);
+            if (fr == nullptr) {
+                continue;
+            }
+            if (fr->width  > frameW) frameW = fr->width;
+            if (fr->height > frameH) frameH = fr->height;
+        }
+    }
+
+    if (frameW <= 0 || frameH <= 0) {
+        debugPrint("artExport: no valid frames in %s\n", frmPath);
+        internal_free(art);
+        return;
+    }
+    if (frameW > 4096 || frameH > 4096) {
+        debugPrint("artExport: refusing absurd frame size %dx%d in %s\n",
+                   frameW, frameH, frmPath);
+        internal_free(art);
+        return;
+    }
+
+    int sheetW = frames * frameW;
+    int sheetH = rotations * frameH;
+
+    unsigned char* sheet = (unsigned char*)internal_malloc(
+        (size_t)sheetW * (size_t)sheetH);
+    if (sheet == nullptr) {
+        internal_free(art);
+        return;
+    }
+    memset(sheet, 0, (size_t)sheetW * (size_t)sheetH);
+
+    for (int rot = 0; rot < rotations; rot++) {
+        for (int f = 0; f < frames; f++) {
+            ArtFrame* fr = artGetFrame(art, f, rot);
+            if (fr == nullptr) {
+                continue;
+            }
+            unsigned char* src = (unsigned char*)fr + sizeof(ArtFrame);
+            int fw = fr->width;
+            int fh = fr->height;
+            int copyW = (fw < frameW) ? fw : frameW;
+            int copyH = (fh < frameH) ? fh : frameH;
+
+            for (int y = 0; y < copyH; y++) {
+                unsigned char* dstRow = sheet
+                    + ((size_t)(rot * frameH + y) * (size_t)sheetW)
+                    + (size_t)f * (size_t)frameW;
+                memcpy(dstRow, src + (size_t)y * (size_t)fw, (size_t)copyW);
+            }
+        }
+    }
+
+    artEnsureParentDir(outPath);
+
+    if (pngWriteIndexed(outPath, sheetW, sheetH, sheet, _cmap, 0)) {
+        debugPrint("artExport: %s (%dx%d, %d frame%s, %d rotation%s)\n",
+                   outPath, sheetW, sheetH,
+                   frames, frames == 1 ? "" : "s",
+                   rotations, rotations == 1 ? "" : "s");
+    } else {
+        debugPrint("artExport: FAILED %s\n", outPath);
+    }
+
+    internal_free(sheet);
+    internal_free(art);
+}
+
+static void artExportCategory(ArtListDescription* desc)
+{
+    if (desc == nullptr || desc->fileNames == nullptr) {
+        return;
+    }
+
+    int totalEntries = desc->vanillaCount + desc->variantCount;
+
+    for (int i = 0; i < totalEntries; i++) {
+        const char* entry = desc->fileNames + i * FILENAME_LENGTH;
+        if (entry[0] == '\0') {
+            continue;
+        }
+
+        // Skip entries that are already PNGs. These are modder overrides
+        // or prior exports; there is no FRM to export from.
+        size_t entryLen = strlen(entry);
+        if (entryLen >= 4
+            && compat_stricmp(entry + entryLen - 4, ".png") == 0) {
+            continue;
+        }
+
+        // Source FRM path. This is dat-relative; fileOpen resolves it
+        // through the archive and the data/ override tree.
+        char frmPath[COMPAT_MAX_PATH];
+        snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
+                 _cd_path_base, DIR_SEPARATOR, desc->name, DIR_SEPARATOR, entry);
+
+        File* f = fileOpen(frmPath, "rb");
+        if (f == nullptr) {
+            continue;
+        }
+        fileClose(f);
+
+        // Output PNG path: data/art/<category>/<name>.png. This is the
+        // loose-file override tree at the game root, which fileOpen
+        // checks before falling back to the archives.
+        char outName[FILENAME_LENGTH];
+        strncpy(outName, entry, FILENAME_LENGTH - 1);
+        outName[FILENAME_LENGTH - 1] = '\0';
+        char* dot = strrchr(outName, '.');
+        if (dot != nullptr) {
+            *dot = '\0';
+        }
+        size_t baseLen = strlen(outName);
+        if (baseLen + 4 >= FILENAME_LENGTH) {
+            continue;
+        }
+        strcat(outName, ".png");
+
+        char outPath[COMPAT_MAX_PATH];
+        snprintf(outPath, sizeof(outPath), "%sdata/art/%s/%s",
+                 _cd_path_base, desc->name, outName);
+
+        artExportOneFrm(frmPath, outPath);
+    }
+}
+
+static void artExportCritters()
+{
+    const int kMaxAnimType = 64;
+
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_CRITTER];
+
+    debugPrint("artExport: critters (%d vanilla entries)\n", desc->vanillaCount);
+
+    int totalExported = 0;
+
+    for (int i = 0; i < desc->vanillaCount; i++) {
+        const char* base = desc->fileNames + i * FILENAME_LENGTH;
+        if (base[0] == '\0') {
+            continue;
+        }
+
+        size_t baseLen = strlen(base);
+        if (baseLen >= 4
+            && compat_stricmp(base + baseLen - 4, ".png") == 0) {
+            continue;
+        }
+
+        int thisCritter = 0;
+
+        for (int anim = 0; anim < kMaxAnimType; anim++) {
+            for (int wpn = 0; wpn < WEAPON_ANIMATION_COUNT; wpn++) {
+                char codeA, codeB;
+                if (_art_get_code(anim, wpn, &codeA, &codeB) == -1) {
+                    continue;
+                }
+
+                char frmName[FILENAME_LENGTH];
+                snprintf(frmName, sizeof(frmName), "%s%c%c.frm",
+                         base, codeA, codeB);
+
+                char frmPath[COMPAT_MAX_PATH];
+                snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
+                         _cd_path_base, DIR_SEPARATOR, desc->name,
+                         DIR_SEPARATOR, frmName);
+
+                File* f = fileOpen(frmPath, "rb");
+                if (f == nullptr) {
+                    continue;
+                }
+                fileClose(f);
+                thisCritter++;
+
+                char pngName[FILENAME_LENGTH];
+                snprintf(pngName, sizeof(pngName), "%s%c%c.png",
+                         base, codeA, codeB);
+
+                char pngPath[COMPAT_MAX_PATH];
+                snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
+                         _cd_path_base, desc->name, pngName);
+
+                artExportOneFrm(frmPath, pngPath);
+            }
+        }
+
+        if (thisCritter > 0) {
+            debugPrint("artExport: %s -> %d files\n", base, thisCritter);
+        } else {
+            debugPrint("artExport: %s -> no files found\n", base);
+        }
+        totalExported += thisCritter;
+    }
+
+    debugPrint("artExport: critters complete (%d FRMs total)\n", totalExported);
+}
+
+static void artExportHeads()
+{
+    ArtListDescription* desc = &gArtListDescriptions[OBJ_TYPE_HEAD];
+
+    debugPrint("artExport: heads (%d vanilla entries)\n", desc->vanillaCount);
+
+    int totalExported = 0;
+
+    for (int i = 0; i < desc->vanillaCount; i++) {
+        const char* base = desc->fileNames + i * FILENAME_LENGTH;
+        if (base[0] == '\0') {
+            continue;
+        }
+
+        int thisHead = 0;
+
+        for (int animType = 0; animType < 12; animType++) {
+            char c1 = _head1[animType];
+            char c2 = _head2[animType];
+
+            if (c2 == 'f') {
+                // Numbered form: <base><c1>f<N>.frm, N = 0..7
+                for (int wc = 0; wc < 8; wc++) {
+                    char frmName[FILENAME_LENGTH];
+                    snprintf(frmName, sizeof(frmName), "%s%cf%d.frm",
+                             base, c1, wc);
+
+                    char frmPath[COMPAT_MAX_PATH];
+                    snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
+                             _cd_path_base, DIR_SEPARATOR, desc->name,
+                             DIR_SEPARATOR, frmName);
+
+                    File* f = fileOpen(frmPath, "rb");
+                    if (f == nullptr) continue;
+                    fileClose(f);
+                    thisHead++;
+
+                    char pngName[FILENAME_LENGTH];
+                    snprintf(pngName, sizeof(pngName), "%s%cf%d.png",
+                             base, c1, wc);
+
+                    char pngPath[COMPAT_MAX_PATH];
+                    snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
+                             _cd_path_base, desc->name, pngName);
+
+                    artExportOneFrm(frmPath, pngPath);
+                }
+            } else {
+                char frmName[FILENAME_LENGTH];
+                snprintf(frmName, sizeof(frmName), "%s%c%c.frm",
+                         base, c1, c2);
+
+                char frmPath[COMPAT_MAX_PATH];
+                snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
+                         _cd_path_base, DIR_SEPARATOR, desc->name,
+                         DIR_SEPARATOR, frmName);
+
+                File* f = fileOpen(frmPath, "rb");
+                if (f == nullptr) continue;
+                fileClose(f);
+                thisHead++;
+
+                char pngName[FILENAME_LENGTH];
+                snprintf(pngName, sizeof(pngName), "%s%c%c.png",
+                         base, c1, c2);
+
+                char pngPath[COMPAT_MAX_PATH];
+                snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
+                         _cd_path_base, desc->name, pngName);
+
+                artExportOneFrm(frmPath, pngPath);
+            }
+        }
+
+        if (thisHead > 0) {
+            debugPrint("artExport: head %s -> %d files\n", base, thisHead);
+        }
+        totalExported += thisHead;
+    }
+
+    debugPrint("artExport: heads complete (%d FRMs total)\n", totalExported);
+}
+
+static bool artExportCategorySelected(const char* categoryName,
+                                      const char* filter)
+{
+    if (filter == nullptr || filter[0] == '\0') {
+        return true;
+    }
+
+    if (compat_stricmp(filter, categoryName) == 0) {
+        return true;
+    }
+
+    // Convenience aliases
+    if (compat_stricmp(categoryName, "intrface") == 0
+        && compat_stricmp(filter, "interface") == 0) {
+        return true;
+    }
+    if (compat_stricmp(categoryName, "critters") == 0
+        && compat_stricmp(filter, "critter") == 0) {
+        return true;
+    }
+    if (compat_stricmp(categoryName, "items") == 0
+        && compat_stricmp(filter, "item") == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+static void artExportAllPngs(const char* categoryFilter)
+{
+    if (categoryFilter != nullptr && categoryFilter[0] != '\0') {
+        debugPrint("artExport: starting export (filter: %s)\n", categoryFilter);
+    } else {
+        debugPrint("artExport: starting export (all categories)\n");
+    }
+
+    for (int t = 0; t < OBJ_TYPE_COUNT; t++) {
+        if (t == OBJ_TYPE_CRITTER || t == OBJ_TYPE_HEAD) {
+            continue;
+        }
+        if (!artExportCategorySelected(gArtListDescriptions[t].name, categoryFilter)) {
+            continue;
+        }
+        artExportCategory(&gArtListDescriptions[t]);
+    }
+
+    if (artExportCategorySelected("critters", categoryFilter)) {
+        artExportCritters();
+    }
+
+    if (artExportCategorySelected("heads", categoryFilter)) {
+        artExportHeads();
+    }
+
+    debugPrint("artExport: complete\n");
+}
+
 // Main art initialization function (refactored)
 int artInit()
 {
@@ -1808,12 +2269,12 @@ int artInit()
             memset(desc->inheritedFrmNames, 0, FILENAME_LENGTH * MAX_ART_INDICES);
         }
 
-        // Apply .png drop-in overrides for vanilla entries. Runs before variant
-        // processing so that variant generation sees the final entry names.
-        artApplyPngOverrides(desc);
-
-        // 2. Process Variant Assets
+        // Process variant assets FIRST, so variant slots exist in the
+        // list when the PNG override pass runs.
         artProcessVariants(desc);
+
+        // Apply .png drop-in overrides across vanilla + variants.
+        artApplyPngOverrides(desc);
 
         // MOD: Expand art lists to 8192 entries
         if (desc->fileNamesLength < MAX_ART_INDICES) {
@@ -1830,20 +2291,7 @@ int artInit()
         }
         desc->fileNamesLength = MAX_ART_INDICES;
 
-        if (desc->modMeta == nullptr) {
-            desc->modMeta = (PngArtMeta*)internal_malloc(
-                sizeof(PngArtMeta) * MAX_ART_INDICES);
-            for (int i = 0; i < MAX_ART_INDICES; i++) {
-                pngMetaReset(&desc->modMeta[i]);
-            }
-        }
-        if (desc->inheritedFrmNames == nullptr) {
-            desc->inheritedFrmNames = (char*)internal_malloc(
-                FILENAME_LENGTH * MAX_ART_INDICES);
-            memset(desc->inheritedFrmNames, 0, FILENAME_LENGTH * MAX_ART_INDICES);
-        }
-
-        // 3. Load MOD Assets
+        // Load MOD Assets
         // Build base directory path for this art category
         char baseDir[COMPAT_MAX_PATH];
         snprintf(baseDir, sizeof(baseDir), "%sart%c%s%c",
@@ -1878,6 +2326,33 @@ int artInit()
 
     // Generate the art list report
     artGenerateReport();
+
+    const char* exportPng = settings.debug.export_png.c_str();
+
+    const char* categoryFilter = nullptr;
+    char categoryBuf[64] = { 0 };
+    bool doExport = false;
+
+    if (exportPng[0] != '\0'
+        && compat_stricmp(exportPng, "0") != 0
+        && compat_stricmp(exportPng, "false") != 0
+        && compat_stricmp(exportPng, "no") != 0) {
+        if (compat_stricmp(exportPng, "1") == 0
+            || compat_stricmp(exportPng, "true") == 0
+            || compat_stricmp(exportPng, "yes") == 0
+            || compat_stricmp(exportPng, "all") == 0) {
+            doExport = true;
+        } else {
+            doExport = true;
+            strncpy(categoryBuf, exportPng, sizeof(categoryBuf) - 1);
+            categoryFilter = categoryBuf;
+        }
+    }
+
+    if (doExport) {
+        settings.debug.export_png = "0";
+        artExportAllPngs(categoryFilter);
+    }
 
     return 0;
 }
@@ -2190,6 +2665,8 @@ char* artBuildFilePath(int fid)
 
     // Clear global buffer
     *_art_name = '\0';
+    
+    _art_frm_fallback[0] = '\0';
 
     // Extract FID components
     int id = artGetIndex(fid); // Use helper function to get actual index
@@ -2211,50 +2688,97 @@ char* artBuildFilePath(int fid)
     int nameOffset = id * FILENAME_LENGTH;
 
     // Handle special cases first
-    if (objectType == OBJ_TYPE_CRITTER) { // Critters
+    if (objectType == OBJ_TYPE_CRITTER) {
         char animCode, weaponCodeChar;
         if (_art_get_code(animType, weaponCode, &animCode, &weaponCodeChar) == -1) {
             return nullptr;
         }
 
+        const char* base = gArtListDescriptions[objectType].fileNames + nameOffset;
+
+        // Build the vanilla FRM path first. This becomes the metadata
+        // inheritance source if a PNG override is applied below.
+        char frmPath[COMPAT_MAX_PATH];
         if (rotation != 0) {
-            snprintf(_art_name, sizeof(_art_name),
+            snprintf(frmPath, sizeof(frmPath),
                 "%sart\\%s\\%s%c%c.fr%c",
                 _cd_path_base,
                 gArtListDescriptions[objectType].name,
-                gArtListDescriptions[objectType].fileNames + nameOffset,
-                animCode,
-                weaponCodeChar,
-                rotation + '0');
+                base, animCode, weaponCodeChar, rotation + '0');
         } else {
-            snprintf(_art_name, sizeof(_art_name),
+            snprintf(frmPath, sizeof(frmPath),
                 "%sart\\%s\\%s%c%c.frm",
                 _cd_path_base,
                 gArtListDescriptions[objectType].name,
-                gArtListDescriptions[objectType].fileNames + nameOffset,
-                animCode,
-                weaponCodeChar);
+                base, animCode, weaponCodeChar);
         }
+
+        // Probe for a data/art/critters/<base><a><w>.png override.
+        char pngPath[COMPAT_MAX_PATH];
+        snprintf(pngPath, sizeof(pngPath),
+            "%sdata/art/%s/%s%c%c.png",
+            _cd_path_base,
+            gArtListDescriptions[objectType].name,
+            base, animCode, weaponCodeChar);
+
+        File* probe = fileOpen(pngPath, "rb");
+        if (probe != nullptr) {
+            fileClose(probe);
+            strncpy(_art_frm_fallback, frmPath, sizeof(_art_frm_fallback) - 1);
+            _art_frm_fallback[sizeof(_art_frm_fallback) - 1] = '\0';
+            strncpy(_art_name, pngPath, sizeof(_art_name) - 1);
+            _art_name[sizeof(_art_name) - 1] = '\0';
+            return _art_name;
+        }
+
+        // No PNG. Return the FRM path as before.
+        strncpy(_art_name, frmPath, sizeof(_art_name) - 1);
+        _art_name[sizeof(_art_name) - 1] = '\0';
+        return _art_name;
     } else if (objectType == OBJ_TYPE_HEAD) { // Heads
-        char genderCode = _head2[animType];
-        if (genderCode == 'f') {
-            snprintf(_art_name, sizeof(_art_name),
-                "%sart\\%s\\%s%c%c%d.frm",
+        const char* base = gArtListDescriptions[objectType].fileNames + nameOffset;
+        char c1 = _head1[animType];
+        char c2 = _head2[animType];
+
+        // Build the FRM path (same naming logic as before). This becomes
+        // the metadata inheritance source if a PNG override is applied.
+        char frmPath[COMPAT_MAX_PATH];
+        if (c2 == 'f') {
+            snprintf(frmPath, sizeof(frmPath),
+                "%sart\\%s\\%s%cf%d.frm",
                 _cd_path_base,
                 gArtListDescriptions[objectType].name,
-                gArtListDescriptions[objectType].fileNames + nameOffset,
-                _head1[animType],
-                'f',
-                weaponCode);
+                base, c1, weaponCode);
         } else {
-            snprintf(_art_name, sizeof(_art_name),
+            snprintf(frmPath, sizeof(frmPath),
                 "%sart\\%s\\%s%c%c.frm",
                 _cd_path_base,
                 gArtListDescriptions[objectType].name,
-                gArtListDescriptions[objectType].fileNames + nameOffset,
-                _head1[animType],
-                genderCode);
+                base, c1, c2);
         }
+
+        // Same path, .png extension. fileOpen resolves data/ internally.
+        char pngPath[COMPAT_MAX_PATH];
+        strncpy(pngPath, frmPath, sizeof(pngPath) - 1);
+        pngPath[sizeof(pngPath) - 1] = '\0';
+        size_t plen = strlen(pngPath);
+        if (plen >= 4) {
+            strcpy(pngPath + plen - 4, ".png");
+        }
+
+        File* probe = fileOpen(pngPath, "rb");
+        if (probe != nullptr) {
+            fileClose(probe);
+            strncpy(_art_frm_fallback, frmPath, sizeof(_art_frm_fallback) - 1);
+            _art_frm_fallback[sizeof(_art_frm_fallback) - 1] = '\0';
+            strncpy(_art_name, pngPath, sizeof(_art_name) - 1);
+            _art_name[sizeof(_art_name) - 1] = '\0';
+            return _art_name;
+        }
+
+        strncpy(_art_name, frmPath, sizeof(_art_name) - 1);
+        _art_name[sizeof(_art_name) - 1] = '\0';
+        return _art_name;
     } else { // All other types
         const char* fileName = gArtListDescriptions[objectType].fileNames + nameOffset;
         char basePath[COMPAT_MAX_PATH];
@@ -2645,16 +3169,29 @@ static const char* artGetInheritPathForFid(int fid)
     int objectType = FID_TYPE(fid);
     if (objectType < 0 || objectType >= OBJ_TYPE_COUNT) return nullptr;
     ArtListDescription* desc = &gArtListDescriptions[objectType];
-    if (!desc->inheritedFrmNames) return nullptr;
-    int id = artGetIndex(fid);
-    if (id < 0 || id >= MAX_ART_INDICES) return nullptr;
-    const char* name = desc->inheritedFrmNames + id * FILENAME_LENGTH;
-    if (name[0] == '\0') return nullptr;
 
-    static char buf[COMPAT_MAX_PATH];
-    snprintf(buf, sizeof(buf), "%sart\\%s\\%s",
-             _cd_path_base, desc->name, name);
-    return buf;
+    // Explicit stash from artApplyPngOverrides or the remap directive.
+    if (desc->inheritedFrmNames) {
+        int id = artGetIndex(fid);
+        if (id >= 0 && id < MAX_ART_INDICES) {
+            const char* name = desc->inheritedFrmNames + id * FILENAME_LENGTH;
+            if (name[0] != '\0') {
+                static char buf[COMPAT_MAX_PATH];
+                snprintf(buf, sizeof(buf), "%sart\\%s\\%s",
+                         _cd_path_base, desc->name, name);
+                return buf;
+            }
+        }
+    }
+
+    // Critters and heads both set _art_frm_fallback in artBuildFilePath
+    // when they resolve to a .png override. Any object type that uses
+    // that mechanism should return it here.
+    if (_art_frm_fallback[0] != '\0') {
+        return _art_frm_fallback;
+    }
+
+    return nullptr;
 }
 
 // 0x419A78
