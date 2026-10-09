@@ -85,6 +85,7 @@ namespace fallout {
 #define GAME_CONFIG_SHOW_LOAD_INFO_KEY "show_load_info"
 #define GAME_CONFIG_OUTPUT_MAP_DATA_INFO_KEY "output_map_data_info"
 #define GAME_CONFIG_WRITE_OFFSETS "write_offsets"
+#define GAME_CONFIG_EXPORT_PNG "export_png"
 #define GAME_CONFIG_EXECUTABLE_KEY "executable"
 #define GAME_CONFIG_OVERRIDE_LIBRARIAN_KEY "override_librarian"
 #define GAME_CONFIG_LIBRARIAN_KEY "librarian"
@@ -188,6 +189,7 @@ namespace fallout {
 #define GAME_CONFIG_DEFAULT_SHOW_LOAD_INFO false
 #define GAME_CONFIG_DEFAULT_OUTPUT_MAP_DATA_INFO false
 #define GAME_CONFIG_DEFAULT_WRITE_OFFSETS false
+#define GAME_CONFIG_DEFAULT_EXPORT_PNG "0"
 
 // [graphics]
 #define GAME_CONFIG_DEFAULT_GAME_WIDTH 800
