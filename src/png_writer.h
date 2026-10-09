@@ -8,9 +8,9 @@ namespace fallout {
 // (matching the game's _cmap format). `transparentIndex` marks which palette
 // index is written as fully transparent in the tRNS chunk; pass -1 for none.
 bool pngWriteIndexed(const char* path, int width, int height,
-                     const unsigned char* pixels,
-                     const unsigned char* palette,
-                     int transparentIndex);
+    const unsigned char* pixels,
+    const unsigned char* palette,
+    int transparentIndex);
 
 } // namespace fallout
 

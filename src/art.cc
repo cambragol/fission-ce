@@ -6,16 +6,15 @@
 #include "xfile.h" // for File type
 #define DIR_SEPARATOR '/'
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
-#include "color.h"
-#include "png_writer.h"
 #include "animation.h"
+#include "color.h"
 #include "debug.h"
 #include "draw.h"
 #include "game.h"
@@ -24,6 +23,7 @@
 #include "mod_config.h"
 #include "object.h"
 #include "png_art.h"
+#include "png_writer.h"
 #include "proto.h"
 #include "settings.h"
 #include "window_manager.h"
@@ -176,7 +176,7 @@ static char _art_name[COMPAT_MAX_PATH];
 
 // When artBuildFilePath resolves a critter fid to a .png override, this
 // holds the corresponding .frm path so the cache callbacks can pass it
-// as the metadata-inheritance source. 
+// as the metadata-inheritance source.
 static char _art_frm_fallback[COMPAT_MAX_PATH] = { 0 };
 
 // head_info
@@ -380,7 +380,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
     // so both .frm and .png variants resolve.
     char expectedBase[FILENAME_LENGTH];
     int len = snprintf(expectedBase, sizeof(expectedBase), "%s%s",
-                       base, suffix);
+        base, suffix);
     if (len >= static_cast<int>(sizeof(expectedBase))) {
         debugPrint("Variant name too long: %s%s", base, suffix);
         return -1;
@@ -391,7 +391,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
     bool haveOverlayBase = false;
     if (gArtVariantOverlay[0] != '\0') {
         if (snprintf(overlayBase, sizeof(overlayBase), "%s/%s",
-                     gArtVariantOverlay, expectedBase)
+                gArtVariantOverlay, expectedBase)
             < static_cast<int>(sizeof(overlayBase))) {
             haveOverlayBase = true;
         }
@@ -400,7 +400,7 @@ int artFindVariant(int objectType, int baseIndex, const char* suffix)
     // Compare a candidate's base name (extension stripped) against an
     // expected base name.
     auto matchesBase = [](const char* candidate,
-                          const char* expected) -> bool {
+                           const char* expected) -> bool {
         char candBase[FILENAME_LENGTH];
         strncpy(candBase, candidate, FILENAME_LENGTH - 1);
         candBase[FILENAME_LENGTH - 1] = '\0';
@@ -596,14 +596,16 @@ static void artProcessVariants(ArtListDescription* desc)
 static const char* artSplitNameAndMeta(char* line, char** nameOut)
 {
     char* p = line;
-    while (*p && !isspace((unsigned char)*p)) p++;
+    while (*p && !isspace((unsigned char)*p))
+        p++;
     if (*p == '\0') {
         *nameOut = line;
         return nullptr;
     }
     *p = '\0';
     char* meta = p + 1;
-    while (*meta && isspace((unsigned char)*meta)) meta++;
+    while (*meta && isspace((unsigned char)*meta))
+        meta++;
     *nameOut = line;
     return (*meta) ? meta : nullptr;
 }
@@ -1844,7 +1846,7 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
             if (fr == nullptr) {
                 continue;
             }
-            if (fr->width  > frameW) frameW = fr->width;
+            if (fr->width > frameW) frameW = fr->width;
             if (fr->height > frameH) frameH = fr->height;
         }
     }
@@ -1856,7 +1858,7 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
     }
     if (frameW > 4096 || frameH > 4096) {
         debugPrint("artExport: refusing absurd frame size %dx%d in %s\n",
-                   frameW, frameH, frmPath);
+            frameW, frameH, frmPath);
         internal_free(art);
         return;
     }
@@ -1897,9 +1899,9 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
 
     if (pngWriteIndexed(outPath, sheetW, sheetH, sheet, _cmap, 0)) {
         debugPrint("artExport: %s (%dx%d, %d frame%s, %d rotation%s)\n",
-                   outPath, sheetW, sheetH,
-                   frames, frames == 1 ? "" : "s",
-                   rotations, rotations == 1 ? "" : "s");
+            outPath, sheetW, sheetH,
+            frames, frames == 1 ? "" : "s",
+            rotations, rotations == 1 ? "" : "s");
     } else {
         debugPrint("artExport: FAILED %s\n", outPath);
     }
@@ -1934,7 +1936,7 @@ static void artExportCategory(ArtListDescription* desc)
         // through the archive and the data/ override tree.
         char frmPath[COMPAT_MAX_PATH];
         snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
-                 _cd_path_base, DIR_SEPARATOR, desc->name, DIR_SEPARATOR, entry);
+            _cd_path_base, DIR_SEPARATOR, desc->name, DIR_SEPARATOR, entry);
 
         File* f = fileOpen(frmPath, "rb");
         if (f == nullptr) {
@@ -1960,7 +1962,7 @@ static void artExportCategory(ArtListDescription* desc)
 
         char outPath[COMPAT_MAX_PATH];
         snprintf(outPath, sizeof(outPath), "%sdata/art/%s/%s",
-                 _cd_path_base, desc->name, outName);
+            _cd_path_base, desc->name, outName);
 
         artExportOneFrm(frmPath, outPath);
     }
@@ -1999,12 +2001,12 @@ static void artExportCritters()
 
                 char frmName[FILENAME_LENGTH];
                 snprintf(frmName, sizeof(frmName), "%s%c%c.frm",
-                         base, codeA, codeB);
+                    base, codeA, codeB);
 
                 char frmPath[COMPAT_MAX_PATH];
                 snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
-                         _cd_path_base, DIR_SEPARATOR, desc->name,
-                         DIR_SEPARATOR, frmName);
+                    _cd_path_base, DIR_SEPARATOR, desc->name,
+                    DIR_SEPARATOR, frmName);
 
                 File* f = fileOpen(frmPath, "rb");
                 if (f == nullptr) {
@@ -2015,11 +2017,11 @@ static void artExportCritters()
 
                 char pngName[FILENAME_LENGTH];
                 snprintf(pngName, sizeof(pngName), "%s%c%c.png",
-                         base, codeA, codeB);
+                    base, codeA, codeB);
 
                 char pngPath[COMPAT_MAX_PATH];
                 snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
-                         _cd_path_base, desc->name, pngName);
+                    _cd_path_base, desc->name, pngName);
 
                 artExportOneFrm(frmPath, pngPath);
             }
@@ -2061,12 +2063,12 @@ static void artExportHeads()
                 for (int wc = 0; wc < 8; wc++) {
                     char frmName[FILENAME_LENGTH];
                     snprintf(frmName, sizeof(frmName), "%s%cf%d.frm",
-                             base, c1, wc);
+                        base, c1, wc);
 
                     char frmPath[COMPAT_MAX_PATH];
                     snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
-                             _cd_path_base, DIR_SEPARATOR, desc->name,
-                             DIR_SEPARATOR, frmName);
+                        _cd_path_base, DIR_SEPARATOR, desc->name,
+                        DIR_SEPARATOR, frmName);
 
                     File* f = fileOpen(frmPath, "rb");
                     if (f == nullptr) continue;
@@ -2075,23 +2077,23 @@ static void artExportHeads()
 
                     char pngName[FILENAME_LENGTH];
                     snprintf(pngName, sizeof(pngName), "%s%cf%d.png",
-                             base, c1, wc);
+                        base, c1, wc);
 
                     char pngPath[COMPAT_MAX_PATH];
                     snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
-                             _cd_path_base, desc->name, pngName);
+                        _cd_path_base, desc->name, pngName);
 
                     artExportOneFrm(frmPath, pngPath);
                 }
             } else {
                 char frmName[FILENAME_LENGTH];
                 snprintf(frmName, sizeof(frmName), "%s%c%c.frm",
-                         base, c1, c2);
+                    base, c1, c2);
 
                 char frmPath[COMPAT_MAX_PATH];
                 snprintf(frmPath, sizeof(frmPath), "%sart%c%s%c%s",
-                         _cd_path_base, DIR_SEPARATOR, desc->name,
-                         DIR_SEPARATOR, frmName);
+                    _cd_path_base, DIR_SEPARATOR, desc->name,
+                    DIR_SEPARATOR, frmName);
 
                 File* f = fileOpen(frmPath, "rb");
                 if (f == nullptr) continue;
@@ -2100,11 +2102,11 @@ static void artExportHeads()
 
                 char pngName[FILENAME_LENGTH];
                 snprintf(pngName, sizeof(pngName), "%s%c%c.png",
-                         base, c1, c2);
+                    base, c1, c2);
 
                 char pngPath[COMPAT_MAX_PATH];
                 snprintf(pngPath, sizeof(pngPath), "%sdata/art/%s/%s",
-                         _cd_path_base, desc->name, pngName);
+                    _cd_path_base, desc->name, pngName);
 
                 artExportOneFrm(frmPath, pngPath);
             }
@@ -2120,7 +2122,7 @@ static void artExportHeads()
 }
 
 static bool artExportCategorySelected(const char* categoryName,
-                                      const char* filter)
+    const char* filter)
 {
     if (filter == nullptr || filter[0] == '\0') {
         return true;
@@ -2665,7 +2667,7 @@ char* artBuildFilePath(int fid)
 
     // Clear global buffer
     *_art_name = '\0';
-    
+
     _art_frm_fallback[0] = '\0';
 
     // Extract FID components
@@ -2800,9 +2802,7 @@ char* artBuildFilePath(int fid)
                 fileName);
 
             size_t len = strlen(basePath);
-            bool hasKnownExt =
-                (len >= 4 && (compat_stricmp(basePath + len - 4, ".frm") == 0 ||
-                            compat_stricmp(basePath + len - 4, ".png") == 0));
+            bool hasKnownExt = (len >= 4 && (compat_stricmp(basePath + len - 4, ".frm") == 0 || compat_stricmp(basePath + len - 4, ".png") == 0));
             if (!hasKnownExt) {
                 if (len < sizeof(basePath) - 5) {
                     strcat(basePath, ".frm");
@@ -3178,7 +3178,7 @@ static const char* artGetInheritPathForFid(int fid)
             if (name[0] != '\0') {
                 static char buf[COMPAT_MAX_PATH];
                 snprintf(buf, sizeof(buf), "%sart\\%s\\%s",
-                         _cd_path_base, desc->name, name);
+                    _cd_path_base, desc->name, name);
                 return buf;
             }
         }
