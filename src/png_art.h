@@ -6,14 +6,14 @@ namespace fallout {
 // Metadata for a PNG-based art asset. All fields are optional; unset
 // fields fall back to inherited vanilla metadata or sensible defaults.
 struct PngArtMeta {
-    int  fps;
-    int  actionFrame;
-    int  rotations;
-    int  frames;
-    int  frameWidth;
-    int  frameHeight;
-    int  offsetX;
-    int  offsetY;
+    int fps;
+    int actionFrame;
+    int rotations;
+    int frames;
+    int frameWidth;
+    int frameHeight;
+    int offsetX;
+    int offsetY;
     bool hasFps;
     bool hasActionFrame;
     bool hasRotations;
@@ -32,12 +32,12 @@ int pngParseMetaTokens(const char* tokens, PngArtMeta* meta);
 // Returns the exact buffer size needed by pngReadArt.
 // If inheritFromPath is non-null, metadata is read from that FRM.
 int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
-                  const char* inheritFromPath, int* outSize);
+    const char* inheritFromPath, int* outSize);
 
 // Writes an Art structure into `data`. `dataSize` must be at least
 // the value reported by pngGetArtSize.
 int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
-               const PngArtMeta* meta, const char* inheritFromPath);
+    const PngArtMeta* meta, const char* inheritFromPath);
 
 } // namespace fallout
 

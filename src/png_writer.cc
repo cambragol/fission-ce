@@ -12,12 +12,12 @@ static void pngWriteU32BE(unsigned char* buf, unsigned int v)
 {
     buf[0] = (unsigned char)((v >> 24) & 0xFF);
     buf[1] = (unsigned char)((v >> 16) & 0xFF);
-    buf[2] = (unsigned char)((v >>  8) & 0xFF);
-    buf[3] = (unsigned char)((v      ) & 0xFF);
+    buf[2] = (unsigned char)((v >> 8) & 0xFF);
+    buf[3] = (unsigned char)((v) & 0xFF);
 }
 
 static void pngWriteChunk(FILE* f, const char* type,
-                          const unsigned char* data, unsigned int len)
+    const unsigned char* data, unsigned int len)
 {
     unsigned char header[8];
     pngWriteU32BE(header, len);
@@ -39,9 +39,9 @@ static void pngWriteChunk(FILE* f, const char* type,
 }
 
 bool pngWriteIndexed(const char* path, int width, int height,
-                     const unsigned char* pixels,
-                     const unsigned char* palette,
-                     int transparentIndex)
+    const unsigned char* pixels,
+    const unsigned char* palette,
+    int transparentIndex)
 {
     if (path == nullptr || width <= 0 || height <= 0
         || pixels == nullptr || palette == nullptr) {
@@ -61,8 +61,8 @@ bool pngWriteIndexed(const char* path, int width, int height,
     unsigned char ihdr[13];
     pngWriteU32BE(ihdr, (unsigned int)width);
     pngWriteU32BE(ihdr + 4, (unsigned int)height);
-    ihdr[8]  = 8; // bit depth
-    ihdr[9]  = 3; // color type: indexed
+    ihdr[8] = 8; // bit depth
+    ihdr[9] = 3; // color type: indexed
     ihdr[10] = 0; // compression method
     ihdr[11] = 0; // filter method
     ihdr[12] = 0; // interlace method

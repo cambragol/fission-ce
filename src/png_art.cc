@@ -48,19 +48,23 @@ int pngParseMetaTokens(const char* tokens, PngArtMeta* meta)
 
     const char* p = tokens;
     while (*p) {
-        while (*p && (isspace((unsigned char)*p) || *p == ',')) p++;
+        while (*p && (isspace((unsigned char)*p) || *p == ','))
+            p++;
         if (!*p) break;
 
         const char* keyStart = p;
-        while (*p && *p != '=' && !isspace((unsigned char)*p) && *p != ',') p++;
+        while (*p && *p != '=' && !isspace((unsigned char)*p) && *p != ',')
+            p++;
         size_t keyLen = (size_t)(p - keyStart);
         if (*p != '=') {
-            while (*p && !isspace((unsigned char)*p) && *p != ',') p++;
+            while (*p && !isspace((unsigned char)*p) && *p != ',')
+                p++;
             continue;
         }
         p++;
         const char* valStart = p;
-        while (*p && !isspace((unsigned char)*p) && *p != ',') p++;
+        while (*p && !isspace((unsigned char)*p) && *p != ',')
+            p++;
         size_t valLen = (size_t)(p - valStart);
 
         char key[16] = { 0 };
@@ -71,14 +75,39 @@ int pngParseMetaTokens(const char* tokens, PngArtMeta* meta)
         memcpy(val, valStart, valLen);
 
         int v;
-        if      (strcmp(key, "fps")    == 0 && pngParseInt(val, &v)) { meta->fps = v;         meta->hasFps = true;         meta->hasAnyMeta = true; }
-        else if (strcmp(key, "action") == 0 && pngParseInt(val, &v)) { meta->actionFrame = v; meta->hasActionFrame = true; meta->hasAnyMeta = true; }
-        else if (strcmp(key, "rot")    == 0 && pngParseInt(val, &v)) { meta->rotations = v;   meta->hasRotations = true;   meta->hasAnyMeta = true; }
-        else if (strcmp(key, "frames") == 0 && pngParseInt(val, &v)) { meta->frames = v;      meta->hasFrames = true;      meta->hasAnyMeta = true; }
-        else if (strcmp(key, "fw")     == 0 && pngParseInt(val, &v)) { meta->frameWidth = v;  meta->hasFrameSize = true;   meta->hasAnyMeta = true; }
-        else if (strcmp(key, "fh")     == 0 && pngParseInt(val, &v)) { meta->frameHeight = v; meta->hasFrameSize = true;   meta->hasAnyMeta = true; }
-        else if (strcmp(key, "ox")     == 0 && pngParseInt(val, &v)) { meta->offsetX = v;     meta->hasOffset = true;      meta->hasAnyMeta = true; }
-        else if (strcmp(key, "oy")     == 0 && pngParseInt(val, &v)) { meta->offsetY = v;     meta->hasOffset = true;      meta->hasAnyMeta = true; }
+        if (strcmp(key, "fps") == 0 && pngParseInt(val, &v)) {
+            meta->fps = v;
+            meta->hasFps = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "action") == 0 && pngParseInt(val, &v)) {
+            meta->actionFrame = v;
+            meta->hasActionFrame = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "rot") == 0 && pngParseInt(val, &v)) {
+            meta->rotations = v;
+            meta->hasRotations = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "frames") == 0 && pngParseInt(val, &v)) {
+            meta->frames = v;
+            meta->hasFrames = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "fw") == 0 && pngParseInt(val, &v)) {
+            meta->frameWidth = v;
+            meta->hasFrameSize = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "fh") == 0 && pngParseInt(val, &v)) {
+            meta->frameHeight = v;
+            meta->hasFrameSize = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "ox") == 0 && pngParseInt(val, &v)) {
+            meta->offsetX = v;
+            meta->hasOffset = true;
+            meta->hasAnyMeta = true;
+        } else if (strcmp(key, "oy") == 0 && pngParseInt(val, &v)) {
+            meta->offsetY = v;
+            meta->hasOffset = true;
+            meta->hasAnyMeta = true;
+        }
         // Unknown tokens are silently ignored.
     }
     return 0;
@@ -118,15 +147,7 @@ static bool pngReadFrmHeader(const char* path, InheritedFrmInfo* info)
     int dataOffsets[ROTATION_COUNT] = { 0 };
     int dataSize = 0;
 
-    bool ok =
-        fileReadInt32(stream, &field0) != -1 &&
-        fileReadInt16(stream, &fps) != -1 &&
-        fileReadInt16(stream, &action) != -1 &&
-        fileReadInt16(stream, &frameCount) != -1 &&
-        fileReadInt16List(stream, xOffsets, ROTATION_COUNT) != -1 &&
-        fileReadInt16List(stream, yOffsets, ROTATION_COUNT) != -1 &&
-        fileReadInt32List(stream, dataOffsets, ROTATION_COUNT) != -1 &&
-        fileReadInt32(stream, &dataSize) != -1;
+    bool ok = fileReadInt32(stream, &field0) != -1 && fileReadInt16(stream, &fps) != -1 && fileReadInt16(stream, &action) != -1 && fileReadInt16(stream, &frameCount) != -1 && fileReadInt16List(stream, xOffsets, ROTATION_COUNT) != -1 && fileReadInt16List(stream, yOffsets, ROTATION_COUNT) != -1 && fileReadInt32List(stream, dataOffsets, ROTATION_COUNT) != -1 && fileReadInt32(stream, &dataSize) != -1;
 
     if (!ok) {
         fileClose(stream);
@@ -161,7 +182,8 @@ static bool pngReadFrmHeader(const char* path, InheritedFrmInfo* info)
     fileSeek(stream, kFrmHeaderBytes, SEEK_SET);
 
     int maxFrames = (frameCount < MAX_INHERITED_FRAMES)
-                    ? frameCount : MAX_INHERITED_FRAMES;
+        ? frameCount
+        : MAX_INHERITED_FRAMES;
 
     for (int rot = 0; rot < ROTATION_COUNT; rot++) {
         if (rot > 0 && dataOffsets[rot] == dataOffsets[rot - 1]) {
@@ -203,10 +225,10 @@ static bool pngReadFrmHeader(const char* path, InheritedFrmInfo* info)
 }
 
 static bool pngResolveLayout(int pngW, int pngH,
-                             const PngArtMeta* meta,
-                             const InheritedFrmInfo* frm,
-                             int* outRotations, int* outFrames,
-                             int* outFrameW, int* outFrameH)
+    const PngArtMeta* meta,
+    const InheritedFrmInfo* frm,
+    int* outRotations, int* outFrames,
+    int* outFrameW, int* outFrameH)
 {
     int rotations = 1;
     int frames = 1;
@@ -228,7 +250,7 @@ static bool pngResolveLayout(int pngW, int pngH,
 
     // frame size: meta > derived from grid
     if (meta && meta->hasFrameSize) {
-        if (meta->frameWidth  > 0) frameW = meta->frameWidth;
+        if (meta->frameWidth > 0) frameW = meta->frameWidth;
         if (meta->frameHeight > 0) frameH = meta->frameHeight;
     }
     if (frameW <= 0 || frameH <= 0) {
@@ -252,9 +274,9 @@ static bool pngResolveLayout(int pngW, int pngH,
     if (frameH * rotations != pngH) return false;
 
     *outRotations = rotations;
-    *outFrames    = frames;
-    *outFrameW    = frameW;
-    *outFrameH    = frameH;
+    *outFrames = frames;
+    *outFrameW = frameW;
+    *outFrameH = frameH;
     return true;
 }
 
@@ -263,8 +285,8 @@ static bool pngResolveLayout(int pngW, int pngH,
 // and pngReadArt call this so the size reported to the cache and the size
 // actually written can never drift apart.
 static int pngComputeArtBufferSize(int rotations, int frames,
-                                   int frameW, int frameH,
-                                   const InheritedFrmInfo* frm)
+    int frameW, int frameH,
+    const InheritedFrmInfo* frm)
 {
     int total = sizeof(Art);
 
@@ -315,7 +337,7 @@ static unsigned char* pngSlurpGameFile(const char* path, int* outSize)
     if (buf == nullptr) {
         fileClose(stream);
         debugPrint("pngSlurpGameFile: out of memory for %s (%d bytes)\n",
-                   path, size);
+            path, size);
         return nullptr;
     }
 
@@ -344,15 +366,15 @@ static int pngInfoFromGameFile(const char* path, int* w, int* h, int* channels)
     internal_free(buf);
     if (!ok) {
         debugPrint("pngInfoFromGameFile: stbi_info_from_memory failed for %s: %s\n",
-                   path, stbi_failure_reason());
+            path, stbi_failure_reason());
     }
     return ok;
 }
 
 // stbi_load variant that reads through the game's file system.
 static unsigned char* pngLoadFromGameFile(const char* path,
-                                          int* w, int* h, int* channels,
-                                          int reqComp)
+    int* w, int* h, int* channels,
+    int reqComp)
 {
     int size = 0;
     unsigned char* buf = pngSlurpGameFile(path, &size);
@@ -360,17 +382,17 @@ static unsigned char* pngLoadFromGameFile(const char* path,
         return nullptr;
     }
     unsigned char* pixels = stbi_load_from_memory(buf, size,
-                                                  w, h, channels, reqComp);
+        w, h, channels, reqComp);
     internal_free(buf);
     if (pixels == nullptr) {
         debugPrint("pngLoadFromGameFile: stbi_load_from_memory failed for %s: %s\n",
-                   path, stbi_failure_reason());
+            path, stbi_failure_reason());
     }
     return pixels;
 }
 
 int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
-                  const char* inheritFromPath, int* outSize)
+    const char* inheritFromPath, int* outSize)
 {
     int w = 0, h = 0, channels = 0;
     if (pngInfoFromGameFile(pngPath, &w, &h, &channels) != 1) {
@@ -385,18 +407,18 @@ int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
 
     int rotations, frames, frameW, frameH;
     if (!pngResolveLayout(w, h, meta, frm.valid ? &frm : nullptr,
-                          &rotations, &frames, &frameW, &frameH)) {
+            &rotations, &frames, &frameW, &frameH)) {
         debugPrint("pngGetArtSize: bad layout for %s (%dx%d)\n", pngPath, w, h);
         return -1;
     }
 
     *outSize = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
-                                       frm.valid ? &frm : nullptr);
+        frm.valid ? &frm : nullptr);
     return 0;
 }
 
 int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
-               const PngArtMeta* meta, const char* inheritFromPath)
+    const PngArtMeta* meta, const char* inheritFromPath)
 {
     int w = 0, h = 0, channels = 0;
     unsigned char* pixels = pngLoadFromGameFile(pngPath, &w, &h, &channels, 4);
@@ -412,13 +434,13 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
 
     int rotations, frames, frameW, frameH;
     if (!pngResolveLayout(w, h, meta, frm.valid ? &frm : nullptr,
-                          &rotations, &frames, &frameW, &frameH)) {
+            &rotations, &frames, &frameW, &frameH)) {
         stbi_image_free(pixels);
         return -1;
     }
 
     int total = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
-                                        frm.valid ? &frm : nullptr);
+        frm.valid ? &frm : nullptr);
     if (total > dataSize) {
         debugPrint("pngReadArt: buffer too small (%d < %d)\n", dataSize, total);
         stbi_image_free(pixels);
@@ -493,11 +515,11 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
             int framePad = pngPadForSize(origSize);
 
             ArtFrame* frame = (ArtFrame*)(data + sizeof(Art) + writeOffset);
-            frame->width  = origW;
+            frame->width = origW;
             frame->height = origH;
-            frame->size   = origSize;
-            frame->x      = origX;
-            frame->y      = origY;
+            frame->size = origSize;
+            frame->x = origX;
+            frame->y = origY;
 
             unsigned char* dst = (unsigned char*)frame + sizeof(ArtFrame);
 
@@ -530,7 +552,7 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
     }
 
     art->dataSize = dataBytes;
-    
+
     stbi_image_free(pixels);
     return 0;
 }
