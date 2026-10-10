@@ -1771,14 +1771,14 @@ static void artEnsureDirRecursive(const char* path)
             tmp[i] = '\0';
             struct stat st;
             if (stat(tmp, &st) != 0) {
-                mkdir(tmp, 0755);
+                compat_mkdir(tmp);
             }
             tmp[i] = saved;
         }
     }
     struct stat st;
     if (stat(tmp, &st) != 0) {
-        mkdir(tmp, 0755);
+        compat_mkdir(tmp);
     }
 }
 
