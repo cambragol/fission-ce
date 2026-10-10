@@ -17,6 +17,80 @@
 
 namespace fallout {
 
+// Some art (endgame slides, death screens, help screen) ships with a
+// sibling .pal file that replaces the global color.pal for that asset.
+// The engine loads it at runtime; we need to do the same at export time
+// (so the PNG's PLTE reflects the real colors) and at load time (so the
+// RGB pixels round-trip back to the correct indices).
+
+static const int kPaletteRgbSize = 768;    // 256 * 3
+static const int kPaletteTableSize = 32768; // 2^15
+
+// Given "art\intrface\end001.frm" (or with forward slashes), writes
+// "art\intrface\end001.pal". Returns false if the input doesn't end in
+// ".frm" or the output would overflow.
+static bool pngDerivePalettePath(const char* frmPath,
+                                 char* outPath, size_t outSize)
+{
+    if (frmPath == nullptr || outPath == nullptr || outSize < 5) {
+        return false;
+    }
+
+    size_t len = strlen(frmPath);
+    if (len < 4
+        || compat_stricmp(frmPath + len - 4, ".frm") != 0) {
+        return false;
+    }
+
+    if (len + 1 > outSize) {
+        return false;
+    }
+
+    memcpy(outPath, frmPath, len - 4);
+    memcpy(outPath + len - 4, ".pal", 5); // includes NUL
+    return true;
+}
+
+bool pngLoadSiblingPalette(const char* frmPath,
+                           unsigned char* rgbOut,
+                           unsigned char* tableOut)
+{
+    if (frmPath == nullptr) {
+        return false;
+    }
+
+    char palPath[COMPAT_MAX_PATH];
+    if (!pngDerivePalettePath(frmPath, palPath, sizeof(palPath))) {
+        return false;
+    }
+
+    File* stream = fileOpen(palPath, "rb");
+    if (stream == nullptr) {
+        return false;
+    }
+
+    bool ok = true;
+
+    if (rgbOut != nullptr) {
+        if (fileRead(rgbOut, 1, kPaletteRgbSize, stream) != kPaletteRgbSize) {
+            ok = false;
+        }
+    } else {
+        if (fileSeek(stream, kPaletteRgbSize, SEEK_SET) != 0) {
+            ok = false;
+        }
+    }
+
+    if (ok && tableOut != nullptr) {
+        if (fileRead(tableOut, 1, kPaletteTableSize, stream) != kPaletteTableSize) {
+            ok = false;
+        }
+    }
+
+    fileClose(stream);
+    return ok;
+}
+
 static int pngPadForSize(int size)
 {
     return (sizeof(int) - size % sizeof(int)) % sizeof(int);
@@ -418,7 +492,7 @@ int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
 }
 
 int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
-    const PngArtMeta* meta, const char* inheritFromPath)
+               const PngArtMeta* meta, const char* inheritFromPath)
 {
     int w = 0, h = 0, channels = 0;
     unsigned char* pixels = pngLoadFromGameFile(pngPath, &w, &h, &channels, 4);
@@ -434,13 +508,13 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
 
     int rotations, frames, frameW, frameH;
     if (!pngResolveLayout(w, h, meta, frm.valid ? &frm : nullptr,
-            &rotations, &frames, &frameW, &frameH)) {
+                          &rotations, &frames, &frameW, &frameH)) {
         stbi_image_free(pixels);
         return -1;
     }
 
     int total = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
-        frm.valid ? &frm : nullptr);
+                                        frm.valid ? &frm : nullptr);
     if (total > dataSize) {
         debugPrint("pngReadArt: buffer too small (%d < %d)\n", dataSize, total);
         stbi_image_free(pixels);
@@ -461,6 +535,19 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
     if (meta && meta->hasOffset) {
         offsetX = meta->offsetX;
         offsetY = meta->offsetY;
+    }
+
+    // Local palette
+    // Some art (endgame slides, death screens, help screen) has a sibling
+    // .pal that replaces color.pal for that asset. If we don't use it here,
+    // the recovered indices will be wrong. Load it once, fall back to the
+    // global table if no sibling .pal exists.
+    unsigned char localColorTable[kPaletteTableSize];
+    const unsigned char* colorTable = _colorTable;
+    if (inheritFromPath != nullptr
+        && pngLoadSiblingPalette(inheritFromPath, nullptr, localColorTable)) {
+        colorTable = localColorTable;
+        debugPrint("pngReadArt: using local palette for %s\n", inheritFromPath);
     }
 
     // Write Art header
@@ -492,10 +579,6 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
         art->dataOffsets[rot] = writeOffset;
 
         for (int f = 0; f < frames; f++) {
-            // Prefer the FRM's original per-frame dimensions. This makes
-            // the in-memory layout byte-identical to what the FRM would
-            // produce, so the renderer anchors every frame the same way
-            // it would anchor the vanilla FRM.
             int origW = frameW;
             int origH = frameH;
             int origX = 0;
@@ -515,11 +598,11 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
             int framePad = pngPadForSize(origSize);
 
             ArtFrame* frame = (ArtFrame*)(data + sizeof(Art) + writeOffset);
-            frame->width = origW;
+            frame->width  = origW;
             frame->height = origH;
-            frame->size = origSize;
-            frame->x = origX;
-            frame->y = origY;
+            frame->size   = origSize;
+            frame->x      = origX;
+            frame->y      = origY;
 
             unsigned char* dst = (unsigned char*)frame + sizeof(ArtFrame);
 
@@ -541,7 +624,7 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
                         dstRow[x] = 0;
                     } else {
                         int rgb15 = ((r8 >> 3) << 10) | ((g8 >> 3) << 5) | (b8 >> 3);
-                        dstRow[x] = _colorTable[rgb15];
+                        dstRow[x] = colorTable[rgb15];
                     }
                 }
             }

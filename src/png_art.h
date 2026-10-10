@@ -39,6 +39,14 @@ int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
 int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
     const PngArtMeta* meta, const char* inheritFromPath);
 
+// Loads the sibling .pal for an FRM path if one exists. On success, fills
+// `rgbOut` with 768 bytes (6-bit per channel) and/or `tableOut` with
+// 32768 bytes (15-bit RGB -> palette index lookup). Caller may pass nullptr
+// for either. Returns true on success.
+bool pngLoadSiblingPalette(const char* frmPath,
+                           unsigned char* rgbOut,
+                           unsigned char* tableOut);
+
 } // namespace fallout
 
 #endif
