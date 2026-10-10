@@ -1863,7 +1863,7 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
     }
     if (frameW > 4096 || frameH > 4096) {
         debugPrint("artExport: refusing absurd frame size %dx%d in %s\n",
-                   frameW, frameH, frmPath);
+            frameW, frameH, frmPath);
         internal_free(art);
         return;
     }
@@ -1914,9 +1914,9 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
 
     if (pngWriteIndexed(outPath, sheetW, sheetH, sheet, paletteForExport, 0)) {
         debugPrint("artExport: %s (%dx%d, %d frame%s, %d rotation%s)\n",
-                   outPath, sheetW, sheetH,
-                   frames, frames == 1 ? "" : "s",
-                   rotations, rotations == 1 ? "" : "s");
+            outPath, sheetW, sheetH,
+            frames, frames == 1 ? "" : "s",
+            rotations, rotations == 1 ? "" : "s");
     } else {
         debugPrint("artExport: FAILED %s\n", outPath);
     }

@@ -23,14 +23,14 @@ namespace fallout {
 // (so the PNG's PLTE reflects the real colors) and at load time (so the
 // RGB pixels round-trip back to the correct indices).
 
-static const int kPaletteRgbSize = 768;    // 256 * 3
+static const int kPaletteRgbSize = 768; // 256 * 3
 static const int kPaletteTableSize = 32768; // 2^15
 
 // Given "art\intrface\end001.frm" (or with forward slashes), writes
 // "art\intrface\end001.pal". Returns false if the input doesn't end in
 // ".frm" or the output would overflow.
 static bool pngDerivePalettePath(const char* frmPath,
-                                 char* outPath, size_t outSize)
+    char* outPath, size_t outSize)
 {
     if (frmPath == nullptr || outPath == nullptr || outSize < 5) {
         return false;
@@ -52,8 +52,8 @@ static bool pngDerivePalettePath(const char* frmPath,
 }
 
 bool pngLoadSiblingPalette(const char* frmPath,
-                           unsigned char* rgbOut,
-                           unsigned char* tableOut)
+    unsigned char* rgbOut,
+    unsigned char* tableOut)
 {
     if (frmPath == nullptr) {
         return false;
@@ -492,7 +492,7 @@ int pngGetArtSize(const char* pngPath, const PngArtMeta* meta,
 }
 
 int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
-               const PngArtMeta* meta, const char* inheritFromPath)
+    const PngArtMeta* meta, const char* inheritFromPath)
 {
     int w = 0, h = 0, channels = 0;
     unsigned char* pixels = pngLoadFromGameFile(pngPath, &w, &h, &channels, 4);
@@ -508,13 +508,13 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
 
     int rotations, frames, frameW, frameH;
     if (!pngResolveLayout(w, h, meta, frm.valid ? &frm : nullptr,
-                          &rotations, &frames, &frameW, &frameH)) {
+            &rotations, &frames, &frameW, &frameH)) {
         stbi_image_free(pixels);
         return -1;
     }
 
     int total = pngComputeArtBufferSize(rotations, frames, frameW, frameH,
-                                        frm.valid ? &frm : nullptr);
+        frm.valid ? &frm : nullptr);
     if (total > dataSize) {
         debugPrint("pngReadArt: buffer too small (%d < %d)\n", dataSize, total);
         stbi_image_free(pixels);
@@ -598,11 +598,11 @@ int pngReadArt(const char* pngPath, unsigned char* data, int dataSize,
             int framePad = pngPadForSize(origSize);
 
             ArtFrame* frame = (ArtFrame*)(data + sizeof(Art) + writeOffset);
-            frame->width  = origW;
+            frame->width = origW;
             frame->height = origH;
-            frame->size   = origSize;
-            frame->x      = origX;
-            frame->y      = origY;
+            frame->size = origSize;
+            frame->x = origX;
+            frame->y = origY;
 
             unsigned char* dst = (unsigned char*)frame + sizeof(ArtFrame);
 
