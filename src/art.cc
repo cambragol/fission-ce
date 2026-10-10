@@ -191,6 +191,11 @@ static int* _anon_alias;
 // 0x56CAF0
 static int* gArtCritterFidShoudRunData;
 
+// A .pal file is 768 bytes of RGB (6-bit per channel) followed by a
+// 32768-byte 15-bit-to-index color table. For export we only need the
+// RGB portion.
+static const int kPaletteRgbSize = 768;
+
 // Error message for mod naming conflicts
 void showFatalError(const char* message)
 {
@@ -1858,7 +1863,7 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
     }
     if (frameW > 4096 || frameH > 4096) {
         debugPrint("artExport: refusing absurd frame size %dx%d in %s\n",
-            frameW, frameH, frmPath);
+                   frameW, frameH, frmPath);
         internal_free(art);
         return;
     }
@@ -1897,11 +1902,21 @@ static void artExportOneFrm(const char* frmPath, const char* outPath)
 
     artEnsureParentDir(outPath);
 
-    if (pngWriteIndexed(outPath, sheetW, sheetH, sheet, _cmap, 0)) {
+    // If a sibling .pal exists, use its colors for the exported PNG's
+    // PLTE chunk. Otherwise fall back to the global palette. This makes
+    // the PNG look in an editor the way the FRM looks in-game.
+    unsigned char localPaletteRgb[kPaletteRgbSize];
+    const unsigned char* paletteForExport = _cmap;
+    if (pngLoadSiblingPalette(frmPath, localPaletteRgb, nullptr)) {
+        paletteForExport = localPaletteRgb;
+        debugPrint("artExport: using local palette for %s\n", frmPath);
+    }
+
+    if (pngWriteIndexed(outPath, sheetW, sheetH, sheet, paletteForExport, 0)) {
         debugPrint("artExport: %s (%dx%d, %d frame%s, %d rotation%s)\n",
-            outPath, sheetW, sheetH,
-            frames, frames == 1 ? "" : "s",
-            rotations, rotations == 1 ? "" : "s");
+                   outPath, sheetW, sheetH,
+                   frames, frames == 1 ? "" : "s",
+                   rotations, rotations == 1 ? "" : "s");
     } else {
         debugPrint("artExport: FAILED %s\n", outPath);
     }
