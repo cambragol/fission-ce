@@ -107,6 +107,7 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_SHOW_LOAD_INFO_KEY, settings.debug.show_load_info);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_OUTPUT_MAP_DATA_INFO_KEY, settings.debug.output_map_data_info);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_WRITE_OFFSETS, settings.debug.write_offsets);
+    settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_EXPORT_PNG, settings.debug.export_png);
 
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_WIDTH, settings.graphics.game_width);
     settingsRead(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_HEIGHT, settings.graphics.game_height);
@@ -325,6 +326,7 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_SHOW_LOAD_INFO_KEY, settings.debug.show_load_info);
     settingsWrite(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_OUTPUT_MAP_DATA_INFO_KEY, settings.debug.output_map_data_info);
     settingsWrite(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_WRITE_OFFSETS, settings.debug.write_offsets);
+    settingsWrite(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_EXPORT_PNG, settings.debug.export_png);
 
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_WIDTH, settings.graphics.game_width);
     settingsWrite(GAME_CONFIG_GRAPHICS_KEY, GAME_CONFIG_GAME_HEIGHT, settings.graphics.game_height);
