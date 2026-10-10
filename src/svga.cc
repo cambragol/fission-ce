@@ -531,6 +531,14 @@ void handleWindowSizeChanged()
     // Recreate renderer
     createRenderer(newWidth, newHeight);
 
+    // The draw surface was just re-created and zeroed, so the screen is black
+    // until something repaints it. Repaint everything from the window buffers
+    // (same as the SDL_WINDOWEVENT_EXPOSED path), otherwise only the areas
+    // touched by later partial refreshes (mouse cursor, menus) reappear. iOS
+    // emits SDL_WINDOWEVENT_SIZE_CHANGED when the pointer reaches the top edge
+    // of the screen, which left the whole screen black.
+    windowRefreshAll(&_scr_size);
+
     isResizing = false;
 }
 
