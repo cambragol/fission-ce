@@ -9,8 +9,8 @@
 #include "art.h"
 #include "automap.h"
 #include "color.h"
-#include "combat_settings.h"
 #include "combat_ai.h"
+#include "combat_settings.h"
 #include "critter.h"
 #include "db.h"
 #include "debug.h"
@@ -3642,8 +3642,8 @@ static bool _check_ranged_miss(Attack* attack)
 
                     if (critter != attack->defender) {
                         int v6 = attackDetermineToHit(attack->attacker, attack->attacker->tile, critter,
-                                                    attack->defenderHitLocation, attack->hitMode, true)
-                                / gCombatSettings.rangedMissAccuracyDivisor;
+                                     attack->defenderHitLocation, attack->hitMode, true)
+                            / gCombatSettings.rangedMissAccuracyDivisor;
                         if (critterIsDead(critter)) {
                             v6 = gCombatSettings.rangedMissDeadChance;
                         }
@@ -4157,12 +4157,18 @@ static int attackComputeCriticalHit(Attack* attack)
     chance += critterGetStat(attack->attacker, STAT_BETTER_CRITICALS);
 
     int effect;
-    if (chance <= gCombatSettings.critEffectThreshold[0])      effect = 0;
-    else if (chance <= gCombatSettings.critEffectThreshold[1]) effect = 1;
-    else if (chance <= gCombatSettings.critEffectThreshold[2]) effect = 2;
-    else if (chance <= gCombatSettings.critEffectThreshold[3]) effect = 3;
-    else if (chance <= gCombatSettings.critEffectThreshold[4]) effect = 4;
-    else effect = 5;
+    if (chance <= gCombatSettings.critEffectThreshold[0])
+        effect = 0;
+    else if (chance <= gCombatSettings.critEffectThreshold[1])
+        effect = 1;
+    else if (chance <= gCombatSettings.critEffectThreshold[2])
+        effect = 2;
+    else if (chance <= gCombatSettings.critEffectThreshold[3])
+        effect = 3;
+    else if (chance <= gCombatSettings.critEffectThreshold[4])
+        effect = 4;
+    else
+        effect = 5;
 
     CriticalHitDescription* criticalHitDescription;
     if (defender == gDude) {
@@ -4249,11 +4255,16 @@ static int attackComputeCriticalFailure(Attack* attack)
     int chance = randomBetween(1, 100) - gCombatSettings.critFailureLuckPenalty * (critterGetStat(attack->attacker, STAT_LUCK) - 5);
 
     int effect;
-    if (chance <= gCombatSettings.critFailureThreshold[0])      effect = 0;
-    else if (chance <= gCombatSettings.critFailureThreshold[1]) effect = 1;
-    else if (chance <= gCombatSettings.critFailureThreshold[2]) effect = 2;
-    else if (chance <= gCombatSettings.critFailureThreshold[3]) effect = 3;
-    else effect = 4;
+    if (chance <= gCombatSettings.critFailureThreshold[0])
+        effect = 0;
+    else if (chance <= gCombatSettings.critFailureThreshold[1])
+        effect = 1;
+    else if (chance <= gCombatSettings.critFailureThreshold[2])
+        effect = 2;
+    else if (chance <= gCombatSettings.critFailureThreshold[3])
+        effect = 3;
+    else
+        effect = 4;
 
     int flags = _cf_table[criticalFailureTableIndex][effect];
     if (flags == 0) {
@@ -4275,7 +4286,7 @@ static int attackComputeCriticalFailure(Attack* attack)
 
     if ((attack->attackerFlags & DAM_HURT_SELF) != DAM_NONE) {
         attack->attackerDamage += randomBetween(gCombatSettings.critFailureSelfDamageMin,
-                                        gCombatSettings.critFailureSelfDamageMax);
+            gCombatSettings.critFailureSelfDamageMax);
     }
 
     if ((attack->attackerFlags & DAM_LOSE_TURN) != DAM_NONE) {
@@ -4501,9 +4512,12 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
             lightIntensity = 0;
         }
 
-        if (lightIntensity <= gCombatSettings.lightThreshold[0])      toHit += gCombatSettings.lightPenalty[0];
-        else if (lightIntensity <= gCombatSettings.lightThreshold[1]) toHit += gCombatSettings.lightPenalty[1];
-        else if (lightIntensity <= gCombatSettings.lightThreshold[2]) toHit += gCombatSettings.lightPenalty[2];
+        if (lightIntensity <= gCombatSettings.lightThreshold[0])
+            toHit += gCombatSettings.lightPenalty[0];
+        else if (lightIntensity <= gCombatSettings.lightThreshold[1])
+            toHit += gCombatSettings.lightPenalty[1];
+        else if (lightIntensity <= gCombatSettings.lightThreshold[2])
+            toHit += gCombatSettings.lightPenalty[2];
     }
 
     if (_gcsd != nullptr) {
