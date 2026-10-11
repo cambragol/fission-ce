@@ -9,6 +9,7 @@
 #include "animation.h"
 #include "art.h"
 #include "combat.h"
+#include "combat_settings.h"
 #include "config.h"
 #include "critter.h"
 #include "debug.h"
@@ -60,16 +61,6 @@ typedef struct PacketInfo {
 static PacketInfo* gPacketInfo = NULL; // array size MAX_PACKET_NUM
 static int gDispositionMap[MAX_PACKET_NUM][6]; // [base][disp+1] = target packet num, -1 if invalid
 static int gForwardMapInitialized = 0;
-
-static constexpr int kChemUseStimsWhenHurtLittleHpRatio = 60;
-static constexpr int kChemUseStimsWhenHurtLotsHpRatio = 30;
-static constexpr int kChemUseStimsHpRatio = 50;
-
-static constexpr int kChemUseSometimesChance = 25;
-static constexpr int kChemUseAnytimeChance = 75;
-static constexpr int kChemUseAlwaysChance = 100;
-
-static constexpr int kRandomDrugPickingArraySize = 3;
 
 typedef struct AiMessageRange {
     int start;
@@ -268,18 +259,6 @@ static const int _rmatchHurtVals[5] = {
     DAM_CRIP_LEG_LEFT | DAM_CRIP_LEG_RIGHT,
     DAM_CRIP_ARM_LEFT | DAM_CRIP_ARM_RIGHT,
     0,
-};
-
-// Hit points in percent to choose run away mode.
-//
-// 0x518138
-static const int _hp_run_away_value[6] = {
-    0,
-    25,
-    40,
-    60,
-    75,
-    100,
 };
 
 // 0x518150
@@ -1239,7 +1218,7 @@ int aiGetRunAwayMode(Object* obj)
 
     int hpRatio = 100 * ai->min_hp / critterGetStat(obj, STAT_MAXIMUM_HIT_POINTS);
     for (int index = 0; index < 6; index++) {
-        if (hpRatio >= _hp_run_away_value[index]) {
+        if (hpRatio >= gCombatSettings.runAwayHp[index]) {
             runAwayMode = index;
         }
     }
@@ -1298,7 +1277,7 @@ int aiSetRunAwayMode(Object* obj, int runAwayMode)
     ai->run_away_mode = runAwayMode;
 
     int maximumHp = critterGetStat(obj, STAT_MAXIMUM_HIT_POINTS);
-    ai->min_hp = maximumHp - maximumHp * _hp_run_away_value[runAwayMode] / 100;
+    ai->min_hp = maximumHp - maximumHp * gCombatSettings.runAwayHp[runAwayMode] / 100;
 
     int currentHp = critterGetStat(obj, STAT_CURRENT_HIT_POINTS);
     const char* name = critterGetName(obj);
@@ -1454,35 +1433,35 @@ static int _ai_check_drugs(Object* critter)
             return 0;
         }
 
-        int hpRatio = kChemUseStimsHpRatio;
+        int hpRatio = gCombatSettings.chemStimsHp;
         int chemUseChance = 0;
         switch (ai->chem_use) {
         case CHEM_USE_CLEAN:
             return 0;
         case CHEM_USE_STIMS_WHEN_HURT_LITTLE:
-            hpRatio = kChemUseStimsWhenHurtLittleHpRatio;
+            hpRatio = gCombatSettings.chemStimsHurtLittle;
             break;
         case CHEM_USE_STIMS_WHEN_HURT_LOTS:
-            hpRatio = kChemUseStimsWhenHurtLotsHpRatio;
+            hpRatio = gCombatSettings.chemStimsHurtLots;
             break;
         case CHEM_USE_SOMETIMES:
             if ((_combatNumTurns % 3) == 0) {
-                chemUseChance = kChemUseSometimesChance;
+                chemUseChance = gCombatSettings.chemSometimesChance;
             }
             break;
         case CHEM_USE_ANYTIME:
             if ((_combatNumTurns % 3) == 0) {
-                chemUseChance = kChemUseAnytimeChance;
+                chemUseChance = gCombatSettings.chemAnytimeChance;
             }
             break;
         case CHEM_USE_ALWAYS:
-            chemUseChance = kChemUseAlwaysChance;
+            chemUseChance = gCombatSettings.chemAlwaysChance;
             break;
         }
 
         int minHp = critterGetStat(critter, STAT_MAXIMUM_HIT_POINTS) * hpRatio / 100;
         int inventoryItemIndex = -1;
-        while (critterGetStat(critter, STAT_CURRENT_HIT_POINTS) < minHp && critter->data.critter.combat.ap >= 2) {
+        while (critterGetStat(critter, STAT_CURRENT_HIT_POINTS) < minHp && critter->data.critter.combat.ap >= gCombatSettings.chemApCost) {
             Object* drug = inventoryFindByType(critter, ITEM_TYPE_DRUG, &inventoryItemIndex);
             if (drug == nullptr) {
                 searchCompleted = true;
@@ -1501,10 +1480,10 @@ static int _ai_check_drugs(Object* critter)
                         drugUsed = true;
                     }
 
-                    if (critter->data.critter.combat.ap < 2) {
+                    if (critter->data.critter.combat.ap < gCombatSettings.chemApCost) {
                         critter->data.critter.combat.ap = 0;
                     } else {
-                        critter->data.critter.combat.ap -= 2;
+                        critter->data.critter.combat.ap -= gCombatSettings.chemApCost;
                     }
 
                     inventoryItemIndex = -1;
@@ -1518,10 +1497,12 @@ static int _ai_check_drugs(Object* critter)
                 inventoryItemIndex = -1;
                 searchCompleted = false;
 
-                Object* primaryDrugs[kRandomDrugPickingArraySize];
+                // Fixed-size backing store; the usable count is gCombatSettings.chemRandomDrugPicks,
+                // which the loader clamps to [1..32].
+                Object* primaryDrugs[32];
                 int primaryDrugsCount = 0;
 
-                Object* secondaryDrugs[kRandomDrugPickingArraySize];
+                Object* secondaryDrugs[32];
                 int secondaryDrugsCount = 0;
 
                 // Collect drugs into buckets - primary desires and everything
@@ -1556,11 +1537,11 @@ static int _ai_check_drugs(Object* critter)
                         }
 
                         if (isPrimary) {
-                            if (primaryDrugsCount < kRandomDrugPickingArraySize) {
+                            if (primaryDrugsCount < gCombatSettings.chemRandomDrugPicks) {
                                 primaryDrugs[primaryDrugsCount++] = drug;
                             }
                         } else {
-                            if (secondaryDrugsCount < kRandomDrugPickingArraySize) {
+                            if (secondaryDrugsCount < gCombatSettings.chemRandomDrugPicks) {
                                 secondaryDrugs[secondaryDrugsCount++] = drug;
                             }
                         }
@@ -1569,7 +1550,7 @@ static int _ai_check_drugs(Object* critter)
 
                 // Consume drugs one-by-one in random order with primary desires
                 // first.
-                while (critter->data.critter.combat.ap >= 2) {
+                while (critter->data.critter.combat.ap >= gCombatSettings.chemApCost) {
                     Object** availableDrugs;
                     int* availableDrugsCountPtr;
 
@@ -1599,13 +1580,13 @@ static int _ai_check_drugs(Object* critter)
                             drugCount += 1;
                         }
 
-                        if (critter->data.critter.combat.ap < 2) {
+                        if (critter->data.critter.combat.ap < gCombatSettings.chemApCost) {
                             critter->data.critter.combat.ap = 0;
                         } else {
-                            critter->data.critter.combat.ap -= 2;
+                            critter->data.critter.combat.ap -= gCombatSettings.chemApCost;
                         }
 
-                        if (ai->chem_use == CHEM_USE_SOMETIMES || (ai->chem_use == CHEM_USE_ANYTIME && drugCount >= 2)) {
+                        if (ai->chem_use == CHEM_USE_SOMETIMES || (ai->chem_use == CHEM_USE_ANYTIME && drugCount >= gCombatSettings.chemApCost)) {
                             break;
                         }
                     }
@@ -2431,7 +2412,7 @@ static Object* _ai_best_weapon(Object* attacker, Object* weapon1, Object* weapon
             return nullptr;
         }
 
-        if (abs(avgDamage2 - avgDamage1) <= 5) {
+        if (abs(avgDamage2 - avgDamage1) <= gCombatSettings.aiBestWeaponDamageDiff) {
             return itemGetCost(weapon2) > itemGetCost(weapon1) ? weapon2 : weapon1;
         }
 
@@ -2447,7 +2428,7 @@ static Object* _ai_best_weapon(Object* attacker, Object* weapon1, Object* weapon
     }
 
     if ((ai->best_weapon == -1 || ai->best_weapon >= BEST_WEAPON_UNARMED_OVER_THROW)
-        && abs(avgDamage2 - avgDamage1) > 5) {
+    && abs(avgDamage2 - avgDamage1) > gCombatSettings.aiBestWeaponDamageDiff) {
         return avgDamage2 > avgDamage1 ? weapon2 : weapon1;
     }
 
@@ -2640,16 +2621,29 @@ static bool aiCanUseItem(Object* critter, Object* item)
     // Sfall has similar fix implemented differently in `ai_check_drugs`. It
     // does so after healing item is returned from `ai_search_environ`, so it
     // does not a have a chance to look for other items.
-    int hpRatio = kChemUseStimsHpRatio;
-    switch (aiGetChemUse(critter)) {
+    int hpRatio = gCombatSettings.chemStimsHp;
+    int chemUseChance = 0;
+    switch (ai->chem_use) {
     case CHEM_USE_CLEAN:
-        hpRatio = 0;
-        break;
+        return 0;
     case CHEM_USE_STIMS_WHEN_HURT_LITTLE:
-        hpRatio = kChemUseStimsWhenHurtLittleHpRatio;
+        hpRatio = gCombatSettings.chemStimsHurtLittle;
         break;
     case CHEM_USE_STIMS_WHEN_HURT_LOTS:
-        hpRatio = kChemUseStimsWhenHurtLotsHpRatio;
+        hpRatio = gCombatSettings.chemStimsHurtLots;
+        break;
+    case CHEM_USE_SOMETIMES:
+        if ((_combatNumTurns % 3) == 0) {
+            chemUseChance = gCombatSettings.chemSometimesChance;
+        }
+        break;
+    case CHEM_USE_ANYTIME:
+        if ((_combatNumTurns % 3) == 0) {
+            chemUseChance = gCombatSettings.chemAnytimeChance;
+        }
+        break;
+    case CHEM_USE_ALWAYS:
+        chemUseChance = gCombatSettings.chemAlwaysChance;
         break;
     }
 
@@ -2680,7 +2674,7 @@ static Object* _ai_search_environ(Object* critter, int itemType)
     // NOTE: Uninline.
     _ai_sort_list_distance(objects, count, critter);
 
-    int perception = critterGetStat(critter, STAT_PERCEPTION) + 5;
+    int perception = critterGetStat(critter, STAT_PERCEPTION) + gCombatSettings.aiSearchPerceptionBonus;
     Object* item2 = critterGetItem2(critter);
 
     Object* foundItem = nullptr;
@@ -2783,26 +2777,27 @@ static int _ai_pick_hit_mode(Object* attacker, Object* weapon, Object* defender)
             }
             break;
         case AREA_ATTACK_MODE_BE_SURE:
-            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= 85
+            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= gCombatSettings.areaAttackToHitSure
                 && !_combat_safety_invalidate_weapon(attacker, weapon, 3, defender, nullptr)) {
                 useSecondaryMode = true;
             }
             break;
         case AREA_ATTACK_MODE_BE_CAREFUL:
-            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= 50
+            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= gCombatSettings.areaAttackToHitCareful
                 && !_combat_safety_invalidate_weapon(attacker, weapon, 3, defender, nullptr)) {
                 useSecondaryMode = true;
             }
             break;
         case AREA_ATTACK_MODE_BE_ABSOLUTELY_SURE:
-            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= 95
+            if (_determine_to_hit(attacker, defender, HIT_LOCATION_TORSO, HIT_MODE_RIGHT_WEAPON_SECONDARY) >= gCombatSettings.areaAttackToHitAbsolutelySure
                 && !_combat_safety_invalidate_weapon(attacker, weapon, 3, defender, nullptr)) {
                 useSecondaryMode = true;
             }
             break;
         }
     } else {
-        if (intelligence < 6 || objectGetDistanceBetween(attacker, defender) < 10) {
+        if (intelligence < gCombatSettings.secondaryModeInt
+        || objectGetDistanceBetween(attacker, defender) < gCombatSettings.secondaryModeDistance) {
             if (randomBetween(1, ai->secondary_freq) == 1) {
                 useSecondaryMode = true;
             }
@@ -2852,18 +2847,19 @@ static int _ai_move_steps_closer(Object* critter, Object* target, int actionPoin
         return -1;
     }
 
+    int stayClose = gCombatSettings.partyMemberDistances[0];
     if (distance == DISTANCE_STAY_CLOSE) {
         if (target != gDude) {
             int currentDistance = objectGetDistanceBetween(critter, gDude);
-            if (currentDistance > 5
-                && objectGetDistanceBetween(target, gDude) > 5
-                && currentDistance + actionPoints > 5) {
+            if (currentDistance > stayClose
+                && objectGetDistanceBetween(target, gDude) > stayClose
+                && currentDistance + actionPoints > stayClose) {
                 return -1;
             }
         }
     }
 
-    if (objectGetDistanceBetween(critter, target) <= 1) {
+    if (objectGetDistanceBetween(critter, target) <= gCombatSettings.minMoveDistance) {
         return -1;
     }
 
@@ -2911,7 +2907,8 @@ static int _ai_move_steps_closer(Object* critter, Object* target, int actionPoin
         _cai_retargetTileFromFriendlyFire(critter, target, &tile);
     }
 
-    if (actionPoints >= critterGetStat(critter, STAT_MAXIMUM_ACTION_POINTS) / 2 && artCritterFidShouldRun(critter->fid)) {
+    if (actionPoints >= critterGetStat(critter, STAT_MAXIMUM_ACTION_POINTS) / gCombatSettings.runApThresholdDiv
+    && artCritterFidShouldRun(critter->fid)) {
         if ((target->flags & OBJECT_MULTIHEX) != 0) {
             animationRegisterRunToObject(critter, target, actionPoints, 0);
         } else {
@@ -3044,7 +3041,7 @@ static int _cai_retargetTileFromFriendlyFireSubFunc(AiRetargetData* aiRetargetDa
             aiRetargetData->tiles[aiRetargetData->currentTileIndex] = tileGetTileInDirection(tile, (obj->rotation + 1) % ROTATION_COUNT, distance);
             aiRetargetData->tiles[aiRetargetData->currentTileIndex + 1] = tileGetTileInDirection(tile, (obj->rotation + 5) % ROTATION_COUNT, distance);
 
-            aiRetargetData->sourceIntelligence -= 2;
+            aiRetargetData->sourceIntelligence -= gCombatSettings.friendlyFireIntPenalty;
             aiRetargetData->currentTileIndex += 2;
             break;
         }
@@ -3132,13 +3129,13 @@ static int _ai_called_shot(Object* attacker, Object* defender, int hitMode)
                 int intelligenceRequired;
                 switch (settings.preferences.combat_difficulty) {
                 case COMBAT_DIFFICULTY_EASY:
-                    intelligenceRequired = 7;
+                    intelligenceRequired = gCombatSettings.calledShotIntEasy;
                     break;
                 case COMBAT_DIFFICULTY_NORMAL:
-                    intelligenceRequired = 5;
+                    intelligenceRequired = gCombatSettings.calledShotIntNormal;
                     break;
                 case COMBAT_DIFFICULTY_HARD:
-                    intelligenceRequired = 3;
+                    intelligenceRequired = gCombatSettings.calledShotIntHard;
                     break;
                 }
 
@@ -3213,7 +3210,7 @@ static int _ai_try_attack(Object* attacker, Object* defender)
     unsigned char rotations[800];
 
     Object* ammo = nullptr;
-    for (int attempt = 0; attempt < 10; attempt++) {
+    for (int attempt = 0; attempt < gCombatSettings.aiReloadAttempts; attempt++) {
         if ((combatData->results & (DAM_KNOCKED_OUT | DAM_DEAD | DAM_LOSE_TURN)) != 0) {
             break;
         }
@@ -3545,7 +3542,7 @@ static int _cai_get_min_hp(AiPacket* ai)
 
     int run_away_mode = ai->run_away_mode;
     if (run_away_mode >= 0 && run_away_mode < RUN_AWAY_MODE_COUNT) {
-        return _hp_run_away_value[run_away_mode];
+        return gCombatSettings.runAwayHp[run_away_mode];
     } else if (run_away_mode == -1) {
         return ai->min_hp;
     }
@@ -3556,15 +3553,6 @@ static int _cai_get_min_hp(AiPacket* ai)
 // 0x42B130
 void _combat_ai(Object* a1, Object* a2)
 {
-    // 0x51820C
-    static const int aiPartyMemberDistances[DISTANCE_COUNT] = {
-        5,
-        7,
-        7,
-        7,
-        50000,
-    };
-
     AiPacket* ai = aiGetPacket(a1);
     int hpRatio = _cai_get_min_hp(ai);
     if (ai->run_away_mode != -1) {
@@ -3605,7 +3593,7 @@ void _combat_ai(Object* a1, Object* a2)
         && objectGetDistanceBetween(a1, a2) > ai->max_dist) {
         Object* friendlyDead = aiInfoGetFriendlyDead(a1);
         if (friendlyDead != nullptr) {
-            _ai_move_away(a1, friendlyDead, 10);
+            _ai_move_away(a1, friendlyDead, gCombatSettings.friendlyDeadDistance);
             aiInfoSetFriendlyDead(a1, nullptr);
         } else {
             int perception = critterGetStat(a1, STAT_PERCEPTION);
@@ -3621,7 +3609,7 @@ void _combat_ai(Object* a1, Object* a2)
             if ((whoHitMe->data.critter.combat.results & DAM_DEAD) == 0 && combatData->damageLastTurn > 0) {
                 Object* friendlyDead = aiInfoGetFriendlyDead(a1);
                 if (friendlyDead != nullptr) {
-                    _ai_move_away(a1, friendlyDead, 10);
+                    _ai_move_away(a1, friendlyDead, gCombatSettings.friendlyDeadDistance);
                     aiInfoSetFriendlyDead(a1, nullptr);
                 } else {
                     debugPrint("%s: FLEEING: Somebody is shooting at me that I can't see!", critterGetName(a1));
@@ -3633,14 +3621,14 @@ void _combat_ai(Object* a1, Object* a2)
 
     Object* friendlyDead = aiInfoGetFriendlyDead(a1);
     if (friendlyDead != nullptr) {
-        _ai_move_away(a1, friendlyDead, 10);
-        if (objectGetDistanceBetween(a1, friendlyDead) >= 10) {
+        _ai_move_away(a1, friendlyDead, gCombatSettings.friendlyDeadDistance);
+        if (objectGetDistanceBetween(a1, friendlyDead) >= gCombatSettings.friendlyDeadDistance) {
             aiInfoSetFriendlyDead(a1, nullptr);
         }
     }
 
     Object* nearestTeammate;
-    int maxTeammateDistance = 5;
+    int maxTeammateDistance = gCombatSettings.maxTeammateDistance;
     if (a1->data.critter.combat.team != 0) {
         nearestTeammate = _ai_find_nearest_team_in_combat(a1, a1, 1);
     } else {
@@ -3649,7 +3637,7 @@ void _combat_ai(Object* a1, Object* a2)
             // NOTE: Uninline
             int distance = aiGetDistance(a1);
             if (distance != -1) {
-                maxTeammateDistance = aiPartyMemberDistances[distance];
+                maxTeammateDistance = gCombatSettings.partyMemberDistances[distance];
             }
         }
     }
@@ -4010,19 +3998,19 @@ bool isWithinPerception(Object* critter, Object* target)
     int perception = critterGetStat(critter, STAT_PERCEPTION);
     int sneak = skillGetValue(target, SKILL_SNEAK);
     if (_can_see(critter, target)) {
-        int maxDistance = perception * 5;
+        int maxDistance = perception * gCombatSettings.perceptionSightMult;
         if ((target->flags & OBJECT_TRANS_GLASS) != 0) {
-            maxDistance /= 2;
+            maxDistance /= gCombatSettings.transGlassDiv;
         }
 
         if (target == gDude) {
             if (dudeIsSneaking()) {
-                maxDistance /= 4;
+                maxDistance /= gCombatSettings.sneakDistanceDiv;
                 if (sneak > 120) {
-                    maxDistance -= 1;
+                    maxDistance += gCombatSettings.sneak120Bonus;
                 }
             } else if (dudeHasState(DUDE_STATE_SNEAKING)) {
-                maxDistance = maxDistance * 2 / 3;
+                maxDistance = maxDistance * gCombatSettings.sneakingStateNum / gCombatSettings.sneakingStateDen;
             }
         }
 
@@ -4033,7 +4021,7 @@ bool isWithinPerception(Object* critter, Object* target)
 
     int maxDistance;
     if (isInCombat()) {
-        maxDistance = perception * 2;
+        maxDistance = perception * gCombatSettings.perceptionCombatMult;
     } else {
         maxDistance = perception;
     }
@@ -4045,7 +4033,7 @@ bool isWithinPerception(Object* critter, Object* target)
                 maxDistance -= 1;
             }
         } else if (dudeHasState(DUDE_STATE_SNEAKING)) {
-            maxDistance = maxDistance * 2 / 3;
+            maxDistance = maxDistance * gCombatSettings.perceptionCombatMult / 3;
         }
     }
 

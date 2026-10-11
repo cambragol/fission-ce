@@ -9,6 +9,7 @@
 #include "art.h"
 #include "automap.h"
 #include "color.h"
+#include "combat_settings.h"
 #include "combat_ai.h"
 #include "critter.h"
 #include "db.h"
@@ -2030,6 +2031,7 @@ int combatInit()
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_COMBAT, &gCombatMessageList);
 
     // SFALL
+    combatSettingsInit();
     criticalsInit();
     burstModInit();
     unarmedInit();
@@ -2302,8 +2304,8 @@ static bool _combat_safety_invalidate_weapon_func(Object* attacker, Object* weap
     int damageType = weaponGetDamageType(attacker, weapon);
 
     if (damageRadius > 0) {
-        if (intelligence < 5) {
-            damageRadius -= 5 - intelligence;
+        if (intelligence < gCombatSettings.safetyIntThreshold) {
+            damageRadius -= gCombatSettings.safetyRadiusReduction * (gCombatSettings.safetyIntThreshold - intelligence);
             if (damageRadius < 0) {
                 damageRadius = 0;
             }
@@ -3639,9 +3641,11 @@ static bool _check_ranged_miss(Attack* attack)
                     }
 
                     if (critter != attack->defender) {
-                        int v6 = attackDetermineToHit(attack->attacker, attack->attacker->tile, critter, attack->defenderHitLocation, attack->hitMode, true) / 3;
+                        int v6 = attackDetermineToHit(attack->attacker, attack->attacker->tile, critter,
+                                                    attack->defenderHitLocation, attack->hitMode, true)
+                                / gCombatSettings.rangedMissAccuracyDivisor;
                         if (critterIsDead(critter)) {
-                            v6 = 5;
+                            v6 = gCombatSettings.rangedMissDeadChance;
                         }
 
                         if (randomBetween(1, 100) <= v6) {
@@ -4153,18 +4157,12 @@ static int attackComputeCriticalHit(Attack* attack)
     chance += critterGetStat(attack->attacker, STAT_BETTER_CRITICALS);
 
     int effect;
-    if (chance <= 20)
-        effect = 0;
-    else if (chance <= 45)
-        effect = 1;
-    else if (chance <= 70)
-        effect = 2;
-    else if (chance <= 90)
-        effect = 3;
-    else if (chance <= 100)
-        effect = 4;
-    else
-        effect = 5;
+    if (chance <= gCombatSettings.critEffectThreshold[0])      effect = 0;
+    else if (chance <= gCombatSettings.critEffectThreshold[1]) effect = 1;
+    else if (chance <= gCombatSettings.critEffectThreshold[2]) effect = 2;
+    else if (chance <= gCombatSettings.critEffectThreshold[3]) effect = 3;
+    else if (chance <= gCombatSettings.critEffectThreshold[4]) effect = 4;
+    else effect = 5;
 
     CriticalHitDescription* criticalHitDescription;
     if (defender == gDude) {
@@ -4237,7 +4235,7 @@ static int attackComputeCriticalFailure(Attack* attack)
 
         // In strict vanilla mode, ignore the config and always enforce the 6‑day limit.
         // Otherwise, only enforce if the removal feature is not enabled.
-        if ((settings.enhancements.strict_vanilla || !settings.enhancements.remove_criticals_time_limits) && (gameTime / GAME_TIME_TICKS_PER_DAY < 6)) {
+        if ((settings.enhancements.strict_vanilla || !settings.enhancements.remove_criticals_time_limits) && (gameTime / GAME_TIME_TICKS_PER_DAY < (unsigned)gCombatSettings.playerGraceDays)) {
             return 0;
         }
     }
@@ -4248,19 +4246,14 @@ static int attackComputeCriticalFailure(Attack* attack)
         criticalFailureTableIndex = 0;
     }
 
-    int chance = randomBetween(1, 100) - 5 * (critterGetStat(attack->attacker, STAT_LUCK) - 5);
+    int chance = randomBetween(1, 100) - gCombatSettings.critFailureLuckPenalty * (critterGetStat(attack->attacker, STAT_LUCK) - 5);
 
     int effect;
-    if (chance <= 20)
-        effect = 0;
-    else if (chance <= 50)
-        effect = 1;
-    else if (chance <= 75)
-        effect = 2;
-    else if (chance <= 95)
-        effect = 3;
-    else
-        effect = 4;
+    if (chance <= gCombatSettings.critFailureThreshold[0])      effect = 0;
+    else if (chance <= gCombatSettings.critFailureThreshold[1]) effect = 1;
+    else if (chance <= gCombatSettings.critFailureThreshold[2]) effect = 2;
+    else if (chance <= gCombatSettings.critFailureThreshold[3]) effect = 3;
+    else effect = 4;
 
     int flags = _cf_table[criticalFailureTableIndex][effect];
     if (flags == 0) {
@@ -4281,7 +4274,8 @@ static int attackComputeCriticalFailure(Attack* attack)
     }
 
     if ((attack->attackerFlags & DAM_HURT_SELF) != DAM_NONE) {
-        attack->attackerDamage += randomBetween(1, 5);
+        attack->attackerDamage += randomBetween(gCombatSettings.critFailureSelfDamageMin,
+                                        gCombatSettings.critFailureSelfDamageMax);
     }
 
     if ((attack->attackerFlags & DAM_LOSE_TURN) != DAM_NONE) {
@@ -4389,14 +4383,14 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
             int weaponPerk = weaponGetPerk(weapon);
             switch (weaponPerk) {
             case PERK_WEAPON_LONG_RANGE:
-                perceptionBonusMult = 4;
+                perceptionBonusMult = gCombatSettings.rangedPerceptionLongRange;
                 break;
             case PERK_WEAPON_SCOPE_RANGE:
-                perceptionBonusMult = 5;
-                minEffectiveDist = 8;
+                perceptionBonusMult = gCombatSettings.rangedPerceptionScope;
+                minEffectiveDist = gCombatSettings.scopeMinEffective;
                 break;
             default:
-                perceptionBonusMult = 2;
+                perceptionBonusMult = gCombatSettings.rangedPerceptionDefault;
                 break;
             }
 
@@ -4432,12 +4426,12 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
 
             if (distanceMod >= 0) {
                 if ((attacker->data.critter.combat.results & DAM_BLIND) != 0) {
-                    distanceMod *= -12;
+                    distanceMod *= gCombatSettings.rangedDistanceBlindMult;
                 } else {
-                    distanceMod *= -4;
+                    distanceMod *= gCombatSettings.rangedDistanceNormalMult;
                 }
             } else {
-                distanceMod *= -4;
+                distanceMod *= gCombatSettings.rangedDistanceNormalMult;
             }
 
             if (useDistance || distanceMod > 0) {
@@ -4450,29 +4444,29 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
                 _combat_is_shot_blocked(attacker, tile, defender->tile, defender, &numCrittersInLof);
             }
 
-            toHit -= 10 * numCrittersInLof;
+            toHit -= gCombatSettings.lofCritterPenalty * numCrittersInLof;
         }
 
         if (attacker == gDude && traitIsSelected(TRAIT_ONE_HANDER)) {
             if (weaponIsTwoHanded(weapon)) {
-                toHit -= 40;
+                toHit += gCombatSettings.oneHanderTwoHandedPenalty;
             } else {
-                toHit += 20;
+                toHit += gCombatSettings.oneHanderOneHandedBonus;
             }
         }
 
         int minStrength = weaponGetMinStrengthRequired(weapon);
         int minStrengthMod = minStrength - critterGetStat(attacker, STAT_STRENGTH);
         if (attacker == gDude && perkGetRank(gDude, PERK_WEAPON_HANDLING) != 0) {
-            minStrengthMod -= 3;
+            minStrengthMod -= gCombatSettings.weaponHandlingBonus;
         }
 
         if (minStrengthMod > 0) {
-            toHit -= 20 * minStrengthMod;
+            toHit -= gCombatSettings.minStrengthPenalty * minStrengthMod;
         }
 
         if (weaponGetPerk(weapon) == PERK_WEAPON_ACCURATE) {
-            toHit += 20;
+            toHit += gCombatSettings.accurateBonus;
         }
     }
 
@@ -4493,7 +4487,7 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
     }
 
     if (defender != nullptr && (defender->flags & OBJECT_MULTIHEX) != 0) {
-        toHit += 15;
+        toHit += gCombatSettings.multihexToHitBonus;
     }
 
     if (attacker == gDude) {
@@ -4507,12 +4501,9 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
             lightIntensity = 0;
         }
 
-        if (lightIntensity <= 26214)
-            toHit -= 40;
-        else if (lightIntensity <= 39321)
-            toHit -= 25;
-        else if (lightIntensity <= 52428)
-            toHit -= 10;
+        if (lightIntensity <= gCombatSettings.lightThreshold[0])      toHit += gCombatSettings.lightPenalty[0];
+        else if (lightIntensity <= gCombatSettings.lightThreshold[1]) toHit += gCombatSettings.lightPenalty[1];
+        else if (lightIntensity <= gCombatSettings.lightThreshold[2]) toHit += gCombatSettings.lightPenalty[2];
     }
 
     if (_gcsd != nullptr) {
@@ -4520,27 +4511,27 @@ static int attackDetermineToHit(Object* attacker, int tile, Object* defender, in
     }
 
     if ((attacker->data.critter.combat.results & DAM_BLIND) != 0) {
-        toHit -= 25;
+        toHit += gCombatSettings.blindToHitPenalty;
     }
 
     if (targetIsCritter && defender != nullptr && (defender->data.critter.combat.results & (DAM_KNOCKED_OUT | DAM_KNOCKED_DOWN)) != 0) {
-        toHit += 40;
+        toHit += gCombatSettings.knockedToHitBonus;
     }
 
     if (attacker->data.critter.combat.team != gDude->data.critter.combat.team) {
         switch (settings.preferences.combat_difficulty) {
         case 0:
-            toHit -= 20;
+            toHit += gCombatSettings.difficultyToHitEasy;
             break;
         case 2:
-            toHit += 20;
+            toHit += gCombatSettings.difficultyToHitHard;
             break;
         }
     }
 
     int toHitUncapped = toHit;
-    if (toHit > 95) {
-        toHit = 95;
+    if (toHit > gCombatSettings.toHitCap) {
+        toHit = gCombatSettings.toHitCap;
     }
 
     if (toHit < -100) {
@@ -4584,23 +4575,23 @@ static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMul
     int damageResistance = critterGetStat(critter, STAT_DAMAGE_RESISTANCE + damageType);
 
     if ((*flagsPtr & DAM_BYPASS) != 0 && damageType != DAMAGE_TYPE_EMP) {
-        damageThreshold = 20 * damageThreshold / 100;
-        damageResistance = 20 * damageResistance / 100;
+        damageThreshold = gCombatSettings.bypassThresholdPercent * damageThreshold / 100;
+        damageResistance = gCombatSettings.bypassDrPercent * damageResistance / 100;
     } else {
         // SFALL
         if (weaponGetPerk(attack->weapon) == PERK_WEAPON_PENETRATE
             || unarmedIsPenetrating(attack->hitMode)) {
-            damageThreshold = 20 * damageThreshold / 100;
+            damageThreshold = gCombatSettings.penetrateThresholdPercent * damageThreshold / 100;
         }
 
         if (attack->attacker == gDude && traitIsSelected(TRAIT_FINESSE)) {
-            damageResistance += 30;
+            damageResistance += gCombatSettings.finesseDrBonus;
         }
     }
 
     int damageBonus;
     if (attack->attacker == gDude && weaponGetAttackTypeForHitMode(attack->weapon, attack->hitMode) == ATTACK_TYPE_RANGED) {
-        damageBonus = 2 * perkGetRank(gDude, PERK_BONUS_RANGED_DAMAGE);
+        damageBonus = gCombatSettings.bonusRangedDamagePerRank * perkGetRank(gDude, PERK_BONUS_RANGED_DAMAGE);
     } else {
         damageBonus = 0;
     }
@@ -4609,10 +4600,10 @@ static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMul
     if (attack->attacker->data.critter.combat.team != gDude->data.critter.combat.team) {
         switch (settings.preferences.combat_difficulty) {
         case COMBAT_DIFFICULTY_EASY:
-            difficultyDamagePercent = 75;
+            difficultyDamagePercent = gCombatSettings.difficultyDamageEasy;
             break;
         case COMBAT_DIFFICULTY_HARD:
-            difficultyDamagePercent = 125;
+            difficultyDamagePercent = gCombatSettings.difficultyDamageHard;
             break;
         }
     }
@@ -4655,7 +4646,7 @@ static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMul
             }
 
             // TODO: Why we're halving it?
-            damage /= 2;
+            damage /= gCombatSettings.damageDivisor;
 
             damage *= difficultyDamagePercent;
             damage /= 100;
@@ -4676,13 +4667,13 @@ static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMul
         if (perkGetRank(attack->attacker, PERK_LIVING_ANATOMY) != 0) {
             int kt = critterGetKillType(attack->defender);
             if (kt != KILL_TYPE_ROBOT && kt != KILL_TYPE_ALIEN) {
-                *damagePtr += 5;
+                *damagePtr += gCombatSettings.livingAnatomyBonus;
             }
         }
 
         if (perkGetRank(attack->attacker, PERK_PYROMANIAC) != 0) {
             if (weaponGetDamageType(attack->attacker, attack->weapon) == DAMAGE_TYPE_FIRE) {
-                *damagePtr += 5;
+                *damagePtr += gCombatSettings.pyromaniacBonus;
             }
         }
     }
@@ -4698,19 +4689,21 @@ static void attackComputeDamage(Attack* attack, int numRounds, int baseDamageMul
             if (perkGetRank(critter, PERK_STONEWALL) != 0) {
                 int chance = randomBetween(0, 100);
                 hasStonewall = true;
-                if (chance < 50) {
+                if (chance < gCombatSettings.stonewallChance) {
                     shouldKnockback = false;
                 }
             }
         }
 
         if (shouldKnockback) {
-            int knockbackDistanceDivisor = weaponGetPerk(attack->weapon) == PERK_WEAPON_KNOCKBACK ? 5 : 10;
+            int knockbackDistanceDivisor = weaponGetPerk(attack->weapon) == PERK_WEAPON_KNOCKBACK
+                ? gCombatSettings.knockbackDivisorPerk
+                : gCombatSettings.knockbackDivisorDefault;
 
             *knockbackDistancePtr = *damagePtr / knockbackDistanceDivisor;
 
             if (hasStonewall) {
-                *knockbackDistancePtr /= 2;
+                *knockbackDistancePtr /= gCombatSettings.stonewallDivisor;
             }
         }
     }
@@ -6784,7 +6777,7 @@ static void damageModCalculateGlovz(DamageCalculationContext* context)
         if (gDamageCalculationType == DAMAGE_CALCULATION_TYPE_GLOVZ_WITH_DAMAGE_MULTIPLIER_TWEAK) {
             damage += damageModGlovzDivRound(damage * context->baseDamageMult * 25, 100);
         } else {
-            damage += damage * context->baseDamageMult / 2;
+            damage += damage * context->baseDamageMult / gCombatSettings.damageDivisor;
         }
 
         if (damage > 0) {
@@ -6853,7 +6846,7 @@ static void damageModCalculateYaam(DamageCalculationContext* context)
             damage /= damageDivisor;
         }
 
-        damage /= 2;
+        damage /= gCombatSettings.damageDivisor;
         damage *= context->difficultyDamagePercent;
         damage /= 100;
 
@@ -6884,7 +6877,7 @@ void combat_set_hit_location_penalty(int hit_location, int penalty)
 void combat_reset_hit_location_penalty()
 {
     for (int hit_location = 0; hit_location < HIT_LOCATION_COUNT; hit_location++) {
-        hit_location_penalty[hit_location] = hit_location_penalty_default[hit_location];
+        hit_location_penalty[hit_location] = gCombatSettings.hitLocationPenalty[hit_location];
     }
 }
 
