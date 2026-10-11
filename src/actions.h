@@ -21,6 +21,7 @@ bool _action_explode_running();
 int actionExplode(int tile, int elevation, int minDamage, int maxDamage, Object* sourceObj, bool animate);
 int actionTalk(Object* obj, Object* critter);
 void actionDamage(int tile, int elevation, int minDamage, int maxDamage, int damageType, bool animated, bool bypassArmor);
+void actionTileWalkIceSlide(Object* obj, int fromTile, int toTile);
 bool actionCheckPush(Object* obj, Object* target);
 int actionPush(Object* obj, Object* target);
 int _action_can_talk_to(Object* obj, Object* critter);
