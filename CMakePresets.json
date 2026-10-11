@@ -113,6 +113,44 @@
             }
         },
         {
+            "name": "bsd-base",
+            "hidden": true,
+            "inherits": [
+                "base"
+            ],
+            "condition": {
+                "type": "inList",
+                "string": "${hostSystemName}",
+                "list": [
+                    "FreeBSD",
+                    "OpenBSD",
+                    "NetBSD",
+                    "DragonFly"
+                ]
+            },
+            "cacheVariables": {
+                "FALLOUT_VENDORED": "OFF"
+            }
+        },
+        {
+            "name": "bsd-debug",
+            "inherits": [
+                "bsd-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "bsd-release",
+            "inherits": [
+                "bsd-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "darwin-base",
             "hidden": true,
             "inherits": [
@@ -180,6 +218,14 @@
         {
             "name": "linux-x64-release",
             "configurePreset": "linux-x64-release"
+        },
+        {
+            "name": "bsd-debug",
+            "configurePreset": "bsd-debug"
+        },
+        {
+            "name": "bsd-release",
+            "configurePreset": "bsd-release"
         },
         {
             "name": "macos-debug",
