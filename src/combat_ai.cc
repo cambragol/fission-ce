@@ -2428,7 +2428,7 @@ static Object* _ai_best_weapon(Object* attacker, Object* weapon1, Object* weapon
     }
 
     if ((ai->best_weapon == -1 || ai->best_weapon >= BEST_WEAPON_UNARMED_OVER_THROW)
-    && abs(avgDamage2 - avgDamage1) > gCombatSettings.aiBestWeaponDamageDiff) {
+        && abs(avgDamage2 - avgDamage1) > gCombatSettings.aiBestWeaponDamageDiff) {
         return avgDamage2 > avgDamage1 ? weapon2 : weapon1;
     }
 
@@ -2797,7 +2797,7 @@ static int _ai_pick_hit_mode(Object* attacker, Object* weapon, Object* defender)
         }
     } else {
         if (intelligence < gCombatSettings.secondaryModeInt
-        || objectGetDistanceBetween(attacker, defender) < gCombatSettings.secondaryModeDistance) {
+            || objectGetDistanceBetween(attacker, defender) < gCombatSettings.secondaryModeDistance) {
             if (randomBetween(1, ai->secondary_freq) == 1) {
                 useSecondaryMode = true;
             }
@@ -2908,7 +2908,7 @@ static int _ai_move_steps_closer(Object* critter, Object* target, int actionPoin
     }
 
     if (actionPoints >= critterGetStat(critter, STAT_MAXIMUM_ACTION_POINTS) / gCombatSettings.runApThresholdDiv
-    && artCritterFidShouldRun(critter->fid)) {
+        && artCritterFidShouldRun(critter->fid)) {
         if ((target->flags & OBJECT_MULTIHEX) != 0) {
             animationRegisterRunToObject(critter, target, actionPoints, 0);
         } else {

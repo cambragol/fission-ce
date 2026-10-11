@@ -21,12 +21,12 @@ static void setDefaultCombatSettings(CombatSettings& s)
     s.hitLocationPenalty[0] = -40; // head
     s.hitLocationPenalty[1] = -30; // left_arm
     s.hitLocationPenalty[2] = -30; // right_arm
-    s.hitLocationPenalty[3] = 0;   // torso
+    s.hitLocationPenalty[3] = 0; // torso
     s.hitLocationPenalty[4] = -20; // right_leg
     s.hitLocationPenalty[5] = -20; // left_leg
     s.hitLocationPenalty[6] = -60; // eyes
     s.hitLocationPenalty[7] = -30; // groin
-    s.hitLocationPenalty[8] = 0;   // uncalled
+    s.hitLocationPenalty[8] = 0; // uncalled
 
     s.difficultyToHitEasy = -20;
     s.difficultyToHitHard = 20;
@@ -152,7 +152,7 @@ static void setDefaultCombatSettings(CombatSettings& s)
 // Reads an int. If missing, leaves `value` unchanged. If out of range, clamps
 // and logs. Never writes a value outside [min, max].
 static void getIntClamped(Config* cfg, const char* section, const char* key,
-                          int min, int max, int& value)
+    int min, int max, int& value)
 {
     int parsed;
     if (!configGetInt(cfg, section, key, &parsed)) {
@@ -161,7 +161,7 @@ static void getIntClamped(Config* cfg, const char* section, const char* key,
     if (parsed < min || parsed > max) {
         int clamped = parsed < min ? min : max;
         debugPrint("combat.txt: [%s] %s = %d out of range [%d, %d], clamped to %d\n",
-                   section, key, parsed, min, max, clamped);
+            section, key, parsed, min, max, clamped);
         parsed = clamped;
     }
     value = parsed;
@@ -182,8 +182,15 @@ static void enforceIncreasing(int* arr, int count, int min, int max)
 }
 
 static const char* kHitLocationNames[9] = {
-    "head", "left_arm", "right_arm", "torso",
-    "right_leg", "left_leg", "eyes", "groin", "uncalled",
+    "head",
+    "left_arm",
+    "right_arm",
+    "torso",
+    "right_leg",
+    "left_leg",
+    "eyes",
+    "groin",
+    "uncalled",
 };
 
 void combatSettingsInit()
