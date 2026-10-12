@@ -107,6 +107,12 @@ static double gPreferencesMouseSensitivity1;
 // 0x6638F0
 static double gPreferencesMouseSensitivity2;
 
+static int gPreferencesPipboyVolume1;
+
+static int gPreferencesPipboyVolume2;
+
+#define PIPBOY_VOLUME_TITLE 123
+
 // 0x6638F8
 static unsigned char* gPreferencesWindowBuffer;
 
@@ -280,6 +286,11 @@ static PreferenceDescription gPreferenceDescriptions[PREF_COUNT] = {
     { 2, 0, 374, 400, 0, 0, { 207, 223, 0, 0 }, 0, GAME_CONFIG_BRIGHTNESS_KEY, 1.0, 1.17999267578125, nullptr },
     { 2, 0, 374, 451, 0, 0, { 207, 218, 0, 0 }, 0, GAME_CONFIG_MOUSE_SENSITIVITY_KEY, 1.0, 2.5, nullptr },
 };
+
+static bool _usePipboyVolumeInPrefs()
+{
+    return !settings.enhancements.strict_vanilla && settings.enhancements.vock_features;
+}
 
 static FrmImage _preferencesFrmImages[PREFERENCES_WINDOW_FRM_COUNT];
 static int _oldFont;
@@ -515,6 +526,28 @@ int preferencesInit()
         gPreferenceDescriptions[10].valuePtr = &gPreferencesCombatLooks1;
     }
 
+    if (_usePipboyVolumeInPrefs()) {
+        // Swap Brightness <-> (Mouse Sensitivity / Pip-Boy Volume) visually.
+        std::swap(gOffsets.preferencePositions[PREF_BRIGHTNESS],
+                  gOffsets.preferencePositions[PREF_MOUSE_SENSITIVIY]);
+        // Title-drawing loop uses row3Ytab, so swap those too.
+        std::swap(gOffsets.row3Ytab[RANGE_PREF_COUNT - 2],
+                  gOffsets.row3Ytab[RANGE_PREF_COUNT - 1]);
+
+        // Repurpose PREF_MOUSE_SENSITIVIY as a Pip-Boy Volume slider with
+        // exactly the same label set / range / layout as the other volume
+        // sliders (off / quiet / normal / loud).
+        PreferenceDescription* pb = &gPreferenceDescriptions[PREF_MOUSE_SENSITIVIY];
+        pb->valuesCount = 4;
+        pb->labelIds[0] = 202;
+        pb->labelIds[1] = 221;
+        pb->labelIds[2] = 209;
+        pb->labelIds[3] = 222;
+        pb->minValue = 0.0;
+        pb->maxValue = (double)VOLUME_MAX;
+        pb->valuePtr = &gPreferencesPipboyVolume1;
+    }
+
     return 0;
 }
 
@@ -555,6 +588,10 @@ static void _SetSystemPrefs()
     gPreferencesBrightness1 = settings.preferences.brightness;
     gPreferencesMouseSensitivity1 = settings.preferences.mouse_sensitivity;
 
+    if (_usePipboyVolumeInPrefs()) {
+        gPreferencesPipboyVolume1 = settings.mod_settings.pipboy_volume;
+    }
+
     _JustUpdate_();
 }
 
@@ -591,6 +628,7 @@ static void _SaveSettings()
     gPreferencesBrightness2 = gPreferencesBrightness1;
     gPreferencesSoundEffectsVolume2 = gPreferencesSoundEffectsVolume1;
     gPreferencesMouseSensitivity2 = gPreferencesMouseSensitivity1;
+    gPreferencesPipboyVolume2 = gPreferencesPipboyVolume1;
     gPreferencesSpeechVolume2 = gPreferencesSpeechVolume1;
 }
 
@@ -627,6 +665,7 @@ static void _RestoreSettings()
     gPreferencesBrightness1 = gPreferencesBrightness2;
     gPreferencesSoundEffectsVolume1 = gPreferencesSoundEffectsVolume2;
     gPreferencesMouseSensitivity1 = gPreferencesMouseSensitivity2;
+    gPreferencesPipboyVolume1 = gPreferencesPipboyVolume2;
     gPreferencesSpeechVolume1 = gPreferencesSpeechVolume2;
 
     _JustUpdate_();
@@ -662,6 +701,7 @@ static void preferencesSetDefaults(bool updateUi)
     gPreferencesTextBaseDelay1 = 3.5;
     gPreferencesBrightness1 = 1.0;
     gPreferencesMouseSensitivity1 = 1.0;
+    gPreferencesPipboyVolume1 = 22281;
     gPreferencesMasterVolume1 = 22281;
     gPreferencesMusicVolume1 = 22281;
     gPreferencesSoundEffectsVolume1 = 22281;
@@ -712,8 +752,12 @@ static void _JustUpdate_()
     gPreferencesSoundEffectsVolume1 = std::clamp(gPreferencesSoundEffectsVolume1, 0, VOLUME_MAX);
     gPreferencesSpeechVolume1 = std::clamp(gPreferencesSpeechVolume1, 0, VOLUME_MAX);
     gPreferencesBrightness1 = std::clamp(gPreferencesBrightness1, 1.0, 1.17999267578125);
-    gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
-
+    if (_usePipboyVolumeInPrefs()) {
+        gPreferencesPipboyVolume1 = std::clamp(gPreferencesPipboyVolume1, 0, VOLUME_MAX);
+    } else {
+        gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
+    }
+    
     textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
 
     double textLineDelay = (gPreferencesTextBaseDelay1 + (-1.0)) * 0.2 * 2.0;
@@ -727,6 +771,9 @@ static void _JustUpdate_()
     soundEffectsSetVolume(gPreferencesSoundEffectsVolume1);
     speechSetVolume(gPreferencesSpeechVolume1);
     mouseSetSensitivity(gPreferencesMouseSensitivity1);
+    if (_usePipboyVolumeInPrefs()) {
+        // pipboySetVolume(gPreferencesPipboyVolume1); - not implemented yet?
+    }
     colorSetBrightness(gPreferencesBrightness1);
     applyPlayAreaResolution();
 }
@@ -1074,83 +1121,95 @@ static void _UpdateThing(int index)
             pitch);
 
         switch (index) {
-        case PREF_COMBAT_SPEED: {
-            double value = *meta->valuePtr;
-            value = std::clamp(value, 0.0, 50.0);
-            int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
-            // Use knobY from offsets instead of meta->knobY
-            blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                21, 12, 21,
-                gPreferencesWindowBuffer + pitch * knobY + x,
-                pitch);
-            break;
-        }
-        case PREF_TEXT_BASE_DELAY: {
-            gPreferencesTextBaseDelay1 = std::clamp(gPreferencesTextBaseDelay1, 1.0, 6.0);
-            int x = (int)((6.0 - gPreferencesTextBaseDelay1) * gOffsets.textBaseDelayScale + gOffsets.rangeStartX);
-            // Use knobY from offsets instead of meta->knobY
-            blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                21, 12, 21,
-                gPreferencesWindowBuffer + pitch * knobY + x,
-                pitch);
-
-            double value = (gPreferencesTextBaseDelay1 - 1.0) * 0.2 * 2.0;
-            value = std::clamp(value, 0.0, 2.0);
-            textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
-            textObjectsSetLineDelay(value);
-            break;
-        }
-        case PREF_MASTER_VOLUME:
-        case PREF_MUSIC_VOLUME:
-        case PREF_SFX_VOLUME:
-        case PREF_SPEECH_VOLUME: {
-            double value = *meta->valuePtr;
-            value = std::clamp(value, meta->minValue, meta->maxValue);
-            int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
-            // Use knobY from offsets instead of meta->knobY
-            blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                21, 12, 21,
-                gPreferencesWindowBuffer + pitch * knobY + x,
-                pitch);
-
-            switch (index) {
-            case PREF_MASTER_VOLUME:
-                gameSoundSetMasterVolume(gPreferencesMasterVolume1);
-                break;
-            case PREF_MUSIC_VOLUME:
-                backgroundSoundSetVolume(gPreferencesMusicVolume1);
-                break;
-            case PREF_SFX_VOLUME:
-                soundEffectsSetVolume(gPreferencesSoundEffectsVolume1);
-                break;
-            case PREF_SPEECH_VOLUME:
-                speechSetVolume(gPreferencesSpeechVolume1);
+            case PREF_COMBAT_SPEED: {
+                double value = *meta->valuePtr;
+                value = std::clamp(value, 0.0, 50.0);
+                int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
+                // Use knobY from offsets instead of meta->knobY
+                blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+                    21, 12, 21,
+                    gPreferencesWindowBuffer + pitch * knobY + x,
+                    pitch);
                 break;
             }
-            break;
-        }
-        case PREF_BRIGHTNESS: {
-            gPreferencesBrightness1 = std::clamp(gPreferencesBrightness1, 1.0, 1.17999267578125);
-            int x = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue)) + gOffsets.rangeStartX);
-            // Use knobY from offsets instead of meta->knobY
-            blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                21, 12, 21,
-                gPreferencesWindowBuffer + pitch * knobY + x,
-                pitch);
-            colorSetBrightness(gPreferencesBrightness1);
-            break;
-        }
-        case PREF_MOUSE_SENSITIVIY: {
-            gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
-            int x = (int)((gPreferencesMouseSensitivity1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue)) + gOffsets.rangeStartX);
-            // Use knobY from offsets instead of meta->knobY
-            blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
-                21, 12, 21,
-                gPreferencesWindowBuffer + pitch * knobY + x,
-                pitch);
-            mouseSetSensitivity(gPreferencesMouseSensitivity1);
-            break;
-        }
+            case PREF_TEXT_BASE_DELAY: {
+                gPreferencesTextBaseDelay1 = std::clamp(gPreferencesTextBaseDelay1, 1.0, 6.0);
+                int x = (int)((6.0 - gPreferencesTextBaseDelay1) * gOffsets.textBaseDelayScale + gOffsets.rangeStartX);
+                // Use knobY from offsets instead of meta->knobY
+                blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+                    21, 12, 21,
+                    gPreferencesWindowBuffer + pitch * knobY + x,
+                    pitch);
+
+                double value = (gPreferencesTextBaseDelay1 - 1.0) * 0.2 * 2.0;
+                value = std::clamp(value, 0.0, 2.0);
+                textObjectsSetBaseDelay(gPreferencesTextBaseDelay1);
+                textObjectsSetLineDelay(value);
+                break;
+            }
+            case PREF_MASTER_VOLUME:
+            case PREF_MUSIC_VOLUME:
+            case PREF_SFX_VOLUME:
+            case PREF_SPEECH_VOLUME: {
+                double value = *meta->valuePtr;
+                value = std::clamp(value, meta->minValue, meta->maxValue);
+                int x = (int)((value - meta->minValue) * gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue) + gOffsets.rangeStartX);
+                // Use knobY from offsets instead of meta->knobY
+                blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+                    21, 12, 21,
+                    gPreferencesWindowBuffer + pitch * knobY + x,
+                    pitch);
+
+                switch (index) {
+                case PREF_MASTER_VOLUME:
+                    gameSoundSetMasterVolume(gPreferencesMasterVolume1);
+                    break;
+                case PREF_MUSIC_VOLUME:
+                    backgroundSoundSetVolume(gPreferencesMusicVolume1);
+                    break;
+                case PREF_SFX_VOLUME:
+                    soundEffectsSetVolume(gPreferencesSoundEffectsVolume1);
+                    break;
+                case PREF_SPEECH_VOLUME:
+                    speechSetVolume(gPreferencesSpeechVolume1);
+                    break;
+                }
+                break;
+            }
+            case PREF_BRIGHTNESS: {
+                gPreferencesBrightness1 = std::clamp(gPreferencesBrightness1, 1.0, 1.17999267578125);
+                int x = (int)((gPreferencesBrightness1 - meta->minValue) * (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue)) + gOffsets.rangeStartX);
+                // Use knobY from offsets instead of meta->knobY
+                blitBufferToBufferTrans(_preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+                    21, 12, 21,
+                    gPreferencesWindowBuffer + pitch * knobY + x,
+                    pitch);
+                colorSetBrightness(gPreferencesBrightness1);
+                break;
+            }
+            case PREF_MOUSE_SENSITIVIY: {
+                int x;
+                if (_usePipboyVolumeInPrefs()) {
+                    gPreferencesPipboyVolume1 = std::clamp(gPreferencesPipboyVolume1, 0, VOLUME_MAX);
+                    x = (int)((gPreferencesPipboyVolume1 - meta->minValue) *
+                            (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))
+                            + gOffsets.rangeStartX);
+                } else {
+                    gPreferencesMouseSensitivity1 = std::clamp(gPreferencesMouseSensitivity1, 1.0, 2.5);
+                    x = (int)((gPreferencesMouseSensitivity1 - meta->minValue) *
+                            (gOffsets.rangeSliderWidth / (meta->maxValue - meta->minValue))
+                            + gOffsets.rangeStartX);
+                }
+                blitBufferToBufferTrans(
+                    _preferencesFrmImages[PREFERENCES_WINDOW_FRM_KNOB_OFF].getData(),
+                    21, 12, 21,
+                    gPreferencesWindowBuffer + pitch * knobY + x,
+                    pitch);
+                if (!_usePipboyVolumeInPrefs()) {
+                    mouseSetSensitivity(gPreferencesMouseSensitivity1);
+                }
+                break;
+            }
         }
 
         for (int optionIndex = 0; optionIndex < meta->valuesCount; optionIndex++) {
@@ -1246,7 +1305,11 @@ int _SavePrefs(bool save)
     settings.sound.speech_volume = gPreferencesSpeechVolume1;
 
     settings.preferences.brightness = gPreferencesBrightness1;
-    settings.preferences.mouse_sensitivity = gPreferencesMouseSensitivity1;
+    if (_usePipboyVolumeInPrefs()) {
+        settings.mod_settings.pipboy_volume = gPreferencesPipboyVolume1;
+    } else {
+        settings.preferences.mouse_sensitivity = gPreferencesMouseSensitivity1;
+    }
 
     if (save) {
         settingsSave();
@@ -1614,8 +1677,14 @@ static int preferencesWindowInit()
 
     // Range Prefs Main labels
     for (i = 0; i < RANGE_PREF_COUNT; i++) {
-        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, messageItemId++);
-        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row3Ytab[i] + gOffsets.rangLabelColX, messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
+        int msgId = messageItemId++;
+        // Override 'mouse sensitivity' with the new title.
+        if (_usePipboyVolumeInPrefs() && i == RANGE_PREF_COUNT - 1) {
+            msgId = PIPBOY_VOLUME_TITLE; // Need to set in fission.msg?
+        }
+        messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, msgId);
+        fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row3Ytab[i] + gOffsets.rangLabelColX,
+            messageItemText, gOffsets.width, gOffsets.width, _colorTable[COL_GREENISH_BROWN]);
     }
 
     // DEFAULT
@@ -2243,7 +2312,9 @@ static void _DoThing(int eventCode)
             value = gPreferencesBrightness1;
             break;
         case PREF_MOUSE_SENSITIVIY:
-            value = gPreferencesMouseSensitivity1;
+            value = _usePipboyVolumeInPrefs()
+                ? (double)gPreferencesPipboyVolume1
+                : gPreferencesMouseSensitivity1;
             break;
         default:
             value = *valuePtr;
@@ -2364,7 +2435,12 @@ static void _DoThing(int eventCode)
                 colorSetBrightness(newValue);
                 break;
             case PREF_MOUSE_SENSITIVIY:
-                gPreferencesMouseSensitivity1 = newValue;
+                if (_usePipboyVolumeInPrefs()) {
+                    gPreferencesPipboyVolume1 = newValue;
+                    //pipboySetVolume(gPreferencesPipboyVolume1);
+                } else {
+                    gPreferencesMouseSensitivity1 = newValue;
+                }
                 break;
             }
 
