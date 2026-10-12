@@ -71,22 +71,12 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
 #ifdef __APPLE__
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
-    // iOS path: resolve fission.dat from the app bundle's Resources directory.
-    // The working directory is already Documents at this point, so a relative
-    // path would never resolve. SDL_GetBasePath() returns the bundle's
-    // Resources path on iOS.
-    {
-        char* basePath = SDL_GetBasePath();
-        if (basePath != NULL) {
-            char fissionPath[COMPAT_MAX_PATH];
-            snprintf(fissionPath, sizeof(fissionPath), "%sfission.dat", basePath);
-            configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, fissionPath);
-            SDL_free(basePath);
-        } else {
-            // Fallback: allow a user-supplied fission.dat in Documents.
-            configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, GAME_CONFIG_DEFAULT_FISSION_DAT);
-        }
-    }
+    // iOS: fission.dat ships in the app bundle's Resources directory, not
+    // in the Documents folder the CWD points at. Keep the config value
+    // portable here, and resolve the real path at point of use in
+    // gameDbInit(). This keeps the value written back to fission.cfg free
+    // of the bundle UUID, which changes on every reinstall/sideload.
+    configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "fission.dat");
 #elif TARGET_OS_MAC
     // macOS path
     configSetString(&gGameConfig, GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FISSION_DAT_KEY, "Fallout-Fission.app/Contents/Resources/fission.dat");
