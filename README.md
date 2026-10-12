@@ -5,10 +5,10 @@
 # Fallout: F.I.S.S.I.O.N.
 *Flexible Isometric Simulation System for Interactive Open‑world Nuclear‑roleplaying*
 
-Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 2, forked from [Fallout2-CE](https://github.com/alexbatalov/fallout2-ce) that preserves the original isometric, turn‑based gameplay while adding modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, and maybe even Android and iOS.
+Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementation of Fallout 2, forked from [Fallout2-CE](https://github.com/alexbatalov/fallout2-ce) that preserves the original isometric, turn‑based gameplay while adding hand-tuned modding enhancements, widescreen support, and true community‑driven extensibility. Run it on Windows, Linux, macOS, and maybe even Android and iOS.
 
-> **Powered by the F.I.S.S.I.O.N. Engine**
-> *Flexible. Isometric. Simulation. System. Interactive. Open‑world. Nuclear‑roleplay.*
+> **Crafted by hand, powered by passion.**
+> F.I.S.S.I.O.N. isn't assembled wholecloth by LLMs or generated overnight. Every coded feature, every piece of art, every quality-of-life tweak was shaped by hand to honour the original Fallout aesthetic. This is a labour of love from people who grew up wandering the wasteland.
 > **Split from the past, Powering the future**
 
 ---
@@ -20,8 +20,9 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 - **Widescreen & high‑res scaling** with pixel‑perfect aspect preservation
 - **Modular, customizable systems** Community mods plug in seamlessly
 - **100% compatible** with original Fallout 1 & 2 assets
-- **Future‑proof**: easily extended for new content and Fallout 2 integration
-- **Extensive QOL improvements** Dozens of fully optional gameplay enhancements 
+- **Future‑proof**: thoughtfully architected for new content and Fallout 2 integration
+- **Extensive QOL improvements** Dozens of fully optional, curated gameplay enhancements
+- **Hand-crafted art & assets** – All art created pixel-by-pixel to honor the classic aesthetic
 
 ---
 
@@ -59,6 +60,16 @@ Fallout: F.I.S.S.I.O.N. is a next‑generation, cross‑platform reimplementatio
 ║ N – Nuclear‑roleplay  ║ Immersive post‑nuclear RPG experience      ║
 ╚═══════════════════════╩════════════════════════════════════════════╝
 ```
+
+---
+
+## The Human Touch
+
+Many modern Fallout projects are churned out by automated tools — code assembled from a single prompt, art generated without soul. F.I.S.S.I.O.N. is different.
+
+Every enhancement, every visual element, every system was **painstakingly crafted by hand** to respect the source material. The art is original. The design decisions are deliberate. The goal isn't just to make Fallout run — it's to make it feel *right*.
+
+> *If it doesn't look like it was part of the original, it doesn't belong in F.I.S.S.I.O.N.*
 
 ---
 
@@ -207,6 +218,14 @@ For localization contributions, see the readme here: [Localization](https://gith
 ## Credits
 
 Thanks to Alex Batalov for all the initial work decompiling Fallout2.exe - without which FISSION does not exist
+
+And to the wastelanders who still believe a game made by human hands, with human care, is worth preserving.
+
+---
+
+## About This Project
+
+F.I.S.S.I.O.N. is a passion project. No AI pipelines. No team. Just one developer and others like him who love Fallout and want to give it the modern engine it deserves — without losing what made it special. Every pixel, every patch, every late night debugging session is here because it matters.
 
 ---
 
