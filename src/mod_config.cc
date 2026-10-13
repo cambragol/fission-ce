@@ -135,9 +135,6 @@ typedef struct ModDefaults {
     int text_scramble_obstruction_dampening;
     const char* text_scramble_chars;
 
-    bool pipboy_audio;
-    int pipboy_volume;
-
     // Scripts
     const char* ini_config_folder;
     const char* global_script_paths;
@@ -247,9 +244,6 @@ static ModDefaults modDefaultsGet()
     d.text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
     d.text_scramble_obstruction_dampening = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING;
     d.text_scramble_chars = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
-
-    d.pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
-    d.pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 
     d.ini_config_folder = MOD_CONFIG_DEFAULT_INI_CONFIG_FOLDER;
     d.global_script_paths = MOD_CONFIG_DEFAULT_GLOBAL_SCRIPT_PATHS;
@@ -854,12 +848,6 @@ bool modConfigInit(int argc, char** argv)
     configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, defaults.text_scramble_distance_per_perception);
     configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY, defaults.text_scramble_obstruction_dampening);
     configSetString(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_CHARS_KEY, defaults.text_scramble_chars);
-    // FISSION-VOCK ADD: dedicated Pip-Boy holodisk-narration channel --
-    // own on/off (PipboyAudio) and own volume (PipboyVolume), independent
-    // of the NPC float pool above. See pipboySpeechLoad() in game_sound.cc
-    // and pipboyHolodiskUpdateAudio() in pipboy.cc.
-    configSetBool(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_AUDIO_KEY, defaults.pipboy_audio);
-    configSetInt(&gModConfig, MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_VOLUME_KEY, defaults.pipboy_volume);
 
     // Scripts
     configSetString(&gModConfig, MOD_CONFIG_SCRIPTS_KEY, MOD_CONFIG_INI_CONFIG_FOLDER, defaults.ini_config_folder);

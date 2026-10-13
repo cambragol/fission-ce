@@ -93,10 +93,12 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SOUNDS_KEY, settings.sound.sounds);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_KEY, settings.sound.music);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_KEY, settings.sound.speech);
+    settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_PIPBOY_KEY, settings.sound.pipboy);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MASTER_VOLUME_KEY, settings.sound.master_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_VOLUME_KEY, settings.sound.music_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, settings.sound.sndfx_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, settings.sound.speech_volume);
+    settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_PIPBOY_VOLUME_KEY, settings.sound.pipboy_volume);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, settings.sound.cache_size);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, settings.sound.music_path1);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, settings.sound.music_path2);
@@ -225,10 +227,6 @@ void settingsFromModConfig()
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION_KEY, settings.mod_settings.text_scramble_distance_per_perception);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING_KEY, settings.mod_settings.text_scramble_obstruction_dampening);
     modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_TEXT_SCRAMBLE_CHARS_KEY, settings.mod_settings.text_scramble_chars);
-    // FISSION-VOCK ADD: dedicated Pip-Boy holodisk-narration channel's own
-    // on/off and volume, independent of the NPC float pool above.
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_AUDIO_KEY, settings.mod_settings.pipboy_audio);
-    modSettingsRead(MOD_CONFIG_VOCK_FEATURES_KEY, MOD_CONFIG_PIPBOY_VOLUME_KEY, settings.mod_settings.pipboy_volume);
 
     // Game Fixes
     modSettingsRead(MOD_CONFIG_SETTINGS_KEY, MOD_CONFIG_USE_WALK_DISTANCE, settings.mod_settings.use_walk_distance);
@@ -312,10 +310,12 @@ static void settingsToConfig()
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SOUNDS_KEY, settings.sound.sounds);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_KEY, settings.sound.music);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_KEY, settings.sound.speech);
+    settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_PIPBOY_KEY, settings.sound.pipboy);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MASTER_VOLUME_KEY, settings.sound.master_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_VOLUME_KEY, settings.sound.music_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SNDFX_VOLUME_KEY, settings.sound.sndfx_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_SPEECH_VOLUME_KEY, settings.sound.speech_volume);
+    settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_PIPBOY_VOLUME_KEY, settings.sound.pipboy_volume);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_CACHE_SIZE_KEY, settings.sound.cache_size);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, settings.sound.music_path1);
     settingsWrite(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, settings.sound.music_path2);
