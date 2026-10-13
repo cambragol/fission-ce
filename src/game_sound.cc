@@ -171,6 +171,10 @@ static int gSpeechVolume = VOLUME_MAX;
 // 0x518E90
 static int gSoundEffectsVolume = VOLUME_MAX;
 
+// FISSION-VOCK ADD: volume of the Pip-Boy holodisk narration channel,
+// [sound] pipboy_volume in fission.cfg -- see pipboySpeechSetVolume().
+static int gPipboyVolume = VOLUME_MAX;
+
 // 0x518E94
 static int _detectDevices = -1;
 
@@ -211,7 +215,6 @@ static void speechCallback(void* userData, int event);
 static void pipboyCallback(void* userData, int event);
 static void floatSpeechCallback(void* userData, int event);
 static int _gsound_calc_float_volume(Object* speaker);
-static int _gsound_calc_pipboy_volume();
 static void backgroundSoundCallback(void* userData, int event);
 static void soundEffectCallback(void* userData, int event);
 static int _gsound_background_allocate(Sound** outSound, GameSoundStorageType storageType, GameSoundLoopingMode loopingMode);
@@ -391,6 +394,9 @@ int gameSoundInit()
 
     gSpeechVolume = settings.sound.speech_volume;
     speechSetVolume(gSpeechVolume);
+
+    gPipboyVolume = settings.sound.pipboy_volume;
+    pipboySpeechSetVolume(gPipboyVolume);
 
     _gsound_background_fade = 0;
     gBackgroundSoundFileName[0] = '\0';
@@ -1203,18 +1209,6 @@ static void pipboyCallback(void* userData, int event)
     }
 }
 
-// Gain for the dedicated Pip-Boy narration channel: [vock-features]
-// PipboyVolume / VOLUME_MAX, layered multiplicatively on top of the Speech
-// Volume Preferences slider -- same relationship the float pool's Volume
-// key has to the Sound Effects slider (see the comment above
-// _gsound_calc_float_volume_gain()).
-static int _gsound_calc_pipboy_volume()
-{
-    int baseVolume = speechGetVolume();
-    double gain = (double)settings.mod_settings.pipboy_volume / VOLUME_MAX;
-    return (int)(baseVolume * gain);
-}
-
 // FISSION-VOCK ADD: dedicated channel for Pip-Boy holodisk narration,
 // mirroring speechLoad() but against gPipboySound instead of gSpeechSound
 // so a holodisk's audio can't be interrupted by, or interrupt, dialogue --
@@ -1234,7 +1228,7 @@ int pipboySpeechLoad(const char* fileName, GameSoundReadLimitMode readLimitMode,
         return -1;
     }
 
-    if (!settings.mod_settings.pipboy_audio) {
+    if (!settings.sound.pipboy) {
         return -1;
     }
 
@@ -1355,7 +1349,7 @@ static int pipboySpeechPlay()
         debugPrint(" playing ");
     }
 
-    soundSetVolume(gPipboySound, (int)(_gsound_calc_pipboy_volume() * 0.69));
+    soundSetVolume(gPipboySound, (int)(gPipboyVolume * 0.69));
 
     if (soundPlay(gPipboySound) != 0) {
         if (gGameSoundDebugEnabled) {
@@ -1376,6 +1370,34 @@ void pipboySpeechDelete()
             gPipboySound = nullptr;
         }
     }
+}
+
+// FISSION-VOCK ADD: mirrors speechSetVolume() for the Pip-Boy narration
+// channel, including the same 0.69 attenuation, and updates a holodisk
+// that is already playing so the Preferences slider takes effect live.
+void pipboySpeechSetVolume(int volume)
+{
+    if (!gGameSoundInitialized) {
+        return;
+    }
+
+    if (volume < VOLUME_MIN || volume > VOLUME_MAX) {
+        if (gGameSoundDebugEnabled) {
+            debugPrint("Requested pipboy volume out of range.\n");
+        }
+        return;
+    }
+
+    gPipboyVolume = volume;
+
+    if (gPipboySound != nullptr) {
+        soundSetVolume(gPipboySound, (int)(volume * 0.69));
+    }
+}
+
+int pipboySpeechGetVolume()
+{
+    return gPipboyVolume;
 }
 
 void floatSpeechCallback(void* userData, int event)

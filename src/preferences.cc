@@ -111,6 +111,7 @@ static int gPreferencesPipboyVolume1;
 
 static int gPreferencesPipboyVolume2;
 
+// "Pipboy speech" in options.msg, an unused line from the original game.
 #define PIPBOY_VOLUME_TITLE 123
 
 // 0x6638F8
@@ -289,7 +290,7 @@ static PreferenceDescription gPreferenceDescriptions[PREF_COUNT] = {
 
 static bool _usePipboyVolumeInPrefs()
 {
-    return !settings.enhancements.strict_vanilla && settings.enhancements.vock_features;
+    return !settings.enhancements.strict_vanilla;
 }
 
 static FrmImage _preferencesFrmImages[PREFERENCES_WINDOW_FRM_COUNT];
@@ -589,7 +590,7 @@ static void _SetSystemPrefs()
     gPreferencesMouseSensitivity1 = settings.preferences.mouse_sensitivity;
 
     if (_usePipboyVolumeInPrefs()) {
-        gPreferencesPipboyVolume1 = settings.mod_settings.pipboy_volume;
+        gPreferencesPipboyVolume1 = settings.sound.pipboy_volume;
     }
 
     _JustUpdate_();
@@ -772,7 +773,7 @@ static void _JustUpdate_()
     speechSetVolume(gPreferencesSpeechVolume1);
     mouseSetSensitivity(gPreferencesMouseSensitivity1);
     if (_usePipboyVolumeInPrefs()) {
-        // pipboySetVolume(gPreferencesPipboyVolume1); - not implemented yet?
+        pipboySpeechSetVolume(gPreferencesPipboyVolume1);
     }
     colorSetBrightness(gPreferencesBrightness1);
     applyPlayAreaResolution();
@@ -1304,7 +1305,7 @@ int _SavePrefs(bool save)
 
     settings.preferences.brightness = gPreferencesBrightness1;
     if (_usePipboyVolumeInPrefs()) {
-        settings.mod_settings.pipboy_volume = gPreferencesPipboyVolume1;
+        settings.sound.pipboy_volume = gPreferencesPipboyVolume1;
     } else {
         settings.preferences.mouse_sensitivity = gPreferencesMouseSensitivity1;
     }
@@ -1678,7 +1679,7 @@ static int preferencesWindowInit()
         int msgId = messageItemId++;
         // Override 'mouse sensitivity' with the new title.
         if (_usePipboyVolumeInPrefs() && i == RANGE_PREF_COUNT - 1) {
-            msgId = PIPBOY_VOLUME_TITLE; // Need to set in fission.msg?
+            msgId = PIPBOY_VOLUME_TITLE;
         }
         messageItemText = getmsg(&gPreferencesMessageList, &gPreferencesMessageListItem, msgId);
         fontDrawText(gPreferencesWindowBuffer + gOffsets.width * gOffsets.row3Ytab[i] + gOffsets.rangLabelColX,
@@ -2434,8 +2435,9 @@ static void _DoThing(int eventCode)
                 break;
             case PREF_MOUSE_SENSITIVIY:
                 if (_usePipboyVolumeInPrefs()) {
-                    gPreferencesPipboyVolume1 = newValue;
-                    // pipboySetVolume(gPreferencesPipboyVolume1);
+                    gPreferencesPipboyVolume1 = (int)newValue;
+                    pipboySpeechSetVolume(gPreferencesPipboyVolume1);
+                    redrawLabels = true;
                 } else {
                     gPreferencesMouseSensitivity1 = newValue;
                 }
