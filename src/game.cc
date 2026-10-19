@@ -1878,32 +1878,45 @@ static void gameLoadEnabledModsFromOrderFile()
 }
 
 // iOS: fission.dat lives in the app bundle's Resources directory, but the
-// process CWD is the Documents folder. The config value is kept portable
-// ("fission.dat" or a user override) so it survives bundle reinstalls; the
-// real path is resolved here, at the single point of use.
+// process CWD is the Documents folder. The config value stays portable
+// ("fission.dat" default, or a user override) so it survives bundle
+// reinstalls; the real path is resolved here, at the single point of use.
+//
+// The bundled copy wins whenever the config value is the default. A user
+// override only takes effect when fission_dat has been explicitly set to a
+// non-default path that actually exists - so:
+//   - a stale copy left in Documents can't silently override newer bundled
+//     assets, and
+//   - a stale absolute path from an earlier build (bundle UUIDs change on
+//     every reinstall) can't block startup.
+// To explicitly use a Documents copy, set fission_dat to "./fission.dat" (or
+// any other existing path); the "./" is not the default and so is honored.
 static std::string resolveFissionDatPath(const std::string& configuredPath)
 {
 #if defined(__APPLE__) && TARGET_OS_IPHONE
     if (configuredPath.empty()) {
-        return configuredPath;
+        return configuredPath;  // Disabled - gameDbInit skips loadFission().
     }
 
-    // User-supplied copy in Documents (or wherever CWD points) wins.
-    if (compat_access(configuredPath.c_str(), 0) == 0) {
-        return configuredPath;
+    if (configuredPath != "fission.dat") {
+        if (compat_access(configuredPath.c_str(), 0) == 0) {
+            return configuredPath;
+        }
+        debugPrint(">>> resolveFissionDatPath: configured fission_dat '%s' does not exist, falling back to bundled copy\n",
+            configuredPath.c_str());
     }
 
     char* basePath = SDL_GetBasePath();
     if (basePath != nullptr) {
         std::string resolved = std::string(basePath) + "fission.dat";
         SDL_free(basePath);
-        if (compat_access(resolved.c_str(), 0) == 0) {
-            return resolved;
-        }
+        return resolved;
     }
-#endif
 
     return configuredPath;
+#else
+    return configuredPath;
+#endif
 }
 
 // A canonical master.dat is a *frozen* release whose assets fission.dat
