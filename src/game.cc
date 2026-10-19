@@ -1895,7 +1895,7 @@ static std::string resolveFissionDatPath(const std::string& configuredPath)
 {
 #if defined(__APPLE__) && TARGET_OS_IPHONE
     if (configuredPath.empty()) {
-        return configuredPath;  // Disabled - gameDbInit skips loadFission().
+        return configuredPath; // Disabled - gameDbInit skips loadFission().
     }
 
     if (configuredPath != "fission.dat") {
