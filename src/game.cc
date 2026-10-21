@@ -1877,6 +1877,48 @@ static void gameLoadEnabledModsFromOrderFile()
     fclose(f);
 }
 
+// iOS: fission.dat lives in the app bundle's Resources directory, but the
+// process CWD is the Documents folder. The config value stays portable
+// ("fission.dat" default, or a user override) so it survives bundle
+// reinstalls; the real path is resolved here, at the single point of use.
+//
+// The bundled copy wins whenever the config value is the default. A user
+// override only takes effect when fission_dat has been explicitly set to a
+// non-default path that actually exists - so:
+//   - a stale copy left in Documents can't silently override newer bundled
+//     assets, and
+//   - a stale absolute path from an earlier build (bundle UUIDs change on
+//     every reinstall) can't block startup.
+// To explicitly use a Documents copy, set fission_dat to "./fission.dat" (or
+// any other existing path); the "./" is not the default and so is honored.
+static std::string resolveFissionDatPath(const std::string& configuredPath)
+{
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+    if (configuredPath.empty()) {
+        return configuredPath; // Disabled - gameDbInit skips loadFission().
+    }
+
+    if (configuredPath != "fission.dat") {
+        if (compat_access(configuredPath.c_str(), 0) == 0) {
+            return configuredPath;
+        }
+        debugPrint(">>> resolveFissionDatPath: configured fission_dat '%s' does not exist, falling back to bundled copy\n",
+            configuredPath.c_str());
+    }
+
+    char* basePath = SDL_GetBasePath();
+    if (basePath != nullptr) {
+        std::string resolved = std::string(basePath) + "fission.dat";
+        SDL_free(basePath);
+        return resolved;
+    }
+
+    return configuredPath;
+#else
+    return configuredPath;
+#endif
+}
+
 // A canonical master.dat is a *frozen* release whose assets fission.dat
 // is expected to layer on top of. Anything that is not canonical is
 // treated as a total conversion still in development, and its .dat
@@ -1991,8 +2033,15 @@ static int gameDbInit()
     //
     // In the canonical case we're done: fission wins.
     // In the mod case we still need to fix the order in Step 4.
+    //
+    // Resolve the path here rather than at config-load time: on iOS the
+    // configured value is portable, but the actual file is in the app
+    // bundle's Resources folder. Resolving at point of use means the
+    // value saved back to fission.cfg never contains the bundle UUID.
+    std::string resolvedFissionDat = resolveFissionDatPath(settings.system.fission_dat_path);
+
     auto loadFission = [&]() -> int {
-        const char* fission_dat = settings.system.fission_dat_path.c_str();
+        const char* fission_dat = resolvedFissionDat.c_str();
         const char* fission_patch = settings.system.fission_patches_path.c_str();
         if (*fission_patch == '\0') fission_patch = nullptr;
         int handle = dbOpen(fission_dat, fission_patch);
