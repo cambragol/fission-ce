@@ -2068,10 +2068,9 @@ bool automapHandleKey(int keyCode)
     if (keyCode == KEY_TAB) {
         if (gAutomapWindowOpen) {
             automapClose();
-            handled = true;
-        } else {
-            handled = false; // let game handle it
+            return true;
         }
+        return false; // let game handle it
     }
     switch (keyCode) {
     case KEY_ALT_H:
