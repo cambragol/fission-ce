@@ -908,6 +908,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
             int keyCode = inputGetInput();
             switch (keyCode) {
             case KEY_TAB:
+            case KEY_ESCAPE:
                 done = true;
                 break;
             case KEY_UPPERCASE_H:
@@ -2062,6 +2063,14 @@ bool automapIsOpen()
 bool automapHandleKey(int keyCode)
 {
     if (!gAutomapWindowOpen && !interfaceIsSuperWide()) return false;
+
+    if (keyCode == KEY_ESCAPE) {
+        if (gAutomapWindowOpen) {
+            automapClose();
+            return true;
+        }
+        return false;
+    }
 
     bool handled = true;
     // Open/Close with Tab
