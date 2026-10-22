@@ -672,6 +672,8 @@ static Object* _last_quick_sorted_object;
 static int _next_quick_sort_type = GAME_MOUSE_ACTION_MENU_ITEM_SORT_DEFAULT;
 
 static FrmImage _inventoryFrmImages[INVENTORY_FRM_COUNT];
+// Button image pointers remain valid until the trade window is destroyed.
+static unsigned char gTradeArrowButtonImages[6][22 * 23];
 static FrmImage _moveFrmImages[8];
 
 // Combined Inventory struct
@@ -1672,6 +1674,24 @@ void inventoryOpenForCompanion(Object* critter)
     _inven_pid = savedPid;
 }
 
+// Locked interface FRMs provide valid pixels and positive dimensions.
+// Localized arrows may be larger than the 22x23 button image pitch.
+static void inventoryPrepareTradeArrowImages(int normalIndex, int pressedIndex, int disabledIndex, int firstImage)
+{
+    const int indices[] = { normalIndex, pressedIndex, disabledIndex };
+    for (int state = 0; state < 3; state++) {
+        FrmImage& image = _inventoryFrmImages[indices[state]];
+        for (int y = 0; y < 23; y++) {
+            int sourceY = y * image.getHeight() / 23;
+            for (int x = 0; x < 22; x++) {
+                int sourceX = x * image.getWidth() / 22;
+                gTradeArrowButtonImages[firstImage + state][y * 22 + x]
+                    = image.getData()[sourceY * image.getWidth() + sourceX];
+            }
+        }
+    }
+}
+
 // 0x46EC90
 static bool _setup_inventory(int inventoryWindowType)
 {
@@ -2140,19 +2160,20 @@ static bool _setup_inventory(int inventoryWindowType)
         _inventoryFrmImages[14].lock(fid);
 
         if (_inventoryFrmImages[2].isLocked() && _inventoryFrmImages[3].isLocked() && _inventoryFrmImages[14].isLocked()) {
+            inventoryPrepareTradeArrowImages(2, 3, 14, 0);
             // Left inventory up button (player)
             btn = buttonCreate(gInventoryWindow,
                 111, 57, 22, 23,
                 -1, -1, KEY_ARROW_UP, -1,
-                _inventoryFrmImages[2].getData(),
-                _inventoryFrmImages[3].getData(),
+                gTradeArrowButtonImages[0],
+                gTradeArrowButtonImages[1],
                 nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[14].getData(),
-                    _inventoryFrmImages[14].getData(),
-                    _inventoryFrmImages[14].getData());
+                    gTradeArrowButtonImages[2],
+                    gTradeArrowButtonImages[2],
+                    gTradeArrowButtonImages[2]);
                 gTradeLeftUpButton = btn;
                 buttonDisable(btn);
             }
@@ -2161,15 +2182,15 @@ static bool _setup_inventory(int inventoryWindowType)
             btn = buttonCreate(gInventoryWindow,
                 342, 57, 22, 23,
                 -1, -1, KEY_CTRL_ARROW_UP, -1,
-                _inventoryFrmImages[2].getData(),
-                _inventoryFrmImages[3].getData(),
+                gTradeArrowButtonImages[0],
+                gTradeArrowButtonImages[1],
                 nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[14].getData(),
-                    _inventoryFrmImages[14].getData(),
-                    _inventoryFrmImages[14].getData());
+                    gTradeArrowButtonImages[2],
+                    gTradeArrowButtonImages[2],
+                    gTradeArrowButtonImages[2]);
                 gTradeRightUpButton = btn;
                 buttonDisable(btn);
             }
@@ -2250,19 +2271,20 @@ static bool _setup_inventory(int inventoryWindowType)
         _inventoryFrmImages[15].lock(fid);
 
         if (_inventoryFrmImages[5].isLocked() && _inventoryFrmImages[6].isLocked() && _inventoryFrmImages[15].isLocked()) {
+            inventoryPrepareTradeArrowImages(5, 6, 15, 3);
             // Left inventory down button (player)
             btn = buttonCreate(gInventoryWindow,
                 111, 82, 22, 23,
                 -1, -1, KEY_ARROW_DOWN, -1,
-                _inventoryFrmImages[5].getData(),
-                _inventoryFrmImages[6].getData(),
+                gTradeArrowButtonImages[3],
+                gTradeArrowButtonImages[4],
                 nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[15].getData(),
-                    _inventoryFrmImages[15].getData(),
-                    _inventoryFrmImages[15].getData());
+                    gTradeArrowButtonImages[5],
+                    gTradeArrowButtonImages[5],
+                    gTradeArrowButtonImages[5]);
                 gTradeLeftDownButton = btn;
                 buttonDisable(btn); // initially disabled if list short
             }
@@ -2271,15 +2293,15 @@ static bool _setup_inventory(int inventoryWindowType)
             btn = buttonCreate(gInventoryWindow,
                 342, 82, 22, 23,
                 -1, -1, KEY_CTRL_ARROW_DOWN, -1,
-                _inventoryFrmImages[5].getData(),
-                _inventoryFrmImages[6].getData(),
+                gTradeArrowButtonImages[3],
+                gTradeArrowButtonImages[4],
                 nullptr, 0);
             if (btn != -1) {
                 buttonSetCallbacks(btn, _gsound_red_butt_press, _gsound_red_butt_release);
                 _win_register_button_disable(btn,
-                    _inventoryFrmImages[15].getData(),
-                    _inventoryFrmImages[15].getData(),
-                    _inventoryFrmImages[15].getData());
+                    gTradeArrowButtonImages[5],
+                    gTradeArrowButtonImages[5],
+                    gTradeArrowButtonImages[5]);
                 gTradeRightDownButton = btn;
                 buttonDisable(btn);
             }
