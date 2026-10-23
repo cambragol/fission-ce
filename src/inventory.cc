@@ -7467,6 +7467,16 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
                 }
             }
         }
+
+        // Using an item can destroy it, so rebuild the combined inventory
+        // before cursor hover callbacks or rendering access its cached items.
+        if (gUseCombinedInventory) {
+            Object* focusOwner = inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL
+                || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON
+                ? _inven_dude
+                : gDude;
+            inventoryBuildCombinedList(focusOwner);
+        }
         break;
     case GAME_MOUSE_ACTION_MENU_ITEM_UNLOAD: {
         if (!item || !owner) break;
