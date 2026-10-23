@@ -7472,7 +7472,7 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
         // before cursor hover callbacks or rendering access its cached items.
         if (gUseCombinedInventory) {
             Object* focusOwner = inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL
-                || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON
+                    || inventoryWindowType == INVENTORY_WINDOW_TYPE_USE_ITEM_ON
                 ? _inven_dude
                 : gDude;
             inventoryBuildCombinedList(focusOwner);
