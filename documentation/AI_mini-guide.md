@@ -116,6 +116,35 @@ Each AI packet gets its own block of messages. The IDs are **relative** to the r
 
 If you omit the `.msg` file, the AI will still work, but no taunts will be displayed.
 
+### Voiced Taunts (Optional)
+
+Taunts read the same `{num}{audio}{text}` audio field as every other `.msg` line, and play
+it as a voiced float over the critter that speaks:
+
+```
+{100}{}{"Get out of my sight!"}
+{101}{mytown_raider_101}{"You'll pay for that!"}
+```
+
+Line `{101}` plays `sound/speech/mytown_raider_101.wav` (or `.acm`). The file name is
+resolved like any other float speech file, directly under `sound/speech/`. Line `{100}`
+stays silent. No script is involved: the engine plays the file when the taunt appears.
+
+- Gated like voiced script floats: `[enhancements] VockFeatures=1` in `fission.cfg` plus
+  `[vock-features] FloatAudio=1` in `game.cfg`, and off entirely under `StrictVanilla=1`.
+  With either switch off, taunts are text only, as before.
+- `[preferences] combat_taunts` still applies. With taunts off, nothing shows and nothing
+  plays.
+- Plays on the float audio channels (`[vock-features] FloatAudioChannels`), so two critters
+  can taunt at once. Volume falls off with distance and Perception like any other voiced
+  float. Silent while resting with the Pip-Boy alarm clock.
+- **One number, one voice.** Every critter whose AI packet range covers a number uses the
+  same line. If you voice `{101}`, every critter using that packet says it in that voice.
+  For separate voices per faction, give each faction its own AI packet with its own range,
+  and voice each range.
+- The base game's `combatai.msg` ships with the audio field empty. Voice lines one at a
+  time; an unvoiced line shows its text as always.
+
 ---
 
 ## 4. Disposition Variants (Important!)
