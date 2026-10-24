@@ -2823,10 +2823,10 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 // when the body text is edited or repaginated, matching vock-fo2's tagging. It resolves through pipboySpeechLoad() on its own
 // dedicated Pip-Boy channel (gPipboySound in game_sound.cc) rather than the
 // shared dialogue channel, so holodisk narration can't be interrupted by,
-// or interrupt, an unrelated NPC's line. Gated behind the [enhancements]
-// VockFeatures master switch plus its own [vock-features] PipboyAudio
-// toggle, so it inherits StrictVanilla but can be switched on/off (and
-// volumed via PipboyVolume) independently of NPC floats' FloatAudio.
+// or interrupt, an unrelated NPC's line. Gated by [sound] pipboy in
+// fission.cfg and turned off by StrictVanilla, like the rest of FISSION's
+// additions; volume is [sound] pipboy_volume. Unlike NPC float audio it
+// does not depend on the VockFeatures switch.
 //
 // This plays one clip for the whole holodisk, not one per page.
 // PIPBOY_HOLODISK_LINES_MAX paginates by a blind 35-message-ID count that
@@ -2851,9 +2851,8 @@ static void pipboyWindowRenderQuestLocationList(int selectedQuestLocation)
 // dedicated pipboy audio folder.
 static void pipboyHolodiskUpdateAudio(const char* audio)
 {
-    bool voicedHolodisksEnabled = settings.enhancements.vock_features
-        && !settings.enhancements.strict_vanilla
-        && settings.mod_settings.pipboy_audio;
+    bool voicedHolodisksEnabled = !settings.enhancements.strict_vanilla
+        && settings.sound.pipboy;
 
     if (!voicedHolodisksEnabled) {
         return;
@@ -5052,9 +5051,9 @@ static void generateHolodiskListReport()
         "   holodisk's TITLE entry's audio field, e.g. {0}{myquest_intro}{Title}.\n"
         "   One clip for the whole holodisk, not per page (pages break mid-\n"
         "   sentence, so per-page audio can't be cut cleanly). Resolves to\n"
-        "   sound/pipboy/myquest_intro.*. Requires [enhancements]\n"
-        "   VockFeatures=1 and [vock-features] PipboyAudio=1 (both on by\n"
-        "   default); volume is [vock-features] PipboyVolume.\n");
+        "   sound/pipboy/myquest_intro.*. Requires [sound] pipboy=1 in\n"
+        "   fission.cfg (on by default) and StrictVanilla=0; volume is\n"
+        "   [sound] pipboy_volume.\n");
 
     fclose(reportFile);
 }

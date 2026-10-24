@@ -61,10 +61,12 @@ struct SoundSettings {
     bool sounds = GAME_CONFIG_DEFAULT_SOUND_SOUNDS;
     bool music = GAME_CONFIG_DEFAULT_SOUND_MUSIC;
     bool speech = GAME_CONFIG_DEFAULT_SOUND_SPEECH;
+    bool pipboy = GAME_CONFIG_DEFAULT_SOUND_PIPBOY;
     int master_volume = GAME_CONFIG_DEFAULT_MASTER_VOLUME;
     int music_volume = GAME_CONFIG_DEFAULT_MUSIC_VOLUME;
     int sndfx_volume = GAME_CONFIG_DEFAULT_SNDFX_VOLUME;
     int speech_volume = GAME_CONFIG_DEFAULT_SPEECH_VOLUME;
+    int pipboy_volume = GAME_CONFIG_DEFAULT_PIPBOY_VOLUME;
     int cache_size = GAME_CONFIG_DEFAULT_SOUND_CACHE_SIZE;
     std::string music_path1 = GAME_CONFIG_DEFAULT_MUSIC_PATH1;
     std::string music_path2 = GAME_CONFIG_DEFAULT_MUSIC_PATH2;
@@ -209,9 +211,6 @@ struct ModSettings {
     int text_scramble_distance_per_perception = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_DISTANCE_PER_PERCEPTION;
     int text_scramble_obstruction_dampening = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_OBSTRUCTION_DAMPENING;
     std::string text_scramble_chars = MOD_CONFIG_DEFAULT_TEXT_SCRAMBLE_CHARS;
-
-    bool pipboy_audio = MOD_CONFIG_DEFAULT_PIPBOY_AUDIO;
-    int pipboy_volume = MOD_CONFIG_DEFAULT_PIPBOY_VOLUME;
 };
 
 struct ModScriptsSettings {
