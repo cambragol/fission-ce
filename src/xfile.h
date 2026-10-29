@@ -66,6 +66,10 @@ long xfileGetSize(XFile* stream);
 bool xbaseReopenAll(char* paths);
 bool xbaseOpen(const char* path);
 bool xlistInit(const char* pattern, XList* xlist);
+
+// Like xlistInit, but collects only directories. Only directory-based xbases
+// can produce these, since .dat files don't store directory entries.
+bool xlistInitDirectories(const char* pattern, XList* xlist);
 void xlistFree(XList* xlist);
 
 } // namespace fallout

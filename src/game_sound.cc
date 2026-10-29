@@ -35,6 +35,7 @@
 #include "wav_io.h"
 #include "window_manager.h"
 #include "worldmap.h"
+#include "xfile.h"
 
 namespace fallout {
 
@@ -2528,6 +2529,68 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     return -1;
 }
 
+// FISSION-VOCK ADD: one-level subfolder search for gameSoundFindSpeechSoundPath().
+// Tries .WAV before .ACM in each folder, matching the flat lookup's order.
+//
+// Loose folders on disk have to be listed first and checked one by one,
+// because the OS file search does not expand a wildcard in the middle of a
+// path. .dat files store full paths, so a wildcard in the middle of the path
+// matches there directly. datPatternMatch() lowercases and slash-normalizes
+// only the entry path, not the pattern, so that pattern must already be
+// lowercase with '/' separators. fpattern is built without DELIM, so the
+// '*' there can also match nested folders.
+static bool gameSoundFindSpeechSoundPathInSubfolders(char* dest, const char* src)
+{
+    static const char* const kExtensions[] = { ".WAV", ".ACM" };
+
+    char path[COMPAT_MAX_PATH + 1];
+    char upperSrc[COMPAT_MAX_PATH + 1];
+    char pattern[COMPAT_MAX_PATH];
+    int fileSize;
+
+    strcpy(upperSrc, src);
+    compat_strupr(upperSrc);
+
+    snprintf(pattern, sizeof(pattern), "%s*", _sound_speech_path);
+
+    XList xlist = {};
+    if (xlistInitDirectories(pattern, &xlist)) {
+        for (int index = 0; index < xlist.fileNamesLength; index++) {
+            for (const char* extension : kExtensions) {
+                const char* names[] = { src, upperSrc };
+                for (const char* name : names) {
+                    snprintf(path, sizeof(path), "%s/%s%s", xlist.fileNames[index], name, extension);
+                    if (dbGetFileSize(path, &fileSize) == 0) {
+                        strncpy(dest, path, COMPAT_MAX_PATH);
+                        dest[COMPAT_MAX_PATH] = '\0';
+                        xlistFree(&xlist);
+                        return true;
+                    }
+                }
+            }
+        }
+        xlistFree(&xlist);
+    }
+
+    for (const char* extension : kExtensions) {
+        snprintf(pattern, sizeof(pattern), "sound/speech/*/%s%s", src, extension);
+        compat_strlwr(pattern);
+
+        xlist = {};
+        if (xlistInit(pattern, &xlist)) {
+            if (xlist.fileNamesLength > 0) {
+                strncpy(dest, xlist.fileNames[0], COMPAT_MAX_PATH);
+                dest[COMPAT_MAX_PATH] = '\0';
+                xlistFree(&xlist);
+                return true;
+            }
+            xlistFree(&xlist);
+        }
+    }
+
+    return false;
+}
+
 // 0x451F94
 int gameSoundFindSpeechSoundPath(char* dest, const char* src)
 {
@@ -2583,6 +2646,17 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     if (_gsound_file_exists_f(path)) {
         strncpy(dest, path, COMPAT_MAX_PATH);
         dest[COMPAT_MAX_PATH] = '\0';
+        return 0;
+    }
+
+    // FISSION-VOCK ADD: port of fallout2-ce's per-NPC subfolder lookup.
+    // Mods often put each NPC's speech in its own subfolder, like the base
+    // game does for dialogue heads. Floats have no head to name that folder
+    // after, and the folder can't be guessed from the filename either (an
+    // NPC named "AHS-7" has lines like "ahs71.acm" in an "ahs7\" folder, so
+    // trimming trailing digits would cut off part of the name). Search one
+    // folder level down for a match instead of guessing.
+    if (gameSoundFindSpeechSoundPathInSubfolders(dest, src)) {
         return 0;
     }
 

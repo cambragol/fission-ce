@@ -34,6 +34,8 @@ static int xbaseMakeDirectory(const char* path);
 static void xbaseCloseAll();
 static void xbaseExitHandler(void);
 static bool xlistEnumerateHandler(XListEnumerationContext* context);
+static bool xlistEnumerateDirectoriesHandler(XListEnumerationContext* context);
+static bool xlistAppend(XList* xlist, const char* name);
 
 // 0x6B24D0
 static XBase* gXbaseHead;
@@ -677,6 +679,12 @@ bool xlistInit(const char* pattern, XList* xlist)
     return xlist->fileNamesLength != -1;
 }
 
+bool xlistInitDirectories(const char* pattern, XList* xlist)
+{
+    xlistEnumerate(pattern, xlistEnumerateDirectoriesHandler, xlist);
+    return xlist->fileNamesLength != -1;
+}
+
 // 0x4DFF48
 void xlistFree(XList* xlist)
 {
@@ -800,8 +808,20 @@ static bool xlistEnumerateHandler(XListEnumerationContext* context)
         return true;
     }
 
-    XList* xlist = context->xlist;
+    return xlistAppend(context->xlist, context->name);
+}
 
+static bool xlistEnumerateDirectoriesHandler(XListEnumerationContext* context)
+{
+    if (context->type != XFILE_ENUMERATION_ENTRY_TYPE_DIRECTORY) {
+        return true;
+    }
+
+    return xlistAppend(context->xlist, context->name);
+}
+
+static bool xlistAppend(XList* xlist, const char* name)
+{
     char** fileNames = (char**)realloc(xlist->fileNames, sizeof(*fileNames) * (xlist->fileNamesLength + 1));
     if (fileNames == nullptr) {
         xlistFree(xlist);
@@ -811,7 +831,7 @@ static bool xlistEnumerateHandler(XListEnumerationContext* context)
 
     xlist->fileNames = fileNames;
 
-    fileNames[xlist->fileNamesLength] = compat_strdup(context->name);
+    fileNames[xlist->fileNamesLength] = compat_strdup(name);
     if (fileNames[xlist->fileNamesLength] == nullptr) {
         xlistFree(xlist);
         xlist->fileNamesLength = -1;
