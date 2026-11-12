@@ -2220,7 +2220,7 @@ static int _get_input_str(int win, int cancelKeyCode, char* text, int maxLength,
 
     beginTextInput();
 
-    int blinkingCounter = 3;
+    int blinkingCounter = 9;
     bool blink = false;
 
     int rc = 1;
@@ -2267,7 +2267,7 @@ static int _get_input_str(int win, int cancelKeyCode, char* text, int maxLength,
 
         blinkingCounter -= 1;
         if (blinkingCounter == 0) {
-            blinkingCounter = 3;
+            blinkingCounter = 9;
 
             int color = blink ? backgroundColor : textColor;
             blink = !blink;
@@ -2276,8 +2276,6 @@ static int _get_input_str(int win, int cancelKeyCode, char* text, int maxLength,
         }
 
         windowRefresh(win);
-
-        delay_ms(1000 / 24 - (getTicks() - _frame_time));
 
         renderPresent();
         sharedFpsLimiter.throttle();
@@ -3980,8 +3978,6 @@ static int characterEditorEditAge()
             }
         } else {
             windowRefresh(win);
-
-            delay_ms(1000 / 24 - (getTicks() - _frame_time));
         }
 
         renderPresent();
@@ -4133,7 +4129,7 @@ static void characterEditorEditGender()
 
         windowRefresh(win);
 
-        delay_ms(41 - (getTicks() - _frame_time));
+        //delay_ms(41 - (getTicks() - _frame_time));
 
         renderPresent();
         sharedFpsLimiter.throttle();

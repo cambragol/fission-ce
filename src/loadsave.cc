@@ -1045,8 +1045,6 @@ int lsgSaveGame(int mode)
                 _dbleclkcntr = 24;
                 doubleClickSlot = -1;
             }
-
-            delay_ms(1000 / 24 - (getTicks() - tick));
         }
 
         if (rc == 1) {
@@ -1227,25 +1225,8 @@ int lsgLoadGame(int mode)
     _patches = settings.system.master_patches_path.c_str();
 
     if (mode == LOAD_SAVE_MODE_QUICK && _quick_done) {
-        int quickSaveWindowX = (screenGetWidth() - gOffsets.windowWidth) / 2;
-        int quickSaveWindowY = (screenGetHeight() - gOffsets.windowHeight) / 2;
-        int window = windowCreate(quickSaveWindowX,
-            quickSaveWindowY,
-            gOffsets.windowWidth,
-            gOffsets.windowHeight,
-            256,
-            WINDOW_MODAL | WINDOW_DONT_MOVE_TOP | WINDOW_TRANSPARENT);
-        if (window != -1) {
-            unsigned char* windowBuffer = windowGetBuffer(window);
-            bufferFill(windowBuffer, gOffsets.windowWidth, gOffsets.windowHeight, gOffsets.windowWidth, _colorTable[COL_BLACK]);
-            windowRefresh(window);
-            renderPresent();
-        }
 
         if (lsgLoadGameInSlot(_slot_cursor) != -1) {
-            if (window != -1) {
-                windowDestroy(window);
-            }
             gameMouseSetCursor(MOUSE_CURSOR_ARROW);
             return 1;
         }
@@ -1258,10 +1239,6 @@ int lsgLoadGame(int mode)
         snprintf(path, sizeof(path), "%s\\%s", asc_5186C8, "LSGAME.MSG");
         if (!messageListLoad(&gLoadSaveMessageList, path)) {
             return -1;
-        }
-
-        if (window != -1) {
-            windowDestroy(window);
         }
 
         gameMouseSetCursor(MOUSE_CURSOR_ARROW);
@@ -3101,7 +3078,7 @@ static int _get_input_str2(int win, int doneKeyCode, int cancelKeyCode, char* de
 
     beginTextInput();
 
-    int blinkCounter = 3;
+    int blinkCounter = 9;
     bool blink = false;
 
     int v1 = 0;
@@ -3155,16 +3132,13 @@ static int _get_input_str2(int win, int doneKeyCode, int cancelKeyCode, char* de
 
         blinkCounter -= 1;
         if (blinkCounter == 0) {
-            blinkCounter = 3;
+            blinkCounter = 9;
             blink = !blink;
 
             int color = blink ? backgroundColor : textColor;
             bufferFill(windowBuffer + windowWidth * y + x + fontGetStringWidth(text) - cursorWidth, cursorWidth, lineHeight - 2, windowWidth, color);
             windowRefresh(win);
         }
-
-        delay_ms(1000 / 24 - (getTicks() - tick));
-
         renderPresent();
         sharedFpsLimiter.throttle();
     }

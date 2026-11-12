@@ -910,8 +910,6 @@ int showLoadFileDialog(char* title, char** fileList, char* dest, int fileListLen
                 doubleClickTimer = FILE_DIALOG_DOUBLE_CLICK_DELAY;
                 doubleClickSelectedFileIndex = -2;
             }
-
-            delay_ms(1000 / 24 - (getTicks() - tick));
         }
 
         if (_game_user_wants_to_quit) {
@@ -1118,7 +1116,7 @@ int showSaveFileDialog(char* title, char** fileList, char* dest, int fileListLen
 
     beginTextInput();
 
-    int blinkingCounter = 3;
+    int blinkingCounter = 9;
     bool blink = false;
 
     int doubleClickSelectedFileIndex = -2;
@@ -1325,7 +1323,7 @@ int showSaveFileDialog(char* title, char** fileList, char* dest, int fileListLen
                 // function.
                 blinkingCounter -= 1;
                 if (blinkingCounter == 0) {
-                    blinkingCounter = 3;
+                    blinkingCounter = 9;
 
                     int color = blink ? 100 : _colorTable[COL_LIME_GREEN];
                     blink = !blink;
@@ -1353,7 +1351,7 @@ int showSaveFileDialog(char* title, char** fileList, char* dest, int fileListLen
         } else {
             blinkingCounter -= 1;
             if (blinkingCounter == 0) {
-                blinkingCounter = 3;
+                blinkingCounter = 9;
 
                 int color = blink ? 100 : _colorTable[COL_LIME_GREEN];
                 blink = !blink;
@@ -1368,8 +1366,6 @@ int showSaveFileDialog(char* title, char** fileList, char* dest, int fileListLen
                 doubleClickTimer = FILE_DIALOG_DOUBLE_CLICK_DELAY;
                 doubleClickSelectedFileIndex = -2;
             }
-
-            delay_ms(1000 / 24 - (getTicks() - tick));
         }
 
         if (_game_user_wants_to_quit != 0) {
