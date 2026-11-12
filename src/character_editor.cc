@@ -4129,7 +4129,7 @@ static void characterEditorEditGender()
 
         windowRefresh(win);
 
-        //delay_ms(41 - (getTicks() - _frame_time));
+        // delay_ms(41 - (getTicks() - _frame_time));
 
         renderPresent();
         sharedFpsLimiter.throttle();
