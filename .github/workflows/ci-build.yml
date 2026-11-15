@@ -24,7 +24,7 @@ jobs:
       skip_release: ${{ steps.check-skip.outputs.skip_release }}
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -85,7 +85,7 @@ jobs:
           sudo apt install cppcheck
 
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: cppcheck
         run: cppcheck --std=c++17 src/
@@ -99,7 +99,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -159,17 +159,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 11
           cache: gradle
 
       - name: Cache cmake build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: os/android/app/.cxx
           key: android-cmake-v100
@@ -205,7 +205,7 @@ jobs:
           cp packaged/fallout-fission-android.zip packages/
 
       - name: Upload Android package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission-android
           path: packages/fallout-fission-android.zip
@@ -216,10 +216,10 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache cmake build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: out
           key: ios-cmake-v100
@@ -238,7 +238,7 @@ jobs:
           cpack -C Debug
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission.ipa
           path: out/build/ios/fallout-fission.ipa
@@ -246,16 +246,22 @@ jobs:
 
   linux:
     name: Linux (${{ matrix.arch }})
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - x86
-          - x64
+        include:
+          - arch: x86
+            runner: ubuntu-22.04
+          - arch: x64
+            runner: ubuntu-22.04
+          - arch: armhf
+            runner: ubuntu-22.04-arm
+          - arch: arm64
+            runner: ubuntu-22.04-arm
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Dependencies (x86)
         if: matrix.arch == 'x86'
@@ -264,14 +270,21 @@ jobs:
           sudo apt update
           sudo apt install g++-multilib libsdl2-dev:i386 zlib1g-dev:i386
 
+      - name: Dependencies (armhf)
+        if: matrix.arch == 'armhf'
+        run: |
+          sudo dpkg --add-architecture armhf
+          sudo apt update
+          sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libsdl2-dev:armhf zlib1g-dev:armhf
+
       - name: Dependencies (x64)
-        if: matrix.arch == 'x64'
+        if: matrix.arch == 'x64' || matrix.arch == 'arm64'
         run: |
           sudo apt update
           sudo apt install libsdl2-dev zlib1g-dev
 
       - name: Cache cmake build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: out
           key: linux-${{ matrix.arch }}-cmake-v100
@@ -300,74 +313,7 @@ jobs:
           cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
 
       - name: Upload Linux ${{ matrix.arch }} package
-        uses: actions/upload-artifact@v4
-        with:
-          name: fallout-fission-linux-${{ matrix.arch }}
-          path: packages/fallout-fission-linux-${{ matrix.arch }}.zip
-          retention-days: 7
-
-  linux-arm:
-    name: Linux (${{ matrix.arch }})
-    runs-on: ubuntu-22.04-arm
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - armhf
-          - arm64
-    steps:
-      - name: Clone
-        uses: actions/checkout@v4
-
-      - name: Dependencies (armhf)
-        if: matrix.arch == 'armhf'
-        run: |
-          sudo dpkg --add-architecture armhf
-          sudo apt update
-          sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libsdl2-dev:armhf zlib1g-dev:armhf
-
-      - name: Dependencies (arm64)
-        if: matrix.arch == 'arm64'
-        run: |
-          sudo apt update
-          sudo apt install libsdl2-dev zlib1g-dev
-
-      - name: Configure (armhf)
-        if: matrix.arch == 'armhf'
-        run: |
-          cmake \
-            -B build \
-            -D CMAKE_BUILD_TYPE=Debug \
-            -D FALLOUT_VENDORED=OFF \
-            -D CMAKE_SYSTEM_PROCESSOR=arm \
-            -D CMAKE_C_COMPILER=arm-linux-gnueabihf-gcc \
-            -D CMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++ \
-            # EOL
-
-      - name: Configure (arm64)
-        if: matrix.arch == 'arm64'
-        run: cmake -B build -D CMAKE_BUILD_TYPE=Debug -D FALLOUT_VENDORED=OFF
-
-      - name: Build
-        run: cmake --build build
-
-      - name: Change executable file name
-        run: |
-          mv build/fallout2-ce build/fallout-fission-linux-${{ matrix.arch }}
-
-      - name: Package Linux ${{ matrix.arch }} with fission.dat
-        run: |
-          mkdir -p packaged
-          cp build/fallout-fission-linux-${{ matrix.arch }} packaged/
-          cp os/macos/fission.dat packaged/
-          cd packaged
-          zip fallout-fission-linux-${{ matrix.arch }}.zip fallout-fission-linux-${{ matrix.arch }} fission.dat
-          cd ..
-          mkdir -p packages
-          cp packaged/fallout-fission-linux-${{ matrix.arch }}.zip packages/
-
-      - name: Upload Linux ${{ matrix.arch }} package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission-linux-${{ matrix.arch }}
           path: packages/fallout-fission-linux-${{ matrix.arch }}.zip
@@ -378,10 +324,10 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache cmake build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: out
           key: macos-cmake-v100
@@ -431,7 +377,7 @@ jobs:
           mv dmg_output/Fallout-Fission.dmg dmg_output/fallout-fission-macos.dmg
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission-macos.dmg
           path: dmg_output/fallout-fission-macos.dmg
@@ -450,7 +396,7 @@ jobs:
             generator-platform: x64
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Visual Studio 2022 Build Tools with v141_xp
         shell: cmd
@@ -458,7 +404,7 @@ jobs:
           choco install visualstudio2022buildtools -y --package-parameters="'--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --add Microsoft.VisualStudio.Component.VC.v141.xp --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.10240 --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.WinXP --add Microsoft.VisualStudio.Component.WinXP'"
 
       - name: Cache cmake deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           key: windows-${{ matrix.arch }}-cmake-v1-${{ hashFiles('CMakeLists.txt') }}
           path: |
@@ -494,7 +440,7 @@ jobs:
           copy packaged\fallout-fission-windows-${{ matrix.arch }}.zip packages\
 
       - name: Upload Windows ${{ matrix.arch }} package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission-windows-${{ matrix.arch }}
           path: packages/fallout-fission-windows-${{ matrix.arch }}.zip
@@ -503,7 +449,7 @@ jobs:
   package-combined:
     name: Package Combined Archive
     runs-on: ubuntu-latest
-    needs: [get-version, android, linux, linux-arm, windows]
+    needs: [get-version, android, linux, windows]
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
@@ -511,10 +457,10 @@ jobs:
       needs.get-version.outputs.skip_release != 'true'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download packaged artifacts (excluding macOS and iOS)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts/
 
@@ -545,7 +491,7 @@ jobs:
           ls -la *.zip
 
       - name: Upload combined archive as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fallout-fission-combined
           path: fallout-fission-combined.zip
@@ -554,7 +500,7 @@ jobs:
   release:
     name: Release Beta build
     runs-on: ubuntu-latest
-    needs: [get-version, android, ios, linux, linux-arm, macos, windows, package-combined]
+    needs: [get-version, android, ios, linux, macos, windows, package-combined]
     permissions: write-all
     if: |
       always() &&
@@ -563,14 +509,14 @@ jobs:
       needs.get-version.outputs.skip_release != 'true'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fetch artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts/
 
@@ -620,7 +566,7 @@ jobs:
           git push origin "$TAG"
 
       - name: Create release
-        uses: softprops/action-gh-release@v0.1.15
+        uses: softprops/action-gh-release@v3.0.4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: release-files/*
