@@ -824,8 +824,11 @@ static void wmGenerateMapListDebug();
 
 static void wmEncounterTableLoadModFiles();
 static void wmTileLoadModFiles();
-static void wmGenerateEncounterTablesDebug();
-static void wmGenerateNamedEncountersDebug();
+
+static void wmWriteEncounterTablesDebug(FILE* debugStream);
+static void wmWriteNamedEncountersDebug(FILE* debugStream);
+static void wmWriteTileOverridesDebug(FILE* debugStream);
+static void wmGenerateWorldmapModsDebug();
 
 static char _aErrorF2[] = "ERROR! F2";
 
@@ -2058,10 +2061,6 @@ static int wmConfigInit()
         // Load mod encounter tables from worldmap_*.txt
         wmEncounterTableLoadModFiles();
 
-        // Generate debug reports
-        wmGenerateEncounterTablesDebug();
-        wmGenerateNamedEncountersDebug();
-
         if (!configGetInt(&config, "Tile Data", "num_horizontal_tiles", &wmNumHorizontalTiles)) {
             showMesageBox("\nwmConfigInit::Error loading tile data!");
             return -1;
@@ -2124,6 +2123,9 @@ static int wmConfigInit()
 
         // Load tile overrides from mod files
         wmTileLoadModFiles();
+
+        // Generate combined worldmap mod data report
+        wmGenerateWorldmapModsDebug();
     }
 
     configFree(&config);
@@ -2539,6 +2541,126 @@ static void wmTileLoadModFiles()
     }
 
     fileNameListFree(&modFiles, 0);
+}
+
+// Write tile overrides from worldmap_*.txt files to the shared debug report.
+static void wmWriteTileOverridesDebug(FILE* debugStream)
+{
+    fprintf(debugStream,
+        "==============================================================================\n"
+        "3. TILE OVERRIDES\n"
+        "==============================================================================\n"
+        "This section lists tile properties and subtile values supplied by worldmap_*.txt files.\n\n"
+        "Each entry identifies the source mod file and the tile section it modifies.\n"
+        "------------------------------------------------------------------------------\n\n");
+
+    char searchPattern[COMPAT_MAX_PATH];
+    snprintf(searchPattern, sizeof(searchPattern),
+        "data%cworldmap_*.txt", DIR_SEPARATOR);
+
+    char** modFiles = nullptr;
+    int fileCount = fileNameListInit(searchPattern, &modFiles);
+
+    if (fileCount == 0) {
+        fprintf(debugStream, "No worldmap_*.txt files found.\n\n");
+        return;
+    }
+
+    int overrideCount = 0;
+
+    for (int i = 0; i < fileCount; i++) {
+        char fullPath[COMPAT_MAX_PATH];
+        snprintf(fullPath, sizeof(fullPath),
+            "data%c%s", DIR_SEPARATOR, modFiles[i]);
+
+        Config config;
+
+        if (!configInit(&config)) {
+            continue;
+        }
+
+        if (!configRead(&config, fullPath, true)) {
+            configFree(&config);
+            continue;
+        }
+
+        int sectionCount = configGetSectionCount(&config);
+
+        for (int s = 0; s < sectionCount; s++) {
+            char sectionKey[256];
+
+            if (!configGetSectionKey(&config, s, sectionKey, sizeof(sectionKey))) {
+                continue;
+            }
+
+            // Only process sections named "Tile N".
+            if (strncmp(sectionKey, "Tile ", 5) != 0) {
+                continue;
+            }
+
+            int tileIdx = atoi(sectionKey + 5);
+
+            fprintf(debugStream, "Source: %s\n", modFiles[i]);
+            fprintf(debugStream, "Tile: %d [%s]\n", tileIdx, sectionKey);
+
+            if (tileIdx < 0 || tileIdx >= wmMaxTileNum) {
+                fprintf(debugStream,
+                    "  WARNING: Invalid tile index (valid range: 0-%d)\n",
+                    wmMaxTileNum - 1);
+            }
+
+            // Tile art override
+            int artIdx;
+
+            if (configGetInt(&config, sectionKey, "art_idx", &artIdx)) {
+                fprintf(debugStream, "  art_idx: %d\n", artIdx);
+            }
+
+            // Walk mask override
+            char* walkMaskName;
+
+            if (configGetString(&config, sectionKey, "walk_mask_name", &walkMaskName)) {
+                fprintf(debugStream, "  walk_mask_name: %s\n", walkMaskName);
+            }
+
+            // Encounter difficulty override
+            int encDiff;
+
+            if (configGetInt(&config, sectionKey, "encounter_difficulty", &encDiff)) {
+                fprintf(debugStream, "  encounter_difficulty: %d\n", encDiff);
+            }
+
+            // Subtile overrides
+            bool hasSubtileOverrides = false;
+
+            for (int row = 0; row < SUBTILE_GRID_HEIGHT; row++) {
+                for (int col = 0; col < SUBTILE_GRID_WIDTH; col++) {
+                    char key[16];
+                    snprintf(key, sizeof(key), "%d_%d", col, row);
+
+                    char* subStr;
+
+                    if (configGetString(&config, sectionKey, key, &subStr)) {
+                        if (!hasSubtileOverrides) {
+                            fprintf(debugStream, "  Subtile overrides:\n");
+                            hasSubtileOverrides = true;
+                        }
+
+                        fprintf(debugStream, "    %s: %s\n", key, subStr);
+                    }
+                }
+            }
+
+            fprintf(debugStream, "\n");
+            overrideCount++;
+        }
+
+        configFree(&config);
+    }
+
+    fileNameListFree(&modFiles, 0);
+
+    fprintf(debugStream, "Total tile sections found: %d\n\n", overrideCount);
 }
 
 // Lazy load a named encounter from any worldmap_*.txt file
@@ -4273,145 +4395,232 @@ static void wmGenerateAreaListDebug()
     debugPrint("\nwmGenerateAreaListDebug: Generated area_list.txt with %d base, %d mod areas", baseCount, modCount);
 }
 
-static void wmGenerateEncounterTablesDebug()
+static void wmWriteEncounterTablesDebug(FILE* debugStream)
 {
-    char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./data%clists%cencounter_tables_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
-
-    FILE* debugStream = compat_fopen(debugPath, "wt");
-    if (debugStream == nullptr) {
-        debugPrint("\nwmGenerateEncounterTablesDebug: Could not create encounter_tables_list.txt");
-        return;
-    }
-
     // Header
     fprintf(debugStream,
         "==============================================================================\n"
-        "Fallout 2 Fission - Encounter Tables Report\n"
+        "1. ENCOUNTER TABLES\n"
         "==============================================================================\n"
-        "This report shows all encounter tables loaded from worldmap.txt and worldmap_*.txt\n\n"
+        "This section shows all encounter tables loaded from worldmap.txt and worldmap_*.txt\n\n"
         "Slot Ranges:\n"
         "  Vanilla: 0 .. %d\n"
         "  Mod:     %d .. %d\n\n"
         "Indices are stable across game sessions.\n"
-        "==============================================================================\n\n",
+        "------------------------------------------------------------------------------\n\n",
         wmVanillaEncounterTableCount - 1,
         MOD_ENCOUNTER_TABLE_START, TOTAL_ENCOUNTER_TABLE_MAX - 1);
 
     // Count used slots
-    int vanillaUsed = 0, modUsed = 0;
+    int vanillaUsed = 0;
+    int modUsed = 0;
+
     for (int i = 0; i < TOTAL_ENCOUNTER_TABLE_MAX; i++) {
         if (wmFixedEncounterTableList[i].lookupName[0] != '\0') {
-            if (i < wmVanillaEncounterTableCount)
+            if (i < wmVanillaEncounterTableCount) {
                 vanillaUsed++;
-            else
+            } else {
                 modUsed++;
+            }
         }
     }
 
-    fprintf(debugStream, "Total Tables: %d (Vanilla: %d, Mod: %d)\n\n", vanillaUsed + modUsed, vanillaUsed, modUsed);
+    fprintf(debugStream, "Total Tables: %d (Vanilla: %d, Mod: %d)\n\n",
+        vanillaUsed + modUsed, vanillaUsed, modUsed);
 
     // Table details
     for (int i = 0; i < TOTAL_ENCOUNTER_TABLE_MAX; i++) {
         EncounterTable* table = &wmFixedEncounterTableList[i];
-        if (table->lookupName[0] == '\0') continue;
 
-        const char* type = (i < wmVanillaEncounterTableCount) ? "Vanilla" : "Mod";
-        fprintf(debugStream, "Slot %5d [%s]: %s\n", i, type, table->lookupName);
+        if (table->lookupName[0] == '\0') {
+            continue;
+        }
+
+        const char* type = (i < wmVanillaEncounterTableCount)
+            ? "Vanilla"
+            : "Mod";
+
+        fprintf(debugStream, "Slot %5d [%s]: %s\n",
+            i, type, table->lookupName);
+
         fprintf(debugStream, "  Maps: ");
-        if (table->mapsLength == 0)
+
+        if (table->mapsLength == 0) {
             fprintf(debugStream, "(none)");
-        else {
+        } else {
             for (int m = 0; m < table->mapsLength; m++) {
-                fprintf(debugStream, "%s ", wmMapInfoList[table->maps[m]].lookupName);
+                fprintf(debugStream, "%s ",
+                    wmMapInfoList[table->maps[m]].lookupName);
             }
         }
+
         fprintf(debugStream, "\n  Entries: %d\n", table->entriesLength);
+
         for (int e = 0; e < table->entriesLength; e++) {
             EncounterTableEntry* entry = &table->entries[e];
-            fprintf(debugStream, "    Entry %02d: chance=%d, map=%d, scenery=%d, counter=%d, flags=0x%X\n",
-                e, entry->chance, entry->map, entry->scenery, entry->counter, entry->flags);
+
+            fprintf(debugStream,
+                "    Entry %02d: chance=%d, map=%d, scenery=%d, counter=%d, flags=0x%X\n",
+                e,
+                entry->chance,
+                entry->map,
+                entry->scenery,
+                entry->counter,
+                entry->flags);
+
             if (entry->subEntiesLength > 0) {
                 fprintf(debugStream, "      Sub-encounters:\n");
+
                 for (int s = 0; s < entry->subEntiesLength; s++) {
                     EncounterTableSubEntry* sub = &entry->subEntries[s];
-                    fprintf(debugStream, "        min=%d, max=%d, encIdx=%d, situation=%d\n",
-                        sub->minimumCount, sub->maximumCount, sub->encounterIndex, sub->situation);
+
+                    fprintf(debugStream,
+                        "        min=%d, max=%d, encIdx=%d, situation=%d\n",
+                        sub->minimumCount,
+                        sub->maximumCount,
+                        sub->encounterIndex,
+                        sub->situation);
                 }
             }
         }
+
         fprintf(debugStream, "\n");
     }
 
-    fclose(debugStream);
-    debugPrint("\nwmGenerateEncounterTablesDebug: Generated encounter_tables_list.txt");
+    fprintf(debugStream, "\n");
 }
 
-static void wmGenerateNamedEncountersDebug()
+static void wmWriteNamedEncountersDebug(FILE* debugStream)
 {
-    char debugPath[COMPAT_MAX_PATH];
-    snprintf(debugPath, sizeof(debugPath), "./data%clists%cnamed_encounters_list.txt", DIR_SEPARATOR, DIR_SEPARATOR);
-
-    FILE* debugStream = compat_fopen(debugPath, "wt");
-    if (debugStream == nullptr) {
-        debugPrint("\nwmGenerateNamedEncountersDebug: Could not create named_encounters_list.txt");
-        return;
-    }
-
     // Header
     fprintf(debugStream,
         "==============================================================================\n"
-        "Fallout 2 Fission - Named Encounters Report\n"
+        "2. NAMED ENCOUNTERS\n"
         "==============================================================================\n"
-        "This report shows all named encounters (Encounter: ...) loaded from worldmap.txt and worldmap_*.txt\n\n"
+        "This section shows all named encounters (Encounter: ...) loaded from worldmap.txt and worldmap_*.txt\n\n"
         "Slot Ranges:\n"
         "  Vanilla: 0 .. %d\n"
         "  Mod:     %d .. %d\n\n"
         "Indices are stable across game sessions.\n"
-        "==============================================================================\n\n",
+        "------------------------------------------------------------------------------\n\n",
         wmVanillaEncBaseTypeCount - 1,
         MOD_NAMED_ENCOUNTER_START, TOTAL_NAMED_ENCOUNTER_MAX - 1);
 
     // Count used slots
-    int vanillaUsed = 0, modUsed = 0;
+    int vanillaUsed = 0;
+    int modUsed = 0;
+
     for (int i = 0; i < TOTAL_NAMED_ENCOUNTER_MAX; i++) {
         if (wmFixedEncBaseTypeList[i].name[0] != '\0') {
-            if (i < wmVanillaEncBaseTypeCount)
+            if (i < wmVanillaEncBaseTypeCount) {
                 vanillaUsed++;
-            else
+            } else {
                 modUsed++;
+            }
         }
     }
 
-    fprintf(debugStream, "Total Named Encounters: %d (Vanilla: %d, Mod: %d)\n\n", vanillaUsed + modUsed, vanillaUsed, modUsed);
+    fprintf(debugStream,
+        "Total Named Encounters: %d (Vanilla: %d, Mod: %d)\n\n",
+        vanillaUsed + modUsed, vanillaUsed, modUsed);
 
     // Details
     for (int i = 0; i < TOTAL_NAMED_ENCOUNTER_MAX; i++) {
         Encounter* enc = &wmFixedEncBaseTypeList[i];
-        if (enc->name[0] == '\0') continue;
 
-        const char* type = (i < wmVanillaEncBaseTypeCount) ? "Vanilla" : "Mod";
-        fprintf(debugStream, "Slot %5d [%s]: %s\n", i, type, enc->name);
-        fprintf(debugStream, "  Formation: %d, Spacing: %d, Distance: %d\n", enc->position, enc->spacing, enc->distance);
+        if (enc->name[0] == '\0') {
+            continue;
+        }
+
+        const char* type = (i < wmVanillaEncBaseTypeCount)
+            ? "Vanilla"
+            : "Mod";
+
+        fprintf(debugStream, "Slot %5d [%s]: %s\n",
+            i, type, enc->name);
+
+        fprintf(debugStream,
+            "  Formation: %d, Spacing: %d, Distance: %d\n",
+            enc->position,
+            enc->spacing,
+            enc->distance);
+
         fprintf(debugStream, "  Entries: %d\n", enc->entriesLength);
+
         for (int e = 0; e < enc->entriesLength; e++) {
             EncounterEntry* entry = &enc->entries[e];
-            fprintf(debugStream, "    Entry %02d: pid=%d, ratio=%d, flags=0x%X, distance=%d, tile=%d, team=%d, items=%d\n",
-                e, entry->pid, entry->ratio, entry->flags, entry->distance, entry->tile, entry->team, entry->itemsLength);
+
+            fprintf(debugStream,
+                "    Entry %02d: pid=%d, ratio=%d, flags=0x%X, distance=%d, tile=%d, team=%d, items=%d\n",
+                e,
+                entry->pid,
+                entry->ratio,
+                entry->flags,
+                entry->distance,
+                entry->tile,
+                entry->team,
+                entry->itemsLength);
+
             if (entry->itemsLength > 0) {
                 fprintf(debugStream, "      Items:\n");
+
                 for (int it = 0; it < entry->itemsLength; it++) {
                     EncounterItem* item = &entry->items[it];
-                    fprintf(debugStream, "        pid=%d, qty=%d-%d, equipped=%d\n",
-                        item->pid, item->minimumQuantity, item->maximumQuantity, item->isEquipped);
+
+                    fprintf(debugStream,
+                        "        pid=%d, qty=%d-%d, equipped=%d\n",
+                        item->pid,
+                        item->minimumQuantity,
+                        item->maximumQuantity,
+                        item->isEquipped);
                 }
             }
         }
+
         fprintf(debugStream, "\n");
     }
 
+    fprintf(debugStream, "\n");
+}
+
+// Generate the combined worldmap mod data report.
+static void wmGenerateWorldmapModsDebug()
+{
+    char debugPath[COMPAT_MAX_PATH];
+
+    snprintf(debugPath, sizeof(debugPath),
+        "./data%clists%cworldmap_list.txt",
+        DIR_SEPARATOR, DIR_SEPARATOR);
+
+    FILE* debugStream = compat_fopen(debugPath, "wt");
+
+    if (debugStream == nullptr) {
+        debugPrint("\nwmGenerateWorldmapModsDebug: Could not create worldmap_list.txt");
+        return;
+    }
+
+    // Main report header
+    fprintf(debugStream,
+        "==============================================================================\n"
+        "                    FISSION - WORLDMAP MOD DATA REPORT\n"
+        "==============================================================================\n"
+        "Combined report of encounter tables, named encounters, and tile overrides.\n"
+        "Source files: worldmap.txt and data/worldmap_*.txt\n"
+        "==============================================================================\n\n");
+
+    // Section 1: Encounter tables
+    wmWriteEncounterTablesDebug(debugStream);
+
+    // Section 2: Named encounters
+    wmWriteNamedEncountersDebug(debugStream);
+
+    // Section 3: Tile overrides
+    wmWriteTileOverridesDebug(debugStream);
+
+    // Close the report once all sections have been written.
     fclose(debugStream);
-    debugPrint("\nwmGenerateNamedEncountersDebug: Generated named_encounters_list.txt");
+
+    debugPrint("\nwmGenerateWorldmapModsDebug: Generated worldmap_list.txt");
 }
 
 // 0x4BEF68
