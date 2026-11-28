@@ -58,6 +58,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/combat_ai.cc"
     "src/combat_ai.h"
     "src/combat_defs.h"
+    "src/combat_settings.cc"
+    "src/combat_settings.h"
     "src/combat.cc"
     "src/combat.h"
     "src/config.cc"

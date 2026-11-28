@@ -1,0 +1,194 @@
+; FISSION combat settings
+;
+; This file is the authoritative source for the values below.
+; If a key is missing, the built-in fallback is used.
+; Values outside the [min..max] shown for each key are clamped in code,
+; with a debug message written to the log.
+
+[combat]
+; To-hit modifier when aiming at a specific body part.
+; [min..max]
+hit_location_penalty_head=-40        ; [-200..200]
+hit_location_penalty_left_arm=-30    ; [-200..200]
+hit_location_penalty_right_arm=-30   ; [-200..200]
+hit_location_penalty_torso=0         ; [-200..200]
+hit_location_penalty_right_leg=-20   ; [-200..200]
+hit_location_penalty_left_leg=-20    ; [-200..200]
+hit_location_penalty_eyes=-60        ; [-200..200]
+hit_location_penalty_groin=-30       ; [-200..200]
+hit_location_penalty_uncalled=0      ; [-200..200]
+
+; To-hit modifier vs. non-dude critters per difficulty.
+difficulty_to_hit_easy=-20           ; [-100..0]
+difficulty_to_hit_hard=20            ; [0..100]
+
+; Damage percent vs. non-dude critters per difficulty.
+difficulty_damage_easy=75            ; [1..500]
+difficulty_damage_hard=125           ; [1..500]
+
+; Ranged perception multipliers. Higher = more forgiving at range.
+ranged_perception_long_range=4       ; [0..20]
+ranged_perception_scope=5            ; [0..20]
+ranged_perception_default=2          ; [0..20]
+scope_min_effective=8                ; [0..50]
+
+; Distance modifier multipliers for ranged attacks.
+ranged_distance_blind_mult=-12       ; [-50..0]
+ranged_distance_normal_mult=-4       ; [-50..0]
+
+; To-hit penalty per critter in the line of fire.
+lof_critter_penalty=10               ; [0..50]
+
+; One Hander trait.
+one_hander_two_handed_penalty=-40    ; [-200..0]
+one_hander_one_handed_bonus=20       ; [0..100]
+
+; Strength requirement penalty per point below minimum.
+min_strength_penalty=20              ; [0..100]
+
+; Bonus applied by Weapon Handling perk, in STR points.
+weapon_handling_bonus=3              ; [0..10]
+
+; Accurate perk bonus.
+accurate_bonus=20                    ; [0..100]
+
+; To-hit bonus against multihex critters.
+multihex_to_hit_bonus=15             ; [0..100]
+
+; Light bands and their to-hit penalties. Must be strictly increasing.
+light_threshold_1=26214              ; [0..65536]
+light_threshold_2=39321              ; [0..65536]
+light_threshold_3=52428              ; [0..65536]
+light_penalty_1=-40                  ; [-100..0]
+light_penalty_2=-25                  ; [-100..0]
+light_penalty_3=-10                  ; [-100..0]
+
+; Status to-hit modifiers.
+blind_to_hit_penalty=-25             ; [-100..0]
+knocked_to_hit_bonus=40              ; [0..100]
+
+; Maximum final to-hit chance.
+to_hit_cap=95                        ; [0..200]
+
+; DAM_BYPASS and Penetrate perk thresholds and modifiers.
+bypass_threshold_percent=20          ; [0..100]
+bypass_dr_percent=20                 ; [0..100]
+penetrate_threshold_percent=20       ; [0..100]
+finesse_dr_bonus=30                  ; [-100..100]
+
+; Perks.
+bonus_ranged_damage_per_rank=2       ; [0..20]
+living_anatomy_bonus=5               ; [0..100]
+pyromaniac_bonus=5                   ; [0..100]
+
+; Damage divisor. Must be >= 1.
+damage_divisor=2                     ; [1..20]
+
+; Knockback.
+knockback_divisor_default=10         ; [1..100]
+knockback_divisor_perk=5             ; [1..100]
+stonewall_chance=50                  ; [0..100]
+stonewall_divisor=2                  ; [1..20]
+
+; Ranged miss redirect.
+ranged_miss_accuracy_divisor=3       ; [1..100]
+ranged_miss_dead_chance=5            ; [0..100]
+
+; AI safety: reduce explosion radius for low-INT attackers.
+safety_int_threshold=5               ; [0..10]
+safety_radius_reduction=1            ; [0..10]
+
+[criticals]
+; Cumulative thresholds for critical-hit effects. Must be strictly increasing.
+effect_threshold_1=20                ; [0..100]
+effect_threshold_2=45                ; [0..100]
+effect_threshold_3=70                ; [0..100]
+effect_threshold_4=90                ; [0..100]
+effect_threshold_5=100               ; [0..100]
+
+; Cumulative thresholds for critical-failure effects. Must be strictly increasing.
+failure_threshold_1=20               ; [0..100]
+failure_threshold_2=50               ; [0..100]
+failure_threshold_3=75               ; [0..100]
+failure_threshold_4=95               ; [0..100]
+
+; Luck penalty per point below 5 for critical failure rolls.
+failure_luck_penalty=5               ; [0..20]
+
+; In-game days before the player can critically fail.
+player_grace_days=6                  ; [0..100]
+
+; Damage taken by the attacker on a self-harming critical failure.
+failure_self_damage_min=1            ; [0..100]
+failure_self_damage_max=5            ; [0..100]
+
+[ai]
+; HP % thresholds for run-away modes.
+; 0 = none, 1 = coward, 2 = finger_hurts, 3 = bleeding, 4 = not_feeling_good, 5 = tourniquet
+run_away_hp_0=0                      ; [0..100]
+run_away_hp_1=25                     ; [0..100]
+run_away_hp_2=40                     ; [0..100]
+run_away_hp_3=60                     ; [0..100]
+run_away_hp_4=75                     ; [0..100]
+run_away_hp_5=100                    ; [0..100]
+
+; Party member follow distance per distance preference.
+; 0 = stay_close, 1 = charge, 2 = snipe, 3 = on_your_own, 4 = stay
+party_distance_0=5                   ; [0..1000000]
+party_distance_1=7                   ; [0..1000000]
+party_distance_2=7                   ; [0..1000000]
+party_distance_3=7                   ; [0..1000000]
+party_distance_4=50000               ; [0..1000000]
+
+max_teammate_distance=5              ; [0..100]
+search_perception_bonus=5            ; [0..20]
+best_weapon_damage_diff=5            ; [0..100]
+reload_attempts=10                   ; [1..100]
+
+; Minimum INT required to attempt a called shot, per difficulty.
+called_shot_int_easy=7               ; [0..10]
+called_shot_int_normal=5             ; [0..10]
+called_shot_int_hard=3               ; [0..10]
+
+; To-hit required to use area attack mode, per mode.
+area_attack_to_hit_sure=85           ; [0..100]
+area_attack_to_hit_careful=50        ; [0..100]
+area_attack_to_hit_absolutely_sure=95 ; [0..100]
+
+; Secondary weapon mode gating.
+secondary_mode_int=6                 ; [0..10]
+secondary_mode_distance=10           ; [0..100]
+min_move_distance=1                  ; [0..100]
+
+; AP threshold divisor for "run" animation.
+run_ap_threshold_div=2               ; [1..10]
+
+; Friendly-fire avoidance.
+friendly_fire_int_penalty=2          ; [0..20]
+friendly_dead_distance=10            ; [0..100]
+
+; Perception distances.
+perception_sight_mult=5              ; [0..20]
+perception_combat_mult=2             ; [0..20]
+sneak_120_bonus=-1                   ; [-100..0]
+sneak_distance_div=4                 ; [1..20]
+sneaking_state_num=2                 ; [0..100]
+sneaking_state_den=3                 ; [1..100]
+trans_glass_div=2                    ; [1..20]
+
+[chem]
+; HP % thresholds for stim use per chem_use setting.
+stims_hurt_little_hp=60              ; [0..100]
+stims_hurt_lots_hp=30                ; [0..100]
+stims_hp=50                          ; [0..100]
+
+; Chance to use a non-stim drug per chem_use setting.
+sometimes_chance=25                  ; [0..100]
+anytime_chance=75                    ; [0..100]
+always_chance=100                    ; [0..100]
+
+; Maximum number of drugs picked per turn.
+random_drug_picks=3                  ; [1..32]
+
+; AP cost per drug consumed.
+ap_cost=2                            ; [0..100]
